@@ -13,8 +13,13 @@ describe('inputFromKeys', () => {
       brake: 0,
       steer: 1,
       handbrake: true,
+      reset: false,
     });
     expect(inputFromKeys(new Set(['KeyS', 'KeyA'])).steer).toBe(-1);
+  });
+
+  it('passes tick triggers through', () => {
+    expect(inputFromKeys(new Set(), new Set(['reset'])).reset).toBe(true);
   });
 
   it('cancels out opposite steering keys', () => {

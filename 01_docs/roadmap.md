@@ -23,9 +23,13 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
 3. ✅ **Easy arcade drift + tuning panel** — `drifting` state with hysteresis (Space + steer above
    a min speed), low grip + more yaw, capped slip angle (no spin-outs), progressive grip
    recovery; `dev/TuningPanel.ts` with `lil-gui` (dev-only, F2, "copy as code").
-4. **Test track + surfaces + collisions + reset** — `tracks/` (closed centerline + width),
-   `sim/surface.ts` (asphalt/grass), `sim/collision.ts` (circle vs wall segments, slide along),
-   `InputCommand.reset` (R), `view/TrackView.ts` built from the same data.
+4. **Test track + surfaces + collisions + reset**, split in two:
+   - 4a ✅ **Track, surfaces, kerbs, reset** — multi-car `GameState` + `SimContext`; `track/`
+     (spline → compiled `Track`, automatic low kerbs & gravel, declared high kerbs); per-wheel
+     surfaces (asphalt/kerb/highKerb/grass/gravel) with high-kerb kick via `spin`;
+     `InputCommand.reset` (R); `view/TrackView.ts`; "Test Ring" (~1.43 km). See `track.md`.
+   - 4b **Collisions + dev target car** — `sim/collision/`: 3-circle car colliders, one-sided
+     walls, car-vs-car, impulse solver with spin, impact events; parked dummy car (dev only).
 5. **Cameras** — `FirstPersonCamera.ts`, `CameraRig.ts` (toggle C, speed-based FOV).
 6. **HUD + laps** — `sim/laps.ts` (finish line + ordered checkpoints, times in ticks),
    `view/hud/Hud.ts` (speed, lap, last/best).

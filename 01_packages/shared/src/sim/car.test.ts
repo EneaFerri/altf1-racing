@@ -4,6 +4,7 @@ import { FIXED_DT, TICK_RATE } from '../config/sim';
 import { dot, forward, headingOf, length, right, scale } from '../math/vec2';
 import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
 import { createCar, slipAngle, stepCar, type CarState } from './car';
+import { NEUTRAL_SURFACE_EFFECT, type SurfaceEffect } from './surface';
 
 const THROTTLE: InputCommand = { ...NEUTRAL_INPUT, throttle: 1 };
 const BRAKE: InputCommand = { ...NEUTRAL_INPUT, brake: 1 };
@@ -84,6 +85,7 @@ describe('stepCar — purity', () => {
       brake: tick % 200 >= 180 ? 1 : 0,
       steer: Math.sin(tick / 40) > 0 ? 1 : -1,
       handbrake: tick % 300 > 200,
+      reset: false,
     });
     const simulate = (): CarState => {
       let car = createCar();
@@ -171,5 +173,53 @@ describe('stepCar — drift', () => {
     const car = run(rolling(20), { ...NEUTRAL_INPUT, handbrake: true }, 1);
     expect(car.drifting).toBe(false);
     expect(length(car.velocity)).toBeLessThan(20 - CAR_PARAMS.handbrakeDecel * 0.9);
+  });
+});
+
+describe('stepCar — surfaces and spin', () => {
+  const on = (effect: Partial<SurfaceEffect>): SurfaceEffect => ({
+    ...NEUTRAL_SURFACE_EFFECT,
+    ...effect,
+  });
+  const GRASS = on({ grip: 0.5, traction: 0.6, drag: 5 });
+  const GRAVEL = on({ grip: 0.35, traction: 0.4, drag: 14 });
+  const runOn = (car: CarState, input: InputCommand, seconds: number, surface: SurfaceEffect) => {
+    for (let i = 0; i < Math.round(seconds * TICK_RATE); i++)
+      car = stepCar(car, input, CAR_PARAMS, FIXED_DT, surface);
+    return car;
+  };
+
+  it('is slower on grass than on asphalt', () => {
+    const asphalt = runOn(createCar(), THROTTLE, 20, NEUTRAL_SURFACE_EFFECT);
+    const grass = runOn(createCar(), THROTTLE, 20, GRASS);
+    expect(length(grass.velocity)).toBeLessThan(length(asphalt.velocity) * 0.7);
+  });
+
+  it('gravel stops a coasting car sooner than grass', () => {
+    const moving: CarState = { ...createCar(), velocity: scale(forward(0), 30) };
+    const grass = runOn(moving, NEUTRAL_INPUT, 1.5, GRASS);
+    const gravel = runOn(moving, NEUTRAL_INPUT, 1.5, GRAVEL);
+    expect(length(gravel.velocity)).toBeLessThan(length(grass.velocity));
+  });
+
+  it('a spin kick rotates the car, then dies out', () => {
+    const moving: CarState = { ...createCar(), velocity: scale(forward(0), 30) };
+    const kicked = stepCar(moving, NEUTRAL_INPUT, CAR_PARAMS, FIXED_DT, on({ spinKick: 1 }));
+    expect(kicked.spin).toBeGreaterThan(0);
+    const later = run(kicked, NEUTRAL_INPUT, 3);
+    expect(later.heading).toBeGreaterThan(0.1);
+    expect(Math.abs(later.spin)).toBeLessThan(0.01);
+  });
+
+  it('a bump prevents drifting', () => {
+    const moving: CarState = { ...createCar(), velocity: scale(forward(0), 30) };
+    const car = stepCar(
+      moving,
+      { ...THROTTLE, steer: 1, handbrake: true },
+      CAR_PARAMS,
+      FIXED_DT,
+      on({ breaksDrift: true }),
+    );
+    expect(car.drifting).toBe(false);
   });
 });

@@ -10,6 +10,8 @@ export interface InputCommand {
   /** -1 (full left) .. 1 (full right) */
   steer: number;
   handbrake: boolean;
+  /** True for exactly one tick when the player asks to be put back on the track. */
+  reset: boolean;
 }
 
 export const NEUTRAL_INPUT: Readonly<InputCommand> = {
@@ -17,4 +19,5 @@ export const NEUTRAL_INPUT: Readonly<InputCommand> = {
   brake: 0,
   steer: 0,
   handbrake: false,
+  reset: false,
 };

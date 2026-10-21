@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CAR_WHEELS } from '@altf1/shared';
 import { createCheckerTexture, createLiveryTexture } from './pixelTexture';
 
 /** Interpolated car pose handed to the View each frame. */
@@ -54,14 +55,10 @@ export class CarView {
       this.object.add(mesh);
     }
 
-    // [x, z, width, steers]
-    const wheelSpecs: [number, number, number, boolean][] = [
-      [-0.95, -1.5, 0.4, true],
-      [0.95, -1.5, 0.4, true],
-      [-0.95, 1.4, 0.5, false],
-      [0.95, 1.4, 0.5, false],
-    ];
-    for (const [x, z, width, steers] of wheelSpecs) {
+    // Same contact points the simulation samples surfaces at (local -Z is forward).
+    for (const { ahead, side } of CAR_WHEELS) {
+      const steers = ahead > 0;
+      const width = steers ? 0.4 : 0.5;
       const wheel = new THREE.Mesh(
         new THREE.CylinderGeometry(WHEEL_RADIUS, WHEEL_RADIUS, width, 8),
         tyre,
@@ -69,7 +66,7 @@ export class CarView {
       wheel.rotation.order = 'ZXY';
       wheel.rotation.z = Math.PI / 2; // cylinder axis along X = the axle
       const pivot = new THREE.Group();
-      pivot.position.set(x, WHEEL_RADIUS, z);
+      pivot.position.set(side, WHEEL_RADIUS, -ahead);
       pivot.add(wheel);
       this.object.add(pivot);
       this.wheels.push(wheel);

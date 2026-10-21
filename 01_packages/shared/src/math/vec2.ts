@@ -14,6 +14,10 @@ export function add(a: Vec2, b: Vec2): Vec2 {
   return { x: a.x + b.x, z: a.z + b.z };
 }
 
+export function sub(a: Vec2, b: Vec2): Vec2 {
+  return { x: a.x - b.x, z: a.z - b.z };
+}
+
 export function scale(v: Vec2, s: number): Vec2 {
   return { x: v.x * s, z: v.z * s };
 }
@@ -22,8 +26,23 @@ export function dot(a: Vec2, b: Vec2): number {
   return a.x * b.x + a.z * b.z;
 }
 
+/** 2D cross product (z-component of the 3D cross): positive when `b` is counter-clockwise from `a` seen from above. */
+export function cross(a: Vec2, b: Vec2): number {
+  return a.z * b.x - a.x * b.z;
+}
+
 export function length(v: Vec2): number {
   return Math.hypot(v.x, v.z);
+}
+
+export function distance(a: Vec2, b: Vec2): number {
+  return Math.hypot(a.x - b.x, a.z - b.z);
+}
+
+/** Unit vector in the same direction, or ZERO for a zero-length vector. */
+export function normalize(v: Vec2): Vec2 {
+  const len = length(v);
+  return len > 0 ? { x: v.x / len, z: v.z / len } : ZERO;
 }
 
 export function lerp(a: Vec2, b: Vec2, t: number): Vec2 {
@@ -43,4 +62,9 @@ export function headingOf(v: Vec2): number {
 /** Unit vector to the car's right for a given heading. */
 export function right(heading: number): Vec2 {
   return { x: Math.cos(heading), z: -Math.sin(heading) };
+}
+
+/** World position of a point given in a car's local frame (`ahead` along forward, `side` along right). */
+export function toWorld(origin: Vec2, heading: number, ahead: number, side: number): Vec2 {
+  return add(origin, add(scale(forward(heading), ahead), scale(right(heading), side)));
 }

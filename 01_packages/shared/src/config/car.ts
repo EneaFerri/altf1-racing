@@ -51,6 +51,9 @@ export interface CarParams {
   driftExitGrip: number;
   /** Time to get full grip back after a drift (s). */
   driftRecoveryTime: number;
+
+  /** How quickly external spin (kerb kicks, impacts) dies out (1/s). */
+  spinDamping: number;
 }
 
 export const CAR_PARAMS: CarParams = {
@@ -79,4 +82,17 @@ export const CAR_PARAMS: CarParams = {
   driftDrag: 2,
   driftExitGrip: 2,
   driftRecoveryTime: 0.4,
+
+  spinDamping: 4,
 };
+
+/**
+ * Wheel contact points in the car's local frame (m): `ahead` along forward, `side` along right.
+ * Order: front-left, front-right, rear-left, rear-right. Shared by surface sampling and CarView.
+ */
+export const CAR_WHEELS = [
+  { ahead: 1.5, side: -0.95 },
+  { ahead: 1.5, side: 0.95 },
+  { ahead: -1.4, side: -0.95 },
+  { ahead: -1.4, side: 0.95 },
+] as const;

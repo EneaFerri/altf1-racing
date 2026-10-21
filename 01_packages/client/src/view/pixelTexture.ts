@@ -50,17 +50,7 @@ export function createGroundTexture(size = 16): THREE.Texture {
   return createPixelTexture(
     size,
     (ctx) => {
-      // Fixed-seed LCG: the pattern is identical on every load.
-      let seed = 1;
-      const random = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
-
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-          const shade = Math.floor(random() * 3);
-          ctx.fillStyle = ['#4f9a3a', '#56a540', '#4a9136'][shade]!;
-          ctx.fillRect(x, y, 1, 1);
-        }
-      }
+      fillNoise(ctx, size, ['#4f9a3a', '#56a540', '#4a9136'], 1);
       ctx.fillStyle = '#3e7d2e';
       ctx.fillRect(0, 0, size, 1);
       ctx.fillRect(0, 0, 1, size);
@@ -82,4 +72,77 @@ export function createLiveryTexture(size = 16): THREE.Texture {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, stripe, size, 2);
   });
+}
+
+/** Seeded noise so procedural textures look the same on every load. */
+function seededRandom(seed: number): () => number {
+  let state = seed;
+  return () => (state = (state * 16807) % 2147483647) / 2147483647;
+}
+
+function fillNoise(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  palette: readonly string[],
+  seed: number,
+): void {
+  const random = seededRandom(seed);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      ctx.fillStyle = palette[Math.floor(random() * palette.length)]!;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+}
+
+/** Asphalt across the full track width (U = left→right edge), with white edge lines. Repeats along V. */
+export function createAsphaltTexture(size = 32): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#4a4a4e', '#505055', '#45454a', '#55555a'], 7);
+      ctx.fillStyle = '#e8e8e8';
+      ctx.fillRect(0, 0, 1, size);
+      ctx.fillRect(size - 1, 0, 1, size);
+    },
+    true,
+  );
+}
+
+/** Kerb blocks along V: half `colorA`, half `colorB`. One texture repeat = two blocks. */
+export function createKerbTexture(colorA: string, colorB: string, size = 8): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      ctx.fillStyle = colorA;
+      ctx.fillRect(0, 0, size, size / 2);
+      ctx.fillStyle = colorB;
+      ctx.fillRect(0, size / 2, size, size / 2);
+    },
+    true,
+  );
+}
+
+export function createGravelTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => fillNoise(ctx, size, ['#d9c27a', '#cbb26a', '#e3cf8c', '#bfa560'], 3),
+    true,
+  );
+}
+
+/** Stacked tyres: black with white bands, repeating along the wall. */
+export function createTyreWallTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#1b1b1b', '#242424', '#202020'], 11);
+      ctx.fillStyle = '#f2f2f2';
+      ctx.fillRect(0, 3, size, 2);
+      ctx.fillRect(0, 11, size, 2);
+      ctx.fillStyle = '#0c0c0c';
+      ctx.fillRect(size / 2 - 1, 0, 1, size);
+    },
+    true,
+  );
 }

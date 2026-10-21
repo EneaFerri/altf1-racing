@@ -43,3 +43,17 @@
 ## 2026-10-21 — Dev tools via dynamic import
 
 - lil-gui is a devDependency, imported only inside `if (import.meta.env.DEV)` → zero cost in production.
+
+## 2026-10-21 — Multi-car state from step 4
+
+- `GameState.cars` (sorted by id) and `stepGame(state, { [carId]: input }, ctx)` before any opponent
+  exists: collisions, AI and networking will all plug into the same shape without refactors.
+- Static data (track, params) goes in `SimContext`, not in the state: cheap ticks, small snapshots.
+
+## 2026-10-21 — Tracks compiled from a spline, kerbs and gravel automatic
+
+- Hand-authoring only control points keeps layouts quick to edit; `buildTrack` derives samples,
+  kerbs (by curvature), gravel (outside tight corners), walls and grids deterministically.
+- Explicit data only where design intent matters: high kerbs (`highKerbs`).
+- Surfaces sampled per wheel and averaged, so half a car on the grass feels like half a penalty.
+- High kerbs kick via `CarState.spin`, the same channel impacts will use.

@@ -4,11 +4,22 @@ import {
   length,
   right,
   slipAngle,
+  type CarState,
   type GameState,
+  type Surface,
   type InputCommand,
 } from '@altf1/shared';
 
 const REFRESH_MS = 500;
+
+/** Short labels so four wheels fit on one line. Upper case = surfaces that cost grip. */
+const SURFACE_LABEL: Record<Surface, string> = {
+  asphalt: 'asp',
+  kerb: 'krb',
+  highKerb: 'HKB',
+  grass: 'GRS',
+  gravel: 'GRV',
+};
 
 /** Developer overlay (F3): tick, measured TPS/FPS, current input and car telemetry. */
 export class DebugOverlay {
@@ -39,8 +50,8 @@ export class DebugOverlay {
     this.element.hidden = !this.element.hidden;
   }
 
-  /** Call once per rendered frame. */
-  update(state: GameState, input: InputCommand): void {
+  /** Call once per rendered frame with the car to inspect (usually the player's). */
+  update(state: GameState, car: CarState, input: InputCommand): void {
     this.frames++;
     const now = performance.now();
     const elapsedMs = now - this.windowStartMs;
@@ -53,7 +64,6 @@ export class DebugOverlay {
     }
     if (this.element.hidden) return;
 
-    const { car } = state;
     const headingDeg = (car.heading * 180) / Math.PI;
     this.element.textContent = [
       `tick      ${state.tick}`,
@@ -71,8 +81,10 @@ export class DebugOverlay {
       `drift     ${car.drifting ? `DRIFT ${car.driftDirection > 0 ? 'right' : 'left'}` : 'off'}`,
       `slip      ${((slipAngle(car) * 180) / Math.PI).toFixed(0)}°`,
       `grip      ${(car.gripRecovery * 100).toFixed(0)}%`,
+      `spin      ${car.spin.toFixed(2)} rad/s`,
+      `wheels    ${car.wheelSurfaces.map((s) => SURFACE_LABEL[s]).join(' ')}  (FL FR RL RR)`,
       '',
-      'F2 tuning · F3 overlay',
+      'R reset · F2 tuning · F3 overlay',
     ].join('\n');
   }
 }

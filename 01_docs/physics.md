@@ -2,7 +2,8 @@
 
 Arcade kinematic model in `01_packages/shared/src/sim/car.ts`, parameters in
 `01_packages/shared/src/config/car.ts`. Pure and deterministic: `stepCar(car, input, params, dt)`
-runs once per fixed tick (60 Hz) and returns a new `CarState`. Each tick runs one of two modes:
+runs once per fixed tick (60 Hz) with the surface effect under the car (see [track.md](track.md))
+and returns a new `CarState`. Each tick runs one of two modes:
 **grip** (normal driving) or **drift**.
 
 ## Conventions
@@ -18,16 +19,19 @@ runs once per fixed tick (60 Hz) and returns a new `CarState`. Each tick runs on
 
 ## State
 
-| Field            | Meaning                                                               |
-| ---------------- | --------------------------------------------------------------------- |
-| `position`       | World position (m)                                                    |
-| `velocity`       | World velocity (m/s); may point away from `heading` while sliding     |
-| `heading`        | Facing angle (rad)                                                    |
-| `yawRate`        | Rotation speed applied in the last tick (rad/s)                       |
-| `steer`          | Smoothed steering −1..1                                               |
-| `drifting`       | Whether the drift mode is active                                      |
-| `driftDirection` | Side locked at drift start: 1 = right, −1 = left, 0 = not drifting    |
-| `gripRecovery`   | 0 right after a drift, back to 1 (full grip) over `driftRecoveryTime` |
+| Field            | Meaning                                                                                           |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
+| `id`             | Unique car id (`'player'`, later opponents / network players)                                     |
+| `position`       | World position (m)                                                                                |
+| `velocity`       | World velocity (m/s); may point away from `heading` while sliding                                 |
+| `heading`        | Facing angle (rad)                                                                                |
+| `yawRate`        | Steering-driven rotation speed applied in the last tick (rad/s)                                   |
+| `spin`           | Extra rotation from external kicks (high kerbs, later impacts), decays with `spinDamping` (rad/s) |
+| `steer`          | Smoothed steering −1..1                                                                           |
+| `drifting`       | Whether the drift mode is active                                                                  |
+| `driftDirection` | Side locked at drift start: 1 = right, −1 = left, 0 = not drifting                                |
+| `gripRecovery`   | 0 right after a drift, back to 1 (full grip) over `driftRecoveryTime`                             |
+| `wheelSurfaces`  | Surface under each wheel (FL, FR, RL, RR), sampled at the start of the last tick                  |
 
 ## Mode selection (every tick)
 
@@ -48,13 +52,14 @@ runs once per fixed tick (60 Hz) and returns a new `CarState`. Each tick runs on
 3. **Longitudinal (`vF`)**
    - Throttle: `vF += engineAccel · throttle · (1 − vF / maxSpeed) · dt`; if rolling backwards it brakes instead.
    - Brake: decelerates by `brakeDecel` while `vF > 0.3 m/s`, then engages reverse (`reverseAccel`, capped at `maxReverseSpeed`).
-   - No pedal: `coastDecel`. Always: air drag `airDrag · vF²`. Handbrake (when not drifting): `handbrakeDecel`.
-4. **Lateral grip** — `vL *= exp(−grip · dt)`, with `grip = lerp(driftExitGrip, lateralGrip, gripRecovery)`.
+   - No pedal: `coastDecel`. Always: air drag `airDrag · vF²` and the surface `drag`. Handbrake (when not drifting): `handbrakeDecel`.
+   - Thrust and braking are multiplied by the surface `traction`.
+4. **Lateral grip** — `vL *= exp(−grip · dt)`, with `grip = lerp(driftExitGrip, lateralGrip, gripRecovery) · surface.grip`.
 5. **Yaw** — `yawRate = −steer · maxYawRate · lowSpeed · highSpeed · sign(vF)`
    - `lowSpeed = min(1, |vF| / fullTurnSpeed)` → no turning on the spot.
    - `highSpeed = 1 − highSpeedSteerLoss · |vF| / maxSpeed` → calmer steering when fast.
    - `sign(vF)` → steering is inverted in reverse, like a real car.
-6. **Integrate** — new heading (wrapped to (−π, π]), velocity recomposed from `vF`/`vL`, `position += velocity · dt`.
+6. **Integrate** — `heading += (yawRate + spin) · dt` (wrapped to (−π, π]), velocity recomposed from `vF`/`vL`, `position += velocity · dt`.
 7. **Drift exit bonus** — while `gripRecovery < 1`, the velocity is rescaled to keep the speed the car
    had before grip removed the sideways part: straightening after a drift costs no speed.
 
@@ -74,10 +79,23 @@ physics. It works on the direction of travel and the slip angle directly:
    The heading is then `travel − driftDirection · slip`.
    The slip itself is smoothed, not the heading: a heading that chases a still-turning target
    always lags behind and never reaches the wanted angle.
-4. **Speed** — same `longitudinal()` as grip mode (throttle, brake, drag) minus `driftDrag`.
+4. **Speed** — same `longitudinal()` as grip mode (throttle, brake, drag, surface) minus `driftDrag`.
+   You can drift on grass, but its drag slows you down fast.
 
 **Why a spin-out is impossible:** the slip is always between `driftAngle − range` and
 `driftAngle + range` (≈ 12°–40°), whatever the input. A test checks this over 5 s of drifting.
+
+## Surfaces, spin and reset
+
+- **Surface effect** (`sim/surface.ts`): before each `stepCar`, the four wheels' surfaces are averaged
+  into `{ grip, traction, drag, spinKick, breaksDrift }`. Values and rules: [track.md](track.md#surfaces-configsurfacests--surface_params).
+- **Spin**: `spin = (spin + spinKick) · exp(−spinDamping · dt)`. In grip mode it rotates the heading
+  on top of steering; velocity is unchanged, so the car is knocked off-line and grip pulls it back.
+  In drift mode it only decays (strong kicks end the drift anyway).
+- **High kerbs** (`breaksDrift`): a wheel climbing onto one forces grip mode for that tick, so a
+  drift can't survive cutting the chicane.
+- **Reset** (`InputCommand.reset`, R): handled in `stepGame`, not `stepCar` — the car is placed at
+  the closest centreline point, facing the driving direction, at rest (`createCar` with the same id).
 
 ## Parameters
 
@@ -107,6 +125,7 @@ physics. It works on the direction of travel and the slip angle directly:
 | `driftDrag`            | 2      | m/s²  | Drifting costs more speed                                |
 | `driftExitGrip`        | 2      | 1/s   | Grip right after a drift (lower = longer "slide out")    |
 | `driftRecoveryTime`    | 0.4    | s     | Slower return to full grip                               |
+| `spinDamping`          | 4      | 1/s   | External spin (kerb kicks, impacts) dies out faster      |
 
 The dev tuning panel (F2, see [architecture.md](architecture.md#dev-tools)) edits all of these live.
 
