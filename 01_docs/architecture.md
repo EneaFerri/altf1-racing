@@ -15,7 +15,8 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 ## Model — `01_packages/shared`
 
 - Plain data (`GameState`, `CarState`, `InputCommand`) + pure functions.
-- `stepGame(state, input, params = CAR_PARAMS)` → `stepCar` per car. Physics, units and axis
+- `stepGame(state, input, params = CAR_PARAMS)` → `stepCar` per car. `Game` owns a live copy of
+  the params and passes it every tick, so tuning never touches Model code. Physics, units and axis
   conventions: [physics.md](physics.md).
 - Advances only in fixed ticks (`TICK_RATE` = 60 Hz, `FIXED_DT`) → deterministic and testable.
 - Must not import `three` or touch the DOM (ESLint rule in `eslint.config.js`).
@@ -31,8 +32,9 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 ## Controller — `01_packages/client/src/controller`
 
 - `bindings.ts`: key map + pure `inputFromKeys()`; `KeyboardController` samples it once per tick.
-- Bindings (now): W throttle · S brake/reverse · A/D steer · Space handbrake · F3 debug overlay.
-  Planned: C camera · R reset · F2 tuning panel.
+- Bindings (now): W throttle · S brake/reverse · A/D steer · Space handbrake/drift · F2 tuning panel (dev) · F3 debug overlay.
+  Planned: C camera · R reset.
+- Keys are ignored while a text field has focus (e.g. typing a value in the tuning panel).
 - One-shot actions (`ACTION_KEYS`) trigger callbacks and never enter the simulation.
 - In multiplayer, the same `InputCommand`s are what gets sent to the server.
 
@@ -41,3 +43,13 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 - `GameLoop`: fixed-timestep accumulator for the simulation, frames clamped to 0.25 s; rendering runs
   at display rate with `render(alpha, frameSeconds)`.
 - Browser-specific APIs are isolated in `core/` so a desktop wrapper (Tauri/Electron) stays easy.
+
+## Dev tools — `01_packages/client/src/dev`
+
+- Development-only helpers, loaded with a dynamic `import()` **inside** `if (import.meta.env.DEV)` in
+  `Game`. In production that condition is the constant `false`, so the bundler drops the code and its
+  dependencies (verified: no lil-gui in the build output). Keeping the `import()` inside the `if`
+  matters: moved to a separate method, Vite would still emit the chunk.
+- `TuningPanel` (F2): lil-gui sliders for every `CarParams` value, grouped as Engine & brakes /
+  Steering & grip / Drift. Mutates `Game`'s live params; **Copy as code** logs (and copies to the
+  clipboard when available) a ready-to-paste `CAR_PARAMS`; **Reset to defaults** restores `config/car.ts`.

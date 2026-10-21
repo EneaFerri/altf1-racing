@@ -1,4 +1,12 @@
-import { dot, forward, length, right, type GameState, type InputCommand } from '@altf1/shared';
+import {
+  dot,
+  forward,
+  length,
+  right,
+  slipAngle,
+  type GameState,
+  type InputCommand,
+} from '@altf1/shared';
 
 const REFRESH_MS = 500;
 
@@ -60,8 +68,11 @@ export class DebugOverlay {
       `vF / vL   ${dot(car.velocity, forward(car.heading)).toFixed(1)} / ${dot(car.velocity, right(car.heading)).toFixed(1)} m/s`,
       `heading   ${headingDeg.toFixed(0)}°`,
       `steer     ${car.steer.toFixed(2)} (smoothed)`,
+      `drift     ${car.drifting ? `DRIFT ${car.driftDirection > 0 ? 'right' : 'left'}` : 'off'}`,
+      `slip      ${((slipAngle(car) * 180) / Math.PI).toFixed(0)}°`,
+      `grip      ${(car.gripRecovery * 100).toFixed(0)}%`,
       '',
-      'F3 toggle',
+      'F2 tuning · F3 overlay',
     ].join('\n');
   }
 }

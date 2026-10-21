@@ -13,6 +13,7 @@ export const DRIVE_KEYS = {
 
 /** One-shot actions fired on key press. They never reach the simulation. */
 export const ACTION_KEYS = {
+  toggleTuning: ['F2'],
   toggleDebug: ['F3'],
 } as const satisfies Record<string, readonly string[]>;
 

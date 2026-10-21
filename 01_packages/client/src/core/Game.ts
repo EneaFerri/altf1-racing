@@ -1,7 +1,9 @@
 import {
+  CAR_PARAMS,
   createGame,
   NEUTRAL_INPUT,
   stepGame,
+  type CarParams,
   type GameState,
   type InputCommand,
 } from '@altf1/shared';
@@ -16,6 +18,8 @@ export class Game {
   /** State before the last tick, kept so the View can interpolate between the two. */
   private prevState: GameState = this.state;
   private lastInput: InputCommand = NEUTRAL_INPUT;
+  /** Live handling values fed to the simulation; the dev tuning panel edits this copy. */
+  private readonly params: CarParams = { ...CAR_PARAMS };
 
   private readonly controller = new KeyboardController();
   private readonly view = new SceneView();
@@ -27,6 +31,14 @@ export class Game {
 
   constructor() {
     this.controller.onAction('toggleDebug', () => this.debugOverlay.toggle());
+    // Dev tools (and lil-gui) are dynamically imported inside this block so that
+    // production builds, where the condition is a constant `false`, drop them entirely.
+    if (import.meta.env.DEV) {
+      void import('../dev/TuningPanel').then(({ TuningPanel }) => {
+        const panel = new TuningPanel(this.params);
+        this.controller.onAction('toggleTuning', () => panel.toggle());
+      });
+    }
   }
 
   start(): void {
@@ -36,7 +48,7 @@ export class Game {
   private tick(): void {
     this.lastInput = this.controller.sample();
     this.prevState = this.state;
-    this.state = stepGame(this.state, this.lastInput);
+    this.state = stepGame(this.state, this.lastInput, this.params);
   }
 
   private render(alpha: number, frameSeconds: number): void {

@@ -9,11 +9,15 @@ export interface CarPose {
   readonly steer: number;
   /** Signed forward speed (m/s), used to spin the wheels. */
   readonly forwardSpeed: number;
+  /** Slip angle (rad), used to lean the body outwards in slides. */
+  readonly slip: number;
 }
 
 const WHEEL_RADIUS = 0.36;
 /** Visual front-wheel angle at full lock (rad). Purely cosmetic. */
 const MAX_WHEEL_STEER = 0.4;
+/** Body roll per radian of slip. Purely cosmetic (~4° at max drift angle). */
+const ROLL_PER_SLIP = 0.1;
 
 /**
  * Low-poly F1 car built from boxes, in local space: forward is -Z, right is +X, up is +Y,
@@ -76,6 +80,8 @@ export class CarView {
   update(pose: CarPose, frameSeconds: number): void {
     this.object.position.set(pose.x, 0, pose.z);
     this.object.rotation.y = pose.heading;
+    // Euler order XYZ applies roll (local Z) before yaw: the car leans to the outside of the slide.
+    this.object.rotation.z = pose.slip * ROLL_PER_SLIP;
 
     // Steering right (+) turns the wheels clockwise seen from above (negative Y rotation).
     for (const pivot of this.frontPivots) pivot.rotation.y = -pose.steer * MAX_WHEEL_STEER;

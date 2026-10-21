@@ -28,6 +28,29 @@ export interface CarParams {
   highSpeedSteerLoss: number;
   /** How quickly sideways sliding is killed (1/s). Higher = more grip. */
   lateralGrip: number;
+
+  /** Deceleration from the handbrake when not drifting (m/s²). */
+  handbrakeDecel: number;
+  /** Forward speed needed to start a drift (m/s). */
+  driftMinSpeed: number;
+  /** A drift ends when speed drops below this (m/s). Lower than driftMinSpeed for hysteresis. */
+  driftExitSpeed: number;
+  /** How fast the direction of travel turns while drifting (rad/s). */
+  driftTurnRate: number;
+  /** How much steering tightens (into the drift) or widens (countersteer) the turn, 0..1. */
+  driftSteerInfluence: number;
+  /** Slip angle with neutral steering (rad). */
+  driftAngle: number;
+  /** Steering moves the slip angle by up to ± this (rad). Max slip = driftAngle + driftAngleSteerRange. */
+  driftAngleSteerRange: number;
+  /** How quickly the nose swings to the target slip angle (1/s). */
+  driftRotateStiffness: number;
+  /** Speed lost per second while drifting (m/s²). */
+  driftDrag: number;
+  /** Lateral grip right after a drift ends (1/s); recovers to lateralGrip over driftRecoveryTime. */
+  driftExitGrip: number;
+  /** Time to get full grip back after a drift (s). */
+  driftRecoveryTime: number;
 }
 
 export const CAR_PARAMS: CarParams = {
@@ -40,8 +63,20 @@ export const CAR_PARAMS: CarParams = {
   airDrag: 0.0005,
   steerSpeed: 4,
   steerReturnSpeed: 6,
-  maxYawRate: 2.2,
+  maxYawRate: 1.6,
   fullTurnSpeed: 8,
-  highSpeedSteerLoss: 0.5,
-  lateralGrip: 8,
+  highSpeedSteerLoss: 0.6,
+  lateralGrip: 6,
+
+  handbrakeDecel: 6,
+  driftMinSpeed: 12,
+  driftExitSpeed: 8,
+  driftTurnRate: 1.5,
+  driftSteerInfluence: 0.4,
+  driftAngle: 0.45,
+  driftAngleSteerRange: 0.25,
+  driftRotateStiffness: 6,
+  driftDrag: 2,
+  driftExitGrip: 2,
+  driftRecoveryTime: 0.4,
 };

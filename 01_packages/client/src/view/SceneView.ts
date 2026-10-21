@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { dot, forward, lerp, lerpAngle, type GameState } from '@altf1/shared';
+import { dot, forward, lerp, lerpAngle, slipAngle, type GameState } from '@altf1/shared';
 import { ChaseCamera } from './cameras/ChaseCamera';
 import { CarView, type CarPose } from './CarView';
 import { createGroundTexture } from './pixelTexture';
@@ -50,6 +50,7 @@ function interpolateCar(prev: GameState, curr: GameState, alpha: number): CarPos
     heading,
     steer: prev.car.steer + (curr.car.steer - prev.car.steer) * alpha,
     forwardSpeed: dot(curr.car.velocity, forward(curr.car.heading)),
+    slip: slipAngle(prev.car) + (slipAngle(curr.car) - slipAngle(prev.car)) * alpha,
   };
 }
 

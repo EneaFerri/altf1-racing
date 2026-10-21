@@ -31,3 +31,15 @@
   directly by steering and speed. Few, intuitive parameters (see physics.md), easy to tune for fun.
 - A tyre/slip-curve model (Pacejka-style) would be more realistic but harder to tune and to make drift "easy".
 - Steering smoothing lives in the Model, so the server reproduces it exactly.
+
+## 2026-10-21 — Kinematic drift with locked direction
+
+- The drift directly controls the travel direction's turn rate and a bounded slip angle; the side
+  is locked on entry. Spin-outs are impossible by construction; steering only tightens or widens.
+- Chosen by the owner: "easy arcade" (Mario Kart / Ridge Racer) over a slide you must catch.
+- Normal grip was toned down (yaw 2.2→1.6, grip 8→6) so drifting is the faster line at high speed.
+- Exiting a drift keeps the car's speed (arcade reward), instead of grip eating the sideways part.
+
+## 2026-10-21 — Dev tools via dynamic import
+
+- lil-gui is a devDependency, imported only inside `if (import.meta.env.DEV)` → zero cost in production.

@@ -20,7 +20,7 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
    (forward/lateral split, throttle curve, brake → reverse, drag, steering smoothed in the Model,
    speed-dependent yaw, lateral grip), `math/`, `view/CarView.ts` (low-poly box car),
    `view/cameras/ChaseCamera.ts`, `01_docs/physics.md`. Tests incl. determinism.
-3. **Easy arcade drift + tuning panel** — `drifting` state with hysteresis (Space + steer above
+3. ✅ **Easy arcade drift + tuning panel** — `drifting` state with hysteresis (Space + steer above
    a min speed), low grip + more yaw, capped slip angle (no spin-outs), progressive grip
    recovery; `dev/TuningPanel.ts` with `lil-gui` (dev-only, F2, "copy as code").
 4. **Test track + surfaces + collisions + reset** — `tracks/` (closed centerline + width),

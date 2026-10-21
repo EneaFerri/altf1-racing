@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { CAR_PARAMS } from '../config/car';
 import { FIXED_DT, TICK_RATE } from '../config/sim';
-import { dot, forward, length, right, scale } from '../math/vec2';
+import { dot, forward, headingOf, length, right, scale } from '../math/vec2';
 import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
-import { createCar, stepCar, type CarState } from './car';
+import { createCar, slipAngle, stepCar, type CarState } from './car';
 
 const THROTTLE: InputCommand = { ...NEUTRAL_INPUT, throttle: 1 };
 const BRAKE: InputCommand = { ...NEUTRAL_INPUT, brake: 1 };
@@ -83,7 +83,7 @@ describe('stepCar — purity', () => {
       throttle: tick % 200 < 150 ? 1 : 0,
       brake: tick % 200 >= 180 ? 1 : 0,
       steer: Math.sin(tick / 40) > 0 ? 1 : -1,
-      handbrake: false,
+      handbrake: tick % 300 > 200,
     });
     const simulate = (): CarState => {
       let car = createCar();
@@ -92,5 +92,84 @@ describe('stepCar — purity', () => {
       return car;
     };
     expect(simulate()).toEqual(simulate());
+  });
+});
+
+describe('stepCar — drift', () => {
+  const DRIFT_RIGHT: InputCommand = { ...THROTTLE, steer: 1, handbrake: true };
+  const MAX_SLIP = CAR_PARAMS.driftAngle + CAR_PARAMS.driftAngleSteerRange;
+  /** Car already rolling straight ahead at `speed` m/s. */
+  const rolling = (speed: number): CarState => ({
+    ...createCar(),
+    velocity: scale(forward(0), speed),
+  });
+
+  it('starts with handbrake + steer above driftMinSpeed', () => {
+    const car = stepCar(rolling(20), DRIFT_RIGHT, CAR_PARAMS, FIXED_DT);
+    expect(car.drifting).toBe(true);
+    expect(car.driftDirection).toBe(1);
+  });
+
+  it('does not start below driftMinSpeed', () => {
+    const car = stepCar(rolling(CAR_PARAMS.driftMinSpeed - 2), DRIFT_RIGHT, CAR_PARAMS, FIXED_DT);
+    expect(car.drifting).toBe(false);
+  });
+
+  it('keeps the slip angle bounded: no spin-out', () => {
+    let car = rolling(30);
+    let maxSlip = 0;
+    for (let i = 0; i < 5 * TICK_RATE; i++) {
+      car = stepCar(car, DRIFT_RIGHT, CAR_PARAMS, FIXED_DT);
+      maxSlip = Math.max(maxSlip, Math.abs(slipAngle(car)));
+    }
+    expect(car.drifting).toBe(true);
+    expect(maxSlip).toBeGreaterThan(CAR_PARAMS.driftAngle);
+    expect(maxSlip).toBeLessThanOrEqual(MAX_SLIP + 1e-6);
+  });
+
+  it('countersteering gives a smaller slip angle than steering into the drift', () => {
+    const entered = run(rolling(30), DRIFT_RIGHT, 0.2);
+    const into = run(entered, DRIFT_RIGHT, 2);
+    const counter = run(entered, { ...DRIFT_RIGHT, steer: -1 }, 2);
+    expect(counter.drifting).toBe(true);
+    expect(Math.abs(slipAngle(counter))).toBeLessThan(Math.abs(slipAngle(into)));
+  });
+
+  it('releasing the handbrake ends the drift and straightens the car', () => {
+    const drifting = run(rolling(30), DRIFT_RIGHT, 2);
+    const released = run(drifting, THROTTLE, 1.5);
+    expect(released.drifting).toBe(false);
+    expect(Math.abs(slipAngle(released))).toBeLessThan(0.05);
+  });
+
+  it('keeps most of its speed with throttle', () => {
+    const drifting = run(rolling(30), DRIFT_RIGHT, 2);
+    expect(length(drifting.velocity)).toBeGreaterThan(30 * 0.85);
+  });
+
+  it('keeps its speed when grip comes back after the drift', () => {
+    const drifting = run(rolling(30), DRIFT_RIGHT, 2);
+    const released = run(drifting, THROTTLE, 1);
+    expect(length(released.velocity)).toBeGreaterThanOrEqual(length(drifting.velocity) * 0.95);
+  });
+
+  it('turns tighter than grip driving at high speed', () => {
+    const fast = rolling(150 / 3.6);
+    const grip = run(fast, { ...THROTTLE, steer: 1 }, 1);
+    const drift = run(fast, DRIFT_RIGHT, 1);
+    const travelChange = (car: CarState): number => Math.abs(headingOf(car.velocity));
+    expect(travelChange(drift)).toBeGreaterThan(travelChange(grip));
+  });
+
+  it('ends when braking below driftExitSpeed', () => {
+    const drifting = run(rolling(20), DRIFT_RIGHT, 0.5);
+    const braked = run(drifting, { ...BRAKE, steer: 1, handbrake: true }, 3);
+    expect(braked.drifting).toBe(false);
+  });
+
+  it('handbrake without steering just slows the car', () => {
+    const car = run(rolling(20), { ...NEUTRAL_INPUT, handbrake: true }, 1);
+    expect(car.drifting).toBe(false);
+    expect(length(car.velocity)).toBeLessThan(20 - CAR_PARAMS.handbrakeDecel * 0.9);
   });
 });

@@ -30,6 +30,8 @@ export class KeyboardController {
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
+    // Typing a value into a field (e.g. the tuning panel) must not drive the car.
+    if (isTextField(event.target)) return;
     if (DRIVE_CODES.has(event.code)) {
       event.preventDefault(); // e.g. Space would scroll the page
       this.held.add(event.code);
@@ -54,5 +56,13 @@ export class KeyboardController {
 function actionForCode(code: string): ActionName | undefined {
   return (Object.keys(ACTION_KEYS) as ActionName[]).find((action) =>
     (ACTION_KEYS[action] as readonly string[]).includes(code),
+  );
+}
+
+function isTextField(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
   );
 }

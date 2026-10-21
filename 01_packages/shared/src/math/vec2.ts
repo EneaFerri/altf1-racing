@@ -35,6 +35,11 @@ export function forward(heading: number): Vec2 {
   return { x: -Math.sin(heading), z: -Math.cos(heading) };
 }
 
+/** Heading that `forward()` would map to this vector's direction. Inverse of `forward`. */
+export function headingOf(v: Vec2): number {
+  return Math.atan2(-v.x, -v.z);
+}
+
 /** Unit vector to the car's right for a given heading. */
 export function right(heading: number): Vec2 {
   return { x: Math.cos(heading), z: -Math.sin(heading) };
