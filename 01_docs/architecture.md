@@ -33,13 +33,14 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 - `TrackView` builds asphalt, kerbs, high kerbs, gravel, tyre walls and the start line from the same
   compiled `Track` the physics uses. Planned: first-person camera + toggle (step 5), HUD (step 6).
 - `frameSeconds` is used only for visual smoothing (camera, wheel spin), never for gameplay.
-- Pixel look: tiny textures with `NearestFilter`, no antialiasing. Optional low-res render pass (off by default).
+- Pixel look: tiny textures with `NearestFilter`, no antialiasing, full-resolution render. A low-res
+  render pass (whole scene pixelated) is not implemented; it remains a possible later option.
 
 ## Controller — `01_packages/client/src/controller`
 
 - `bindings.ts`: key map + pure `inputFromKeys()`; `KeyboardController` samples it once per tick.
-- Bindings (now): W throttle · S brake/reverse · A/D steer · Space handbrake/drift · R reset ·
-  F2 tuning panel (dev) · F3 debug overlay. Planned: C camera.
+- Bindings (now): W throttle · S or C brake/reverse · A/D steer · Space handbrake/drift · R reset ·
+  F2 tuning panel (dev) · F3 debug overlay. Planned: V camera.
 - Three kinds of keys: **drive keys** (held, sampled per tick), **tick triggers** (`TICK_TRIGGER_KEYS`,
   e.g. R: pressed once, delivered as `InputCommand.reset = true` for exactly one tick, so the
   simulation handles them and they can travel over the network) and **actions** (below).
@@ -51,7 +52,9 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 
 - `GameLoop`: fixed-timestep accumulator for the simulation, frames clamped to 0.25 s; rendering runs
   at display rate with `render(alpha, frameSeconds)`.
-- Browser-specific APIs are isolated in `core/` so a desktop wrapper (Tauri/Electron) stays easy.
+- Browser APIs (`window`, `document`, `requestAnimationFrame`, `performance`) are used only in the
+  `client` package; `shared` has none (enforced by ESLint). The client is a plain web page, so a desktop
+  wrapper (Tauri/Electron) can load it unchanged.
 
 ## Dev tools — `01_packages/client/src/dev`
 

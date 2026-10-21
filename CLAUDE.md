@@ -72,4 +72,4 @@ npm run build      # production build of the client
 
 ## Current status
 
-Phase 1, step 4a done (test track, surfaces & kerbs, reset, multi-car state). Next: step 4b, collisions (walls + car-vs-car) and a dev-only target car (see roadmap).
+Phase 1, step 4a + interlude done (wide variable-width track ≥ 24 m with new layout, smoother steering and drift, C brake). Next: step 4b, collisions (walls + car-vs-car) and a dev-only target car (see roadmap).

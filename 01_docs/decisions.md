@@ -57,3 +57,34 @@
 - Explicit data only where design intent matters: high kerbs (`highKerbs`).
 - Surfaces sampled per wheel and averaged, so half a car on the grass feels like half a penalty.
 - High kerbs kick via `CarState.spin`, the same channel impacts will use.
+
+## 2026-10-21 — Wider track (≥ 24 m) and a new layout
+
+- Owner feedback after 4a: the 12 m track was too narrow for the car. Asphalt is now **variable
+  width, never below 24 m** (`TRACK_RULES.minWidth`, enforced by `buildTrack`); width is set per
+  control point and eased along the spline.
+- The old layout could not simply be widened (chicane/hairpin inner walls would fold, sections would
+  overlap), so the owner chose a **new layout designed for the size** (~1.94 km, 24–32 m), keeping
+  the same sequence of features: long straight, hairpin, chicane with high kerbs, sweeper,
+  double-apex, kink, final corner.
+
+## 2026-10-21 — Smoother steering and drift
+
+- Owner feedback: A/D turning felt abrupt, drifts too sudden and off-line.
+- `yawRate` now has **inertia** (`yawResponse`); the steering ramp is gentler but full-lock yaw is a
+  bit higher (`maxYawRate` 1.8) → slightly sharper but fluid corners.
+- Drift **blends from the current turn rate** (`driftTurnResponse`) instead of jumping to its own,
+  and holds the nose closer to the travel direction (20° neutral, 30° max, built up over ~0.7 s).
+
+## 2026-10-21 — C brakes too; camera moves to V
+
+- C added as a second brake key for comfort. The planned camera toggle (step 5) moves from C to V
+  (owner's choice), the usual view key in racing games.
+
+## 2026-10-22 — Audit cleanup
+
+- Removed unused code (`cross()`, `GameLoop.stop()`, `KeyboardController.dispose()`, phase-0 texture
+  defaults and smoke test, obsolete `.vite/` ignore). They come back only when something uses them.
+- `Surface` moved to `track/types.ts` so `config/` no longer depends on query code.
+- Vite `chunkSizeWarningLimit` raised to 700 kB: Three.js alone is ~530 kB and can't be split further,
+  so the default warning was permanent noise.

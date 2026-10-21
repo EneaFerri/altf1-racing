@@ -223,3 +223,42 @@ describe('stepCar — surfaces and spin', () => {
     expect(car.drifting).toBe(false);
   });
 });
+
+describe('stepCar — smoothness', () => {
+  const SPEED = 30;
+  const rolling: CarState = { ...createCar(), velocity: scale(forward(0), SPEED) };
+  /** Steady-state yaw rate for full right lock at SPEED, as stepCar computes its target. */
+  const steadyYaw =
+    CAR_PARAMS.maxYawRate * (1 - (CAR_PARAMS.highSpeedSteerLoss * SPEED) / CAR_PARAMS.maxSpeed);
+  const FULL_RIGHT: InputCommand = { ...THROTTLE, steer: 1 };
+
+  it('yaw builds up progressively instead of jumping with the steering', () => {
+    const lockedSteer: CarState = { ...rolling, steer: 1 };
+    const oneTick = stepCar(lockedSteer, FULL_RIGHT, CAR_PARAMS, FIXED_DT);
+    expect(Math.abs(oneTick.yawRate)).toBeLessThan(steadyYaw * 0.2);
+    const halfSecond = run(lockedSteer, FULL_RIGHT, 0.5);
+    expect(Math.abs(halfSecond.yawRate)).toBeGreaterThan(steadyYaw * 0.9);
+  });
+
+  it('yaw winds down progressively when the steering is released', () => {
+    const turning = run(rolling, FULL_RIGHT, 1);
+    const released = stepCar(turning, THROTTLE, CAR_PARAMS, FIXED_DT);
+    expect(Math.abs(released.yawRate)).toBeGreaterThan(Math.abs(turning.yawRate) * 0.8);
+    expect(Math.abs(run(turning, THROTTLE, 1.5).yawRate)).toBeLessThan(0.02);
+  });
+
+  it('a drift continues the current turn instead of snapping to a new one', () => {
+    const turning = run(rolling, FULL_RIGHT, 1);
+    const entered = stepCar(turning, { ...FULL_RIGHT, handbrake: true }, CAR_PARAMS, FIXED_DT);
+    expect(entered.drifting).toBe(true);
+    expect(Math.abs(entered.yawRate - turning.yawRate)).toBeLessThan(0.1);
+  });
+
+  it('the drift angle builds up gradually', () => {
+    const target = CAR_PARAMS.driftAngle + CAR_PARAMS.driftAngleSteerRange;
+    const drift: InputCommand = { ...FULL_RIGHT, handbrake: true };
+    const lockedSteer: CarState = { ...rolling, steer: 1 };
+    expect(Math.abs(slipAngle(run(lockedSteer, drift, 0.1)))).toBeLessThan(target * 0.5);
+    expect(Math.abs(slipAngle(run(lockedSteer, drift, 2)))).toBeCloseTo(target, 1);
+  });
+});

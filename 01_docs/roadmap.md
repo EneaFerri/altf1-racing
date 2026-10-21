@@ -21,16 +21,18 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
    speed-dependent yaw, lateral grip), `math/`, `view/CarView.ts` (low-poly box car),
    `view/cameras/ChaseCamera.ts`, `01_docs/physics.md`. Tests incl. determinism.
 3. ✅ **Easy arcade drift + tuning panel** — `drifting` state with hysteresis (Space + steer above
-   a min speed), low grip + more yaw, capped slip angle (no spin-outs), progressive grip
-   recovery; `dev/TuningPanel.ts` with `lil-gui` (dev-only, F2, "copy as code").
+   a min speed), kinematic drift (direction locked, controlled travel turn rate, bounded slip angle:
+   no spin-outs), progressive grip recovery; `dev/TuningPanel.ts` with `lil-gui` (dev-only, F2, "copy as code").
 4. **Test track + surfaces + collisions + reset**, split in two:
    - 4a ✅ **Track, surfaces, kerbs, reset** — multi-car `GameState` + `SimContext`; `track/`
      (spline → compiled `Track`, automatic low kerbs & gravel, declared high kerbs); per-wheel
      surfaces (asphalt/kerb/highKerb/grass/gravel) with high-kerb kick via `spin`;
-     `InputCommand.reset` (R); `view/TrackView.ts`; "Test Ring" (~1.43 km). See `track.md`.
+     `InputCommand.reset` (R); `view/TrackView.ts`; "Test Ring" (~1.43 km, replaced by the ~1.94 km layout in the interlude). See `track.md`.
+   - ✅ **Interlude (owner feedback)** — track ≥ 24 m with variable width and a new ~1.94 km layout;
+     yaw inertia and blended, more in-line drift; C as second brake key (camera moves to V).
    - 4b **Collisions + dev target car** — `sim/collision/`: 3-circle car colliders, one-sided
      walls, car-vs-car, impulse solver with spin, impact events; parked dummy car (dev only).
-5. **Cameras** — `FirstPersonCamera.ts`, `CameraRig.ts` (toggle C, speed-based FOV).
+5. **Cameras** — `FirstPersonCamera.ts`, `CameraRig.ts` (toggle V, speed-based FOV).
 6. **HUD + laps** — `sim/laps.ts` (finish line + ordered checkpoints, times in ticks),
    `view/hud/Hud.ts` (speed, lap, last/best).
 7. **Feel pass** — tune together, freeze values in `config/car.ts`, update docs.

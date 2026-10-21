@@ -1,4 +1,4 @@
-import type { Surface } from '../track/query';
+import type { Surface } from '../track/types';
 
 /** How a surface affects a car. Averaged over the four wheels. See 01_docs/track.md. */
 export interface SurfaceParams {

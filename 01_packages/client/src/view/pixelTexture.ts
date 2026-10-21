@@ -29,11 +29,8 @@ function createPixelTexture(size: number, draw: Draw, repeat = false): THREE.Can
   return texture;
 }
 
-export function createCheckerTexture(
-  size = 16,
-  colorA = '#e10600',
-  colorB = '#ffffff',
-): THREE.Texture {
+/** 4×4 checkerboard of two colours. */
+export function createCheckerTexture(size: number, colorA: string, colorB: string): THREE.Texture {
   return createPixelTexture(size, (ctx) => {
     const cell = size / 4;
     for (let y = 0; y < 4; y++) {
@@ -95,16 +92,11 @@ function fillNoise(
   }
 }
 
-/** Asphalt across the full track width (U = left→right edge), with white edge lines. Repeats along V. */
+/** Asphalt tile, repeated in both directions (edge lines are separate meshes). */
 export function createAsphaltTexture(size = 32): THREE.Texture {
   return createPixelTexture(
     size,
-    (ctx) => {
-      fillNoise(ctx, size, ['#4a4a4e', '#505055', '#45454a', '#55555a'], 7);
-      ctx.fillStyle = '#e8e8e8';
-      ctx.fillRect(0, 0, 1, size);
-      ctx.fillRect(size - 1, 0, 1, size);
-    },
+    (ctx) => fillNoise(ctx, size, ['#4a4a4e', '#505055', '#45454a', '#55555a'], 7),
     true,
   );
 }

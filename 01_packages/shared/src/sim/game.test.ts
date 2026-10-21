@@ -31,7 +31,8 @@ describe('createGame', () => {
     const [a, b] = state.cars;
     expect(distance(a!.position, b!.position)).toBeGreaterThan(4);
     for (const car of state.cars) {
-      expect(Math.abs(locateOnTrack(track, car.position).lateral)).toBeLessThan(track.halfWidth);
+      const location = locateOnTrack(track, car.position);
+      expect(Math.abs(location.lateral)).toBeLessThan(location.halfWidth);
       expect(dot(forward(car.heading), locateOnTrack(track, car.position).tangent)).toBeGreaterThan(
         0.99,
       );

@@ -17,7 +17,7 @@ export class KeyboardController {
   private readonly pendingTriggers = new Set<TickTrigger>();
   private readonly actionHandlers = new Map<ActionName, () => void>();
 
-  constructor(private readonly target: Window = window) {
+  constructor(target: Window = window) {
     target.addEventListener('keydown', this.onKeyDown);
     target.addEventListener('keyup', this.onKeyUp);
     // Without this, a key held while the window loses focus would stay "stuck" down.
@@ -33,12 +33,6 @@ export class KeyboardController {
 
   onAction(action: ActionName, handler: () => void): void {
     this.actionHandlers.set(action, handler);
-  }
-
-  dispose(): void {
-    this.target.removeEventListener('keydown', this.onKeyDown);
-    this.target.removeEventListener('keyup', this.onKeyUp);
-    this.target.removeEventListener('blur', this.onBlur);
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {

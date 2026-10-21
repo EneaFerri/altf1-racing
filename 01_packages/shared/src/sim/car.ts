@@ -1,7 +1,7 @@
 import type { CarParams } from '../config/car';
 import { moveToward, wrapAngle } from '../math/angle';
 import { add, dot, forward, headingOf, length, right, scale, ZERO, type Vec2 } from '../math/vec2';
-import type { Surface } from '../track/query';
+import type { Surface } from '../track/types';
 import type { InputCommand } from '../types/input';
 import { NEUTRAL_SURFACE_EFFECT, type SurfaceEffect } from './surface';
 
@@ -17,7 +17,10 @@ export interface CarState {
   readonly velocity: Vec2;
   /** Facing angle in radians: 0 = -Z, positive = counter-clockwise from above. */
   readonly heading: number;
-  /** Steering-driven rotation speed applied in the last tick (rad/s). */
+  /**
+   * Smoothed turn rate (rad/s): of the heading in grip mode, of the direction of travel in drift.
+   * It has inertia (yawResponse / driftTurnResponse), so turning in and out is never a step.
+   */
   readonly yawRate: number;
   /** Extra rotation from external kicks (high kerbs, impacts), decays over time (rad/s). */
   readonly spin: number;
@@ -112,7 +115,8 @@ function stepGrip(
   const lowSpeedFactor = Math.min(1, speed / p.fullTurnSpeed);
   const highSpeedFactor = 1 - p.highSpeedSteerLoss * Math.min(1, speed / p.maxSpeed);
   // Steering right (+) turns clockwise (heading decreases); reversing flips it, like a real car.
-  const yawRate = -steer * p.maxYawRate * lowSpeedFactor * highSpeedFactor * Math.sign(vForward);
+  const targetYaw = -steer * p.maxYawRate * lowSpeedFactor * highSpeedFactor * Math.sign(vForward);
+  const yawRate = approach(car.yawRate, targetYaw, p.yawResponse, dt);
 
   let velocity = add(scale(fwd, vForward), scale(side, vLateral));
   if (gripRecovery < 1) {
@@ -156,8 +160,11 @@ function stepDrift(
 
   const speedBefore = length(car.velocity);
   const travelBefore = speedBefore > 0 ? headingOf(car.velocity) : car.heading;
-  const turnRate = p.driftTurnRate * (1 + p.driftSteerInfluence * steerInto);
-  const travel = wrapAngle(travelBefore - dir * turnRate * dt);
+  // The travel direction's turn rate blends from the current one (the corner you were already
+  // taking) towards the drift's, so the drift continues the line instead of snapping onto a new one.
+  const targetTurn = -dir * p.driftTurnRate * (1 + p.driftSteerInfluence * steerInto);
+  const travelTurn = approach(car.yawRate, targetTurn, p.driftTurnResponse, dt);
+  const travel = wrapAngle(travelBefore + travelTurn * dt);
 
   // Smooth the slip angle itself (not the heading): chasing a heading that keeps turning
   // would always lag behind and never reach the target slip.
@@ -176,13 +183,18 @@ function stepDrift(
     position: add(car.position, scale(velocity, dt)),
     velocity,
     heading,
-    yawRate: wrapAngle(heading - car.heading) / dt,
+    yawRate: travelTurn,
     spin,
     steer,
     drifting: true,
     driftDirection: dir,
     gripRecovery: 0,
   };
+}
+
+/** Frame-rate independent exponential approach of `value` towards `target` at `rate` (1/s). */
+function approach(value: number, target: number, rate: number, dt: number): number {
+  return value + (target - value) * (1 - Math.exp(-rate * dt));
 }
 
 function smoothSteer(current: number, target: number, p: CarParams, dt: number): number {

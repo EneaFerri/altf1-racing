@@ -18,6 +18,10 @@ describe('inputFromKeys', () => {
     expect(inputFromKeys(new Set(['KeyS', 'KeyA'])).steer).toBe(-1);
   });
 
+  it('brakes with C as well as S', () => {
+    expect(inputFromKeys(new Set(['KeyC'])).brake).toBe(1);
+  });
+
   it('passes tick triggers through', () => {
     expect(inputFromKeys(new Set(), new Set(['reset'])).reset).toBe(true);
   });

@@ -7,20 +7,26 @@ the simulation (surfaces, reset, grid, later walls and laps) and the View (meshe
 
 ```
 TrackDefinition (hand-written)  ──buildTrack()──►  Track (compiled, immutable)
-  points, halfWidth,                                samples (every 2 m): position, tangent, normal,
-  runoffWidth, highKerbs                            distance, curvature · kerbs & runoff per side ·
-                                                    walls (one-sided) · lookup grids
+  points { at, width },                             samples (every 2 m): position, tangent, normal,
+  runoffWidth, highKerbs                            distance, curvature, halfWidth · kerbs & runoff
+                                                    per side · walls (one-sided) · lookup grids
 ```
 
-- **`TrackDefinition`** (`track/types.ts`): control points of a closed spline in driving order, half the
-  asphalt width, the run-off width up to the wall, and ranges of control points that get high kerbs.
+- **`TrackDefinition`** (`track/types.ts`): control points of a closed spline in driving order, each
+  with its **full asphalt width** (`TrackPoint { at, width }`); the run-off width up to the wall; and
+  ranges of control points that get high kerbs.
 - **`buildTrack(def)`** (`track/buildTrack.ts`): samples a closed centripetal Catmull-Rom spline
   (`math/spline.ts`) every `sampleSpacing` m. For each sample it stores:
   - tangent and normal (right);
   - distance from the start line;
-  - signed curvature (positive = right turn).
+  - signed curvature (positive = right turn);
+  - **half-width**, blended between control points with a cosine ease (`sampleClosedSpline` also
+    returns each sample's spline parameter, e.g. 3.42 = 42% from point 3 to 4).
 
   Then it derives kerbs, run-off, walls and grids. Pure and deterministic.
+
+- **Width is variable but never below `TRACK_RULES.minWidth` (24 m)**, twice the original 12 m:
+  `buildTrack` throws on a narrower control point, so the rule can't be broken by accident.
 
 - **Sample 0 is the start/finish line**, at control point 0. Segment `i` joins sample `i` to `i + 1`.
 - The **`Track` is never part of `GameState`**: it is passed in `SimContext`, not cloned per tick
@@ -28,27 +34,28 @@ TrackDefinition (hand-written)  ──buildTrack()──►  Track (compiled, im
 
 ## Automatic rules (`config/track.ts` → `TRACK_RULES`)
 
-| Rule         | Value                       | Effect                                                                              |
-| ------------ | --------------------------- | ----------------------------------------------------------------------------------- |
-| Low kerbs    | curvature > 1/110 m         | Both sides of every real corner (apex + exit), extended 8 m before/after            |
-| Gravel traps | curvature > 1/45 m          | Outside of tight corners, from 6 m before to 36 m after (where cars run wide)       |
-| High kerbs   | declared in `highKerbs`     | Inside of each curving sample in the range (replaces the low kerb there)            |
-| Kerb band    | edge − 0.6 m → edge + 1.0 m | Lateral band where a kerb counts                                                    |
-| Walls        | halfWidth + runoffWidth     | One-sided polylines on both sides, `normal` pointing at the track (used in step 4b) |
+| Rule         | Value                         | Effect                                                                              |
+| ------------ | ----------------------------- | ----------------------------------------------------------------------------------- |
+| Low kerbs    | curvature > 1/110 m           | Both sides of every real corner (apex + exit), extended 8 m before/after            |
+| Gravel traps | curvature > 1/45 m            | Outside of tight corners, from 6 m before to 36 m after (where cars run wide)       |
+| High kerbs   | declared in `highKerbs`       | Inside of each curving sample in the range (replaces the low kerb there)            |
+| Kerb band    | edge − 0.6 m → edge + 1.0 m   | Lateral band where a kerb counts                                                    |
+| Walls        | local halfWidth + runoffWidth | One-sided polylines on both sides, `normal` pointing at the track (used in step 4b) |
+| Min width    | 24 m                          | `buildTrack` rejects narrower control points                                        |
 
 So a new track only needs a shape; kerbs and gravel follow the corners automatically.
 
 ## Queries (`track/query.ts`)
 
 - `locateOnTrack(track, p)`: closest centreline point, segment index, tangent, **signed lateral
-  offset** (+ = right) and distance along the lap. Uses the centreline `SegmentGrid` near the track
+  offset** (+ = right), distance along the lap and the **local half-width**. Uses the centreline `SegmentGrid` near the track
   and a full scan when far away.
 - `surfaceAt(track, p)`: lateral offset → band → surface:
-  1. asphalt within `halfWidth − 0.6`;
+  1. asphalt within the local `halfWidth − 0.6`;
   2. kerb or high kerb in the kerb band, if that side has one there;
   3. asphalt up to the edge;
   4. beyond the edge, the side's run-off (grass/gravel).
-- `gridSlot(track, slot)`: staggered starting grid, 10 m + 8 m per slot behind the line, alternating sides.
+- `gridSlot(track, slot)`: staggered starting grid, 10 m + 8 m per slot behind the line, two columns 4 m either side of the centreline.
 
 `math/SegmentGrid.ts` is a generic uniform grid over segments (10 m cells). Queries return sorted
 indices, so results never depend on insertion order (determinism).
@@ -74,26 +81,30 @@ of every tick and **averages** their effects: two wheels on the grass give half 
 
 ## The test track (`track/layouts/testTrack.ts`)
 
-"Test Ring", ~1.43 km, clockwise seen from above, 12 m wide, 10 m run-off. Control points are
-sketched at a smaller size and scaled ×1.1.
+"Test Ring", ~1.94 km, clockwise seen from above, **24–32 m wide**, 10 m run-off. Designed from
+scratch for the wide asphalt: every corner radius stays above local half-width + run-off, and
+distant sections keep ≥ 30 m of clearance beyond their walls.
 
-| Points | Section                                                                                |
-| ------ | -------------------------------------------------------------------------------------- |
-| 0–2    | Main straight (~440 m), start line at point 0                                          |
-| 3–6    | Hairpin, semicircle radius ~30 m: heavy braking, overtaking/drift spot, gravel outside |
-| 7–10   | Short run into a fast chicane with **high kerbs** on the inside                        |
-| 11–13  | Fast left sweeper onto the back section                                                |
-| 14–19  | Long double-apex right: the drift showcase                                             |
-| 20–22  | Fast kink, flat out                                                                    |
-| 23–24  | Medium 90° right back onto the straight                                                |
+| Points | Section                                                                   | Width   |
+| ------ | ------------------------------------------------------------------------- | ------- |
+| 0–2    | Main straight (~470 m), start line at point 0                             | 32 m    |
+| 3–6    | Hairpin (radius ~45 m): wide entry for late-braking overtakes, gravel out | 30→28 m |
+| 7–11   | Short run into the fast chicane, **high kerbs** on the inside             | 26→24 m |
+| 12–15  | Fast left sweeper onto the back straight                                  | 28 m    |
+| 16–21  | Long double-apex right: the drift showcase                                | 28 m    |
+| 22–24  | Fast kink, flat out                                                       | 26 m    |
+| 25–27  | Medium right back onto the main straight, gravel outside                  | 28→30 m |
 
-Tests (`track/buildTrack.test.ts`) guard the layout: closed loop of ~1.5 km, walls never fold back,
-distant sections keep their run-offs apart, kerbs only in corners, high kerbs only in the chicane.
+Tests (`track/buildTrack.test.ts`) guard the layout: closed loop of ~2 km, never narrower than 24 m
+(and the width really varies), walls never fold back, distant sections keep their run-offs apart,
+kerbs only in corners, high kerbs only in the chicane.
 
 ## Making a new track
 
-1. Copy `layouts/testTrack.ts`, change `name` and `points` (driving order, closed loop, no crossings).
-2. Keep corner radii above `halfWidth + runoffWidth` (16 m here), or the inner wall folds back
-   (the "walls never fold" test catches it).
+1. Copy `layouts/testTrack.ts`, change `name` and `points` (driving order, closed loop, no crossings),
+   giving each point a `width` ≥ 24 m (wider where you want overtaking room).
+2. Keep corner radii above the local half-width + `runoffWidth` (22–26 m here) plus a margin, or the
+   inner wall folds back (the "walls never fold" test catches it). Keep distant sections apart by
+   at least both half-widths + 2 × run-off.
 3. List chicanes or corners that need high kerbs in `highKerbs` (control point index ranges).
 4. Export it from `track/index.ts` and run the tests.

@@ -23,7 +23,6 @@ export interface LoopCallbacks {
 export class GameLoop {
   private accumulator = 0;
   private lastTimeMs: number | null = null;
-  private frameId = 0;
 
   constructor(
     private readonly callbacks: LoopCallbacks,
@@ -52,13 +51,8 @@ export class GameLoop {
       const frameSeconds = this.lastTimeMs === null ? 0 : (timeMs - this.lastTimeMs) / 1000;
       this.lastTimeMs = timeMs;
       this.advance(frameSeconds);
-      this.frameId = requestAnimationFrame(onFrame);
+      requestAnimationFrame(onFrame);
     };
-    this.frameId = requestAnimationFrame(onFrame);
-  }
-
-  stop(): void {
-    cancelAnimationFrame(this.frameId);
-    this.lastTimeMs = null;
+    requestAnimationFrame(onFrame);
   }
 }

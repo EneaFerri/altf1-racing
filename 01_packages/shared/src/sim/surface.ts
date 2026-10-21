@@ -1,8 +1,8 @@
 import { CAR_WHEELS } from '../config/car';
 import type { SurfaceParams } from '../config/surfaces';
 import { length, toWorld } from '../math/vec2';
-import { surfaceAt, type Surface } from '../track/query';
-import type { Track } from '../track/types';
+import { surfaceAt } from '../track/query';
+import type { Surface, Track } from '../track/types';
 import type { CarState } from './car';
 
 /** Combined effect of the surfaces under a car's wheels for one tick. */
@@ -27,7 +27,7 @@ export const NEUTRAL_SURFACE_EFFECT: SurfaceEffect = {
 /** Speed at which a bump gives exactly `bumpSpin` (m/s); faster = harder kick, up to 1.5×. */
 const BUMP_REFERENCE_SPEED = 30;
 
-export function sampleWheelSurfaces(track: Track, car: CarState): Surface[] {
+function sampleWheelSurfaces(track: Track, car: CarState): Surface[] {
   return CAR_WHEELS.map(({ ahead, side }) =>
     surfaceAt(track, toWorld(car.position, car.heading, ahead, side)),
   );

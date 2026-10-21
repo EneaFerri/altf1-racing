@@ -5,7 +5,7 @@ import type { InputCommand } from '@altf1/shared';
 /** Keys held down to drive. Sampled once per tick. */
 export const DRIVE_KEYS = {
   throttle: ['KeyW'],
-  brake: ['KeyS'],
+  brake: ['KeyS', 'KeyC'],
   steerLeft: ['KeyA'],
   steerRight: ['KeyD'],
   handbrake: ['Space'],

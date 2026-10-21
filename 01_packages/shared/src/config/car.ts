@@ -22,6 +22,8 @@ export interface CarParams {
   steerReturnSpeed: number;
   /** Yaw rate at full lock (rad/s). */
   maxYawRate: number;
+  /** How quickly the actual yaw rate follows the steering (1/s). Lower = smoother, lazier turn-in. */
+  yawResponse: number;
   /** Below this speed steering authority fades towards 0, so the car can't turn on the spot. */
   fullTurnSpeed: number;
   /** Fraction of steering lost at maxSpeed (0 = none, 1 = all). */
@@ -37,6 +39,8 @@ export interface CarParams {
   driftExitSpeed: number;
   /** How fast the direction of travel turns while drifting (rad/s). */
   driftTurnRate: number;
+  /** How quickly the drift's turn rate takes over from the one at entry (1/s). Lower = smoother entry. */
+  driftTurnResponse: number;
   /** How much steering tightens (into the drift) or widens (countersteer) the turn, 0..1. */
   driftSteerInfluence: number;
   /** Slip angle with neutral steering (rad). */
@@ -64,9 +68,10 @@ export const CAR_PARAMS: CarParams = {
   maxReverseSpeed: 10,
   coastDecel: 1.5,
   airDrag: 0.0005,
-  steerSpeed: 4,
-  steerReturnSpeed: 6,
-  maxYawRate: 1.6,
+  steerSpeed: 3,
+  steerReturnSpeed: 5,
+  maxYawRate: 1.8,
+  yawResponse: 7,
   fullTurnSpeed: 8,
   highSpeedSteerLoss: 0.6,
   lateralGrip: 6,
@@ -75,10 +80,11 @@ export const CAR_PARAMS: CarParams = {
   driftMinSpeed: 12,
   driftExitSpeed: 8,
   driftTurnRate: 1.5,
+  driftTurnResponse: 3,
   driftSteerInfluence: 0.4,
-  driftAngle: 0.45,
-  driftAngleSteerRange: 0.25,
-  driftRotateStiffness: 6,
+  driftAngle: 0.35,
+  driftAngleSteerRange: 0.18,
+  driftRotateStiffness: 3.5,
   driftDrag: 2,
   driftExitGrip: 2,
   driftRecoveryTime: 0.4,

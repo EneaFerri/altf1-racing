@@ -12,7 +12,7 @@ import {
 
 const REFRESH_MS = 500;
 
-/** Short labels so four wheels fit on one line. Upper case = surfaces that cost grip. */
+/** Short labels so four wheels fit on one line. Upper case = punishing surfaces (high kerb, grass, gravel). */
 const SURFACE_LABEL: Record<Surface, string> = {
   asphalt: 'asp',
   kerb: 'krb',

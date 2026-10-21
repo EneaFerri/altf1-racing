@@ -5,6 +5,9 @@ import { TEST_TRACK } from './layouts/testTrack';
 import { gridSlot, locateOnTrack, surfaceAt } from './query';
 
 const track = buildTrack(TEST_TRACK);
+/** Half-width of the asphalt at sample `i`. */
+const hw = (i: number): number => track.samples[i]!.halfWidth;
+
 /** Point `lateral` metres to the right (negative = left) of sample `i`. */
 const beside = (i: number, lateral: number): Vec2 =>
   add(track.samples[i]!.position, scale(track.samples[i]!.normal, lateral));
@@ -21,6 +24,11 @@ describe('locateOnTrack', () => {
     expect(locateOnTrack(track, beside(i, -4)).lateral).toBeCloseTo(-4, 1);
   });
 
+  it('reports the local half-width', () => {
+    const i = locateOnTrack(track, vec2(0, 0)).index;
+    expect(locateOnTrack(track, beside(i, 1)).halfWidth).toBeCloseTo(hw(i), 1);
+  });
+
   it('still answers far away from the track', () => {
     expect(locateOnTrack(track, vec2(5000, 5000)).index).toBeGreaterThanOrEqual(0);
   });
@@ -31,25 +39,25 @@ describe('surfaceAt', () => {
 
   it('is asphalt on the racing surface', () => {
     expect(surfaceAt(track, beside(straight, 0))).toBe('asphalt');
-    expect(surfaceAt(track, beside(straight, track.halfWidth - 0.1))).toBe('asphalt');
+    expect(surfaceAt(track, beside(straight, hw(straight) - 0.1))).toBe('asphalt');
   });
 
   it('is grass just off a straight without kerbs', () => {
-    expect(surfaceAt(track, beside(straight, track.halfWidth + 2))).toBe('grass');
+    expect(surfaceAt(track, beside(straight, hw(straight) + 2))).toBe('grass');
   });
 
   it('is kerb at the edge of a corner', () => {
-    expect(['kerb', 'highKerb']).toContain(surfaceAt(track, beside(tightest, track.halfWidth)));
+    expect(['kerb', 'highKerb']).toContain(surfaceAt(track, beside(tightest, hw(tightest))));
   });
 
   it('is gravel outside the tightest corner', () => {
     const outside = track.samples[tightest]!.curvature > 0 ? -1 : 1;
-    expect(surfaceAt(track, beside(tightest, outside * (track.halfWidth + 5)))).toBe('gravel');
+    expect(surfaceAt(track, beside(tightest, outside * (hw(tightest) + 5)))).toBe('gravel');
   });
 
   it('has high kerbs somewhere (the chicane)', () => {
     const found = track.samples.some((_, i) =>
-      [-1, 1].some((side) => surfaceAt(track, beside(i, side * track.halfWidth)) === 'highKerb'),
+      [-1, 1].some((side) => surfaceAt(track, beside(i, side * hw(i))) === 'highKerb'),
     );
     expect(found).toBe(true);
   });

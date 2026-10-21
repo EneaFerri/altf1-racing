@@ -14,6 +14,13 @@ describe('sampleClosedSpline', () => {
     }
   });
 
+  it("reports each sample's spline parameter, increasing from 0 to the point count", () => {
+    const { params } = sampleClosedSpline(square, 2);
+    expect(params[0]).toBe(0);
+    for (let i = 1; i < params.length; i++) expect(params[i]!).toBeGreaterThan(params[i - 1]!);
+    expect(params[params.length - 1]!).toBeLessThan(square.length);
+  });
+
   it('passes through the control points', () => {
     const { samples, controlIndices } = sampleClosedSpline(square, 2);
     controlIndices.forEach((sampleIndex, i) => {

@@ -6,12 +6,14 @@ const SUBDIVISIONS = 24;
 /**
  * Samples a closed centripetal Catmull-Rom spline through `points` at (roughly) even arc-length
  * `spacing`. Centripetal parameterisation avoids loops and cusps on uneven control points.
- * Returns the samples and, for each control point, the index of the sample closest to it.
+ * Returns the samples, each sample's spline parameter (`3.42` = 42% of the way from control point 3
+ * to 4, useful to interpolate per-point data such as width) and, for each control point, the index
+ * of the sample closest to it.
  */
 export function sampleClosedSpline(
   points: readonly Vec2[],
   spacing: number,
-): { samples: Vec2[]; controlIndices: number[] } {
+): { samples: Vec2[]; params: number[]; controlIndices: number[] } {
   const n = points.length;
   const dense: Vec2[] = [];
   const controlDense: number[] = [];
@@ -35,6 +37,7 @@ export function sampleClosedSpline(
   const step = total / count;
 
   const samples: Vec2[] = [];
+  const params: number[] = [];
   let seg = 0;
   for (let k = 0; k < count; k++) {
     const target = k * step;
@@ -42,10 +45,11 @@ export function sampleClosedSpline(
     const segLength = cumulative[seg + 1]! - cumulative[seg]!;
     const t = segLength > 0 ? (target - cumulative[seg]!) / segLength : 0;
     samples.push(lerp(dense[seg]!, dense[(seg + 1) % dense.length]!, t));
+    params.push(((seg + t) / SUBDIVISIONS) % n);
   }
 
   const controlIndices = controlDense.map((d) => Math.round(cumulative[d]! / step) % count);
-  return { samples, controlIndices };
+  return { samples, params, controlIndices };
 }
 
 function centripetal(p0: Vec2, p1: Vec2, p2: Vec2, p3: Vec2, u: number): Vec2 {

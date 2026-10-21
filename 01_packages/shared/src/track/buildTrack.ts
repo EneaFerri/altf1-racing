@@ -16,7 +16,19 @@ import type {
 /** Compiles hand-authored track data into geometry, surfaces and lookup grids. Pure and deterministic. */
 export function buildTrack(def: TrackDefinition): Track {
   const rules = TRACK_RULES;
-  const { samples: points, controlIndices } = sampleClosedSpline(def.points, rules.sampleSpacing);
+  def.points.forEach(({ width }, i) => {
+    if (width < rules.minWidth) {
+      throw new Error(`${def.name}: point ${i} is ${width} m wide, minimum is ${rules.minWidth} m`);
+    }
+  });
+  const {
+    samples: points,
+    params,
+    controlIndices,
+  } = sampleClosedSpline(
+    def.points.map((p) => p.at),
+    rules.sampleSpacing,
+  );
   const n = points.length;
   const at = <T>(list: readonly T[], i: number): T => list[((i % n) + n) % n]!;
 
@@ -35,6 +47,7 @@ export function buildTrack(def: TrackDefinition): Track {
       normal: right(headingOf(tangent)),
       distance,
       curvature: -turn / (spacing(i - 1) + spacing(i)),
+      halfWidth: widthAt(def, params[i]!) / 2,
     };
     distance += spacing(i);
     return sample;
@@ -90,7 +103,7 @@ export function buildTrack(def: TrackDefinition): Track {
 
   return {
     name: def.name,
-    halfWidth: def.halfWidth,
+    maxHalfWidth: Math.max(...samples.map((s) => s.halfWidth)),
     runoffWidth: def.runoffWidth,
     length,
     samples,
@@ -104,14 +117,26 @@ export function buildTrack(def: TrackDefinition): Track {
   };
 }
 
-/** Wall polyline offset from the centreline, each segment facing the track. */
+/** Width at spline parameter `param`, eased between control points so edges stay smooth. */
+function widthAt(def: TrackDefinition, param: number): number {
+  const n = def.points.length;
+  const i = Math.floor(param);
+  const f = param - i;
+  const a = def.points[i % n]!.width;
+  const b = def.points[(i + 1) % n]!.width;
+  return a + ((b - a) * (1 - Math.cos(Math.PI * f))) / 2;
+}
+
+/** Wall polyline offset from the centreline (local width + run-off), each segment facing the track. */
 function buildWall(
   samples: readonly TrackSample[],
   def: TrackDefinition,
   side: TrackSide,
 ): WallSegment[] {
-  const offset = (def.halfWidth + def.runoffWidth) * (side === 'right' ? 1 : -1);
-  const points = samples.map((s) => add(s.position, scale(s.normal, offset)));
+  const sign = side === 'right' ? 1 : -1;
+  const points = samples.map((s) =>
+    add(s.position, scale(s.normal, sign * (s.halfWidth + def.runoffWidth))),
+  );
   return points.map((a, i) => {
     const b = points[(i + 1) % points.length]!;
     const toRight = right(headingOf(sub(b, a)));

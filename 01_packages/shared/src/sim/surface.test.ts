@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SURFACE_PARAMS } from '../config/surfaces';
-import type { Surface } from '../track/query';
+import type { Surface } from '../track/types';
 import { surfaceEffect } from './surface';
 
 const ASPHALT: Surface[] = ['asphalt', 'asphalt', 'asphalt', 'asphalt'];
