@@ -21,16 +21,18 @@ Future server: Node.js + `ws`. Rationale in [01_docs/decisions.md](01_docs/decis
 
 ## Repo map
 
-| Path                           | Role                                                         | Notes                                                          |
-| ------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------- |
-| `01_packages/shared/`          | **Model** — pure, deterministic simulation, types, constants | No `three`, no DOM (enforced by ESLint). Server will reuse it. |
-| `01_packages/client/`          | **View + Controller** — rendering, input, game loop          | Vite app, entry `src/main.ts`                                  |
-| `01_packages/client/src/view/` | Three.js rendering helpers                                   |                                                                |
-| `01_packages/server/`          | Future authoritative multiplayer server                      | Placeholder only                                               |
-| `01_docs/`                     | Topic docs                                                   | See index below                                                |
+| Path                                     | Role                                                                 | Notes                                                          |
+| ---------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `01_packages/shared/src/sim/`            | **Model** — `GameState`, `stepGame` (pure, one fixed tick)           | No `three`, no DOM (enforced by ESLint). Server will reuse it. |
+| `01_packages/shared/src/{config,types}/` | Sim constants (`TICK_RATE`), `InputCommand`                          |                                                                |
+| `01_packages/client/src/core/`           | `GameLoop` (fixed-step accumulator), `Game` (wires M-V-C)            | Only place using `requestAnimationFrame`                       |
+| `01_packages/client/src/controller/`     | **Controller** — `bindings.ts` (key map), `KeyboardController`       | Uses `KeyboardEvent.code` (layout-independent)                 |
+| `01_packages/client/src/view/`           | **View** — `SceneView`, pixel textures, renderer, `hud/DebugOverlay` | Reads state, never writes it                                   |
+| `01_packages/client/src/main.ts`         | Bootstrap only                                                       |                                                                |
+| `01_packages/server/`                    | Future authoritative multiplayer server                              | Placeholder only                                               |
+| `01_docs/`                               | Topic docs                                                           | See index below                                                |
 
-Planned client folders (created when first needed): `src/controller/` (input → `InputCommand`),
-`src/core/` (fixed-timestep game loop, platform abstraction).
+Tests live next to the file they test (`*.test.ts`). Unused params must be prefixed with `_`.
 
 ## Commands
 
@@ -62,4 +64,4 @@ npm run build      # production build of the client
 
 ## Current status
 
-Phase 0 done: toolchain + spinning pixel-textured cube. Next: Phase 1 step 1 (see roadmap).
+Phase 1, step 1 done (game loop, keyboard controller, F3 debug overlay). Next: step 2, basic car physics (see roadmap).

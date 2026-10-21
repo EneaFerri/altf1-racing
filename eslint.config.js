@@ -8,6 +8,12 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   prettier,
   {
+    rules: {
+      // Allow intentionally unused parameters when prefixed with `_`.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
+  {
     // The shared package is the Model: it must stay free of rendering and DOM code
     // so the future server can run the exact same simulation.
     files: ['01_packages/shared/**/*.ts'],

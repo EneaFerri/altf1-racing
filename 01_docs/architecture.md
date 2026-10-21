@@ -21,14 +21,16 @@ and input (Controller), so the same Model can later run on an authoritative serv
 - Builds the Three.js scene, cameras (chase cam default, first-person toggle), HUD.
 - Pixel look: tiny textures with `NearestFilter`, no antialiasing. Optional low-res render pass (off by default).
 
-## Controller — `01_packages/client/src/controller` (planned)
+## Controller — `01_packages/client/src/controller`
 
-- Maps keys to an `InputCommand` once per tick. Default bindings:
-  W throttle · S brake/reverse · A/D steer · Space handbrake (drift) · C camera · R reset.
+- `bindings.ts`: key map + pure `inputFromKeys()`; `KeyboardController` samples it once per tick.
+- Bindings (now): W throttle · S brake/reverse · A/D steer · Space handbrake · F3 debug overlay.
+  Planned: C camera · R reset · F2 tuning panel.
+- One-shot actions (`ACTION_KEYS`) trigger callbacks and never enter the simulation.
 - In multiplayer, the same `InputCommand`s are what gets sent to the server.
 
-## Game loop — `01_packages/client/src/core` (planned)
+## Game loop — `01_packages/client/src/core`
 
-- Fixed-timestep accumulator for the simulation; rendering runs at display rate and
+- `GameLoop`: fixed-timestep accumulator for the simulation, frames clamped to 0.25 s; rendering runs at display rate and
   interpolates between the last two states for smooth motion.
 - Browser-specific APIs are isolated in `core/` so a desktop wrapper (Tauri/Electron) stays easy.
