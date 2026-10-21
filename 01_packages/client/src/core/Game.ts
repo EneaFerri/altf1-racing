@@ -13,6 +13,8 @@ import { GameLoop } from './GameLoop';
 /** Wires Model, View and Controller together and drives them with the game loop. */
 export class Game {
   private state: GameState = createGame();
+  /** State before the last tick, kept so the View can interpolate between the two. */
+  private prevState: GameState = this.state;
   private lastInput: InputCommand = NEUTRAL_INPUT;
 
   private readonly controller = new KeyboardController();
@@ -20,7 +22,7 @@ export class Game {
   private readonly debugOverlay = new DebugOverlay();
   private readonly loop = new GameLoop({
     tick: () => this.tick(),
-    render: () => this.render(),
+    render: (alpha, frameSeconds) => this.render(alpha, frameSeconds),
   });
 
   constructor() {
@@ -33,11 +35,12 @@ export class Game {
 
   private tick(): void {
     this.lastInput = this.controller.sample();
+    this.prevState = this.state;
     this.state = stepGame(this.state, this.lastInput);
   }
 
-  private render(): void {
-    this.view.render();
+  private render(alpha: number, frameSeconds: number): void {
+    this.view.render(this.prevState, this.state, alpha, frameSeconds);
     this.debugOverlay.update(this.state, this.lastInput);
   }
 }

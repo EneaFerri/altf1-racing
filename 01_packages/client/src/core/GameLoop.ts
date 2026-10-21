@@ -9,8 +9,11 @@ const EPSILON = 1e-9;
 export interface LoopCallbacks {
   /** Advance the simulation by one fixed tick. */
   tick(): void;
-  /** Draw a frame; `alpha` (0..1) is how far we are between the last two ticks, for interpolation. */
-  render(alpha: number): void;
+  /**
+   * Draw a frame. `alpha` (0..1) is how far we are between the last two ticks, for interpolation;
+   * `frameSeconds` is the real time since the previous frame, for purely visual smoothing (e.g. cameras).
+   */
+  render(alpha: number, frameSeconds: number): void;
 }
 
 /**
@@ -29,7 +32,8 @@ export class GameLoop {
 
   /** Feeds one frame of real time into the loop. Returns how many ticks were run. */
   advance(frameSeconds: number): number {
-    this.accumulator += Math.min(Math.max(frameSeconds, 0), MAX_FRAME_SECONDS);
+    const clampedSeconds = Math.min(Math.max(frameSeconds, 0), MAX_FRAME_SECONDS);
+    this.accumulator += clampedSeconds;
 
     let ticks = 0;
     while (this.accumulator >= this.stepSeconds - EPSILON) {
@@ -39,7 +43,7 @@ export class GameLoop {
     }
 
     const alpha = Math.min(Math.max(this.accumulator / this.stepSeconds, 0), 1);
-    this.callbacks.render(alpha);
+    this.callbacks.render(alpha, clampedSeconds);
     return ticks;
   }
 

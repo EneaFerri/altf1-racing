@@ -18,3 +18,16 @@
 - Look: Krunker-faithful (low-poly, nearest-filtered textures, full-res render).
 - Third-person camera: chase cam by default.
 - Language: English everywhere.
+
+## 2026-10-21 — SI units and ground-plane axes
+
+- The Model uses metres, seconds and radians; km/h exists only in the View.
+- 2D vectors are `{ x, z }` (Three.js ground axes) and `heading` 0 = −Z, so `rotation.y = heading`
+  with no conversion layer — fewer sign bugs between Model and View.
+
+## 2026-10-21 — Kinematic car model instead of a tyre model
+
+- Velocity split into forward/lateral parts, lateral part damped by `lateralGrip`; yaw driven
+  directly by steering and speed. Few, intuitive parameters (see physics.md), easy to tune for fun.
+- A tyre/slip-curve model (Pacejka-style) would be more realistic but harder to tune and to make drift "easy".
+- Steering smoothing lives in the Model, so the server reproduces it exactly.

@@ -1,8 +1,8 @@
-import type { GameState, InputCommand } from '@altf1/shared';
+import { dot, forward, length, right, type GameState, type InputCommand } from '@altf1/shared';
 
 const REFRESH_MS = 500;
 
-/** Developer overlay (F3): simulation tick, measured TPS/FPS and the current input. */
+/** Developer overlay (F3): tick, measured TPS/FPS, current input and car telemetry. */
 export class DebugOverlay {
   private readonly element = document.createElement('pre');
   private frames = 0;
@@ -45,6 +45,8 @@ export class DebugOverlay {
     }
     if (this.element.hidden) return;
 
+    const { car } = state;
+    const headingDeg = (car.heading * 180) / Math.PI;
     this.element.textContent = [
       `tick      ${state.tick}`,
       `tps       ${this.tps.toFixed(1)}`,
@@ -53,6 +55,11 @@ export class DebugOverlay {
       `brake     ${input.brake}`,
       `steer     ${input.steer}`,
       `handbrake ${input.handbrake ? 'ON' : 'off'}`,
+      '',
+      `speed     ${(length(car.velocity) * 3.6).toFixed(0)} km/h`,
+      `vF / vL   ${dot(car.velocity, forward(car.heading)).toFixed(1)} / ${dot(car.velocity, right(car.heading)).toFixed(1)} m/s`,
+      `heading   ${headingDeg.toFixed(0)}°`,
+      `steer     ${car.steer.toFixed(2)} (smoothed)`,
       '',
       'F3 toggle',
     ].join('\n');

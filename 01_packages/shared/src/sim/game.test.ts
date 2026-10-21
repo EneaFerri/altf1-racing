@@ -13,4 +13,10 @@ describe('stepGame', () => {
     stepGame(prev, NEUTRAL_INPUT);
     expect(prev.tick).toBe(0);
   });
+
+  it('moves the car forward (-Z) with throttle', () => {
+    let state = createGame();
+    for (let i = 0; i < 60; i++) state = stepGame(state, { ...NEUTRAL_INPUT, throttle: 1 });
+    expect(state.car.position.z).toBeLessThan(-1);
+  });
 });

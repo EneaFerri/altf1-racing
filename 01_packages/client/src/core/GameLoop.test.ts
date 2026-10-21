@@ -41,6 +41,16 @@ describe('GameLoop.advance', () => {
     expect(calls.alphas[0]).toBeCloseTo(0.5);
   });
 
+  it('passes the clamped frame time to render', () => {
+    const frames: number[] = [];
+    const loop = new GameLoop({
+      tick: () => {},
+      render: (_alpha, seconds) => frames.push(seconds),
+    });
+    loop.advance(10);
+    expect(frames[0]).toBe(MAX_FRAME_SECONDS);
+  });
+
   it('ignores negative frame times', () => {
     const { loop } = createLoop();
     expect(loop.advance(-1)).toBe(0);

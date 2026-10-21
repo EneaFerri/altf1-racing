@@ -68,3 +68,18 @@ export function createGroundTexture(size = 16): THREE.Texture {
     true,
   );
 }
+
+/** Car livery: red body with a white racing stripe and subtle pixel shading. */
+export function createLiveryTexture(size = 16): THREE.Texture {
+  return createPixelTexture(size, (ctx) => {
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        ctx.fillStyle = (x + y * 3) % 7 === 0 ? '#b80500' : '#e10600';
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+    const stripe = Math.floor(size / 2) - 1;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, stripe, size, 2);
+  });
+}

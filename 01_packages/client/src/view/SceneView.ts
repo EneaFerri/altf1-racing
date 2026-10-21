@@ -1,8 +1,12 @@
 import * as THREE from 'three';
-import { createCheckerTexture, createGroundTexture } from './pixelTexture';
+import { dot, forward, lerp, lerpAngle, type GameState } from '@altf1/shared';
+import { ChaseCamera } from './cameras/ChaseCamera';
+import { CarView, type CarPose } from './CarView';
+import { createGroundTexture } from './pixelTexture';
 import { bindResize, createRenderer } from './renderer';
 
-const GROUND_SIZE = 200;
+const SKY_COLOR = '#87ceeb';
+const GROUND_SIZE = 1000;
 const GROUND_TILE = 2;
 
 /** Owns the Three.js scene and draws it. Reads game state, never writes it. */
@@ -13,24 +17,40 @@ export class SceneView {
     70,
     window.innerWidth / window.innerHeight,
     0.1,
-    500,
+    300,
   );
+  private readonly car = new CarView();
+  private readonly chaseCamera = new ChaseCamera(this.camera);
 
   constructor() {
-    this.scene.background = new THREE.Color('#87ceeb');
+    this.scene.background = new THREE.Color(SKY_COLOR);
+    // Fog hides the ground's edge and gives depth.
+    this.scene.fog = new THREE.Fog(SKY_COLOR, 60, 250);
     this.scene.add(new THREE.HemisphereLight('#ffffff', '#444444', 2.5));
     this.scene.add(createGround());
-    // Stand-in for the car until the car model arrives in step 2.
-    this.scene.add(createPlaceholderCar());
-
-    this.camera.position.set(0, 3, 6);
-    this.camera.lookAt(0, 0.5, 0);
+    this.scene.add(this.car.object);
     bindResize(this.renderer, this.camera);
   }
 
-  render(): void {
+  /** Draws the world `alpha` of the way from `prev` to `curr`. */
+  render(prev: GameState, curr: GameState, alpha: number, frameSeconds: number): void {
+    const pose = interpolateCar(prev, curr, alpha);
+    this.car.update(pose, frameSeconds);
+    this.chaseCamera.update(pose, frameSeconds);
     this.renderer.render(this.scene, this.camera);
   }
+}
+
+function interpolateCar(prev: GameState, curr: GameState, alpha: number): CarPose {
+  const position = lerp(prev.car.position, curr.car.position, alpha);
+  const heading = lerpAngle(prev.car.heading, curr.car.heading, alpha);
+  return {
+    x: position.x,
+    z: position.z,
+    heading,
+    steer: prev.car.steer + (curr.car.steer - prev.car.steer) * alpha,
+    forwardSpeed: dot(curr.car.velocity, forward(curr.car.heading)),
+  };
 }
 
 function createGround(): THREE.Mesh {
@@ -42,13 +62,4 @@ function createGround(): THREE.Mesh {
   );
   ground.rotation.x = -Math.PI / 2; // PlaneGeometry is vertical by default
   return ground;
-}
-
-function createPlaceholderCar(): THREE.Mesh {
-  const cube = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshLambertMaterial({ map: createCheckerTexture() }),
-  );
-  cube.position.y = 0.5;
-  return cube;
 }

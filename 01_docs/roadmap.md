@@ -10,14 +10,13 @@ Goal: a drivable, fun car with easy arcade drift on a trivial track, chase + fir
 cameras, minimal HUD, live physics tuning. All game logic lives in `shared` (deterministic).
 Workflow: one step at a time → owner review → commit after OK.
 
-Conventions: the Model is 2D on the ground plane using `{ x, z }` (same axes as Three.js);
-`heading` in radians, 0 = facing -Z. Time is counted in ticks (60 Hz).
+Conventions (units, axes, heading): see [physics.md](physics.md). Time is counted in ticks (60 Hz).
 
-1. **Game loop + Controller + debug overlay** — `core/GameLoop.ts` (fixed-step accumulator,
+1. ✅ **Game loop + Controller + debug overlay** — `core/GameLoop.ts` (fixed-step accumulator,
    0.25 s frame clamp), `controller/` (keyboard → `InputCommand` via `KeyboardEvent.code`,
    one-shot actions separate), `view/hud/DebugOverlay.ts` (F3: tick, TPS, FPS, input),
    minimal `sim/game.ts`, pixel grid ground.
-2. **Basic car physics + simple chase cam** — `config/car.ts` (`CAR_PARAMS`), `sim/car.ts`
+2. ✅ **Basic car physics + simple chase cam** — `config/car.ts` (`CAR_PARAMS`), `sim/car.ts`
    (forward/lateral split, throttle curve, brake → reverse, drag, steering smoothed in the Model,
    speed-dependent yaw, lateral grip), `math/`, `view/CarView.ts` (low-poly box car),
    `view/cameras/ChaseCamera.ts`, `01_docs/physics.md`. Tests incl. determinism.
