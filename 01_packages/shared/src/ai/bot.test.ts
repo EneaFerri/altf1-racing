@@ -14,6 +14,7 @@ import {
   type SimContext,
 } from '../sim/game';
 import { buildTrack } from '../track/buildTrack';
+import { locateOnTrack } from '../track/query';
 import { KRUNCAR, TEST_TRACK, TRACKS } from '../track/layouts';
 import type { Track } from '../track/types';
 import { botInput, NEW_BOT_MEMORY } from './driver';
@@ -34,6 +35,8 @@ interface Run {
   readonly driftTicks: number;
   /** Ticks with a wheel on grass or gravel. */
   readonly offTicks: number;
+  /** Ticks spent on a branch (e.g. Kruncar's shortcut). */
+  readonly branchTicks: number;
 }
 
 /** Drives car 'bot' at `level` for `seconds` on `on`; other cars in `start` stay parked. */
@@ -54,8 +57,9 @@ function drive(
   let wallHits = 0;
   let driftTicks = 0;
   let offTicks = 0;
+  let branchTicks = 0;
   for (let tick = 0; tick < seconds * TICK_RATE; tick++) {
-    const result = botInput(findCar(state, 'bot')!, plan, on, memory);
+    const result = botInput(findCar(state, 'bot')!, plan, memory);
     memory = result.memory;
     if (result.input.reset) resets++;
     state = stepGame(state, { bot: result.input }, botCtx);
@@ -63,8 +67,9 @@ function drive(
     const bot = findCar(state, 'bot')!;
     if (bot.drifting) driftTicks++;
     if (bot.wheelSurfaces.some((s) => s === 'grass' || s === 'gravel')) offTicks++;
+    if (locateOnTrack(on, bot.position).route >= 0) branchTicks++;
   }
-  return { state, resets, wallHits, driftTicks, offTicks };
+  return { state, resets, wallHits, driftTicks, offTicks, branchTicks };
 }
 
 const bestLapSeconds = (run: Run): number => findLap(run.state, 'bot')!.bestLap!.ticks / TICK_RATE;
@@ -118,6 +123,12 @@ describe('bot', () => {
     expect(hard).toBeLessThan(46);
   });
 
+  it('takes the Kruncar shortcut on hard only', () => {
+    expect(kruncar.hard.branchTicks).toBeGreaterThan(20 * TICK_RATE);
+    expect(kruncar.medium.branchTicks).toBeLessThan(TICK_RATE);
+    expect(kruncar.easy.branchTicks).toBeLessThan(TICK_RATE);
+  });
+
   it('drifts only on hard', () => {
     expect(runs.hard.driftTicks).toBeGreaterThan(0);
     expect(runs.medium.driftTicks).toBe(0);
@@ -150,7 +161,7 @@ describe('bot', () => {
     let memory = NEW_BOT_MEMORY;
     let reset = false;
     for (let tick = 0; tick < 3 * TICK_RATE && !reset; tick++) {
-      const result = botInput(car, plan, track, memory);
+      const result = botInput(car, plan, memory);
       memory = result.memory;
       reset = result.input.reset;
     }

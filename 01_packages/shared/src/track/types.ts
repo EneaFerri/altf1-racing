@@ -10,8 +10,18 @@ export type Surface = 'asphalt' | 'kerb' | 'highKerb' | 'grass' | 'gravel';
 /** A spline control point with the asphalt width there; width is blended smoothly between points. */
 export interface TrackPoint {
   readonly at: Vec2;
-  /** Full asphalt width (m), at least TRACK_RULES.minWidth. */
+  /** Full asphalt width (m), at least TRACK_RULES.minWidth (minShortcutWidth on a branch). */
   readonly width: number;
+}
+
+/**
+ * An alternative road between two control points of the main loop (e.g. a shortcut): the cars may
+ * take either. `points` lie strictly between `fromPoint` and `toPoint` (fromPoint < toPoint).
+ */
+export interface TrackBranch {
+  readonly fromPoint: number;
+  readonly toPoint: number;
+  readonly points: readonly TrackPoint[];
 }
 
 /** Hand-authored track data. Compiled into a `Track` by `buildTrack`. See 01_docs/track.md. */
@@ -25,6 +35,8 @@ export interface TrackDefinition {
   readonly kerbs?: 'corners' | 'everywhere';
   /** Ranges of control points whose corners get high kerbs on the inside. */
   readonly highKerbs: readonly { readonly fromPoint: number; readonly toPoint: number }[];
+  /** Alternative roads; see 01_docs/track.md#branches. */
+  readonly branches?: readonly TrackBranch[];
 }
 
 export interface TrackSample {
@@ -52,6 +64,20 @@ export interface WallSegment {
   readonly a: Vec2;
   readonly b: Vec2;
   readonly normal: Vec2;
+  /** The road it belongs to: -1 = main loop, else the index in `Track.routes`. */
+  readonly route: number;
+  /** Index of that road's sample the segment runs beside. */
+  readonly sample: number;
+  /** Main-loop progress (m from the start line) at that sample, e.g. to style walls by stretch. */
+  readonly progress: number;
+}
+
+/** Where a route's branch runs: its own distances, and the main-loop distances it replaces. */
+export interface BranchSpan {
+  readonly from: number;
+  readonly to: number;
+  readonly mainFrom: number;
+  readonly mainTo: number;
 }
 
 /** Compiled, immutable track used by both Model and View. Static: never part of GameState. */
@@ -64,7 +90,15 @@ export interface Track {
   /** Closed loop: segment i goes from sample i to sample (i + 1) % n. Sample 0 is the start line. */
   readonly samples: readonly TrackSample[];
   readonly sides: Readonly<Record<TrackSide, TrackSideInfo>>;
+  /** All walls the cars hit: with branches, the outline of every road together (see buildTrack). */
   readonly walls: readonly WallSegment[];
   readonly centerGrid: SegmentGrid;
   readonly wallGrid: SegmentGrid;
+  /**
+   * One complete loop per branch (the main loop with that branch instead of the stretch it skips),
+   * used to locate cars on the branch and to plan a bot's line through it. Empty without branches.
+   */
+  readonly routes: readonly Track[];
+  /** On a route: where its branch runs. Absent on the main loop. */
+  readonly branch?: BranchSpan;
 }

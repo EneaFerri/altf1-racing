@@ -28,6 +28,10 @@ the next one. There are no start lights and no finish (a race mode can come late
   stripes, readable from far away). S2 and S3 also get a yellow line on the asphalt; S1 is the
   chequered start line.
 
+On a track with branches (e.g. Kruncar's shortcut), progress on the branch is mapped onto the main
+loop (`routeProgress`, see [track.md](track.md#branches-forks-and-shortcuts)): it runs on smoothly
+from the fork to the join, so sectors and lap times work the same on either road and both are valid.
+
 ## Validity
 
 A lap becomes **invalid if the car resets (R) during it**: the reset puts you on the nearest

@@ -2,18 +2,23 @@ import { TRACK_RULES } from '../config/track';
 import { wrapAngle } from '../math/angle';
 import { SegmentGrid } from '../math/SegmentGrid';
 import { sampleClosedSpline } from '../math/spline';
-import { add, headingOf, normalize, right, scale, sub } from '../math/vec2';
+import { add, headingOf, normalize, right, scale, sub, type Vec2 } from '../math/vec2';
+import { locateOnLoop, routeProgress } from './query';
 import type {
   KerbKind,
   RunoffKind,
   Track,
+  TrackBranch,
   TrackDefinition,
   TrackSample,
   TrackSide,
   WallSegment,
 } from './types';
 
-/** Compiles hand-authored track data into geometry, surfaces and lookup grids. Pure and deterministic. */
+/**
+ * Compiles hand-authored track data into geometry, surfaces and lookup grids. Pure and deterministic.
+ * With branches, also compiles one route per branch and outlines all the roads with one set of walls.
+ */
 export function buildTrack(def: TrackDefinition): Track {
   const rules = TRACK_RULES;
   def.points.forEach(({ width }, i) => {
@@ -21,6 +26,106 @@ export function buildTrack(def: TrackDefinition): Track {
       throw new Error(`${def.name}: point ${i} is ${width} m wide, minimum is ${rules.minWidth} m`);
     }
   });
+  for (const branch of def.branches ?? []) {
+    branch.points.forEach(({ width }, i) => {
+      if (width < rules.minShortcutWidth) {
+        throw new Error(
+          `${def.name}: branch point ${i} is ${width} m wide, minimum is ${rules.minShortcutWidth} m`,
+        );
+      }
+    });
+    if (!(0 < branch.fromPoint && branch.fromPoint < branch.toPoint)) {
+      throw new Error(`${def.name}: a branch must run forwards and not over the start line`);
+    }
+  }
+
+  const main = compileLoop(def, -1);
+  const routes = (def.branches ?? []).map((branch, r) => compileRoute(def, branch, r, main));
+  if (routes.length === 0) return { ...main.track, routes: [] };
+  const walls = outlineWalls(main.track, routes);
+  return {
+    ...main.track,
+    walls,
+    wallGrid: new SegmentGrid(walls.map((w) => [w.a, w.b] as const)),
+    routes,
+  };
+}
+
+interface Loop {
+  readonly track: Track;
+  /** Sample index of each control point. */
+  readonly controlIndices: readonly number[];
+}
+
+/** The main loop with `branch` driven instead of the stretch it skips, plus where the branch runs. */
+function compileRoute(def: TrackDefinition, branch: TrackBranch, route: number, main: Loop): Track {
+  const { fromPoint, toPoint } = branch;
+  const removed = toPoint - fromPoint - 1;
+  const shift = branch.points.length - removed;
+  const points = [
+    ...def.points.slice(0, fromPoint + 1),
+    ...branch.points,
+    ...def.points.slice(toPoint),
+  ];
+  // High kerbs keep their corners: ranges after the branch move with the points, inside it vanish.
+  const highKerbs = def.highKerbs.flatMap((range) => {
+    if (range.toPoint <= fromPoint) return [range];
+    if (range.fromPoint >= toPoint) {
+      return [{ fromPoint: range.fromPoint + shift, toPoint: range.toPoint + shift }];
+    }
+    return [];
+  });
+  const loop = compileLoop({ ...def, points, highKerbs }, route);
+  const sampleAt = (control: number, of: Loop): TrackSample =>
+    of.track.samples[of.controlIndices[control]!]!;
+  const span = {
+    from: sampleAt(fromPoint, loop).distance,
+    to: sampleAt(fromPoint + branch.points.length + 1, loop).distance,
+    mainFrom: sampleAt(fromPoint, main).distance,
+    mainTo: sampleAt(toPoint, main).distance,
+  };
+  const progress = (d: number): number => routeProgress(span, d);
+  return {
+    ...loop.track,
+    walls: loop.track.walls.map((w) => ({ ...w, progress: progress(w.progress) })),
+    branch: span,
+    routes: [],
+  };
+}
+
+/**
+ * One outline for all the roads: the main loop's walls plus each route's walls along its branch,
+ * leaving out every segment that lies entirely inside another road's drivable area (asphalt +
+ * run-off), so the roads open into each other where they split and join. Segments only partly
+ * inside stay: they close the corners there, leaving no gap a car could slip through.
+ */
+function outlineWalls(main: Track, routes: readonly Track[]): WallSegment[] {
+  const roads: { track: Track; branchOnly: boolean }[] = [
+    { track: main, branchOnly: false },
+    ...routes.map((track) => ({ track, branchOnly: true })),
+  ];
+  const onBranch = (track: Track, distance: number): boolean =>
+    !track.branch || (distance >= track.branch.from && distance <= track.branch.to);
+  const inside = (road: Track, p: Vec2): boolean => {
+    const loc = locateOnLoop(road, p);
+    if (!onBranch(road, loc.distance)) return false;
+    return Math.abs(loc.lateral) < loc.halfWidth + road.runoffWidth - 0.01;
+  };
+  const walls: WallSegment[] = [];
+  roads.forEach(({ track, branchOnly }, r) => {
+    const others = roads.filter((_, k) => k !== r).map((o) => o.track);
+    for (const wall of track.walls) {
+      if (branchOnly && !onBranch(track, track.samples[wall.sample]!.distance)) continue;
+      const covered = others.some((other) => inside(other, wall.a) && inside(other, wall.b));
+      if (!covered) walls.push(wall);
+    }
+  });
+  return walls;
+}
+
+/** One closed road: samples, kerbs, run-off and its own walls (`route`: -1 = main loop). */
+function compileLoop(def: TrackDefinition, route: number): Loop {
+  const rules = TRACK_RULES;
   const {
     samples: points,
     params,
@@ -100,10 +205,13 @@ export function buildTrack(def: TrackDefinition): Track {
     }
   }
 
-  const walls = [...buildWall(samples, def, 'left'), ...buildWall(samples, def, 'right')];
+  const walls = [
+    ...buildWall(samples, def, 'left', route),
+    ...buildWall(samples, def, 'right', route),
+  ];
   const centerSegments = samples.map((s, i) => [s.position, at(samples, i + 1).position] as const);
 
-  return {
+  const track: Track = {
     name: def.name,
     maxHalfWidth: Math.max(...samples.map((s) => s.halfWidth)),
     runoffWidth: def.runoffWidth,
@@ -116,7 +224,9 @@ export function buildTrack(def: TrackDefinition): Track {
     walls,
     centerGrid: new SegmentGrid(centerSegments),
     wallGrid: new SegmentGrid(walls.map((w) => [w.a, w.b] as const)),
+    routes: [],
   };
+  return { track, controlIndices };
 }
 
 /** Width at spline parameter `param`, eased between control points so edges stay smooth. */
@@ -134,6 +244,7 @@ function buildWall(
   samples: readonly TrackSample[],
   def: TrackDefinition,
   side: TrackSide,
+  route: number,
 ): WallSegment[] {
   const sign = side === 'right' ? 1 : -1;
   const points = samples.map((s) =>
@@ -143,6 +254,13 @@ function buildWall(
     const b = points[(i + 1) % points.length]!;
     const toRight = right(headingOf(sub(b, a)));
     // The right wall faces left (towards the track) and vice versa.
-    return { a, b, normal: side === 'right' ? scale(toRight, -1) : toRight };
+    return {
+      a,
+      b,
+      normal: side === 'right' ? scale(toRight, -1) : toRight,
+      route,
+      sample: i,
+      progress: samples[i]!.distance,
+    };
   });
 }

@@ -66,6 +66,10 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
      pink/white kerbs along every edge (also physics), lime grass, wooden fences and concrete +
      chain fence, run-off 6 m, grandstands with floodlights, three rivers with ponds and wooden
      bridges (one covered), barn, hay bales, chevron boards, trees, balloons. See `themes.md`.
+   - 9a.3 ✅ **Kruncar fork** — branches in the engine (`TrackDefinition.branches`, `Track.routes`,
+     one wall outline for all roads, `locateOnTrack` per road with main-loop progress); Kruncar's
+     wooden section becomes a fork: wide road with two comfortable corners or a 14 m wooden zigzag
+     shortcut. Hard bot takes the shortcut (`shortcuts`), 44.5 s; Medium 50.0 s, Easy 60.9 s.
    - 9b–d **Monza, Barcelona, Monaco** — inspired by the real circuits (their character, not 1:1
      copies: scaled to our ≥ 24 m width and arcade speeds).
 

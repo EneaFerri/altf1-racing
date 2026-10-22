@@ -15,23 +15,31 @@ export interface River {
 }
 
 export const KRUNCAR_RIVERS: readonly River[] = [
-  // Under the plank bridge (points 18-19), from the east into a pond in the infield.
+  // Under the plank bridge (point 17's straight), from the east into a pond in the infield.
   {
-    path: [vec2(1400, -300), vec2(400, -300), vec2(215, -300), vec2(150, -294), vec2(115, -260)],
+    path: [vec2(1400, -300), vec2(400, -300), vec2(215.5, -300), vec2(165, -285), vec2(128, -190)],
     width: 16,
-    pond: { x: 105, z: -205, r: 40 },
+    pond: { x: 110, z: -160, r: 26 },
   },
-  // Under the covered bridge in the wooden section (between points 49 and 50), from the south.
+  // From the south: under a plank bridge on the wide road, then under the covered bridge on the
+  // zigzag shortcut, into a pond north of it.
   {
-    path: [vec2(272, 1400), vec2(272, 400), vec2(271, 216), vec2(264, 175)],
+    path: [
+      vec2(272, 1400),
+      vec2(272, 400),
+      vec2(272, 289.3),
+      vec2(266, 235),
+      vec2(247.3, 174.2),
+      vec2(215, 135),
+    ],
     width: 14,
-    pond: { x: 252, z: 128, r: 32 },
+    pond: { x: 190, z: 108, r: 25 },
   },
-  // Under the bridge just before the finish (point 66), from the west.
+  // Under the bridge just before the finish (between points 60 and 61), from the west.
   {
     path: [vec2(-1400, 110), vec2(-200, 112), vec2(0, 110), vec2(60, 116), vec2(100, 130)],
     width: 14,
-    pond: { x: 128, z: 140, r: 30 },
+    pond: { x: 128, z: 145, r: 28 },
   },
 ];
 
@@ -45,7 +53,8 @@ export interface Bridge {
 
 export const KRUNCAR_BRIDGES: readonly Bridge[] = [
   { at: vec2(215.5, -300), length: 36, covered: false },
-  { at: vec2(271.5, 216.6), length: 30, covered: true },
+  { at: vec2(272, 289.3), length: 30, covered: false },
+  { at: vec2(247.3, 174.2), length: 30, covered: true },
   { at: vec2(0, 110), length: 30, covered: false },
 ];
 
@@ -58,24 +67,24 @@ export interface Stand {
 }
 
 export const KRUNCAR_STANDS: readonly Stand[] = (['left', 'right'] as const).flatMap((side) => [
-  { near: point(0), side, along: 70, length: 100 },
-  { near: point(0), side, along: 190, length: 100 },
+  { near: point(0), side, along: 50, length: 80 },
+  { near: point(0), side, along: 138, length: 80 },
 ]);
 
-/** Barn beside the barn straight (points 35-36), on the infield side. */
-export const KRUNCAR_BARN = { position: vec2(326, 92), rotation: 0.15 } as const;
+/** Barn between the barn straight (points 33-35) and the fork, inside the third hairpin. */
+export const KRUNCAR_BARN = { position: vec2(425, 36), rotation: 0 } as const;
 
-/** Hay-bale stacks around the second hairpin and the barn straight. */
+/** Hay-bale stacks around the second hairpin and along the barn straight. */
 export const KRUNCAR_HAY: readonly Vec2[] = [
-  vec2(215, -5),
-  vec2(240, -2),
-  vec2(80, -10),
-  vec2(300, 8),
-  vec2(170, 92),
+  vec2(88, -62),
+  vec2(84, -30),
+  vec2(300, -46),
+  vec2(380, -48),
+  vec2(330, 38),
 ];
 
 /**
- * Concrete wall with chain fence (grandstand area) between these distances along the track, wooden
- * fence elsewhere. The main straight runs from the finish bridge to the first corner (point 3).
+ * Concrete wall with chain fence (grandstand area) between these control points, wooden fence
+ * elsewhere: the main straight, from the finish bridge to the first corner.
  */
-export const KRUNCAR_CONCRETE = { fromPoint: 66, toPoint: 3 } as const;
+export const KRUNCAR_CONCRETE = { fromPoint: 61, toPoint: 2 } as const;

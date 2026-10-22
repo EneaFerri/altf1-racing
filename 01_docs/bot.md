@@ -44,6 +44,9 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
      the Test Ring's chicane.
    - **Braking**: a backward pass round the loop limits each point to what `brakeUse · brakeDecel`
      can bring down to the next point's speed.
+   - **Which road**: the plan is built on the road the bot drives (`BotPlan.road`): the main loop,
+     or, with `shortcuts`, the route through the track's first branch (`Track.routes[0]`). The
+     driver locates itself and aims on that road only.
 2. **Each tick** (`ai/driver.ts`, `botInput`):
    - **Steer** towards the racing-line point `lookAheadBase + speed · lookAheadTime` metres ahead,
      proportionally to the angle (`steerGain`), clamped to full lock.
@@ -71,6 +74,7 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
 | `topSpeed`    | 0.75 | 1      | 1    | × `maxSpeed` allowed anywhere                                |
 | `driftUse`    | 0    | 0      | 1.1  | × the corner speeds planned for drifting (0 = never drifts)  |
 | `performance` | 1    | 1      | 1.03 | × the car's `engineAccel` and `maxSpeed` vs the player's     |
+| `shortcuts`   | no   | no     | yes  | Drives the track's first branch (Kruncar's zigzag shortcut)  |
 
 - `cornerSpeed` above 1 is fine: the estimate ignores slip, so the car can really carry more.
 - `driftUse` above 1 is fine too: the aim correction tightens the drift where the plan is optimistic.
@@ -92,18 +96,21 @@ on purpose. Without its performance edge Hard would do 28.4 s; with +5% it does 
 
 ### Kruncar
 
-| Level  | Lap    | Notes                                                     |
+| Level  | Lap    | Road                                                      |
 | ------ | ------ | --------------------------------------------------------- |
-| Hard   | 45.0 s | The owner's target (~45 s); never a wheel off the asphalt |
-| Medium | 50.3 s |                                                           |
-| Easy   | 63.8 s |                                                           |
+| Hard   | 44.5 s | Zigzag shortcut (owner's target ~45 s); never a wheel off |
+| Medium | 50.0 s | Wide road                                                 |
+| Easy   | 60.9 s | Wide road                                                 |
 
-Re-measured after Kruncar got kerbs everywhere and a 6 m run-off (9a.2): unchanged.
+On the wide road Hard would do 42.2 s, putting wheels on the grass: for the bot the 14 m zigzag
+costs ~2 s (its line keeps to the middle of a narrow road). Measured with the fork (9a.3).
 
-The Hard bot is sensitive to the layout: small changes to hairpin radii or widths put wheels on the
-grass on some exits. The tests catch it; widen the exit or re-measure when editing a track.
+The Hard bot is sensitive to the layout: small changes to hairpin radii or widths, or a narrow road
+straight after a fast corner, put wheels on the grass. The tests catch it; widen the exit, give the
+first and last zigzag turns a larger radius, or re-measure when editing a track.
 
-Tests (`ai/bot.test.ts`): clean laps on every level of every track in `TRACKS`, lap-time bands, drift only on Hard, Hard never
+Tests (`ai/bot.test.ts`): clean laps on every level of every track in `TRACKS`, Hard alone on the
+Kruncar shortcut, lap-time bands, drift only on Hard, Hard never
 off the asphalt, line inside the asphalt, recovery from a car parked on its line, stuck → reset,
 determinism.
 

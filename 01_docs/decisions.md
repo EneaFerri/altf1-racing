@@ -201,3 +201,16 @@
 - Bridge decks are drawn over the asphalt but stay asphalt in the physics: same grip, no new surface.
 - Scenery positions are plain data tested against the track (nothing inside the walls, rivers only
   under bridges); trees are seeded so the map looks the same on every load.
+
+## 2026-10-22 — Forks: branches as extra routes, one wall outline
+
+- Owner's choice: a **real fork** (not a wide road with an island drawn on it), the narrow road 14 m
+  wide as an exception to the 24 m rule, Hard bot on the shortcut.
+- A branch is compiled as a whole alternative loop (`Track.routes`) with the existing `buildTrack`
+  machinery, rather than a new "graph" track model: the simulation, laps, bot and view keep working
+  on closed loops, and only `locateOnTrack` (which road am I on?) and the wall outline know about
+  forks. Progress on a branch is mapped onto the main loop, so lap timing needs no change.
+- Walls of overlapping roads are cut where they lie entirely inside another road's drivable area,
+  and kept where only partly inside: no gaps at the island's tips, at worst a short stub.
+- The shortcut is ~10% shorter but slower for the bot (−2 s for Hard): the owner may want it
+  faster; tune the zigzag's angle (`±12.5°` now) to trade difficulty against time.

@@ -11,7 +11,9 @@ the simulation never sees a theme. Code in `01_packages/client/src/view/themes/`
 - `SceneView` reads the theme for sky colour, fog, camera far plane (`viewDistance`), hemisphere light
   plus an optional directional "sun", the ground (texture, tile size, margin past the track; the
   ground is centred on the track's bounds) and adds the theme's scenery.
-- `createTrackView` reads asphalt texture, kerb colours and block length, where the white edge line
+- `createTrackView` draws every road (main loop and branches). Kerbs, edge lines and gravel appear
+  only where the physics puts them on that road (`locateOnTrack(...).route`), so no kerb crosses the
+  mouth of the other road at a fork. It reads asphalt texture, kerb colours and block length, where the white edge line
   sits (`edgeLineInset`) and the wall style per wall segment:
   `tyres` (classic), `fence` (wooden rails on posts, see-through), `concrete` (grey wall with a
   chain-link fence on top). The physics wall is the same whatever the style.
@@ -40,12 +42,14 @@ Props (positions in `themes/kruncarLayout.ts`, plain data checked by tests):
 - **Grandstands** both sides of the main straight (2 × 100 m per side, 3 m behind the wall):
   7 stepped rows with a pixel crowd, concrete back wall, white striped roof; floodlight towers at
   their ends.
-- **Rivers** (dark teal water, dirt banks), each ending in a pond: under the plank bridge (points
-  18–19), under the covered bridge in the wooden section (between points 49–50) and under the bridge
-  just before the finish (point 66).
+- **Rivers** (dark teal water, dirt banks), each ending in a pond: under the plank bridge (point
+  17's straight); from the south under a plank bridge on the fork's wide road, then under the
+  covered bridge on the zigzag shortcut; under the bridge just before the finish.
 - **Bridges**: plank deck drawn over the asphalt between the kerbs (view only: grip stays asphalt);
-  the one in the wooden section is **covered** (posts on the wall line, plank walls, gable roof).
-- **Barn** by the barn straight, **hay-bale stacks** around the second hairpin and the barn.
+  the one on the shortcut is **covered** (posts on the wall line, plank walls, gable roof).
+- **The zigzag shortcut** is Krunker's wooden part: planks over its whole length.
+- **Barn** inside the third hairpin, **hay-bale stacks** around the second hairpin and the barn
+  straight.
 - **Chevron boards** (red, white arrows pointing the turn's way) on the outside of every corner
   tighter than 70 m radius, 2.5 m behind the wall, facing the approaching cars. Automatic from the
   track's curvature (`cornerApexes`), so any track could use them.

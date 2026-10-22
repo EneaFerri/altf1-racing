@@ -104,7 +104,15 @@ export function placeCar(
   const target = findCar(state, targetId);
   if (!target) return state;
   const n = track.samples.length;
-  const start = locateOnTrack(track, target.position).index;
+  // Start from the main-loop sample at the target's progress (the target may be on a branch).
+  const progress = locateOnTrack(track, target.position).distance;
+  const start = track.samples.reduce(
+    (best, s, i) =>
+      Math.abs(s.distance - progress) < Math.abs(track.samples[best]!.distance - progress)
+        ? i
+        : best,
+    0,
+  );
   const step = metres >= 0 ? 1 : n - 1;
   let index = start;
   // Walk sample by sample in the chosen direction, wrapping over the start line.

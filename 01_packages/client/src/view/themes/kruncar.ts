@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import { KRUNCAR, locateOnTrack, vec2, type Track } from '@altf1/shared';
+import { KRUNCAR, locateOnLoop, locateOnTrack, roadOf, vec2, type Track } from '@altf1/shared';
 import { createLimeGrassTexture, createSpeckledAsphaltTexture } from '../pixelTexture';
 import {
   createBarn,
@@ -16,7 +16,7 @@ import {
   trackBounds,
   type Circle,
 } from '../scenery/placement';
-import { createChevronBoards, createDeck, createHayStacks } from '../scenery/trackside';
+import { around, createChevronBoards, createDeck, createHayStacks } from '../scenery/trackside';
 import {
   KRUNCAR_BARN,
   KRUNCAR_BRIDGES,
@@ -51,12 +51,11 @@ export const KRUNCAR_THEME: TrackTheme = {
 
 /** Concrete wall with chain fence along the main straight (grandstands), wooden fence elsewhere. */
 function kruncarWalls(track: Track): (index: number) => WallStyle {
-  const n = track.samples.length;
-  const from = locateOnTrack(track, KRUNCAR.points[KRUNCAR_CONCRETE.fromPoint]!.at).distance;
-  const to = locateOnTrack(track, KRUNCAR.points[KRUNCAR_CONCRETE.toPoint]!.at).distance;
+  const from = locateOnLoop(track, KRUNCAR.points[KRUNCAR_CONCRETE.fromPoint]!.at).distance;
+  const to = locateOnLoop(track, KRUNCAR.points[KRUNCAR_CONCRETE.toPoint]!.at).distance;
   // The stretch wraps over the start line: from `from` to the end, then 0 to `to`.
   return (index) => {
-    const d = track.samples[index % n]!.distance;
+    const d = track.walls[index]!.progress;
     return d >= from || d <= to ? 'concrete' : 'fence';
   };
 }
@@ -73,12 +72,23 @@ function kruncarScenery(track: Track): THREE.Object3D[] {
     });
   }
 
+  // The zigzag shortcut is Krunker's wooden part: planks all the way.
+  for (const road of track.routes) {
+    const { from, to } = road.branch!;
+    objects.push(
+      createDeck(road, (i) => road.samples[i]!.distance >= from && road.samples[i]!.distance <= to),
+    );
+  }
+
   for (const bridge of KRUNCAR_BRIDGES) {
-    objects.push(createDeck(track, bridge.at, bridge.length));
+    const loc = locateOnTrack(track, bridge.at);
+    const road = roadOf(track, loc.route);
+    if (loc.route < 0) {
+      objects.push(createDeck(road, around(road, loc.distance, bridge.length)));
+    }
     if (bridge.covered) {
-      const loc = locateOnTrack(track, bridge.at);
       // Posts on the wall line, so no car can drive through them.
-      const roof = createCoveredBridge(2 * (loc.halfWidth + track.runoffWidth), bridge.length - 4);
+      const roof = createCoveredBridge(2 * (loc.halfWidth + road.runoffWidth), bridge.length - 4);
       roof.position.set(loc.point.x, 0, loc.point.z);
       face(roof, loc.tangent);
       objects.push(roof);

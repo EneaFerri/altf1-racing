@@ -25,7 +25,6 @@ export const NEW_BOT_MEMORY: BotMemory = { stuckTicks: 0 };
 export function botInput(
   car: CarState,
   plan: BotPlan,
-  track: Track,
   memory: BotMemory,
 ): { input: InputCommand; memory: BotMemory } {
   const speed = dot(car.velocity, forward(car.heading));
@@ -34,6 +33,8 @@ export function botInput(
     return { input: { ...NEUTRAL_INPUT, reset: true }, memory: NEW_BOT_MEMORY };
   }
 
+  // The plan's own road (a route through a branch, for a bot taking shortcuts).
+  const track = plan.road;
   const here = locateOnTrack(track, car.position).index;
   const travel = Math.max(0, speed);
   const aim =

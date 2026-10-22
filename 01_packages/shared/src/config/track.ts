@@ -2,6 +2,8 @@
 export const TRACK_RULES = {
   /** Narrowest allowed asphalt (m): twice the original 12 m, so cars always have room. */
   minWidth: 24,
+  /** Narrowest allowed asphalt on a branch (m): shortcuts may be tight, the main loop may not. */
+  minShortcutWidth: 14,
   /** Distance between centreline samples (m). */
   sampleSpacing: 2,
   /** Corners tighter than this curvature (1/radius) get low kerbs on both sides. */

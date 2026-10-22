@@ -96,7 +96,8 @@ const SURFACE_RANGES: Record<keyof SurfaceParams, Range> = {
   bumpSpin: [0, 3, 0.05],
 };
 
-const BOT_RANGES: Record<keyof BotParams, Range> = {
+/** Numeric bot params get a slider; `shortcuts` is a checkbox. */
+const BOT_RANGES: Record<Exclude<keyof BotParams, 'shortcuts'>, Range> = {
   cornerSpeed: [0.3, 1.6, 0.01],
   brakeUse: [0.2, 1.3, 0.01],
   lineCut: [0, 1, 0.05],
@@ -160,11 +161,12 @@ export class TuningPanel {
     for (const [level, params] of Object.entries(botParams)) {
       const folder = bot.addFolder(level).close();
       for (const [key, [min, max, step]] of Object.entries(BOT_RANGES) as [
-        keyof BotParams,
+        keyof typeof BOT_RANGES,
         Range,
       ][]) {
         folder.add(params, key, min, max, step);
       }
+      folder.add(params, 'shortcuts');
     }
 
     this.gui.add({ copy: () => this.copyAsCode() }, 'copy').name('Copy as code');
@@ -207,7 +209,7 @@ export class TuningPanel {
     );
     const botLines = Object.entries(this.botParams).map(
       ([level, p]) =>
-        `  ${level}: { cornerSpeed: ${round(p.cornerSpeed)}, brakeUse: ${round(p.brakeUse)}, lineCut: ${round(p.lineCut)}, topSpeed: ${round(p.topSpeed)}, driftUse: ${round(p.driftUse)}, performance: ${round(p.performance)} },`,
+        `  ${level}: { cornerSpeed: ${round(p.cornerSpeed)}, brakeUse: ${round(p.brakeUse)}, lineCut: ${round(p.lineCut)}, topSpeed: ${round(p.topSpeed)}, driftUse: ${round(p.driftUse)}, performance: ${round(p.performance)}, shortcuts: ${p.shortcuts} },`,
     );
     const code = [
       `// From ${tuningLabel()}. When freezing: bump TUNING_BASELINE in config/tuning.ts (01_docs/tuning.md).`,

@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import {
+  locateOnTrack,
   sectorEnd,
   TRACK_RULES,
+  vec2,
   type KerbKind,
   type Track,
   type TrackSample,
@@ -63,72 +65,114 @@ const textured = (texture: THREE.Texture): THREE.Material =>
 /**
  * Builds the circuit's meshes from the same compiled `Track` the simulation uses,
  * so what you see is exactly what the physics feels. Width varies per sample.
- * Colours, textures and wall styles come from the track's `theme`.
+ * Colours, textures and wall styles come from the track's `theme`. With branches, each road is
+ * drawn too, and kerbs, lines and gravel only where the physics puts them on that road (not across
+ * the mouth of another road at a fork).
  */
 export function createTrackView(track: Track, theme: TrackTheme): THREE.Group {
   const group = new THREE.Group();
-  const { runoffWidth } = track;
-
-  group.add(
-    ribbon(
-      track,
-      (s) => [-s.halfWidth, s.halfWidth],
-      Y_ASPHALT,
-      textured(theme.asphalt()),
-      ASPHALT_TILE,
-      {
-        metresAcross: ASPHALT_TILE,
-      },
-    ),
-  );
-
-  const lineMaterial = new THREE.MeshLambertMaterial({ color: '#e8e8e8', side: THREE.DoubleSide });
-  const lowKerb = textured(createKerbTexture(...theme.kerb.colors));
-  const kerbRepeat = theme.kerb.block * 2; // one texture repeat = two blocks
-  const highKerb = textured(createKerbTexture('#f5c400', '#151515'));
-  const gravel = textured(createGravelTexture());
-
-  for (const side of SIDES) {
-    const k = sign(side);
-    const info = track.sides[side];
-    const kerbIs = (kind: KerbKind) => (i: number) => info.kerb[i] === kind;
-    const kerbBand: Band = (s) => [
-      k * (s.halfWidth - TRACK_RULES.kerbInset),
-      k * (s.halfWidth + TRACK_RULES.kerbOutset),
-    ];
-
-    group.add(
-      ribbon(
-        track,
-        (s) => [
-          k * (s.halfWidth - theme.edgeLineInset - EDGE_LINE_WIDTH),
-          k * (s.halfWidth - theme.edgeLineInset),
-        ],
-        Y_EDGE_LINE,
-        lineMaterial,
-        1,
-      ),
-      ribbon(
-        track,
-        (s) => [k * s.halfWidth, k * (s.halfWidth + runoffWidth - 0.3)],
-        Y_GRAVEL,
-        gravel,
-        GRAVEL_REPEAT,
-        {
-          include: (i) => info.runoff[i] === 'gravel',
-        },
-      ),
-      ribbon(track, kerbBand, Y_KERB, lowKerb, kerbRepeat, { include: kerbIs('low') }),
-      ribbon(track, kerbBand, Y_HIGH_KERB, highKerb, 2, { include: kerbIs('high') }),
-    );
-  }
-
+  const materials: RoadMaterials = {
+    asphalt: textured(theme.asphalt()),
+    line: new THREE.MeshLambertMaterial({ color: '#e8e8e8', side: THREE.DoubleSide }),
+    lowKerb: textured(createKerbTexture(...theme.kerb.colors)),
+    highKerb: textured(createKerbTexture('#f5c400', '#151515')),
+    gravel: textured(createGravelTexture()),
+  };
+  group.add(...createRoad(track, track, -1, () => true, theme, materials));
+  track.routes.forEach((road, route) => {
+    const { from, to } = road.branch!;
+    const onBranch = (i: number): boolean => {
+      const d = road.samples[i]!.distance;
+      return d >= from && d <= to;
+    };
+    group.add(...createRoad(track, road, route, onBranch, theme, materials));
+  });
   group.add(
     ...createWalls(track, theme.wallStyle(track)),
     createStartLine(track),
     ...createSectorGantries(track),
   );
   return group;
+}
+
+interface RoadMaterials {
+  readonly asphalt: THREE.Material;
+  readonly line: THREE.Material;
+  readonly lowKerb: THREE.Material;
+  readonly highKerb: THREE.Material;
+  readonly gravel: THREE.Material;
+}
+
+/**
+ * Asphalt, edge lines, kerbs and gravel of one road (`route`: -1 = main loop) over the segments
+ * `include` picks. A branch's asphalt sits a hair lower, so the main road wins where they overlap.
+ */
+function createRoad(
+  track: Track,
+  road: Track,
+  route: number,
+  include: (segment: number) => boolean,
+  theme: TrackTheme,
+  materials: RoadMaterials,
+): THREE.Mesh[] {
+  const meshes: THREE.Mesh[] = [
+    ribbon(
+      road,
+      (s) => [-s.halfWidth, s.halfWidth],
+      route < 0 ? Y_ASPHALT : Y_ASPHALT - 0.002,
+      materials.asphalt,
+      ASPHALT_TILE,
+      { include, metresAcross: ASPHALT_TILE },
+    ),
+  ];
+  const kerbRepeat = theme.kerb.block * 2; // one texture repeat = two blocks
+  // True when the point `offset` m across sample i belongs to this road for the physics.
+  const owns = (i: number, offset: number): boolean => {
+    const s = road.samples[i]!;
+    const p = vec2(s.position.x + s.normal.x * offset, s.position.z + s.normal.z * offset);
+    return locateOnTrack(track, p).route === route;
+  };
+
+  for (const side of SIDES) {
+    const k = sign(side);
+    const info = road.sides[side];
+    const kerbMid = (i: number): number =>
+      k * (road.samples[i]!.halfWidth + (TRACK_RULES.kerbOutset - TRACK_RULES.kerbInset) / 2);
+    const kerbIs = (kind: KerbKind) => (i: number) =>
+      include(i) && info.kerb[i] === kind && owns(i, kerbMid(i));
+    const kerbBand: Band = (s) => [
+      k * (s.halfWidth - TRACK_RULES.kerbInset),
+      k * (s.halfWidth + TRACK_RULES.kerbOutset),
+    ];
+    const lineAt = (s: TrackSample): number => s.halfWidth - theme.edgeLineInset;
+
+    meshes.push(
+      ribbon(
+        road,
+        (s) => [k * (lineAt(s) - EDGE_LINE_WIDTH), k * lineAt(s)],
+        Y_EDGE_LINE,
+        materials.line,
+        1,
+        { include: (i) => include(i) && owns(i, k * (lineAt(road.samples[i]!) - 0.2)) },
+      ),
+      ribbon(
+        road,
+        (s) => [k * s.halfWidth, k * (s.halfWidth + road.runoffWidth - 0.3)],
+        Y_GRAVEL,
+        materials.gravel,
+        GRAVEL_REPEAT,
+        {
+          include: (i) =>
+            include(i) &&
+            info.runoff[i] === 'gravel' &&
+            owns(i, k * (road.samples[i]!.halfWidth + road.runoffWidth / 2)),
+        },
+      ),
+      ribbon(road, kerbBand, Y_KERB, materials.lowKerb, kerbRepeat, { include: kerbIs('low') }),
+      ribbon(road, kerbBand, Y_HIGH_KERB, materials.highKerb, 2, { include: kerbIs('high') }),
+    );
+  }
+  return meshes;
 }
 
 /** Vertical strips along the track's wall segments, one mesh per style (and layer) in use. */

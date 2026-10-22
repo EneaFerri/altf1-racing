@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { locateOnTrack, TRACK_RULES, type Track, type Vec2 } from '@altf1/shared';
+import { TRACK_RULES, type Track, type Vec2 } from '@altf1/shared';
 import { createChevronTexture, createHayTexture, createPlankTexture } from '../pixelTexture';
 import { ribbon } from '../ribbon';
 import { face } from './buildings';
@@ -91,22 +91,25 @@ export function createHayStacks(spots: readonly Vec2[], seed: number): THREE.Gro
 }
 
 /**
- * Wooden plank deck drawn over the asphalt for `length` m of track centred on the point closest to
- * `at`, between the kerbs. View only: the physics still sees asphalt (same grip).
+ * Wooden plank deck drawn over the asphalt of `road` on the segments `include` picks, between the
+ * kerbs. View only: the physics still sees asphalt (same grip).
  */
-export function createDeck(track: Track, at: Vec2, length: number): THREE.Mesh {
-  const centre = locateOnTrack(track, at).distance;
-  const near = (i: number): boolean => {
-    const d = Math.abs(track.samples[i]!.distance - centre);
-    return Math.min(d, track.length - d) <= length / 2;
-  };
+export function createDeck(road: Track, include: (segment: number) => boolean): THREE.Mesh {
   const inner = (halfWidth: number): number => halfWidth - TRACK_RULES.kerbInset;
   return ribbon(
-    track,
+    road,
     (s) => [-inner(s.halfWidth), inner(s.halfWidth)],
     Y_DECK,
     new THREE.MeshLambertMaterial({ map: createPlankTexture(), side: THREE.DoubleSide }),
     PLANK_TILE,
-    { include: near, metresAcross: PLANK_TILE },
+    { include, metresAcross: PLANK_TILE },
   );
+}
+
+/** Segments of `road` within `length` / 2 m of distance `centre` along it. */
+export function around(road: Track, centre: number, length: number): (segment: number) => boolean {
+  return (i) => {
+    const d = Math.abs(road.samples[i]!.distance - centre);
+    return Math.min(d, road.length - d) <= length / 2;
+  };
 }

@@ -109,40 +109,67 @@ Tests (`track/buildTrack.test.ts`) guard the layout: closed loop of ~2 km, never
 (and the width really varies), walls never fold back, distant sections keep their run-offs apart,
 kerbs only in corners, high kerbs only in the chicane.
 
+## Branches: forks and shortcuts
+
+A track can offer **alternative roads**: `TrackDefinition.branches` lists, for each, the control
+points it leaves and rejoins the main loop at (`fromPoint` < `toPoint`, not over the start line) and
+its own points in between. Branch points may be as narrow as `minShortcutWidth` (14 m); the main
+loop keeps the 24 m minimum.
+
+- **Routes**: `buildTrack` compiles, per branch, a complete loop driving that branch instead of the
+  stretch it skips (`Track.routes[r]`), with `branch` = where the branch runs on it (`from`/`to`) and
+  the main-loop distances it replaces (`mainFrom`/`mainTo`).
+- **Walls**: one outline for all roads: the main walls plus each route's walls along its branch,
+  minus every segment lying entirely inside another road's asphalt + run-off. So the roads open into
+  each other at the fork and the join, and the **island** between them is walled. Segments only
+  partly inside stay, closing the island's tips without gaps. Each `WallSegment` keeps its `route`,
+  `sample` and main-loop `progress`.
+- **Locating** (`locateOnTrack`): the point belongs to the road it is most inside
+  (`|lateral| − halfWidth` smallest): `route` says which, `index` is that road's sample, and
+  `distance` is **main-loop progress** (`routeProgress`: linear across the branch, offset after
+  it). Surfaces, lap timing, resets and `placeCar` all go through it, so they work on a branch
+  unchanged. `locateOnLoop` ignores branches (one road only).
+- The bot drives one road: see [bot.md](bot.md) (`shortcuts`).
+
 ## Kruncar (`track/layouts/kruncar.ts`)
 
-"Kruncar", ~2.56 km, clockwise, **24–32 m wide**, **6 m run-off** and **kerbs along every edge**
-(`kerbs: 'everywhere'`), like the Krunker map (fence close to the track). Inspired by the Krunker.io map
-"KrunCar" by Keybi (https://krunker.io/?game=FRA:qtesb): the owner's description of the corner
-sequence plus 14 screenshots (kept locally in `02_screen_krunkerMap/`, git-ignored). Not a 1:1 copy:
-Krunker's square 90° corners become round ones (radius ≥ 45 m, ≥ 42 m in the wooden section) so the
-walls never fold, elevation is flattened (2D sim), widths follow our ≥ 24 m rule.
-Sized for the owner's target: **Hard bot ≈ 45 s a lap** (the Krunker record is 1:25.4 for 2 laps).
+"Kruncar", ~2.56 km (main loop; ~2.52 km through the shortcut), clockwise, **24–32 m wide** (14 m on
+the shortcut), **6 m run-off** and **kerbs along every edge** (`kerbs: 'everywhere'`), like the Krunker
+map (fence close to the track). Inspired by the Krunker.io map "KrunCar" by Keybi
+(https://krunker.io/?game=FRA:qtesb): the owner's description of the corner sequence plus 14
+screenshots (kept locally in `02_screen_krunkerMap/`, git-ignored). Not a 1:1 copy: Krunker's square
+90° corners become round ones (radius ≥ 45 m on the main loop) so the walls never fold, elevation is
+flattened (2D sim). Sized for the owner's target: **Hard bot ≈ 45 s a lap** (the Krunker record is
+1:25.4 for 2 laps).
 
-Corners are circular arcs sampled every 30°: with uneven spacing the spline tightens between points
-and the walls fold. The layout was drafted with a turtle script (straights + arcs) and closed by
-solving two straight lengths; edit it the same way, keeping arc points evenly spaced.
+Corners are circular arcs: with uneven spacing the spline tightens between points and the walls fold.
+The layout is drafted with a turtle script (straights + arcs), closed by solving two straight lengths
+(the barn straight and the final straight); the shortcut is solved to land exactly on point 50.
 
-| Points | Section (Krunker landmark)                                                  | Width   |
-| ------ | --------------------------------------------------------------------------- | ------- |
-| 0–3    | Main straight between the grandstands, start line at point 0                | 32 m    |
-| 4–10   | 90° right, immediately 90° left                                             | 30 m    |
-| 11–17  | Short straight into the first hairpin (180° right), wide for braking        | 28→32 m |
-| 18–19  | Straight over the plank bridge (river)                                      | 26 m    |
-| 20–24  | S-bend (left, immediately right), short straight                            | 26→28 m |
-| 25–28  | Right, a bit of straight                                                    | 28 m    |
-| 29–34  | Second hairpin (180° left)                                                  | 28 m    |
-| 35–36  | Straight along the barn and the hay bales                                   | 28 m    |
-| 37–42  | Third hairpin (180° right)                                                  | 30 m    |
-| 43–55  | **Wooden section**: covered bridge + ramp, left-right steps, **high kerbs** | 24 m    |
-| 56–65  | Straight, then left, right onto the main straight's line, left              | 28 m    |
-| 66     | Over the bridge to the line                                                 | 30 m    |
+| Points | Section (Krunker landmark)                                                                                                          | Width   |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| 0–2    | Main straight between the grandstands, start line at point 0                                                                        | 32 m    |
+| 3–9    | 90° right, immediately 90° left                                                                                                     | 30 m    |
+| 10–16  | Straight into the first hairpin (180° right), wide for braking                                                                      | 28→32 m |
+| 17     | Straight over the plank bridge (river)                                                                                              | 26 m    |
+| 18–22  | S-bend (left, immediately right), short straight                                                                                    | 26→28 m |
+| 23–26  | Right, a bit of straight                                                                                                            | 28 m    |
+| 27–32  | Second hairpin (180° left)                                                                                                          | 28 m    |
+| 33–35  | Straight along the barn and the hay bales                                                                                           | 28 m    |
+| 36–41  | Third hairpin (180° right)                                                                                                          | 32 m    |
+| 42–50  | **The fork** (42 → 50): wide road = comfortable left (R 60 m), south, comfortable right, over a plank bridge                        | 26 m    |
+| branch | **Wooden zigzag shortcut** (42 → 50): straight on, then six legs swinging ±12.5° around the diagonal, covered bridge over the river | 14 m    |
+| 51–60  | Straight, then left, right onto the main straight's line, left                                                                      | 28 m    |
+| 61     | Over the bridge to the line                                                                                                         | 30 m    |
 
-Bot laps (alone, baseline v1 car): Hard 45.0 s, Medium 50.3 s, Easy 63.8 s, all clean.
+The shortcut is ~390 m against ~436 m for the wide road. Bot laps (alone, baseline v1 car): Hard
+44.5 s through the shortcut (42.2 s on the wide road, but with wheels on the grass), Medium 50.0 s,
+Easy 60.9 s on the wide road, all clean.
 Its look and scenery (rivers, bridges, grandstands, barn, ...) are in [themes.md](themes.md); the
-plank decks on the bridges are view only (the physics sees asphalt there).
-Tests (`track/buildTrack.test.ts`): every track in `TRACKS` passes the generic layout checks; Kruncar
-also checks its length and that high kerbs and the 24 m minimum are only in the wooden section.
+plank decks (bridges and the whole shortcut) are view only (the physics sees asphalt there).
+Tests (`track/buildTrack.test.ts`): every track and route passes the generic layout checks; Kruncar
+also checks the fork: 24 m main loop, 14 m shortcut, shortcut shorter than the wide road, cars on
+the shortcut located there with progress running on, the island walled off.
 
 ## Making a new track
 

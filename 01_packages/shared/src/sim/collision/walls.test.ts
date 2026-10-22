@@ -4,15 +4,14 @@ import { CAR_COLLIDER, COLLISION_PARAMS } from '../../config/collision';
 import { FIXED_DT, TICK_RATE } from '../../config/sim';
 import { SegmentGrid } from '../../math/SegmentGrid';
 import { forward, length, scale, vec2 } from '../../math/vec2';
-import type { WallSegment } from '../../track/types';
 import { NEUTRAL_INPUT, type InputCommand } from '../../types/input';
 import { createCar, stepCar, type CarState } from '../car';
 import { carCircles } from './collider';
-import { resolveWalls, wallContact, type WallSet } from './walls';
+import { resolveWalls, wallContact, type SolidWall, type WallSet } from './walls';
 
 // A long straight wall on x = 0, facing +x (the track side). Heading 0 drives along it (-Z);
 // a positive heading points the nose into the wall.
-const segments: WallSegment[] = [];
+const segments: SolidWall[] = [];
 for (let z = -3000; z < 3000; z += 2) {
   segments.push({ a: vec2(0, z), b: vec2(0, z + 2), normal: vec2(1, 0) });
 }

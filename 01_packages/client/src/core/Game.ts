@@ -136,7 +136,7 @@ export class Game {
     const inputs: Record<CarId, InputCommand> = { [PLAYER_ID]: this.lastInput };
     const bot = findCar(this.state, BOT_ID);
     if (bot && this.botLevel) {
-      const result = botInput(bot, this.currentBotPlan(this.botLevel), this.track, this.botMemory);
+      const result = botInput(bot, this.currentBotPlan(this.botLevel), this.botMemory);
       this.botMemory = result.memory;
       inputs[BOT_ID] = result.input;
     }

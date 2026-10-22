@@ -54,9 +54,9 @@ describe('placement', () => {
           return Math.hypot(s.x - x, s.z - z) < 70;
         })
         .map((a) => a.direction);
-    expect(new Set(directionsNear(170.5, -544.5))).toEqual(new Set(['right'])); // hairpin 1
-    expect(new Set(directionsNear(114.9, -5.2))).toEqual(new Set(['left'])); // hairpin 2
-    expect(new Set(directionsNear(436.7, 84.8))).toEqual(new Set(['right'])); // hairpin 3
+    expect(new Set(directionsNear(170.5, -455))).toEqual(new Set(['right'])); // hairpin 1
+    expect(new Set(directionsNear(128.9, -55.7))).toEqual(new Set(['left'])); // hairpin 2
+    expect(new Set(directionsNear(541.2, 34.3))).toEqual(new Set(['right'])); // hairpin 3
   });
 });
 

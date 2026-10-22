@@ -27,6 +27,8 @@ export interface BotParams {
   driftUse: number;
   /** Multiplier on the bot car's `engineAccel` and `maxSpeed` vs the player's (1 = same car). */
   performance: number;
+  /** Takes the track's first branch (e.g. Kruncar's zigzag shortcut) instead of the main road. */
+  shortcuts: boolean;
 }
 
 export const BOT_PARAMS: Record<BotLevel, BotParams> = {
@@ -37,8 +39,17 @@ export const BOT_PARAMS: Record<BotLevel, BotParams> = {
     topSpeed: 0.75,
     driftUse: 0,
     performance: 1,
+    shortcuts: false,
   },
-  medium: { cornerSpeed: 1.15, brakeUse: 1, lineCut: 1, topSpeed: 1, driftUse: 0, performance: 1 },
+  medium: {
+    cornerSpeed: 1.15,
+    brakeUse: 1,
+    lineCut: 1,
+    topSpeed: 1,
+    driftUse: 0,
+    performance: 1,
+    shortcuts: false,
+  },
   hard: {
     cornerSpeed: 1.15,
     brakeUse: 1,
@@ -46,6 +57,7 @@ export const BOT_PARAMS: Record<BotLevel, BotParams> = {
     topSpeed: 1,
     driftUse: 1.1,
     performance: 1.03,
+    shortcuts: true,
   },
 };
 

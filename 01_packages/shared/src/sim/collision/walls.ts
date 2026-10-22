@@ -13,13 +13,19 @@ import {
   ZERO,
   type Vec2,
 } from '../../math/vec2';
-import type { Track } from '../../track/types';
+import type { Track, WallSegment } from '../../track/types';
 import type { CarState } from '../car';
 import { applyHit } from './collider';
 import type { ImpactEvent } from './types';
 
+/** A wall as the solver sees it: just the segment and the side it pushes towards. */
+export type SolidWall = Pick<WallSegment, 'a' | 'b' | 'normal'>;
+
 /** The part of a track the wall solver needs (tests can build a few walls by hand). */
-export type WallSet = Pick<Track, 'walls' | 'wallGrid'>;
+export interface WallSet {
+  readonly walls: readonly SolidWall[];
+  readonly wallGrid: Track['wallGrid'];
+}
 
 export interface WallContact {
   /** Closest point on the wall (m). */

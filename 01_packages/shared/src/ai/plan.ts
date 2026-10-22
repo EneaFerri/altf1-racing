@@ -4,8 +4,13 @@ import { wrapAngle } from '../math/angle';
 import { add, distance, dot, headingOf, scale, sub, type Vec2 } from '../math/vec2';
 import type { Track } from '../track/types';
 
-/** What a bot aims for at each centreline sample of a track. Pure data, rebuilt when params change. */
+/**
+ * What a bot aims for at each centreline sample of the road it drives. Pure data, rebuilt when
+ * params change.
+ */
 export interface BotPlan {
+  /** The closed road the bot drives: the main loop, or a route through a branch (`shortcuts`). */
+  readonly road: Track;
   /** Racing line: signed offset from the centreline (m, + = right), per sample. */
   readonly lateral: readonly number[];
   /** Racing line points (centreline + lateral), per sample. */
@@ -41,6 +46,10 @@ export function botCarParams(car: CarParams, bot: BotParams): CarParams {
  * `player` is the player's car; the bot's own car (`botCarParams`) is derived from it.
  */
 export function buildBotPlan(track: Track, player: CarParams, bot: BotParams): BotPlan {
+  return planRoad(bot.shortcuts ? (track.routes[0] ?? track) : track, player, bot);
+}
+
+function planRoad(track: Track, player: CarParams, bot: BotParams): BotPlan {
   const car = botCarParams(player, bot);
   const n = track.samples.length;
   const at = <T>(list: readonly T[], i: number): T => list[((i % n) + n) % n]!;
@@ -70,7 +79,7 @@ export function buildBotPlan(track: Track, player: CarParams, bot: BotParams): B
     const reachable = Math.sqrt(speed[next]! ** 2 + 2 * decel * distance(line[i]!, line[next]!));
     if (reachable < speed[i]!) speed[i] = reachable;
   }
-  return { lateral, line, speed, curvature, driftOk, car, bot };
+  return { road: track, lateral, line, speed, curvature, driftOk, car, bot };
 }
 
 /** Signed curvature (1/m, + = right) of the racing line at point `i`, over two samples each side. */

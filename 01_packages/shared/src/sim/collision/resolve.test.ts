@@ -4,12 +4,11 @@ import { CAR_COLLIDER, COLLISION_PARAMS } from '../../config/collision';
 import { FIXED_DT, TICK_RATE } from '../../config/sim';
 import { SegmentGrid } from '../../math/SegmentGrid';
 import { dot, forward, scale, vec2 } from '../../math/vec2';
-import type { WallSegment } from '../../track/types';
 import { NEUTRAL_INPUT, type InputCommand } from '../../types/input';
 import { createCar, stepCar, type CarState } from '../car';
 import { carCircles } from './collider';
 import { resolveCollisions } from './resolve';
-import type { WallSet } from './walls';
+import type { SolidWall, WallSet } from './walls';
 
 const NO_WALLS: WallSet = { walls: [], wallGrid: new SegmentGrid([]) };
 const THROTTLE: InputCommand = { ...NEUTRAL_INPUT, throttle: 1 };
@@ -74,7 +73,7 @@ describe('resolveCollisions', () => {
   });
 
   it('a car squeezed between another car and a wall never goes into the wall', () => {
-    const segments: WallSegment[] = [];
+    const segments: SolidWall[] = [];
     for (let z = -200; z < 200; z += 2) {
       segments.push({ a: vec2(0, z), b: vec2(0, z + 2), normal: vec2(1, 0) });
     }
