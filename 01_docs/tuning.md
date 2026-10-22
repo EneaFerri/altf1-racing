@@ -20,11 +20,8 @@ All feel-related numbers have one home each and are the game's defaults:
 Current: **baseline v2, final**, frozen on 2026-10-22 after Phase 1 step 9a.5: grip-only handling
 (no drift), brake with pressure, the owner's F2 values (`maxYawRate` 2.7, `yawResponse` 9.5) and the
 re-measured bots. The owner drove it and confirmed it as the **reference setup**: future tuning starts
-from here, and any change to these values bumps the version (v3, …). In git it is tagged
-`baseline-v2` once committed.
-
-History: v1 (provisional) was frozen at the end of step 7; steps 9a.4 (brake drifting) and 9a.5
-(drift removed) changed it into v2.
+from here, and any change to these values bumps the version (v3, …). Git tag: `baseline-v2`.
+(v1, provisional, was frozen at the end of step 7.)
 
 The label (`baseline v2 final`) shows in the dev tuning panel title (F2) and in the debug
 overlay (F3), so it's always clear which baseline is being driven. Production builds are unaffected.

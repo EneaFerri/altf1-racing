@@ -1,6 +1,6 @@
 /**
  * Handling parameters. Units are SI (m, s, m/s, rad). Meaning and effect of each
- * value are documented in 01_docs/physics.md. Values: provisional baseline, see config/tuning.ts.
+ * value are documented in 01_docs/physics.md. Defaults: the frozen tuning baseline, see config/tuning.ts.
  */
 export interface CarParams {
   /** Engine speed limit: thrust fades to 0 here. Real top speed is lower because of air drag. */

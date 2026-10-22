@@ -16,7 +16,7 @@ export const TUNING_BASELINE: TuningBaseline = {
   frozenOn: '2026-10-22',
 };
 
-/** Short label for dev tools, e.g. "baseline v1 provisional". */
+/** Short label for dev tools, e.g. "baseline v2 final". */
 export function tuningLabel(): string {
   return `baseline v${TUNING_BASELINE.version} ${TUNING_BASELINE.status}`;
 }

@@ -1,6 +1,6 @@
 /**
  * Bot driving levels. Meaning and measured lap times are documented in 01_docs/bot.md.
- * Values: provisional, see config/tuning.ts.
+ * Defaults: the frozen tuning baseline, see config/tuning.ts.
  */
 export type BotLevel = 'easy' | 'medium' | 'hard';
 

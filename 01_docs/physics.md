@@ -64,12 +64,12 @@ server agrees, like the smoothed steering):
    - `sign(vF)` → steering is inverted in reverse, like a real car.
    - **Yaw inertia**: the actual `yawRate` approaches that target exponentially,
      `yawRate += (target − yawRate) · (1 − exp(−yawResponse · dt))`. Combined with the steering ramp,
-     turning in and out is progressive instead of a step on every key press (~0.6 s to 90% at 100 km/h, measured with `yawResponse` 7; a bit quicker at 9.5).
+     turning in and out is progressive instead of a step on every key press (0.45 s to 90% at 100 km/h).
 6. **Integrate** — `heading += (yawRate + spin) · dt` (wrapped to (−π, π]), velocity recomposed from `vF`/`vL`, `position += velocity · dt`.
 
 Because velocity is recomposed in the _old_ frame and the car then rotates, part of the speed becomes
-lateral on the next tick and grip pulls it back in line: a natural slip in turns, up to ~22° at full
-lock (roughly `yawRate / lateralGrip`).
+lateral on the next tick and grip pulls it back in line: a natural slip in turns, roughly
+`yawRate / lateralGrip` (at full lock 30° at 50 km/h down to 21° at 150 km/h).
 
 ## Surfaces, spin and reset
 
@@ -104,19 +104,17 @@ lock (roughly `yawRate / lateralGrip`).
 | `lateralGrip`          | 6      | 1/s   | Less sliding, more "on rails"                              |
 | `spinDamping`          | 4      | 1/s   | External spin (kerb kicks, impacts) dies out faster        |
 
-The dev tuning panel (F2, see [architecture.md](architecture.md#dev-tools)) edits all of these live.
+The dev tuning panel (F2, see [architecture.md](architecture.md), Dev tools) edits all of these live.
 
 ## Resulting behaviour (measured with the values above)
 
-| Metric                                                       | Value          |
-| ------------------------------------------------------------ | -------------- |
-| Top speed                                                    | ~250 km/h      |
-| 0–100 km/h                                                   | 1.9 s          |
-| Braking 100–0 km/h (Space held from the start)               | 17.9 m, 1.15 s |
-| Grip turn radius at 50 km/h (computed: v / yaw at full lock) | ~5.7 m         |
-| Grip turn radius at 150 km/h (computed)                      | ~22 m          |
-| Slip angle at full lock, 80–150 km/h                         | ~22°           |
+| Metric                                         | Value               |
+| ---------------------------------------------- | ------------------- |
+| Top speed                                      | ~250 km/h           |
+| 0–100 km/h                                     | 1.9 s               |
+| Braking 100–0 km/h (Space held from the start) | 17.9 m, 1.15 s      |
+| Turn-in to 90% yaw at 100 km/h (full lock)     | 0.45 s              |
+| Turn radius at full lock — 50 / 100 / 150 km/h | 5.7 / 12.7 / 21.8 m |
+| Slip angle at full lock — 50 / 100 / 150 km/h  | 30° / 25° / 21°     |
 
-`maxYawRate` 2.7 and `yawResponse` 9.5 come from the owner's F2 tuning (step 9a.5); radii marked
-"computed" ignore slip. Top speed, acceleration and braking were measured before (steps 3–9a.4) and
-don't depend on the changed values. Still provisional, see [tuning.md](tuning.md).
+These are **baseline v2** (final, the owner's reference setup): see [tuning.md](tuning.md).

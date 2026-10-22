@@ -2,7 +2,7 @@ import type { Surface } from '../track/types';
 
 /**
  * How a surface affects a car. Averaged over the four wheels. See 01_docs/track.md.
- * Values: provisional baseline, see config/tuning.ts.
+ * Defaults: the frozen tuning baseline, see config/tuning.ts.
  */
 export interface SurfaceParams {
   /** Multiplies lateral grip. */

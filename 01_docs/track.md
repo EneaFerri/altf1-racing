@@ -162,9 +162,7 @@ The layout is drafted with a turtle script (straights + arcs), closed by solving
 | 51–60  | Straight, then left, right onto the main straight's line, left                                                                      | 28 m    |
 | 61     | Over the bridge to the line                                                                                                         | 30 m    |
 
-The shortcut is ~390 m against ~436 m for the wide road. Bot laps (alone, baseline v1 car): Hard
-44.5 s through the shortcut (42.2 s on the wide road, but with wheels on the grass), Medium 50.0 s,
-Easy 60.9 s on the wide road, all clean.
+The shortcut is ~390 m against ~436 m for the wide road. Bot lap times: [bot.md](bot.md#kruncar).
 Its look and scenery (rivers, bridges, grandstands, barn, ...) are in [themes.md](themes.md); the
 plank decks (bridges and the whole shortcut) are view only (the physics sees asphalt there).
 Tests (`track/buildTrack.test.ts`): every track and route passes the generic layout checks; Kruncar

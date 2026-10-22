@@ -9,7 +9,7 @@
 
 ## 2026-10-21 — Custom arcade physics, no physics engine
 
-- Drift feel needs direct control over grip; a rigid-body engine fights that.
+- Arcade feel needs direct control over grip and yaw; a rigid-body engine fights that.
 - Deterministic and unit-testable. Rapier may be added later for collisions only.
 
 ## 2026-10-21 — Product choices (from owner)
@@ -29,16 +29,8 @@
 
 - Velocity split into forward/lateral parts, lateral part damped by `lateralGrip`; yaw driven
   directly by steering and speed. Few, intuitive parameters (see physics.md), easy to tune for fun.
-- A tyre/slip-curve model (Pacejka-style) would be more realistic but harder to tune and to make drift "easy".
+- A tyre/slip-curve model (Pacejka-style) would be more realistic but harder to tune for arcade fun.
 - Steering smoothing lives in the Model, so the server reproduces it exactly.
-
-## 2026-10-21 — Kinematic drift with locked direction
-
-- The drift directly controls the travel direction's turn rate and a bounded slip angle; the side
-  is locked on entry. Spin-outs are impossible by construction; steering only tightens or widens.
-- Chosen by the owner: "easy arcade" (Mario Kart / Ridge Racer) over a slide you must catch.
-- Normal grip was toned down (yaw 2.2→1.6, grip 8→6) so drifting is the faster line at high speed.
-- Exiting a drift keeps the car's speed (arcade reward), instead of grip eating the sideways part.
 
 ## 2026-10-21 — Dev tools via dynamic import
 
@@ -68,18 +60,11 @@
   the same sequence of features: long straight, hairpin, chicane with high kerbs, sweeper,
   double-apex, kink, final corner.
 
-## 2026-10-21 — Smoother steering and drift
+## 2026-10-21 — Smoother steering, camera on V
 
-- Owner feedback: A/D turning felt abrupt, drifts too sudden and off-line.
-- `yawRate` now has **inertia** (`yawResponse`); the steering ramp is gentler but full-lock yaw is a
-  bit higher (`maxYawRate` 1.8) → slightly sharper but fluid corners.
-- Drift **blends from the current turn rate** (`driftTurnResponse`) instead of jumping to its own,
-  and holds the nose closer to the travel direction (20° neutral, 30° max, built up over ~0.7 s).
-
-## 2026-10-21 — C brakes too; camera moves to V
-
-- C added as a second brake key for comfort. The planned camera toggle (step 5) moves from C to V
-  (owner's choice), the usual view key in racing games.
+- Owner feedback: A/D turning felt abrupt. `yawRate` now has **inertia** (`yawResponse`), so corners
+  are fluid instead of a step on every key press.
+- The camera toggle is V (owner's choice), the usual view key in racing games.
 
 ## 2026-10-22 — Audit cleanup
 
@@ -103,7 +88,6 @@
   each other up to 60–75° through repeated small hits. With max-instead-of-sum and a minimum impact
   speed, the worst case stays under 30°.
 - No damage model: it would punish the player for the whole race, the opposite of the goal.
-- Drift slip above its cap (only possible after an impact) eases back instead of snapping the nose.
 
 ## 2026-10-22 — Cameras: params in the client, cockpit glued to the camera
 
@@ -128,10 +112,11 @@
 - HUD in a system sans-serif with tabular figures: no font dependency, works offline and in a desktop
   wrapper.
 
-## 2026-10-22 — Tuning frozen as a provisional baseline
+## 2026-10-22 — Tuning frozen as a versioned baseline
 
-- Owner's choice: the values in the repo at the end of Phase 1 become the defaults, explicitly marked as
-  not final (`TUNING_BASELINE` in `shared/config/tuning.ts`, status `'provisional'`, v1).
+- Owner's choice: the values in the repo become the defaults, with a status and version
+  (`TUNING_BASELINE` in `shared/config/tuning.ts`). v1 (provisional) at the end of step 7; **v2
+  (final)** after step 9a.5, the owner's reference setup (git tag `baseline-v2`).
 - The flag is data, not a mode switch: the defaults are always the config files, and re-tuning uses the
   existing dev panel (F2 → Copy as code → paste → bump the baseline). No second "dev" set of values to
   keep in sync.
@@ -162,10 +147,9 @@
 - Owner's choices: blue livery for the bot, Medium at start, no bot timing on screen.
 - `placeCarAhead` became `placeCar` (signed distance, adds a missing car) plus `removeCar`, used both
   by the bot (B) and the dev dummy (F4).
-- Owner's feedback after driving (best lap 29 s, with drifts): Easy kept, the first Medium dropped,
-  the first Hard became Medium, and Hard had to beat the owner. Grip alone tops out at ~33.2 s, so
-  Hard drifts like a player, with the drift decided live on the actual speed, and gets a +3% car
-  (`performance`, through the new per-car `SimContext.carParamsById`): 27.8 s.
+- Owner's feedback after driving: Easy kept, the first Medium dropped, the first Hard became Medium.
+  Hard gets a +3% car (`performance`, through the per-car `SimContext.carParamsById`) and, on
+  Kruncar, the shortcut.
 
 ## 2026-10-22 — Track menu before step 9
 
@@ -177,7 +161,7 @@
   listeners and the dev panel all go away for free, and there is no state worth keeping yet.
   Revisit when there is (settings, multiplayer session).
 
-## 2026-10-22 — Kruncar: layout from screenshots, bot drift rule
+## 2026-10-22 — Kruncar: layout from screenshots
 
 - No map file is available (the owner isn't the map's author, so the Krunker editor can't export it):
   the layout comes from the owner's description of the corner order and 14 in-game screenshots.
@@ -185,10 +169,6 @@
 - Layout drafted as straights + circular arcs, then closed by solving two straight lengths, and sized
   by measuring the Hard bot until it lapped in ~45 s (owner's target). Shape first (9a.1), scenery
   later (9a.2), so the geometry can be reviewed on its own.
-- The Hard bot drifted wide in corners right after a corner the other way (the drift's turn blends
-  in from the current one). Fixed in the bot (no drift within 100 m after an opposite corner) rather
-  than by bending the track around it: every future track has esses. Cost: Test Ring Hard 27.8 →
-  28.6 s, still faster than the owner's 29 s, so the Test Ring bound became "< 29 s".
 
 ## 2026-10-22 — Kruncar look: themes per track, kerbs everywhere
 
@@ -215,37 +195,21 @@
 - The shortcut is ~10% shorter but slower for the bot (−2 s for Hard): the owner may want it
   faster; tune the zigzag's angle (`±12.5°` now) to trade difficulty against time.
 
-## 2026-10-22 — Drift from braking, no drift key
+## 2026-10-22 — Brake with pressure, S reverse (step 9a.4)
 
-- Owner feedback: forward/back and steering feel right, the drift key and the on/off brake don't.
-  Space becomes the brake, S reverse, C is unbound; no key starts a drift.
+- Owner feedback: forward/back and steering feel right, the on/off brake doesn't. Space is the brake,
+  S reverses (braking first while rolling forward), C is unbound.
 - **Brake pressure** lives in the Model (`CarState.brakePressure`), like the smoothed steering, so the
   server computes the same braking: 30% on a tap, full after 0.6 s held, gone 0.1 s after release.
-- **Slide rule** = corner load (`|vF · yawRate|`, the real lateral acceleration, normalised) plus
-  weighted brake pressure, ≥ 1, with a minimum corner load so straights, soft and slow corners never
-  slide. Using the actual yaw rate (with inertia) instead of the steering key makes it depend on the
-  corner really being taken. A full friction-circle model was considered: harder to read and tune,
-  and the linear sum already gives "brake too hard in a fast corner = slide".
-- **Exit by letting go of the steering**, not of the brake (owner's choice): the drift can be held
-  with throttle (power slide) and countersteering, as before; the brake only starts it.
-- The existing drift (`stepDrift`: locked side, bounded slip, speed kept on exit) is unchanged; only
-  how it starts and ends changed.
-- Bots: Hard enters by braking like a player (look-ahead 0.45 → 0.6 s to cover the ramp); every bot
-  caps its normal braking below the slide threshold, so Easy/Medium never drift by accident.
 
-## 2026-10-22 — Drift removed: grip-only handling (step 9a.5)
+## 2026-10-22 — Drift: three designs, then removed (steps 3–9a.5)
 
-- Owner feedback after driving 9a.4: the brake should only slow the car (for tight corners). An
-  intermediate "mini drift" started by fast corners was tried and rejected by the owner: no drift at
-  all, cornering stays as it was, the brake stays as it is.
-- Removed from the Model: drift mode (`stepDrift`, `drifting`, `driftDirection`, `gripRecovery`, the
-  drift exit speed bonus), all `drift*` params, `cornerLoad`/`slideLoad`, the surface's `breaksDrift`
-  and the collision `driftBreakImpactSpeed` (`applyHit` no longer needs the hit strength).
-  The kinematic drift from step 3 is in git history if it ever comes back.
-- Bots: no drift logic left (`driftUse`, drift zones, drift steering, slide caps). Hard keeps its +3%
-  car and the shortcut; its narrower line (`lineCut` 0.5, only there to give a drifting car room)
-  goes back to 1.
-- The owner's F2 values became the defaults (`maxYawRate` 1.8 → 2.7, `yawResponse` 7 → 9.5). With the
-  faster yaw, Easy's `cornerSpeed` 0.65 → 0.5 keeps it ~20% slower than Medium.
-- The owner drove it and called it perfect: frozen as **baseline v2, final** (`config/tuning.ts`), the
-  reference setup every later tuning starts from.
+- Step 3: an easy arcade drift (Space + steer; locked side, bounded slip, speed kept on exit), later
+  blended into the current turn. Step 9a.4: no drift key, braking too hard in a fast corner slid the
+  car. 9a.5: a smaller drift started by fast corners alone. The owner rejected each after driving:
+  **grip-only handling**, the brake only slows the car down.
+- Removed everything drift-related (Model state and params, surface/collision drift rules, bot drift
+  logic). Hard's narrower racing line, only there for the drift, went back to the full width. The
+  code is in git history (before tag `baseline-v2`) if it ever comes back.
+- With it, the owner's F2 values became the defaults (`maxYawRate` 1.8 → 2.7, `yawResponse` 7 → 9.5),
+  and Easy's `cornerSpeed` 0.65 → 0.5 keeps it ~20% slower than Medium.

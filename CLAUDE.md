@@ -78,7 +78,7 @@ npm run build      # production build of the client
 - [01_docs/collisions.md](01_docs/collisions.md) — walls, car-vs-car, solver, impact events, parameters, measured behaviour
 - [01_docs/physics.md](01_docs/physics.md) — car model (grip, brake pressure), conventions (units, axes, heading), parameters, measured behaviour
 - [01_docs/bot.md](01_docs/bot.md) — bot opponent: levels, racing line, speed profile, measured lap times
-- [01_docs/tuning.md](01_docs/tuning.md) — tuning baseline (provisional v1), status flag, re-tune workflow
+- [01_docs/tuning.md](01_docs/tuning.md) — tuning baseline (v2 final, the reference setup), status flag, re-tune workflow
 - [01_docs/roadmap.md](01_docs/roadmap.md) — phases and current status
 - [01_docs/decisions.md](01_docs/decisions.md) — decision log (why we chose what we chose)
 

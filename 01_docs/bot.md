@@ -27,8 +27,6 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
      neighbours `lineSpan` (8 m) before and after, projected back on the sample's normal and clamped to
      `lineCut` of the half-width minus `edgeMargin` (3 m). Like a string pulled tight between the
      edges: outside → apex → outside, the lowest curvature the allowed width permits.
-     (A first version simply shifted the line towards the inside of corners: that tightens the arc
-     and was _slower_ with more cut.)
    - **Corner speed** from the car's own grip-mode yaw rate: at speed v the car turns at most
      `maxYawRate · (1 − highSpeedSteerLoss · v / maxSpeed)`, and following the line needs
      `v · curvature`. Solving the equality, scaled by `cornerSpeed` and capped at
@@ -60,17 +58,15 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
 
 - `cornerSpeed` above 1 is fine: the estimate ignores slip, so the car can really carry more.
 
-## Measured behaviour (bot alone, no drift, step 9a.5)
+## Measured behaviour (bot alone, baseline v2)
 
 ### Test Ring
 
 | Level  | Lap     | Notes                                                            |
 | ------ | ------- | ---------------------------------------------------------------- |
-| Hard   | 31.35 s | Medium's driving with the +3% car (29.07 s when it could drift)  |
+| Hard   | 31.35 s | Medium's driving with the +3% car                                |
 | Medium | 31.95 s | The whole width                                                  |
 | Easy   | 38.15 s | +19% on Medium (`cornerSpeed` 0.5 since `maxYawRate` became 2.7) |
-
-The owner's best lap is 29 s, set with the old drift key, so all levels are now slower than that.
 
 ### Kruncar
 
@@ -83,9 +79,8 @@ The owner's best lap is 29 s, set with the old drift key, so all levels are now 
 Without drift the zigzag shortcut barely pays off for the bot: Hard is only 0.4 s ahead of Medium
 on the wide road (its line keeps to the middle of the narrow zigzag).
 
-The Hard bot is sensitive to the layout: small changes to hairpin radii or widths, or a narrow road
-straight after a fast corner, put wheels on the grass. The tests catch it; widen the exit, give the
-first and last zigzag turns a larger radius, or re-measure when editing a track.
+When editing a track, re-run the bot tests: they catch a layout the bots can't lap cleanly (wheels on
+the grass, walls) and the lap-time bands.
 
 Tests (`ai/bot.test.ts`): clean laps on every level of every track in `TRACKS`, Hard alone on the
 Kruncar shortcut, lap-time bands, Hard never off the asphalt, line inside the asphalt, recovery from a car parked on its line, stuck → reset,
