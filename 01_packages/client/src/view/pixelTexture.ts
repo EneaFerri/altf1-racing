@@ -6,11 +6,17 @@ type Draw = (ctx: CanvasRenderingContext2D, size: number) => void;
  * Builds a tiny procedural texture with nearest-neighbour magnification so every texel
  * renders as a crisp square: the Krunker-style pixel look.
  * `repeat` textures (large surfaces like the ground) also get mipmaps, otherwise they shimmer in the distance.
+ * Square unless `height` is given.
  */
-function createPixelTexture(size: number, draw: Draw, repeat = false): THREE.CanvasTexture {
+function createPixelTexture(
+  size: number,
+  draw: Draw,
+  repeat = false,
+  height = size,
+): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = size;
-  canvas.height = size;
+  canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2D canvas context unavailable');
   draw(ctx, size);
@@ -153,4 +159,43 @@ export function createWheelDisplayTexture(size = 8): THREE.Texture {
       ctx.fillRect(1 + i, 1, 1, 2);
     });
   });
+}
+
+/** 3×5 pixel glyphs for sector boards (1 = lit). */
+const GLYPHS: Record<string, readonly string[]> = {
+  S: ['111', '100', '111', '001', '111'],
+  '1': ['010', '110', '010', '010', '111'],
+  '2': ['111', '001', '111', '100', '111'],
+  '3': ['111', '001', '111', '001', '111'],
+};
+
+/**
+ * Sector board tile (16×8, repeats along the banner): yellow stripes top and bottom, `label`
+ * (e.g. "S2") in white pixel glyphs on a dark background.
+ */
+export function createSectorBoardTexture(label: string): THREE.Texture {
+  const width = 16;
+  const texture = createPixelTexture(
+    width,
+    (ctx) => {
+      ctx.fillStyle = '#14141c';
+      ctx.fillRect(0, 0, width, 8);
+      ctx.fillStyle = '#f5c518';
+      ctx.fillRect(0, 0, width, 1);
+      ctx.fillRect(0, 7, width, 1);
+      ctx.fillStyle = '#ffffff';
+      const textWidth = label.length * 4 - 1;
+      [...label].forEach((char, i) => {
+        GLYPHS[char]?.forEach((row, y) => {
+          [...row].forEach((bit, x) => {
+            if (bit === '1') ctx.fillRect((width - textWidth) / 2 + i * 4 + x, 2 + y, 1, 1);
+          });
+        });
+      });
+    },
+    false,
+    8,
+  );
+  texture.wrapS = THREE.RepeatWrapping;
+  return texture;
 }

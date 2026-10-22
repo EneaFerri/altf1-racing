@@ -116,3 +116,14 @@
   joins the nose to the wheel, which otherwise looked like it was floating. The wheel and sides are a camera child laid out in screen units, so they
   cover a fixed small part of the screen at any window size or FOV. They are drawn with no depth test, so walls never cut through them
   when scraping.
+
+## 2026-10-22 — Lap timing: free practice, sectors as checkpoints
+
+- Owner's choices: free practice (endless laps, no start lights), 3 sectors with F1 colours, a reset
+  invalidates the lap (no track-limits rule), a slim F1-like HUD at the top centre.
+- Timing is simulation state in `shared` so the server can time laps later; times are integer ticks
+  (deterministic; 16.7 ms is plenty for practice).
+- The sectors double as checkpoints: only the next expected boundary counts, crossed going forward.
+  That is enough because walls already stop real shortcuts.
+- HUD in a system sans-serif with tabular figures: no font dependency, works offline and in a desktop
+  wrapper.

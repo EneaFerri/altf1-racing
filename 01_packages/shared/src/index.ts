@@ -10,6 +10,7 @@ export * from './sim/car';
 export * from './sim/collision/resolve';
 export * from './sim/collision/types';
 export * from './sim/game';
+export * from './sim/laps';
 export * from './sim/surface';
 export * from './track';
 export * from './types/input';

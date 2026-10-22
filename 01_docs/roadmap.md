@@ -37,8 +37,9 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
 5. ✅ **Cameras** — `CameraRig` (toggle V, speed-based FOV),
    `ChaseCamera` adjustable live from the tuning panel (F2 → Camera), `FirstPersonCamera` with a
    minimal cockpit (real nose + front wing, `CockpitView` steering wheel + thin cockpit sides, never covering the track).
-6. **HUD + laps** — `sim/laps.ts` (finish line + ordered checkpoints, times in ticks),
-   `view/hud/Hud.ts` (speed, lap, last/best).
+6. ✅ **HUD + laps** — free practice; `sim/laps.ts` (3 sectors as
+   ordered checkpoints, times in ticks, reset invalidates the lap); `view/hud/Hud.ts` (F1-style strip
+   top centre: lap, time, sector colours, last/best, speed, gap chip). See `laps.md`.
 7. **Feel pass** — tune together, freeze values in `config/car.ts`, update docs.
 
 Out of scope for Phase 1: audio, AI opponents, menus, more tracks, gamepad, networking.

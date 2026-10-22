@@ -19,6 +19,7 @@ import {
 import { KeyboardController } from '../controller/KeyboardController';
 import { CAMERA_PARAMS } from '../view/cameras/params';
 import { DebugOverlay } from '../view/hud/DebugOverlay';
+import { Hud } from '../view/hud/Hud';
 import { SceneView } from '../view/SceneView';
 import { GameLoop } from './GameLoop';
 
@@ -53,6 +54,7 @@ export class Game {
 
   private readonly controller = new KeyboardController();
   private readonly view = new SceneView(this.track, PLAYER_ID, this.cameraParams);
+  private readonly hud = new Hud();
   private readonly debugOverlay = new DebugOverlay();
   private readonly loop = new GameLoop({
     tick: () => this.tick(),
@@ -96,6 +98,7 @@ export class Game {
 
   private render(alpha: number, frameSeconds: number): void {
     this.view.render(this.prevState, this.state, alpha, frameSeconds);
+    this.hud.update(this.state, PLAYER_ID, performance.now());
     const player = findCar(this.state, PLAYER_ID);
     if (player) this.debugOverlay.update(this.state, player, this.lastInput);
   }

@@ -1,0 +1,155 @@
+/* F1-style timing strip, top centre. Small, translucent, never in the way of the track. */
+
+.hud {
+  --hud-bg: rgba(12, 12, 16, 0.72);
+  --hud-text: #f4f4f6;
+  --hud-dim: #9a9aa6;
+  --hud-purple: #b44cff;
+  --hud-green: #2fd25a;
+  --hud-yellow: #f5c518;
+  --hud-red: #e10600;
+
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  user-select: none;
+  font:
+    600 13px/1 system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: var(--hud-text);
+  letter-spacing: 0.02em;
+}
+
+.hud-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: var(--hud-bg);
+  border-radius: 4px;
+  border-top: 2px solid var(--hud-red);
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+}
+
+.hud-lap {
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.hud-time {
+  min-width: 4.6em;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.hud-void {
+  padding: 2px 5px;
+  border-radius: 2px;
+  background: var(--hud-red);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.hud-sectors {
+  display: flex;
+  gap: 3px;
+}
+
+.hud-bar {
+  display: block;
+  width: 26px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.hud-bar.hud-c-purple {
+  background: var(--hud-purple);
+}
+
+.hud-bar.hud-c-green {
+  background: var(--hud-green);
+}
+
+.hud-bar.hud-c-yellow {
+  background: var(--hud-yellow);
+}
+
+.hud-bar.hud-c-invalid {
+  background: var(--hud-dim);
+}
+
+.hud-label {
+  color: var(--hud-dim);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.hud-value {
+  min-width: 4.8em;
+}
+
+.hud-struck {
+  color: var(--hud-dim);
+  text-decoration: line-through;
+}
+
+.hud-speed {
+  min-width: 2.2em;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.hud-speed::after {
+  content: ' km/h';
+  color: var(--hud-dim);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.hud-chip {
+  padding: 4px 10px;
+  border-radius: 3px;
+  background: var(--hud-bg);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: pre;
+}
+
+.hud-chip.hud-c-purple {
+  color: var(--hud-purple);
+}
+
+.hud-chip.hud-c-green {
+  color: var(--hud-green);
+}
+
+.hud-chip.hud-c-yellow {
+  color: var(--hud-yellow);
+}
+
+.hud-chip.hud-c-invalid {
+  color: var(--hud-dim);
+}
+
+.hud [hidden] {
+  display: none !important;
+}

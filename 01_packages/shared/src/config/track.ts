@@ -18,4 +18,6 @@ export const TRACK_RULES = {
   kerbOutset: 1.0,
   /** High kerbs are placed on samples curving more than this (1/m). */
   highKerbMinCurvature: 1 / 300,
+  /** Timing sectors per lap, of equal length along the centreline; they double as checkpoints. */
+  sectorCount: 3,
 } as const;

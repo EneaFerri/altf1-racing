@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {
+  sectorEnd,
   TRACK_RULES,
   type KerbKind,
   type Track,
@@ -11,6 +12,7 @@ import {
   createCheckerTexture,
   createGravelTexture,
   createKerbTexture,
+  createSectorBoardTexture,
   createTyreWallTexture,
 } from './pixelTexture';
 
@@ -20,6 +22,7 @@ const Y_ASPHALT = 0.02;
 const Y_EDGE_LINE = 0.025;
 const Y_KERB = 0.03;
 const Y_START_LINE = 0.035;
+const Y_SECTOR_LINE = 0.035;
 const Y_HIGH_KERB = 0.12;
 const WALL_HEIGHT = 1;
 
@@ -30,6 +33,15 @@ const GRAVEL_REPEAT = 6;
 const WALL_REPEAT = 2;
 /** Painted white line just inside each asphalt edge (m). */
 const EDGE_LINE_WIDTH = 0.4;
+
+/** Sector gantry: posts just behind the walls, a board across the whole track. */
+const GANTRY_HEIGHT = 6;
+const BOARD_HEIGHT = 1.6;
+/** Length of one board tile (m): the 16×8 texture keeps square pixels. */
+const BOARD_TILE = BOARD_HEIGHT * 2;
+const POST_SIZE = 0.4;
+/** Painted line across the asphalt at sector starts (m, along the track). */
+const SECTOR_LINE_DEPTH = 0.6;
 
 const SIDES: readonly TrackSide[] = ['left', 'right'];
 const sign = (side: TrackSide): number => (side === 'right' ? 1 : -1);
@@ -98,7 +110,7 @@ export function createTrackView(track: Track): THREE.Group {
     );
   }
 
-  group.add(createWalls(track), createStartLine(track));
+  group.add(createWalls(track), createStartLine(track), ...createSectorGantries(track));
   return group;
 }
 
@@ -213,4 +225,61 @@ function createStartLine(track: Track): THREE.Mesh {
   line.rotation.z = Math.atan2(-start.normal.z, start.normal.x);
   line.position.set(start.position.x, Y_START_LINE, start.position.z);
   return line;
+}
+
+/**
+ * A gantry where each sector starts (S1 on the start line), readable from far away: two posts
+ * just behind the walls and a board across the track labelled with the sector, plus a yellow
+ * line on the asphalt (the start line already has its chequered one).
+ */
+function createSectorGantries(track: Track): THREE.Object3D[] {
+  const post = new THREE.MeshLambertMaterial({ color: '#2a2a33' });
+  const line = new THREE.MeshLambertMaterial({ color: '#f5c518' });
+  return Array.from({ length: TRACK_RULES.sectorCount }, (_, sector) => {
+    // Sector `sector` starts where the previous one ends.
+    const start = sector === 0 ? 0 : sectorEnd(sector - 1, track.length);
+    const sample = nearestSample(track, start);
+    const across = Math.atan2(-sample.normal.z, sample.normal.x);
+    const reach = sample.halfWidth + track.runoffWidth + POST_SIZE;
+
+    const gantry = new THREE.Group();
+    gantry.position.set(sample.position.x, 0, sample.position.z);
+    gantry.rotation.y = across; // local X now runs across the track
+
+    const texture = createSectorBoardTexture(`S${sector + 1}`);
+    texture.repeat.set((reach * 2) / BOARD_TILE, 1);
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(reach * 2, BOARD_HEIGHT, 0.3),
+      new THREE.MeshLambertMaterial({ map: texture }),
+    );
+    board.position.y = GANTRY_HEIGHT;
+    gantry.add(board);
+    for (const side of [-1, 1]) {
+      const pillar = new THREE.Mesh(
+        new THREE.BoxGeometry(POST_SIZE, GANTRY_HEIGHT, POST_SIZE),
+        post,
+      );
+      pillar.position.set(side * reach, GANTRY_HEIGHT / 2, 0);
+      gantry.add(pillar);
+    }
+    if (sector > 0) {
+      const paint = new THREE.Mesh(
+        new THREE.PlaneGeometry(sample.halfWidth * 2, SECTOR_LINE_DEPTH),
+        line,
+      );
+      paint.rotation.x = -Math.PI / 2;
+      paint.position.y = Y_SECTOR_LINE;
+      gantry.add(paint);
+    }
+    return gantry;
+  });
+}
+
+/** Centreline sample closest to `distance` along the track. */
+function nearestSample(track: Track, distance: number): TrackSample {
+  let best = track.samples[0]!;
+  for (const sample of track.samples) {
+    if (Math.abs(sample.distance - distance) < Math.abs(best.distance - distance)) best = sample;
+  }
+  return best;
 }

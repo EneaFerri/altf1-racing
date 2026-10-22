@@ -42,8 +42,16 @@ TrackDefinition (hand-written)  ──buildTrack()──►  Track (compiled, im
 | Kerb band    | edge − 0.6 m → edge + 1.0 m   | Lateral band where a kerb counts                                                    |
 | Walls        | local halfWidth + runoffWidth | One-sided polylines on both sides, `normal` pointing at the track (used in step 4b) |
 | Min width    | 24 m                          | `buildTrack` rejects narrower control points                                        |
+| Sectors      | 3 of equal length             | Timing sectors and anti-cut checkpoints (see [laps.md](laps.md))                    |
 
 So a new track only needs a shape; kerbs and gravel follow the corners automatically.
+
+**Fixed rule for every track (owner's decision):** each track must show its **sector detection
+points**. At the start of every timing sector there is a gantry visible from far away (posts behind
+the walls, board across the track labelled `S1`/`S2`/`S3`, yellow line on the asphalt; S1 is the
+start line). They are generated automatically from `TRACK_RULES.sectorCount` and `sectorEnd()`, the
+same boundaries the timing uses (see [laps.md](laps.md)). Never place them by hand, and if sector
+positions ever become per-track, the gantries must follow them.
 
 ## Queries (`track/query.ts`)
 

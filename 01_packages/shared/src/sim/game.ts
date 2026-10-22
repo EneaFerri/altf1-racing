@@ -9,6 +9,7 @@ import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
 import { createCar, stepCar, type CarId, type CarState } from './car';
 import { resolveCollisions } from './collision/resolve';
 import type { ImpactEvent } from './collision/types';
+import { createLapState, stepLap, type LapState } from './laps';
 import { carSurface } from './surface';
 
 /** Complete simulation state. Plain data only, so it can be copied, compared and sent over the network. */
@@ -19,6 +20,8 @@ export interface GameState {
   readonly cars: readonly CarState[];
   /** Impacts that happened during the last tick only (empty most of the time). */
   readonly impacts: readonly ImpactEvent[];
+  /** Lap timing, one per car, in the same order as `cars`. */
+  readonly laps: readonly LapState[];
 }
 
 /** Static data the simulation reads but never changes. Not part of GameState (not cloned, not sent). */
@@ -38,16 +41,19 @@ export function createGame(track: Track, carIds: readonly CarId[]): GameState {
     const { position, direction } = gridSlot(track, slot);
     return createCar({ id, position, heading: headingOf(direction) });
   });
+  const sorted = [...cars].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return {
     tick: 0,
-    cars: [...cars].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    cars: sorted,
     impacts: [],
+    laps: sorted.map((car) => createLapState(car.id, locateOnTrack(track, car.position).distance)),
   };
 }
 
 /**
  * Advances the simulation by exactly one fixed tick. Pure: never mutates `state`.
- * Every car moves first, then one collision pass resolves walls and car-vs-car contacts.
+ * Every car moves first, then one collision pass resolves walls and car-vs-car contacts,
+ * then lap timing reads where each car ended up.
  */
 export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): GameState {
   const moved = state.cars.map((car) => {
@@ -58,16 +64,31 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
     return { ...stepCar(car, input, ctx.carParams, FIXED_DT, effect), wheelSurfaces: surfaces };
   });
   const { cars, impacts } = resolveCollisions(moved, ctx.track, ctx.collisionParams);
-  return { tick: state.tick + 1, cars, impacts };
+  const tick = state.tick + 1;
+  const laps = state.laps.map((lap, i) =>
+    stepLap(
+      lap,
+      locateOnTrack(ctx.track, cars[i]!.position).distance,
+      inputs[lap.carId]?.reset ?? false,
+      tick,
+      ctx.track.length,
+    ),
+  );
+  return { tick, cars, impacts, laps };
 }
 
 export function findCar(state: GameState, id: CarId): CarState | undefined {
   return state.cars.find((car) => car.id === id);
 }
 
+export function findLap(state: GameState, id: CarId): LapState | undefined {
+  return state.laps.find((lap) => lap.carId === id);
+}
+
 /**
  * Dev tool: puts car `id` at rest on the centreline `metres` ahead of car `targetId` along the track,
- * facing the driving direction. Returns `state` unchanged if either car is missing.
+ * facing the driving direction, with its timing back to an out-lap. Returns `state` unchanged if
+ * either car is missing.
  */
 export function placeCarAhead(
   state: GameState,
@@ -92,7 +113,13 @@ export function placeCarAhead(
   }
   const sample = track.samples[index]!;
   const placed = createCar({ id, position: sample.position, heading: headingOf(sample.tangent) });
-  return { ...state, cars: state.cars.map((car) => (car.id === id ? placed : car)) };
+  // A teleport must not count as crossing a sector: the moved car starts a fresh out-lap.
+  const timing = createLapState(id, sample.distance);
+  return {
+    ...state,
+    cars: state.cars.map((car) => (car.id === id ? placed : car)),
+    laps: state.laps.map((lap) => (lap.carId === id ? timing : lap)),
+  };
 }
 
 /** Puts a car back on the centreline at its nearest point, facing the driving direction, at rest. */

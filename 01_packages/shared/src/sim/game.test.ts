@@ -10,6 +10,7 @@ import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
 import {
   createGame,
   findCar,
+  findLap,
   placeCarAhead,
   stepGame,
   type GameState,
@@ -121,6 +122,17 @@ describe('stepGame', () => {
     expect(ahead).toBeLessThan(28);
     expect(dummy.velocity).toEqual({ x: 0, z: 0 });
     expect(Math.abs(locateOnTrack(track, dummy.position).lateral)).toBeLessThan(0.01);
+  });
+
+  it('times every car: out-lap on the grid, lap 1 starts on the line', () => {
+    const start = createGame(track, ['player', 'rival']);
+    expect(start.laps.map((l) => l.carId)).toEqual(['player', 'rival']);
+    expect(findLap(start, 'player')!.sector).toBe(-1);
+    // Full throttle off the grid crosses the line (10 m ahead) within 2 s.
+    const moving = run(start, { player: THROTTLE }, 120);
+    expect(findLap(moving, 'player')!.sector).toBe(0);
+    expect(findLap(moving, 'player')!.lapStartTick).toBeGreaterThan(0);
+    expect(findLap(moving, 'rival')!.sector).toBe(-1);
   });
 
   it('is deterministic with several cars on the track', () => {

@@ -15,13 +15,14 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 ## Model — `01_packages/shared`
 
 - Plain data (`GameState`, `CarState`, `InputCommand`) + pure functions.
-- **Multi-car from the start**: `GameState { tick, cars, impacts }`, cars sorted by `id`; inputs arrive as
+- **Multi-car from the start**: `GameState { tick, cars, impacts, laps }`, cars sorted by `id`; inputs arrive as
   `{ [carId]: InputCommand }` (missing = neutral). The same shape will carry network inputs.
 - **`SimContext { track, carParams, surfaceParams, collisionParams }`**: static data passed to every `stepGame` call,
   never stored in the state. `Game` owns live copies of the params, so tuning never touches Model code.
 - **Order of one tick**: per car, in id order: reset if requested → sample wheel surfaces →
   `stepCar` with the surface effect. Then **one collision pass** for all cars (`resolveCollisions`:
   car pairs, then walls), which also fills `impacts` with that tick's hits (events for later sparks and sounds).
+  Finally **lap timing** reads where each car ended up (`GameState.laps`, see [laps.md](laps.md)).
 - Physics, units and axis conventions: [physics.md](physics.md). Track & surfaces: [track.md](track.md).
   Collisions: [collisions.md](collisions.md).
 - Advances only in fixed ticks (`TICK_RATE` = 60 Hz, `FIXED_DT`) → deterministic and testable.
@@ -46,8 +47,11 @@ between them, so motion is smooth at any refresh rate even though the Model tick
   They are attached to the camera and laid out in screen units (1 = half the screen height), so they
   always cover the same small strip: the wheel stays in the bottom ~12% (centre), the sides in the
   bottom corners. They are drawn last without depth test, so a wall can never cut through them.
-- `TrackView` builds asphalt, kerbs, high kerbs, gravel, tyre walls and the start line from the same
-  compiled `Track` the physics uses. Planned: HUD (step 6).
+- `TrackView` builds asphalt, kerbs, high kerbs, gravel, tyre walls, the start line and the sector
+  gantries from the same compiled `Track` the physics uses.
+- **HUD** (`view/hud/Hud.ts` + `hud.css`): F1-style timing strip at the top centre (lap, running time,
+  sector bars, last/best, speed) with a sector-gap chip; always on. The F3 debug overlay stays top left.
+  Details: [laps.md](laps.md#hud-top-centre).
 - `frameSeconds` is used only for visual smoothing (camera, wheel spin), never for gameplay.
 - Pixel look: tiny textures with `NearestFilter`, no antialiasing, full-resolution render. A low-res
   render pass (whole scene pixelated) is not implemented; it remains a possible later option.
