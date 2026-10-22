@@ -15,7 +15,6 @@ import {
   removeCar,
   stepGame,
   SURFACE_PARAMS,
-  TEST_TRACK,
   type BotLevel,
   type BotParams,
   type BotPlan,
@@ -26,6 +25,8 @@ import {
   type SimContext,
   type Surface,
   type SurfaceParams,
+  type Track,
+  type TrackDefinition,
 } from '@altf1/shared';
 import { KeyboardController } from '../controller/KeyboardController';
 import { CAMERA_PARAMS } from '../view/cameras/params';
@@ -50,13 +51,10 @@ const DUMMY_DISTANCE = 25;
 
 /** Wires Model, View and Controller together and drives them with the game loop. */
 export class Game {
-  private readonly track = buildTrack(TEST_TRACK);
-  private state: GameState = createGame(
-    this.track,
-    import.meta.env.DEV ? [PLAYER_ID, BOT_ID, DUMMY_ID] : [PLAYER_ID, BOT_ID],
-  );
+  private readonly track: Track;
+  private state: GameState;
   /** State before the last tick, kept so the View can interpolate between the two. */
-  private prevState: GameState = this.state;
+  private prevState: GameState;
   private lastInput: InputCommand = NEUTRAL_INPUT;
   /** Null = bot switched off. */
   private botLevel: BotLevel | null = START_BOT_LEVEL;
@@ -71,21 +69,10 @@ export class Game {
   private readonly botParams = copyBotParams();
   /** Cars that drive a different car than the player's: the bot's, with its level's performance. */
   private readonly carParamsById: Record<CarId, CarParams> = {};
-  private readonly ctx: SimContext = {
-    track: this.track,
-    carParams: this.carParams,
-    carParamsById: this.carParamsById,
-    surfaceParams: this.surfaceParams,
-    collisionParams: this.collisionParams,
-  };
+  private readonly ctx: SimContext;
 
   private readonly controller = new KeyboardController();
-  private readonly view = new SceneView(
-    this.track,
-    PLAYER_ID,
-    { [PLAYER_ID]: LIVERIES.red, [BOT_ID]: LIVERIES.blue },
-    this.cameraParams,
-  );
+  private readonly view: SceneView;
   private readonly hud = new Hud();
   private readonly debugOverlay = new DebugOverlay();
   private readonly loop = new GameLoop({
@@ -93,10 +80,31 @@ export class Game {
     render: (alpha, frameSeconds) => this.render(alpha, frameSeconds),
   });
 
-  constructor() {
+  constructor(definition: TrackDefinition) {
+    this.track = buildTrack(definition);
+    this.state = createGame(
+      this.track,
+      import.meta.env.DEV ? [PLAYER_ID, BOT_ID, DUMMY_ID] : [PLAYER_ID, BOT_ID],
+    );
+    this.prevState = this.state;
+    this.ctx = {
+      track: this.track,
+      carParams: this.carParams,
+      carParamsById: this.carParamsById,
+      surfaceParams: this.surfaceParams,
+      collisionParams: this.collisionParams,
+    };
+    this.view = new SceneView(
+      this.track,
+      PLAYER_ID,
+      { [PLAYER_ID]: LIVERIES.red, [BOT_ID]: LIVERIES.blue },
+      this.cameraParams,
+    );
     this.controller.onAction('toggleDebug', () => this.debugOverlay.toggle());
     this.controller.onAction('toggleCamera', () => this.view.toggleCamera());
     this.controller.onAction('cycleBot', () => this.cycleBot());
+    // A fresh page load is the simplest full teardown (renderer, listeners, state): nothing to lose yet.
+    this.controller.onAction('backToMenu', () => location.reload());
     this.hud.setBotLevel(this.botLevel);
     // Dev tools (and lil-gui) are dynamically imported inside this block so that
     // production builds, where the condition is a constant `false`, drop them entirely.

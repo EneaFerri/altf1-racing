@@ -146,6 +146,7 @@
   path the server will use for bots and remote players.
 - The AI only produces `InputCommand`s and stays pure in `shared`, so the server can run it in Phase 2.
 - No menus yet: the bot level and the track are switched with keys, the level shown on screen.
+  (Track part superseded the same day: see "Track menu" below.)
 - Bot lap and sector times are not displayed (owner's choice): the level sets its pace, the timing HUD
   stays the player's.
 
@@ -165,3 +166,13 @@
   the first Hard became Medium, and Hard had to beat the owner. Grip alone tops out at ~33.2 s, so
   Hard drifts like a player, with the drift decided live on the actual speed, and gets a +3% car
   (`performance`, through the new per-car `SimContext.carParamsById`): 27.8 s.
+
+## 2026-10-22 — Track menu before step 9
+
+- Owner's choice: the Test Ring stays playable next to the new tracks, and the track is picked in a
+  small start menu instead of with a key. The first new track is "Kruncar", from the owner's own
+  Krunker.io map, sized so the Hard bot laps it in 40–45 s.
+- The track list (`TRACKS`) lives in `shared`, not in the client: the server will offer the same tracks.
+- Esc goes back to the menu with a page reload rather than tearing `Game` down: the renderer, the
+  listeners and the dev panel all go away for free, and there is no state worth keeping yet.
+  Revisit when there is (settings, multiplayer session).

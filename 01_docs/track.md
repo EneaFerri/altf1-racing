@@ -115,8 +115,9 @@ kerbs only in corners, high kerbs only in the chicane.
    inner wall folds back (the "walls never fold" test catches it). Keep distant sections apart by
    at least both half-widths + 2 × run-off.
 3. List chicanes or corners that need high kerbs in `highKerbs` (control point index ranges).
-4. Export it from `track/index.ts` and run the tests.
+4. Export it from `track/layouts/index.ts` and add it to `TRACKS` there (the track menu lists
+   that array, in order), then run the tests.
 5. Add a section for it in this doc, like the Test Ring table above.
 
-Planned (Phase 1 step 9, see [roadmap.md](roadmap.md)): Monza, Barcelona and Monaco inspired
-layouts, plus one inspired by a Krunker.io custom map.
+Planned (Phase 1 step 9, see [roadmap.md](roadmap.md)): first "Kruncar", inspired by the owner's
+Krunker.io map (Hard bot lap 40–45 s), then Monza, Barcelona and Monaco inspired layouts.

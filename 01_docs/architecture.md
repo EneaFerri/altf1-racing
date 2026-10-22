@@ -70,7 +70,7 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 
 - `bindings.ts`: key map + pure `inputFromKeys()`; `KeyboardController` samples it once per tick.
 - Bindings (now): W throttle · S or C brake/reverse · A/D steer · Space handbrake/drift · R reset ·
-  V camera (chase / first person) · B bot level · F2 tuning panel (dev) · F3 debug overlay · F4 park the dummy car
+  V camera (chase / first person) · B bot level · Esc back to the track menu · F2 tuning panel (dev) · F3 debug overlay · F4 park the dummy car
   ahead (dev). No key may be bound twice (tested).
 - Three kinds of keys: **drive keys** (held, sampled per tick), **tick triggers** (`TICK_TRIGGER_KEYS`,
   e.g. R: pressed once, delivered as `InputCommand.reset = true` for exactly one tick, so the
@@ -78,6 +78,14 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 - Keys are ignored while a text field has focus (e.g. typing a value in the tuning panel).
 - One-shot actions (`ACTION_KEYS`) trigger callbacks and never enter the simulation.
 - In multiplayer, the same `InputCommand`s are what gets sent to the server.
+
+## Startup — `01_packages/client/src/main.ts`
+
+- `main.ts` shows the **track menu** (`view/menu/TrackMenu.ts` + `menu.css`): every entry of
+  `TRACKS` (`shared/src/track/layouts/index.ts`) with its length, plus greyed "coming soon" names.
+  Mouse, or W/S (↑/↓) + Enter. The chosen `TrackDefinition` goes to `new Game(track)`, which builds
+  the `Track` and everything that depends on it.
+- **Esc** in a race (`backToMenu` action) reloads the page, which brings the menu back.
 
 ## Game loop — `01_packages/client/src/core`
 

@@ -25,6 +25,8 @@ export const ACTION_KEYS = {
   toggleCamera: ['KeyV'],
   /** Bot level: Off → Easy → Medium → Hard → Off. */
   cycleBot: ['KeyB'],
+  /** Leave the race and go back to the track menu. */
+  backToMenu: ['Escape'],
   /** Dev only: park the dummy car in front of the player. */
   placeDummy: ['F4'],
 } as const satisfies Record<string, readonly string[]>;
