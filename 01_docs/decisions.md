@@ -136,3 +136,15 @@
   existing dev panel (F2 → Copy as code → paste → bump the baseline). No second "dev" set of values to
   keep in sync.
 - The label is shown only in dev tools (F2 title, F3 overlay); players never see it.
+
+## 2026-10-22 — Bot and tracks before multiplayer
+
+- Owner's choice: two more Phase 1 steps before Phase 2. Step 8, a local bot with Easy / Medium /
+  Hard levels; step 9, Monza, Barcelona and Monaco inspired tracks plus one inspired by a Krunker.io
+  custom map (the project's visual reference; which map is still to be named).
+- The bot is a real car in `GameState` with collisions, not a ghost: a real opponent, and the same
+  path the server will use for bots and remote players.
+- The AI only produces `InputCommand`s and stays pure in `shared`, so the server can run it in Phase 2.
+- No menus yet: the bot level and the track are switched with keys, the level shown on screen.
+- Bot lap and sector times are not displayed (owner's choice): the level sets its pace, the timing HUD
+  stays the player's.

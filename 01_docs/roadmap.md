@@ -4,10 +4,10 @@
 
 - Monorepo, tooling, docs, pixel-textured cube rendering in the browser.
 
-## Phase 1 — Single-player on a test track ✅
+## Phase 1 — Single-player (current)
 
 Goal: a drivable, fun car with easy arcade drift on a trivial track, chase + first-person
-cameras, minimal HUD, live physics tuning. All game logic lives in `shared` (deterministic).
+cameras, minimal HUD, live physics tuning; then a bot opponent and 4 real tracks. All game logic lives in `shared` (deterministic).
 Workflow: one step at a time → owner review → commit after OK.
 
 Conventions (units, axes, heading): see [physics.md](physics.md). Time is counted in ticks (60 Hz).
@@ -43,7 +43,22 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
 7. ✅ **Feel pass** — current values confirmed as defaults and frozen as **baseline v1, provisional**
    (`config/tuning.ts`, shown in F2/F3). Re-tune any time with the dev panel: see `tuning.md`.
 
-Out of scope for Phase 1: audio, AI opponents, menus, more tracks, gamepad, networking.
+8. **Bot opponent (Easy / Medium / Hard)** — a second car in `GameState`, same physics and
+   collisions as the player, driven by an AI that produces one `InputCommand` per tick (pure, in
+   `shared`, so the server can run bots later). It follows a racing line derived from the compiled
+   `Track` and brakes for corners; the level scales target speed, corner speed and braking margin,
+   aiming at a lap-time band per level (Hard close to a good human lap, Easy clearly slower).
+   A key cycles Off → Easy → Medium → Hard and the HUD shows the current level. The bot's times are
+   not shown: the timing HUD (lap, sectors, gaps) stays the player's only; the level only sets the
+   bot's pace. Detailed design when the step starts.
+9. **Tracks: Monza, Barcelona, Monaco + Krunker-inspired** — four new `TrackDefinition`s in
+   `track/layouts/`: three inspired by the real circuits (their character, not 1:1 copies: scaled to
+   our ≥ 24 m width and arcade speeds) and one inspired by a Krunker.io custom map, the project's
+   visual reference (map to be named by the owner). Each passes the layout tests, gets its section in
+   `track.md` and shows its sector gantries (fixed rule). Track switching with a key, no menu.
+   The bot (step 8) must lap every track.
+
+Out of scope for Phase 1: audio, menus, gamepad, networking.
 
 ## Phase 2 — Multiplayer (next)
 
@@ -53,4 +68,4 @@ Out of scope for Phase 1: audio, AI opponents, menus, more tracks, gamepad, netw
 
 ## Later
 
-- Desktop packaging (Tauri/Electron), more tracks, assets, audio.
+- Desktop packaging (Tauri/Electron), further tracks beyond the step 9 set, assets, audio.

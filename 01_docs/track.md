@@ -116,3 +116,7 @@ kerbs only in corners, high kerbs only in the chicane.
    at least both half-widths + 2 × run-off.
 3. List chicanes or corners that need high kerbs in `highKerbs` (control point index ranges).
 4. Export it from `track/index.ts` and run the tests.
+5. Add a section for it in this doc, like the Test Ring table above.
+
+Planned (Phase 1 step 9, see [roadmap.md](roadmap.md)): Monza, Barcelona and Monaco inspired
+layouts, plus one inspired by a Krunker.io custom map.

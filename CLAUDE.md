@@ -77,4 +77,4 @@ npm run build      # production build of the client
 
 ## Current status
 
-Phase 1 complete: step 7 done (current values confirmed as defaults, frozen as provisional baseline v1 — re-tune via `01_docs/tuning.md`). Next: Phase 2, multiplayer (see roadmap).
+Phase 1, step 7 done (current values confirmed as defaults, frozen as provisional baseline v1 — re-tune via `01_docs/tuning.md`). Next: step 8, bot opponent with Easy/Medium/Hard levels, then step 9, four new tracks (see roadmap).
