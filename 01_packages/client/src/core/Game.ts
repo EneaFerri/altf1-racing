@@ -1,9 +1,11 @@
 import {
   buildTrack,
   CAR_PARAMS,
+  COLLISION_PARAMS,
   createGame,
   findCar,
   NEUTRAL_INPUT,
+  placeCarAhead,
   stepGame,
   SURFACE_PARAMS,
   TEST_TRACK,
@@ -21,21 +23,30 @@ import { GameLoop } from './GameLoop';
 
 /** Id of the car driven by this machine's keyboard. */
 export const PLAYER_ID = 'player';
+/** Dev-only parked car to crash into (F4 brings it in front of the player). */
+const DUMMY_ID = 'dummy';
+/** How far ahead of the player F4 parks the dummy (m). */
+const DUMMY_DISTANCE = 25;
 
 /** Wires Model, View and Controller together and drives them with the game loop. */
 export class Game {
   private readonly track = buildTrack(TEST_TRACK);
-  private state: GameState = createGame(this.track, [PLAYER_ID]);
+  private state: GameState = createGame(
+    this.track,
+    import.meta.env.DEV ? [PLAYER_ID, DUMMY_ID] : [PLAYER_ID],
+  );
   /** State before the last tick, kept so the View can interpolate between the two. */
   private prevState: GameState = this.state;
   private lastInput: InputCommand = NEUTRAL_INPUT;
   /** Live tuning values fed to the simulation; the dev tuning panel edits these copies. */
   private readonly carParams: CarParams = { ...CAR_PARAMS };
   private readonly surfaceParams = copySurfaceParams();
+  private readonly collisionParams = { ...COLLISION_PARAMS };
   private readonly ctx: SimContext = {
     track: this.track,
     carParams: this.carParams,
     surfaceParams: this.surfaceParams,
+    collisionParams: this.collisionParams,
   };
 
   private readonly controller = new KeyboardController();
@@ -52,8 +63,15 @@ export class Game {
     // production builds, where the condition is a constant `false`, drop them entirely.
     if (import.meta.env.DEV) {
       void import('../dev/TuningPanel').then(({ TuningPanel }) => {
-        const panel = new TuningPanel(this.carParams, this.surfaceParams);
+        const panel = new TuningPanel(this.carParams, this.surfaceParams, this.collisionParams);
         this.controller.onAction('toggleTuning', () => panel.toggle());
+      });
+      this.controller.onAction('placeDummy', () => {
+        const place = (state: GameState): GameState =>
+          placeCarAhead(state, this.track, DUMMY_ID, PLAYER_ID, DUMMY_DISTANCE);
+        // Both states, so the View doesn't interpolate the dummy across the map.
+        this.state = place(this.state);
+        this.prevState = place(this.prevState);
       });
     }
   }

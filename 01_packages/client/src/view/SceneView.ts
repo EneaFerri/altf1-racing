@@ -17,6 +17,8 @@ import { createTrackView } from './TrackView';
 import { bindResize, createRenderer } from './renderer';
 
 const SKY_COLOR = '#87ceeb';
+/** Every car but the followed one is greyed out, until cars get their own liveries. */
+const OTHER_CAR_TINT = '#8a8a8a';
 const GROUND_SIZE = 1000;
 const GROUND_TILE = 2;
 
@@ -61,7 +63,7 @@ export class SceneView {
   private carView(id: CarId): CarView {
     let view = this.cars.get(id);
     if (!view) {
-      view = new CarView();
+      view = new CarView(id === this.followId ? undefined : OTHER_CAR_TINT);
       this.cars.set(id, view);
       this.scene.add(view.object);
     }

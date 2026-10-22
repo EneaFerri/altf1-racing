@@ -88,3 +88,19 @@
 - `Surface` moved to `track/types.ts` so `config/` no longer depends on query code.
 - Vite `chunkSizeWarningLimit` raised to 700 kB: Three.js alone is ~530 kB and can't be split further,
   so the default warning was permanent noise.
+
+## 2026-10-22 — Collisions: own circle solver, forgiving by design
+
+- Owner requirement: crashes must be fun and must not end the race or wreck the handling. Owner choices:
+  "F1 arcade" car-vs-car intensity, a parked dummy car for testing, no visual or sound effects yet.
+- **Own deterministic solver, not Rapier**: 3 circles per car + one-sided wall segments are enough, it
+  stays inside `shared` (server-ready, no WASM), and every rule can be bent for feel. Rapier stays an
+  option only if we ever need real rigid-body stacks.
+- Collisions change only position, velocity and spin, so `stepCar` keeps its handling untouched.
+- **Wall alignment assist**: walls turn the nose parallel to themselves. Without it, grip keeps pulling
+  the car back into the wall and every scrape becomes a speed sink.
+- **Spin kicks don't stack, and gentle contacts give none**: measurements showed tangled cars winding
+  each other up to 60–75° through repeated small hits. With max-instead-of-sum and a minimum impact
+  speed, the worst case stays under 30°.
+- No damage model: it would punish the player for the whole race, the opposite of the goal.
+- Drift slip above its cap (only possible after an impact) eases back instead of snapping the nose.

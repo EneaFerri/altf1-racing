@@ -26,6 +26,11 @@ export function dot(a: Vec2, b: Vec2): number {
   return a.x * b.x + a.z * b.z;
 }
 
+/** 2D cross product. Positive when `b` points to the right of `a` (clockwise seen from above). */
+export function cross(a: Vec2, b: Vec2): number {
+  return a.x * b.z - a.z * b.x;
+}
+
 export function length(v: Vec2): number {
   return Math.hypot(v.x, v.z);
 }

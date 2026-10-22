@@ -26,7 +26,7 @@ and returns a new `CarState`. Each tick runs one of two modes:
 | `velocity`       | World velocity (m/s); may point away from `heading` while sliding                                  |
 | `heading`        | Facing angle (rad)                                                                                 |
 | `yawRate`        | Smoothed turn rate (rad/s), with inertia: of the heading in grip, of the travel direction in drift |
-| `spin`           | Extra rotation from external kicks (high kerbs, later impacts), decays with `spinDamping` (rad/s)  |
+| `spin`           | Extra rotation from external kicks (high kerbs, impacts), decays with `spinDamping` (rad/s)        |
 | `steer`          | Smoothed steering −1..1                                                                            |
 | `drifting`       | Whether the drift mode is active                                                                   |
 | `driftDirection` | Side locked at drift start: 1 = right, −1 = left, 0 = not drifting                                 |
@@ -90,7 +90,9 @@ physics. It works on the direction of travel and the slip angle directly:
 
 **Why a spin-out is impossible:** the slip is clamped so it never exceeds `driftAngle + range` (≈ 30°),
 whatever the input; it builds up from ~0° on entry and settles between `driftAngle − range` and
-`driftAngle + range` (≈ 10°–30°). A test checks this over 5 s of drifting.
+`driftAngle + range` (≈ 10°–30°). A test checks this over 5 s of drifting. Only an impact can push the
+slip past the cap (by changing the velocity). The slip then eases back down at `driftRotateStiffness`
+instead of snapping the nose in one tick.
 
 ## Surfaces, spin and reset
 
@@ -98,7 +100,8 @@ whatever the input; it builds up from ~0° on entry and settles between `driftAn
   into `{ grip, traction, drag, spinKick, breaksDrift }`. Values and rules: [track.md](track.md#surfaces-configsurfacests--surface_params).
 - **Spin**: `spin = (spin + spinKick) · exp(−spinDamping · dt)`. In grip mode it rotates the heading
   on top of steering; velocity is unchanged, so the car is knocked off-line and grip pulls it back.
-  In drift mode it only decays (strong kicks end the drift anyway).
+  In drift mode it only decays (strong kicks end the drift anyway). Impacts add spin too, bounded and
+  non-stacking: see [collisions.md](collisions.md).
 - **High kerbs** (`breaksDrift`): a wheel climbing onto one forces grip mode for that tick, so a
   drift can't survive cutting the chicane.
 - **Reset** (`InputCommand.reset`, R): handled in `stepGame`, not `stepCar` — the car is placed at

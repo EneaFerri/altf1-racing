@@ -129,6 +129,20 @@ describe('stepCar — drift', () => {
     expect(maxSlip).toBeLessThanOrEqual(MAX_SLIP + 1e-6);
   });
 
+  it('a slip pushed past the max by an impact eases back instead of snapping', () => {
+    const knocked: CarState = {
+      ...rolling(30),
+      velocity: scale(forward(1.05), 30), // travelling 60° left of the nose
+      drifting: true,
+      driftDirection: 1,
+      gripRecovery: 0,
+    };
+    const next = stepCar(knocked, DRIFT_RIGHT, CAR_PARAMS, FIXED_DT);
+    expect(slipAngle(next)).toBeLessThan(1.05);
+    expect(slipAngle(next)).toBeGreaterThan(0.95);
+    expect(Math.abs(slipAngle(run(next, DRIFT_RIGHT, 2)))).toBeLessThan(MAX_SLIP + 0.01);
+  });
+
   it('countersteering gives a smaller slip angle than steering into the drift', () => {
     const entered = run(rolling(30), DRIFT_RIGHT, 0.2);
     const into = run(entered, DRIFT_RIGHT, 2);

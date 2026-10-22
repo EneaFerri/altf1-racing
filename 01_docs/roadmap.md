@@ -30,8 +30,10 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
      `InputCommand.reset` (R); `view/TrackView.ts`; "Test Ring" (~1.43 km, replaced by the ~1.94 km layout in the interlude). See `track.md`.
    - ✅ **Interlude (owner feedback)** — track ≥ 24 m with variable width and a new ~1.94 km layout;
      yaw inertia and blended, more in-line drift; C as second brake key (camera moves to V).
-   - 4b **Collisions + dev target car** — `sim/collision/`: 3-circle car colliders, one-sided
-     walls, car-vs-car, impulse solver with spin, impact events; parked dummy car (dev only).
+   - 4b ✅ **Collisions + dev target car** — `sim/collision/`: 3-circle car colliders, one-sided
+     walls with anti-tunnelling and alignment assist, car-vs-car ("F1 arcade": momentum-conserving
+     impulses, low friction, bounded non-stacking spin), impact events in `GameState.impacts`;
+     parked dummy car (dev only, F4). Sparks and sounds come later. See `collisions.md`.
 5. **Cameras** — `FirstPersonCamera.ts`, `CameraRig.ts` (toggle V, speed-based FOV).
 6. **HUD + laps** — `sim/laps.ts` (finish line + ordered checkpoints, times in ticks),
    `view/hud/Hud.ts` (speed, lap, last/best).

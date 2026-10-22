@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CAR_PARAMS } from '../config/car';
+import { COLLISION_PARAMS } from '../config/collision';
 import { SURFACE_PARAMS } from '../config/surfaces';
 import { distance, dot, forward, headingOf, scale, add } from '../math/vec2';
 import { buildTrack } from '../track/buildTrack';
@@ -9,6 +10,7 @@ import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
 import {
   createGame,
   findCar,
+  placeCarAhead,
   stepGame,
   type GameState,
   type InputMap,
@@ -16,7 +18,12 @@ import {
 } from './game';
 
 const track = buildTrack(TEST_TRACK);
-const ctx: SimContext = { track, carParams: CAR_PARAMS, surfaceParams: SURFACE_PARAMS };
+const ctx: SimContext = {
+  track,
+  carParams: CAR_PARAMS,
+  surfaceParams: SURFACE_PARAMS,
+  collisionParams: COLLISION_PARAMS,
+};
 const THROTTLE: InputCommand = { ...NEUTRAL_INPUT, throttle: 1 };
 
 function run(state: GameState, inputs: InputMap, ticks: number): GameState {
@@ -87,6 +94,33 @@ describe('stepGame', () => {
     expect(Math.abs(location.lateral)).toBeLessThan(0.01);
     expect(reset.heading).toBeCloseTo(headingOf(location.tangent));
     expect(reset.velocity).toEqual({ x: 0, z: 0 });
+  });
+
+  it('keeps a car flat out into the barriers inside the walls, and reports the hits', () => {
+    let state = createGame(track, ['player']);
+    let hits = 0;
+    for (let tick = 0; tick < 600; tick++) {
+      state = stepGame(state, { player: { ...THROTTLE, steer: -1 } }, ctx);
+      hits += state.impacts.length;
+      const location = locateOnTrack(track, findCar(state, 'player')!.position);
+      expect(Math.abs(location.lateral)).toBeLessThan(location.halfWidth + track.runoffWidth);
+    }
+    expect(hits).toBeGreaterThan(0);
+  });
+
+  it('placeCarAhead parks a car on the centreline ahead of another, at rest', () => {
+    const start = run(createGame(track, ['player', 'dummy']), { player: THROTTLE }, 60);
+    const player = findCar(start, 'player')!;
+    const dummy = findCar(placeCarAhead(start, track, 'dummy', 'player', 25), 'dummy')!;
+    const ahead =
+      (locateOnTrack(track, dummy.position).distance -
+        locateOnTrack(track, player.position).distance +
+        track.length) %
+      track.length;
+    expect(ahead).toBeGreaterThan(24);
+    expect(ahead).toBeLessThan(28);
+    expect(dummy.velocity).toEqual({ x: 0, z: 0 });
+    expect(Math.abs(locateOnTrack(track, dummy.position).lateral)).toBeLessThan(0.01);
   });
 
   it('is deterministic with several cars on the track', () => {

@@ -1,4 +1,5 @@
 export * from './config/car';
+export * from './config/collision';
 export * from './config/sim';
 export * from './config/surfaces';
 export * from './config/track';
@@ -6,6 +7,8 @@ export * from './math/angle';
 export * from './math/geometry';
 export * from './math/vec2';
 export * from './sim/car';
+export * from './sim/collision/resolve';
+export * from './sim/collision/types';
 export * from './sim/game';
 export * from './sim/surface';
 export * from './track';

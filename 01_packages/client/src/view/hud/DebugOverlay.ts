@@ -6,6 +6,7 @@ import {
   slipAngle,
   type CarState,
   type GameState,
+  type ImpactEvent,
   type Surface,
   type InputCommand,
 } from '@altf1/shared';
@@ -29,6 +30,8 @@ export class DebugOverlay {
   private windowStartTick = 0;
   private fps = 0;
   private tps = 0;
+  /** Last impact of the inspected car and the tick it happened on. */
+  private lastImpact?: { readonly event: ImpactEvent; readonly tick: number };
 
   constructor(visible = import.meta.env.DEV) {
     Object.assign(this.element.style, {
@@ -62,6 +65,9 @@ export class DebugOverlay {
       this.windowStartMs = now;
       this.windowStartTick = state.tick;
     }
+    // Sampled per frame: with several ticks in one frame an impact can be missed (debug only).
+    const impact = state.impacts.find((e) => e.carId === car.id);
+    if (impact) this.lastImpact = { event: impact, tick: state.tick };
     if (this.element.hidden) return;
 
     const headingDeg = (car.heading * 180) / Math.PI;
@@ -83,8 +89,15 @@ export class DebugOverlay {
       `grip      ${(car.gripRecovery * 100).toFixed(0)}%`,
       `spin      ${car.spin.toFixed(2)} rad/s`,
       `wheels    ${car.wheelSurfaces.map((s) => SURFACE_LABEL[s]).join(' ')}  (FL FR RL RR)`,
+      `impact    ${this.impactText(state.tick)}`,
       '',
-      'R reset · F2 tuning · F3 overlay',
+      `R reset · F2 tuning · F3 overlay${import.meta.env.DEV ? ' · F4 dummy' : ''}`,
     ].join('\n');
+  }
+
+  private impactText(tick: number): string {
+    if (!this.lastImpact) return '-';
+    const { event, tick: at } = this.lastImpact;
+    return `${event.other} ${event.strength.toFixed(1)} m/s, ${tick - at} ticks ago`;
   }
 }

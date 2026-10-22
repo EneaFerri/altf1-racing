@@ -29,8 +29,9 @@ export class CarView {
   private readonly frontPivots: THREE.Group[] = [];
   private readonly wheels: THREE.Mesh[] = [];
 
-  constructor() {
-    const livery = new THREE.MeshLambertMaterial({ map: createLiveryTexture() });
+  /** `tint` multiplies the livery colours (white = unchanged). */
+  constructor(tint = '#ffffff') {
+    const livery = new THREE.MeshLambertMaterial({ map: createLiveryTexture(), color: tint });
     const carbon = new THREE.MeshLambertMaterial({ color: '#1c1c1c' });
     const tyre = new THREE.MeshLambertMaterial({
       map: createCheckerTexture(8, '#1a1a1a', '#3a3a3a'),

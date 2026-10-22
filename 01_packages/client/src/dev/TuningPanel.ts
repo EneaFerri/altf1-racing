@@ -1,8 +1,10 @@
 import GUI from 'lil-gui';
 import {
   CAR_PARAMS,
+  COLLISION_PARAMS,
   SURFACE_PARAMS,
   type CarParams,
+  type CollisionParams,
   type Surface,
   type SurfaceParams,
 } from '@altf1/shared';
@@ -46,6 +48,20 @@ const CAR_GROUPS: Record<string, Partial<Record<keyof CarParams, Range>>> = {
   },
 };
 
+const COLLISION_RANGES: Record<keyof CollisionParams, Range> = {
+  wallRestitution: [0, 1, 0.01],
+  wallFriction: [0, 1, 0.01],
+  wallAlignSpin: [0, 12, 0.1],
+  maxAlignSpin: [0, 6, 0.1],
+  carRestitution: [0, 1, 0.01],
+  carFriction: [0, 1, 0.01],
+  carSpinScale: [0, 1.5, 0.05],
+  carSpinMinImpact: [0, 15, 0.5],
+  maxImpactSpin: [0, 4, 0.05],
+  driftBreakImpactSpeed: [0, 30, 0.5],
+  solverIterations: [1, 8, 1],
+};
+
 const SURFACE_RANGES: Record<keyof SurfaceParams, Range> = {
   grip: [0, 1.5, 0.01],
   traction: [0, 1.5, 0.01],
@@ -63,12 +79,21 @@ export class TuningPanel {
   constructor(
     private readonly carParams: CarParams,
     private readonly surfaceParams: Record<Surface, SurfaceParams>,
+    private readonly collisionParams: CollisionParams,
   ) {
     for (const [title, ranges] of Object.entries(CAR_GROUPS)) {
       const folder = this.gui.addFolder(title);
       for (const [key, [min, max, step]] of Object.entries(ranges) as [keyof CarParams, Range][]) {
         folder.add(carParams, key, min, max, step);
       }
+    }
+
+    const collisions = this.gui.addFolder('Collisions');
+    for (const [key, [min, max, step]] of Object.entries(COLLISION_RANGES) as [
+      keyof CollisionParams,
+      Range,
+    ][]) {
+      collisions.add(collisionParams, key, min, max, step);
     }
 
     const surfaces = this.gui.addFolder('Surfaces');
@@ -93,16 +118,20 @@ export class TuningPanel {
 
   private reset(): void {
     Object.assign(this.carParams, CAR_PARAMS);
+    Object.assign(this.collisionParams, COLLISION_PARAMS);
     for (const [surface, params] of Object.entries(SURFACE_PARAMS)) {
       Object.assign(this.surfaceParams[surface as Surface], params);
     }
     for (const controller of this.gui.controllersRecursive()) controller.updateDisplay();
   }
 
-  /** Copies the current values as ready-to-paste code for config/car.ts and config/surfaces.ts. */
+  /** Copies the current values as ready-to-paste code for config/car.ts, collision.ts and surfaces.ts. */
   private copyAsCode(): void {
     const round = (value: number): number => Number(value.toFixed(4));
     const carLines = Object.entries(this.carParams).map(
+      ([key, value]) => `  ${key}: ${round(value as number)},`,
+    );
+    const collisionLines = Object.entries(this.collisionParams).map(
       ([key, value]) => `  ${key}: ${round(value as number)},`,
     );
     const surfaceLines = Object.entries(this.surfaceParams).map(
@@ -112,6 +141,9 @@ export class TuningPanel {
     const code = [
       '// config/car.ts',
       `export const CAR_PARAMS: CarParams = {\n${carLines.join('\n')}\n};`,
+      '',
+      '// config/collision.ts',
+      `export const COLLISION_PARAMS: CollisionParams = {\n${collisionLines.join('\n')}\n};`,
       '',
       '// config/surfaces.ts',
       `export const SURFACE_PARAMS: Record<Surface, SurfaceParams> = {\n${surfaceLines.join('\n')}\n};`,

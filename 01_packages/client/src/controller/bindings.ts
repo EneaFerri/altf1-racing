@@ -22,6 +22,8 @@ export type TickTrigger = keyof typeof TICK_TRIGGER_KEYS;
 export const ACTION_KEYS = {
   toggleTuning: ['F2'],
   toggleDebug: ['F3'],
+  /** Dev only: park the dummy car in front of the player. */
+  placeDummy: ['F4'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type ActionName = keyof typeof ACTION_KEYS;

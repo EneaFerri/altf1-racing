@@ -172,7 +172,11 @@ function stepDrift(
   const targetSlip = p.driftAngle + p.driftAngleSteerRange * steerInto;
   const slipBefore = dir * wrapAngle(travelBefore - car.heading);
   const blend = 1 - Math.exp(-p.driftRotateStiffness * dt);
-  const slip = Math.min(maxSlip, slipBefore + (targetSlip - slipBefore) * blend);
+  // Capped at maxSlip, unless an impact already pushed it past: then it eases back instead of snapping.
+  const slip = Math.min(
+    Math.max(maxSlip, slipBefore),
+    slipBefore + (targetSlip - slipBefore) * blend,
+  );
   const heading = wrapAngle(travel - dir * slip);
 
   const speed = Math.max(0, longitudinal(speedBefore, input, p, dt, surface) - p.driftDrag * dt);

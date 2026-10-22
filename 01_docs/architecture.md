@@ -15,13 +15,15 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 ## Model — `01_packages/shared`
 
 - Plain data (`GameState`, `CarState`, `InputCommand`) + pure functions.
-- **Multi-car from the start**: `GameState { tick, cars }`, cars sorted by `id`; inputs arrive as
+- **Multi-car from the start**: `GameState { tick, cars, impacts }`, cars sorted by `id`; inputs arrive as
   `{ [carId]: InputCommand }` (missing = neutral). The same shape will carry network inputs.
-- **`SimContext { track, carParams, surfaceParams }`**: static data passed to every `stepGame` call,
+- **`SimContext { track, carParams, surfaceParams, collisionParams }`**: static data passed to every `stepGame` call,
   never stored in the state. `Game` owns live copies of the params, so tuning never touches Model code.
-- **Order of one tick** (per car, in id order): reset if requested → sample wheel surfaces →
-  `stepCar` with the surface effect. Step 4b appends the collision pass after all cars have moved.
+- **Order of one tick**: per car, in id order: reset if requested → sample wheel surfaces →
+  `stepCar` with the surface effect. Then **one collision pass** for all cars (`resolveCollisions`:
+  car pairs, then walls), which also fills `impacts` with that tick's hits (events for later sparks and sounds).
 - Physics, units and axis conventions: [physics.md](physics.md). Track & surfaces: [track.md](track.md).
+  Collisions: [collisions.md](collisions.md).
 - Advances only in fixed ticks (`TICK_RATE` = 60 Hz, `FIXED_DT`) → deterministic and testable.
 - Must not import `three` or touch the DOM (ESLint rule in `eslint.config.js`).
 
@@ -40,7 +42,7 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 
 - `bindings.ts`: key map + pure `inputFromKeys()`; `KeyboardController` samples it once per tick.
 - Bindings (now): W throttle · S or C brake/reverse · A/D steer · Space handbrake/drift · R reset ·
-  F2 tuning panel (dev) · F3 debug overlay. Planned: V camera.
+  F2 tuning panel (dev) · F3 debug overlay · F4 park the dummy car ahead (dev). Planned: V camera.
 - Three kinds of keys: **drive keys** (held, sampled per tick), **tick triggers** (`TICK_TRIGGER_KEYS`,
   e.g. R: pressed once, delivered as `InputCommand.reset = true` for exactly one tick, so the
   simulation handles them and they can travel over the network) and **actions** (below).
@@ -63,6 +65,10 @@ between them, so motion is smooth at any refresh rate even though the Model tick
   dependencies (verified: no lil-gui in the build output). Keeping the `import()` inside the `if`
   matters: moved to a separate method, Vite would still emit the chunk.
 - `TuningPanel` (F2): lil-gui sliders for every `CarParams` value (Engine & brakes / Steering & grip /
-  Drift) and every surface (Surfaces → grip, traction, drag, bumpSpin). Mutates `Game`'s live params;
-  **Copy as code** logs (and copies to the clipboard when available) ready-to-paste `CAR_PARAMS` and
-  `SURFACE_PARAMS`; **Reset to defaults** restores the config files' values.
+  Drift), every `CollisionParams` value (Collisions) and every surface (Surfaces → grip, traction, drag,
+  bumpSpin). Mutates `Game`'s live params; **Copy as code** logs (and copies to the clipboard when
+  available) ready-to-paste `CAR_PARAMS`, `COLLISION_PARAMS` and `SURFACE_PARAMS`; **Reset to defaults**
+  restores the config files' values.
+- **Dummy car**: in dev, `Game` adds a parked car (`'dummy'`, grid slot 2, no input) to crash into.
+  F4 parks it 25 m ahead of the player on the centreline (`placeCarAhead` in `sim/game.ts`, pure, applied
+  to both the current and previous state). Cars other than the followed one are drawn greyed out.
