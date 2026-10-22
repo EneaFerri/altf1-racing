@@ -23,6 +23,8 @@ export const ACTION_KEYS = {
   toggleTuning: ['F2'],
   toggleDebug: ['F3'],
   toggleCamera: ['KeyV'],
+  /** Bot level: Off → Easy → Medium → Hard → Off. */
+  cycleBot: ['KeyB'],
   /** Dev only: park the dummy car in front of the player. */
   placeDummy: ['F4'],
 } as const satisfies Record<string, readonly string[]>;

@@ -148,3 +148,20 @@
 - No menus yet: the bot level and the track are switched with keys, the level shown on screen.
 - Bot lap and sector times are not displayed (owner's choice): the level sets its pace, the timing HUD
   stays the player's.
+
+## 2026-10-22 — Bot: input source, relaxed racing line, yaw-based speeds
+
+- The bot sits outside the simulation and only sends `InputCommand`s; `stepGame` is unchanged. Its
+  only memory (stuck counter) is plain data kept by the caller, so client and server can both run it.
+- Racing line by iterative relaxation (each point to the midpoint of its neighbours, clamped to the
+  allowed width): simple, deterministic, ~4 ms per build. Shifting the line to the inside of corners
+  was tried first and was slower the more it cut.
+- Corner speeds come from the car's `CarParams` (yaw limit), not from hand-set numbers per corner, so
+  any track and any re-tune of the car keep working. Levels are multipliers on that.
+- Owner's choices: blue livery for the bot, Medium at start, no bot timing on screen.
+- `placeCarAhead` became `placeCar` (signed distance, adds a missing car) plus `removeCar`, used both
+  by the bot (B) and the dev dummy (F4).
+- Owner's feedback after driving (best lap 29 s, with drifts): Easy kept, the first Medium dropped,
+  the first Hard became Medium, and Hard had to beat the owner. Grip alone tops out at ~33.2 s, so
+  Hard drifts like a player, with the drift decided live on the actual speed, and gets a +3% car
+  (`performance`, through the new per-car `SimContext.carParamsById`): 27.8 s.

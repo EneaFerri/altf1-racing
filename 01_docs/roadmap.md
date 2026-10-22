@@ -43,14 +43,12 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
 7. ✅ **Feel pass** — current values confirmed as defaults and frozen as **baseline v1, provisional**
    (`config/tuning.ts`, shown in F2/F3). Re-tune any time with the dev panel: see `tuning.md`.
 
-8. **Bot opponent (Easy / Medium / Hard)** — a second car in `GameState`, same physics and
-   collisions as the player, driven by an AI that produces one `InputCommand` per tick (pure, in
-   `shared`, so the server can run bots later). It follows a racing line derived from the compiled
-   `Track` and brakes for corners; the level scales target speed, corner speed and braking margin,
-   aiming at a lap-time band per level (Hard close to a good human lap, Easy clearly slower).
-   A key cycles Off → Easy → Medium → Hard and the HUD shows the current level. The bot's times are
-   not shown: the timing HUD (lap, sectors, gaps) stays the player's only; the level only sets the
-   bot's pace. Detailed design when the step starts.
+8. ✅ **Bot opponent (Easy / Medium / Hard)** — blue car, a real car with collisions, driven by
+   `ai/` (pure, in `shared`): a racing line relaxed to minimum curvature, a speed profile from the
+   car's own grip and drift limits with braking zones, steering at a point ahead; Hard also drifts and
+   drives a +3% car. Test Ring: Easy 40.3 s, Medium 34.1 s, Hard 27.8 s (owner's best: 29 s). Levels
+   in `config/bot.ts`, live in F2. B cycles Off/Easy/Medium/Hard, the HUD shows the level, never the
+   bot's times. Starts on Medium. See `bot.md`.
 9. **Tracks: Monza, Barcelona, Monaco + Krunker-inspired** — four new `TrackDefinition`s in
    `track/layouts/`: three inspired by the real circuits (their character, not 1:1 copies: scaled to
    our ≥ 24 m width and arcade speeds) and one inspired by a Krunker.io custom map, the project's

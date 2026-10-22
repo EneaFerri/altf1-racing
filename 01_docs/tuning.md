@@ -7,6 +7,7 @@ All feel-related numbers have one home each and are the game's defaults:
 | `CAR_PARAMS`       | `01_packages/shared/src/config/car.ts`          | [physics.md](physics.md)           |
 | `COLLISION_PARAMS` | `01_packages/shared/src/config/collision.ts`    | [collisions.md](collisions.md)     |
 | `SURFACE_PARAMS`   | `01_packages/shared/src/config/surfaces.ts`     | [track.md](track.md)               |
+| `BOT_PARAMS`       | `01_packages/shared/src/config/bot.ts`          | [bot.md](bot.md)                   |
 | `CAMERA_PARAMS`    | `01_packages/client/src/view/cameras/params.ts` | [architecture.md](architecture.md) |
 
 ## Status flag
@@ -30,6 +31,7 @@ overlay (F3), so it's always clear which baseline is being driven. Production bu
    clipboard on localhost) grouped per file.
 4. Paste each block into its file from the table above.
 5. In `config/tuning.ts` bump `version`, set `frozenOn`, and set `status: 'final'` once the values are final.
-6. If behaviour changed, update the measured-behaviour tables in `physics.md` / `collisions.md` and add
+6. If behaviour changed, update the measured-behaviour tables in `physics.md` / `collisions.md` /
+   `bot.md` (car changes move the bot's lap times too) and add
    a line to [decisions.md](decisions.md).
 7. `npm test`: some tests measure feel (e.g. drift angle, top speed) and may need new expectations.

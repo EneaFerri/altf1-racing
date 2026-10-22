@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CAR_WHEELS } from '@altf1/shared';
-import { createCheckerTexture, createLiveryTexture } from './pixelTexture';
+import { createCheckerTexture, createLiveryTexture, type Livery } from './pixelTexture';
 
 /** Interpolated car pose handed to the View each frame. */
 export interface CarPose {
@@ -36,9 +36,8 @@ export class CarView {
   /** Slim front tub shown only in first person, linking the nose to the steering wheel. */
   private readonly cockpit: THREE.Object3D[] = [];
 
-  /** `tint` multiplies the livery colours (white = unchanged). */
-  constructor(tint = '#ffffff') {
-    const livery = new THREE.MeshLambertMaterial({ map: createLiveryTexture(), color: tint });
+  constructor(colors: Livery) {
+    const livery = new THREE.MeshLambertMaterial({ map: createLiveryTexture(colors) });
     const carbon = new THREE.MeshLambertMaterial({ color: '#1c1c1c' });
     const tyre = new THREE.MeshLambertMaterial({
       map: createCheckerTexture(8, '#1a1a1a', '#3a3a3a'),
@@ -100,6 +99,17 @@ export class CarView {
   setFirstPerson(firstPerson: boolean): void {
     for (const part of this.body) part.visible = !firstPerson;
     for (const part of this.cockpit) part.visible = firstPerson;
+  }
+
+  /** Frees the GPU resources (geometries, materials, textures) when the car leaves the race. */
+  dispose(): void {
+    this.object.traverse((node) => {
+      if (!(node instanceof THREE.Mesh)) return;
+      node.geometry.dispose();
+      const material = node.material as THREE.MeshLambertMaterial;
+      material.map?.dispose();
+      material.dispose();
+    });
   }
 
   update(pose: CarPose, frameSeconds: number): void {

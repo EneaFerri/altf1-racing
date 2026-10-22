@@ -21,7 +21,8 @@ the next one. There are no start lights and no finish (a race mode can come late
   out-lap. Driving backwards, reversing over a line and coming back, or skipping a sector never times
   anything. The walls already prevent real shortcuts.
 - Times are **integer ticks** (60 Hz, 16.7 ms resolution): deterministic, the same on every machine.
-- A teleport (dev F4 on the dummy) restarts that car's out-lap, so it can't count as a crossing.
+- A teleport (`placeCar`: the bot switched on with B, the dev dummy with F4) restarts that car's
+  out-lap, so it can't count as a crossing.
 - **Visible on track** (`TrackView`): a gantry where each sector starts. It has two posts just behind
   the walls and a board across the whole track labelled `S1` / `S2` / `S3` in pixel glyphs (yellow
   stripes, readable from far away). S2 and S3 also get a yellow line on the asphalt; S1 is the
@@ -51,7 +52,7 @@ no track-limits rule.
 
 One slim translucent strip, system sans-serif with tabular figures:
 
-`LAP 3 │ 1:23.4 │ ▬ ▬ ▬ │ LAST 1:24.102 │ BEST 1:22.981 │ 212 km/h`
+`LAP 3 │ 1:23.4 │ ▬ ▬ ▬ │ LAST 1:24.102 │ BEST 1:22.981 │ 212 km/h │ ● BOT MEDIUM`
 
 - `OUT LAP` before the first crossing. A red `INVALID` tag appears while the current lap is invalid.
 - The sector bars light up as each sector is done. **Purple** = best ever for that sector,
@@ -59,4 +60,6 @@ One slim translucent strip, system sans-serif with tabular figures:
   Comparisons use the bests as they were when the lap started.
 - Under the strip, a chip shows for 3 s after each sector: the gap to the best lap at that point
   (`S2 −0.214`), or the sector time while there is no best lap yet. At the line it also shows the lap time.
+- `● BOT <level>` at the end shows the bot's level (`OFF` greyed when off, see [bot.md](bot.md)).
+  The bot is timed in the simulation like any car, but its times are never shown.
 - The DOM is touched only when a text changes. `pointer-events: none`, so it never blocks input.

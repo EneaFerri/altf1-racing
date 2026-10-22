@@ -93,7 +93,7 @@ export class DebugOverlay {
       `impact    ${this.impactText(state.tick)}`,
       `tuning    ${tuningLabel()}`,
       '',
-      `R reset · V camera · F3 overlay${import.meta.env.DEV ? ' · F2 tuning · F4 dummy' : ''}`,
+      `R reset · V camera · B bot · F3 overlay${import.meta.env.DEV ? ' · F2 tuning · F4 dummy' : ''}`,
     ].join('\n');
   }
 

@@ -62,12 +62,25 @@ export function createGroundTexture(size = 16): THREE.Texture {
   );
 }
 
-/** Car livery: red body with a white racing stripe and subtle pixel shading. */
-export function createLiveryTexture(size = 16): THREE.Texture {
+/** Body colour and the darker pixels sprinkled on it. */
+export interface Livery {
+  readonly body: string;
+  readonly shade: string;
+}
+
+/** Car liveries: the local player is red, the bot blue, anything else (dev dummy) grey. */
+export const LIVERIES = {
+  red: { body: '#e10600', shade: '#b80500' },
+  blue: { body: '#1f5fe0', shade: '#1747ad' },
+  grey: { body: '#8a8a8a', shade: '#6e6e6e' },
+} as const satisfies Record<string, Livery>;
+
+/** Car livery: body colour with a white racing stripe and subtle pixel shading. */
+export function createLiveryTexture(livery: Livery, size = 16): THREE.Texture {
   return createPixelTexture(size, (ctx) => {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
-        ctx.fillStyle = (x + y * 3) % 7 === 0 ? '#b80500' : '#e10600';
+        ctx.fillStyle = (x + y * 3) % 7 === 0 ? livery.shade : livery.body;
         ctx.fillRect(x, y, 1, 1);
       }
     }

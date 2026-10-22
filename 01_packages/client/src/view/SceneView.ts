@@ -13,13 +13,11 @@ import {
 import { CameraRig } from './cameras/CameraRig';
 import type { CameraParams } from './cameras/params';
 import { CarView, type CarPose } from './CarView';
-import { createGroundTexture } from './pixelTexture';
+import { createGroundTexture, LIVERIES, type Livery } from './pixelTexture';
 import { createTrackView } from './TrackView';
 import { bindResize, createRenderer } from './renderer';
 
 const SKY_COLOR = '#87ceeb';
-/** Every car but the followed one is greyed out, until cars get their own liveries. */
-const OTHER_CAR_TINT = '#8a8a8a';
 const GROUND_SIZE = 1000;
 const GROUND_TILE = 2;
 
@@ -30,10 +28,14 @@ export class SceneView {
   private readonly cars = new Map<CarId, CarView>();
   private readonly cameraRig: CameraRig;
 
-  /** `followId`: the car the camera follows (the local player). `cameraParams` are read live. */
+  /**
+   * `followId`: the car the camera follows (the local player). `liveries`: colour per car id, others
+   * are grey. `cameraParams` are read live.
+   */
   constructor(
     track: Track,
     private readonly followId: CarId,
+    private readonly liveries: Readonly<Record<CarId, Livery>>,
     cameraParams: CameraParams,
   ) {
     this.cameraRig = new CameraRig(cameraParams);
@@ -63,6 +65,13 @@ export class SceneView {
         view.setFirstPerson(this.cameraRig.mode === 'pov');
       }
     }
+    // Cars that left the race (e.g. the bot switched off).
+    for (const [id, view] of this.cars) {
+      if (curr.cars.some((car) => car.id === id)) continue;
+      this.scene.remove(view.object);
+      view.dispose();
+      this.cars.delete(id);
+    }
     this.renderer.render(this.scene, this.cameraRig.camera);
   }
 
@@ -70,7 +79,7 @@ export class SceneView {
   private carView(id: CarId): CarView {
     let view = this.cars.get(id);
     if (!view) {
-      view = new CarView(id === this.followId ? undefined : OTHER_CAR_TINT);
+      view = new CarView(this.liveries[id] ?? LIVERIES.grey);
       this.cars.set(id, view);
       this.scene.add(view.object);
     }

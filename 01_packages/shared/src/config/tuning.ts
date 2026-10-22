@@ -1,5 +1,5 @@
 /**
- * Status of the default tuning values: CAR_PARAMS, COLLISION_PARAMS, SURFACE_PARAMS and the client's
+ * Status of the default tuning values: CAR_PARAMS, COLLISION_PARAMS, SURFACE_PARAMS, BOT_PARAMS and the client's
  * CAMERA_PARAMS. 'provisional' = the current baseline, not final yet. Bump `version` and `frozenOn`
  * at every re-freeze; how to re-tune is in 01_docs/tuning.md.
  */

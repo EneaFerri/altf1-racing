@@ -17,8 +17,8 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 - Plain data (`GameState`, `CarState`, `InputCommand`) + pure functions.
 - **Multi-car from the start**: `GameState { tick, cars, impacts, laps }`, cars sorted by `id`; inputs arrive as
   `{ [carId]: InputCommand }` (missing = neutral). The same shape will carry network inputs.
-- **`SimContext { track, carParams, surfaceParams, collisionParams }`**: static data passed to every `stepGame` call,
-  never stored in the state. `Game` owns live copies of the params, so tuning never touches Model code.
+- **`SimContext { track, carParams, carParamsById?, surfaceParams, collisionParams }`**: static data passed to every `stepGame` call,
+  never stored in the state. `carParamsById` lets a car drive its own `CarParams` (the bot's +3% car). `Game` owns live copies of the params, so tuning never touches Model code.
 - **Order of one tick**: per car, in id order: reset if requested → sample wheel surfaces →
   `stepCar` with the surface effect. Then **one collision pass** for all cars (`resolveCollisions`:
   car pairs, then walls), which also fills `impacts` with that tick's hits (events for later sparks and sounds).
@@ -31,8 +31,10 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 ## View — `01_packages/client/src/view`
 
 - Reads state, never writes it.
-- `SceneView` keeps one `CarView` per car id (created when a car first appears, so opponents need
-  no extra wiring), interpolates each car's pose, and feeds the followed car to the `CameraRig`.
+- `SceneView` keeps one `CarView` per car id (created when a car first appears and disposed when it
+  leaves, so opponents need no extra wiring), interpolates each car's pose, and feeds the followed car
+  to the `CameraRig`. Liveries per car id (`LIVERIES` in `pixelTexture.ts`): player red, bot blue,
+  anything else grey.
 - **Cameras** (`view/cameras/`): `CameraRig` owns the single `PerspectiveCamera` and switches (V)
   between `ChaseCamera` (behind the car, smoothed yaw only) and `FirstPersonCamera` (driver's eye,
   locked to the car). Both get a **speed FOV** (`speedFov`: + `fovSpeedGain` degrees at
@@ -50,17 +52,25 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 - `TrackView` builds asphalt, kerbs, high kerbs, gravel, tyre walls, the start line and the sector
   gantries from the same compiled `Track` the physics uses.
 - **HUD** (`view/hud/Hud.ts` + `hud.css`): F1-style timing strip at the top centre (lap, running time,
-  sector bars, last/best, speed) with a sector-gap chip; always on. The F3 debug overlay stays top left.
+  sector bars, last/best, speed, bot level) with a sector-gap chip; always on. The F3 debug overlay stays top left.
   Details: [laps.md](laps.md#hud-top-centre).
 - `frameSeconds` is used only for visual smoothing (camera, wheel spin), never for gameplay.
 - Pixel look: tiny textures with `NearestFilter`, no antialiasing, full-resolution render. A low-res
   render pass (whole scene pixelated) is not implemented; it remains a possible later option.
 
+## Bot — `01_packages/shared/src/ai`
+
+- A bot is a second source of `InputCommand`s: each tick `Game` asks `botInput` for the bot's
+  input and passes it to `stepGame` with the player's. The simulation doesn't know which car is a bot,
+  so the server can drive bots the same way later. Details: [bot.md](bot.md).
+- Cars join and leave with `placeCar` / `removeCar` (`sim/game.ts`, pure), applied to the current and
+  previous state together.
+
 ## Controller — `01_packages/client/src/controller`
 
 - `bindings.ts`: key map + pure `inputFromKeys()`; `KeyboardController` samples it once per tick.
 - Bindings (now): W throttle · S or C brake/reverse · A/D steer · Space handbrake/drift · R reset ·
-  V camera (chase / first person) · F2 tuning panel (dev) · F3 debug overlay · F4 park the dummy car
+  V camera (chase / first person) · B bot level · F2 tuning panel (dev) · F3 debug overlay · F4 park the dummy car
   ahead (dev). No key may be bound twice (tested).
 - Three kinds of keys: **drive keys** (held, sampled per tick), **tick triggers** (`TICK_TRIGGER_KEYS`,
   e.g. R: pressed once, delivered as `InputCommand.reset = true` for exactly one tick, so the
@@ -85,11 +95,12 @@ between them, so motion is smooth at any refresh rate even though the Model tick
   matters: moved to a separate method, Vite would still emit the chunk.
 - `TuningPanel` (F2): lil-gui sliders for every `CarParams` value (Engine & brakes / Steering & grip /
   Drift), every `CollisionParams` value (Collisions), every `CameraParams` value (Camera → Chase /
-  First person / Speed FOV) and every surface (Surfaces → grip, traction, drag, bumpSpin). Mutates
+  First person / Speed FOV), every surface (Surfaces → grip, traction, drag, bumpSpin) and every bot
+  level (Bot → easy / medium / hard). Mutates
   `Game`'s live params; **Copy as code** logs (and copies to the clipboard when available)
-  ready-to-paste `CAR_PARAMS`, `COLLISION_PARAMS`, `SURFACE_PARAMS` and `CAMERA_PARAMS`; **Reset to
+  ready-to-paste `CAR_PARAMS`, `COLLISION_PARAMS`, `SURFACE_PARAMS`, `BOT_PARAMS` and `CAMERA_PARAMS`; **Reset to
   defaults** restores the frozen baseline. The title shows the baseline label; re-tune workflow in
   [tuning.md](tuning.md).
 - **Dummy car**: in dev, `Game` adds a parked car (`'dummy'`, grid slot 2, no input) to crash into.
-  F4 parks it 25 m ahead of the player on the centreline (`placeCarAhead` in `sim/game.ts`, pure, applied
-  to both the current and previous state). Cars other than the followed one are drawn greyed out.
+  F4 parks it 25 m ahead of the player on the centreline (`placeCar` in `sim/game.ts`, pure, applied
+  to both the current and previous state). It is drawn grey.

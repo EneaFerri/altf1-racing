@@ -8,6 +8,8 @@
   --hud-green: #2fd25a;
   --hud-yellow: #f5c518;
   --hud-red: #e10600;
+  /* Same blue as the bot's livery (LIVERIES.blue in view/pixelTexture.ts). */
+  --hud-bot: #1f5fe0;
 
   position: fixed;
   top: 10px;
@@ -123,6 +125,33 @@
   color: var(--hud-dim);
   font-size: 10px;
   font-weight: 600;
+}
+
+.hud-bot {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.hud-bot-dot {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hud-bot);
+}
+
+.hud-bot-level {
+  min-width: 4.4em;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.hud-bot-off {
+  color: var(--hud-dim);
 }
 
 .hud-chip {

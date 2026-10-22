@@ -11,7 +11,8 @@ import {
   createGame,
   findCar,
   findLap,
-  placeCarAhead,
+  placeCar,
+  removeCar,
   stepGame,
   type GameState,
   type InputMap,
@@ -27,8 +28,8 @@ const ctx: SimContext = {
 };
 const THROTTLE: InputCommand = { ...NEUTRAL_INPUT, throttle: 1 };
 
-function run(state: GameState, inputs: InputMap, ticks: number): GameState {
-  for (let i = 0; i < ticks; i++) state = stepGame(state, inputs, ctx);
+function run(state: GameState, inputs: InputMap, ticks: number, context = ctx): GameState {
+  for (let i = 0; i < ticks; i++) state = stepGame(state, inputs, context);
   return state;
 }
 
@@ -109,10 +110,10 @@ describe('stepGame', () => {
     expect(hits).toBeGreaterThan(0);
   });
 
-  it('placeCarAhead parks a car on the centreline ahead of another, at rest', () => {
+  it('placeCar parks a car on the centreline ahead of another, at rest', () => {
     const start = run(createGame(track, ['player', 'dummy']), { player: THROTTLE }, 60);
     const player = findCar(start, 'player')!;
-    const dummy = findCar(placeCarAhead(start, track, 'dummy', 'player', 25), 'dummy')!;
+    const dummy = findCar(placeCar(start, track, 'dummy', 'player', 25), 'dummy')!;
     const ahead =
       (locateOnTrack(track, dummy.position).distance -
         locateOnTrack(track, player.position).distance +
@@ -124,6 +125,21 @@ describe('stepGame', () => {
     expect(Math.abs(locateOnTrack(track, dummy.position).lateral)).toBeLessThan(0.01);
   });
 
+  it('placeCar adds a missing car behind another, and removeCar takes it out again', () => {
+    const start = createGame(track, ['player']);
+    const added = placeCar(start, track, 'bot', 'player', -40);
+    expect(added.cars.map((c) => c.id)).toEqual(['bot', 'player']);
+    expect(added.laps.map((l) => l.carId)).toEqual(['bot', 'player']);
+    const behind =
+      (locateOnTrack(track, findCar(start, 'player')!.position).distance -
+        locateOnTrack(track, findCar(added, 'bot')!.position).distance +
+        track.length) %
+      track.length;
+    expect(behind).toBeGreaterThan(38);
+    expect(behind).toBeLessThan(43);
+    expect(removeCar(added, 'bot')).toEqual(start);
+  });
+
   it('times every car: out-lap on the grid, lap 1 starts on the line', () => {
     const start = createGame(track, ['player', 'rival']);
     expect(start.laps.map((l) => l.carId)).toEqual(['player', 'rival']);
@@ -133,6 +149,16 @@ describe('stepGame', () => {
     expect(findLap(moving, 'player')!.sector).toBe(0);
     expect(findLap(moving, 'player')!.lapStartTick).toBeGreaterThan(0);
     expect(findLap(moving, 'rival')!.sector).toBe(-1);
+  });
+
+  it('drives each car with its own params when given (carParamsById)', () => {
+    const faster = { ...CAR_PARAMS, engineAccel: CAR_PARAMS.engineAccel * 1.2 };
+    const start = createGame(track, ['player', 'rival']);
+    const inputs = { player: THROTTLE, rival: THROTTLE };
+    const end = run(start, inputs, 1, { ...ctx, carParamsById: { rival: faster } });
+    const speed = (id: string): number =>
+      dot(findCar(end, id)!.velocity, forward(findCar(end, id)!.heading));
+    expect(speed('rival')).toBeCloseTo(speed('player') * 1.2, 5);
   });
 
   it('is deterministic with several cars on the track', () => {

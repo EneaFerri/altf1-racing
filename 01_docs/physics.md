@@ -21,7 +21,7 @@ and returns a new `CarState`. Each tick runs one of two modes:
 
 | Field            | Meaning                                                                                            |
 | ---------------- | -------------------------------------------------------------------------------------------------- |
-| `id`             | Unique car id (`'player'`, `'dummy'` in dev, later opponents / network players)                    |
+| `id`             | Unique car id (`'player'`, `'bot'`, `'dummy'` in dev, later network players)                       |
 | `position`       | World position (m)                                                                                 |
 | `velocity`       | World velocity (m/s); may point away from `heading` while sliding                                  |
 | `heading`        | Facing angle (rad)                                                                                 |

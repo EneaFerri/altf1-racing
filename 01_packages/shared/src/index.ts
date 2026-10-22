@@ -1,3 +1,6 @@
+export * from './ai/driver';
+export * from './ai/plan';
+export * from './config/bot';
 export * from './config/car';
 export * from './config/collision';
 export * from './config/sim';

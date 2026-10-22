@@ -28,6 +28,8 @@ export interface GameState {
 export interface SimContext {
   readonly track: Track;
   readonly carParams: CarParams;
+  /** Cars that drive a different car than `carParams` (e.g. a bot with a performance edge). */
+  readonly carParamsById?: Readonly<Record<CarId, CarParams>>;
   readonly surfaceParams: Readonly<Record<Surface, SurfaceParams>>;
   readonly collisionParams: CollisionParams;
 }
@@ -41,7 +43,7 @@ export function createGame(track: Track, carIds: readonly CarId[]): GameState {
     const { position, direction } = gridSlot(track, slot);
     return createCar({ id, position, heading: headingOf(direction) });
   });
-  const sorted = [...cars].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const sorted = sortById(cars);
   return {
     tick: 0,
     cars: sorted,
@@ -61,7 +63,8 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
     if (input.reset) return resetOnTrack(car, ctx.track);
 
     const { surfaces, effect } = carSurface(ctx.track, car, ctx.surfaceParams);
-    return { ...stepCar(car, input, ctx.carParams, FIXED_DT, effect), wheelSurfaces: surfaces };
+    const params = ctx.carParamsById?.[car.id] ?? ctx.carParams;
+    return { ...stepCar(car, input, params, FIXED_DT, effect), wheelSurfaces: surfaces };
   });
   const { cars, impacts } = resolveCollisions(moved, ctx.track, ctx.collisionParams);
   const tick = state.tick + 1;
@@ -86,11 +89,12 @@ export function findLap(state: GameState, id: CarId): LapState | undefined {
 }
 
 /**
- * Dev tool: puts car `id` at rest on the centreline `metres` ahead of car `targetId` along the track,
- * facing the driving direction, with its timing back to an out-lap. Returns `state` unchanged if
- * either car is missing.
+ * Puts car `id` at rest on the centreline `metres` along the track from car `targetId` (negative =
+ * behind), facing the driving direction, with its timing back to an out-lap. Adds the car if it
+ * isn't in the race yet. Returns `state` unchanged if `targetId` is missing.
+ * Used to bring the bot in and to park the dev dummy.
  */
-export function placeCarAhead(
+export function placeCar(
   state: GameState,
   track: Track,
   id: CarId,
@@ -98,27 +102,39 @@ export function placeCarAhead(
   metres: number,
 ): GameState {
   const target = findCar(state, targetId);
-  if (!target || !findCar(state, id)) return state;
+  if (!target) return state;
   const n = track.samples.length;
   const start = locateOnTrack(track, target.position).index;
+  const step = metres >= 0 ? 1 : n - 1;
   let index = start;
-  // Walk forward sample by sample, wrapping over the start line.
+  // Walk sample by sample in the chosen direction, wrapping over the start line.
   while (
-    (track.samples[index]!.distance - track.samples[start]!.distance + track.length) %
+    (Math.sign(metres) * (track.samples[index]!.distance - track.samples[start]!.distance) +
+      track.length) %
       track.length <
-    metres
+    Math.abs(metres)
   ) {
-    index = (index + 1) % n;
+    index = (index + step) % n;
     if (index === start) break;
   }
   const sample = track.samples[index]!;
   const placed = createCar({ id, position: sample.position, heading: headingOf(sample.tangent) });
   // A teleport must not count as crossing a sector: the moved car starts a fresh out-lap.
   const timing = createLapState(id, sample.distance);
+  const others = state.cars.filter((car) => car.id !== id);
+  const cars = sortById([...others, placed]);
+  const laps = cars.map((car) =>
+    car.id === id ? timing : state.laps.find((lap) => lap.carId === car.id)!,
+  );
+  return { ...state, cars, laps };
+}
+
+/** Takes car `id` out of the race (no-op if it isn't there). */
+export function removeCar(state: GameState, id: CarId): GameState {
   return {
     ...state,
-    cars: state.cars.map((car) => (car.id === id ? placed : car)),
-    laps: state.laps.map((lap) => (lap.carId === id ? timing : lap)),
+    cars: state.cars.filter((car) => car.id !== id),
+    laps: state.laps.filter((lap) => lap.carId !== id),
   };
 }
 
@@ -126,4 +142,8 @@ export function placeCarAhead(
 function resetOnTrack(car: CarState, track: Track): CarState {
   const location = locateOnTrack(track, car.position);
   return createCar({ id: car.id, position: location.point, heading: headingOf(location.tangent) });
+}
+
+function sortById(cars: readonly CarState[]): CarState[] {
+  return [...cars].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }

@@ -3,6 +3,7 @@ import {
   findLap,
   length,
   TRACK_RULES,
+  type BotLevel,
   type CarId,
   type GameState,
   type LapState,
@@ -34,6 +35,7 @@ export class Hud {
   private readonly last = element('span', 'hud-value');
   private readonly best = element('span', 'hud-value');
   private readonly speed = element('span', 'hud-speed');
+  private readonly botLevel = element('span', 'hud-bot-level');
   private readonly chip = element('div', 'hud-chip');
 
   private lapStartTick: number | null = null;
@@ -58,9 +60,16 @@ export class Hud {
       element('span', 'hud-label', 'BEST'),
       this.best,
       this.speed,
+      botLabel(this.botLevel),
     );
     this.root.append(strip, this.chip);
     document.body.appendChild(this.root);
+  }
+
+  /** Shows the bot's level (B cycles it); null = off. The bot's own times are never shown. */
+  setBotLevel(level: BotLevel | null): void {
+    setText(this.botLevel, level === null ? 'OFF' : level.toUpperCase());
+    this.botLevel.classList.toggle('hud-bot-off', level === null);
   }
 
   /** Call once per rendered frame with the car to show (the local player). */
@@ -135,6 +144,13 @@ export class Hud {
     setText(this.chip, `S${index + 1}  ${gap}`);
     this.chipUntil = nowMs + CHIP_MS;
   }
+}
+
+/** `● BOT <level>`, the dot in the bot's livery colour. */
+function botLabel(level: HTMLElement): HTMLElement {
+  const label = element('span', 'hud-bot');
+  label.append(element('i', 'hud-bot-dot'), element('span', 'hud-label', 'BOT'), level);
+  return label;
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(

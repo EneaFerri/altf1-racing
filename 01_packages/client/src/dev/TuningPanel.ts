@@ -1,9 +1,12 @@
 import GUI from 'lil-gui';
 import {
+  BOT_PARAMS,
   CAR_PARAMS,
   COLLISION_PARAMS,
   SURFACE_PARAMS,
   tuningLabel,
+  type BotLevel,
+  type BotParams,
   type CarParams,
   type CollisionParams,
   type Surface,
@@ -93,6 +96,15 @@ const SURFACE_RANGES: Record<keyof SurfaceParams, Range> = {
   bumpSpin: [0, 3, 0.05],
 };
 
+const BOT_RANGES: Record<keyof BotParams, Range> = {
+  cornerSpeed: [0.3, 1.6, 0.01],
+  brakeUse: [0.2, 1.3, 0.01],
+  lineCut: [0, 1, 0.05],
+  topSpeed: [0.4, 1, 0.01],
+  driftUse: [0, 1.5, 0.05],
+  performance: [0.9, 1.15, 0.01],
+};
+
 /**
  * Dev-only live tuning (F2). Mutates the params objects the Game feeds to the simulation,
  * so changes apply on the next tick. Loaded via dynamic import only when import.meta.env.DEV.
@@ -105,6 +117,7 @@ export class TuningPanel {
     private readonly surfaceParams: Record<Surface, SurfaceParams>,
     private readonly collisionParams: CollisionParams,
     private readonly cameraParams: CameraParams,
+    private readonly botParams: Record<BotLevel, BotParams>,
   ) {
     for (const [title, ranges] of Object.entries(CAR_GROUPS)) {
       const folder = this.gui.addFolder(title);
@@ -143,6 +156,17 @@ export class TuningPanel {
       }
     }
 
+    const bot = this.gui.addFolder('Bot').close();
+    for (const [level, params] of Object.entries(botParams)) {
+      const folder = bot.addFolder(level).close();
+      for (const [key, [min, max, step]] of Object.entries(BOT_RANGES) as [
+        keyof BotParams,
+        Range,
+      ][]) {
+        folder.add(params, key, min, max, step);
+      }
+    }
+
     this.gui.add({ copy: () => this.copyAsCode() }, 'copy').name('Copy as code');
     this.gui.add({ reset: () => this.reset() }, 'reset').name('Reset to defaults');
     this.gui.hide();
@@ -158,6 +182,9 @@ export class TuningPanel {
     Object.assign(this.cameraParams, CAMERA_PARAMS);
     for (const [surface, params] of Object.entries(SURFACE_PARAMS)) {
       Object.assign(this.surfaceParams[surface as Surface], params);
+    }
+    for (const [level, params] of Object.entries(BOT_PARAMS)) {
+      Object.assign(this.botParams[level as BotLevel], params);
     }
     for (const controller of this.gui.controllersRecursive()) controller.updateDisplay();
   }
@@ -178,6 +205,10 @@ export class TuningPanel {
       ([surface, p]) =>
         `  ${surface}: { grip: ${round(p.grip)}, traction: ${round(p.traction)}, drag: ${round(p.drag)}, bumpSpin: ${round(p.bumpSpin)} },`,
     );
+    const botLines = Object.entries(this.botParams).map(
+      ([level, p]) =>
+        `  ${level}: { cornerSpeed: ${round(p.cornerSpeed)}, brakeUse: ${round(p.brakeUse)}, lineCut: ${round(p.lineCut)}, topSpeed: ${round(p.topSpeed)}, driftUse: ${round(p.driftUse)}, performance: ${round(p.performance)} },`,
+    );
     const code = [
       `// From ${tuningLabel()}. When freezing: bump TUNING_BASELINE in config/tuning.ts (01_docs/tuning.md).`,
       '',
@@ -189,6 +220,9 @@ export class TuningPanel {
       '',
       '// config/surfaces.ts',
       `export const SURFACE_PARAMS: Record<Surface, SurfaceParams> = {\n${surfaceLines.join('\n')}\n};`,
+      '',
+      '// config/bot.ts',
+      `export const BOT_PARAMS: Record<BotLevel, BotParams> = {\n${botLines.join('\n')}\n};`,
       '',
       '// client: view/cameras/params.ts',
       `export const CAMERA_PARAMS: CameraParams = {\n${cameraLines.join('\n')}\n};`,
