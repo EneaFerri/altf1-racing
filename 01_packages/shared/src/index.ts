@@ -3,6 +3,7 @@ export * from './config/collision';
 export * from './config/sim';
 export * from './config/surfaces';
 export * from './config/track';
+export * from './config/tuning';
 export * from './math/angle';
 export * from './math/geometry';
 export * from './math/vec2';

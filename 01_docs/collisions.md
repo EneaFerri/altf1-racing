@@ -73,19 +73,19 @@ the slip angle past the drift's maximum, `stepDrift` eases it back instead of sn
 
 ## Parameters
 
-| Param                   | Value | Unit  | Higher means…                                                   |
-| ----------------------- | ----- | ----- | --------------------------------------------------------------- |
-| `wallRestitution`       | 0.1   | —     | Bouncier walls                                                  |
-| `wallFriction`          | 0.12  | —     | Wall scrapes cost more speed                                    |
-| `wallAlignSpin`         | 5     | 1/s   | Nose turns parallel to the wall faster (above ~4 it overshoots) |
-| `maxAlignSpin`          | 3     | rad/s | Steeper hits can still be lined up                              |
-| `carRestitution`        | 0.3   | —     | Bouncier car-vs-car hits                                        |
-| `carFriction`           | 0.1   | —     | Rubbing costs more speed, cars "grab" each other                |
-| `carSpinScale`          | 0.5   | —     | Off-centre hits rotate cars more                                |
-| `carSpinMinImpact`      | 3     | m/s   | Harder hits needed before a car rotates                         |
-| `maxImpactSpin`         | 1.2   | rad/s | Bigger nudge from a car hit (heading change ≈ spin / damping)   |
-| `driftBreakImpactSpeed` | 6     | m/s   | Drifts survive harder hits                                      |
-| `solverIterations`      | 3     | —     | Cleaner separation in multi-contact pile-ups                    |
+| Param                   | Value | Unit  | Higher means…                                                                                            |
+| ----------------------- | ----- | ----- | -------------------------------------------------------------------------------------------------------- |
+| `wallRestitution`       | 0.1   | —     | Bouncier walls                                                                                           |
+| `wallFriction`          | 0.12  | —     | Wall scrapes cost more speed                                                                             |
+| `wallAlignSpin`         | 5     | 1/s   | Nose turns parallel to the wall faster (≈ `spinDamping` lines it up exactly; higher overshoots slightly) |
+| `maxAlignSpin`          | 3     | rad/s | Steeper hits can still be lined up                                                                       |
+| `carRestitution`        | 0.3   | —     | Bouncier car-vs-car hits                                                                                 |
+| `carFriction`           | 0.1   | —     | Rubbing costs more speed, cars "grab" each other                                                         |
+| `carSpinScale`          | 0.5   | —     | Off-centre hits rotate cars more                                                                         |
+| `carSpinMinImpact`      | 3     | m/s   | Harder hits needed before a car rotates                                                                  |
+| `maxImpactSpin`         | 1.2   | rad/s | Bigger nudge from a car hit (heading change ≈ spin / damping)                                            |
+| `driftBreakImpactSpeed` | 6     | m/s   | Drifts survive harder hits                                                                               |
+| `solverIterations`      | 3     | —     | Cleaner separation in multi-contact pile-ups                                                             |
 
 All of these are live in the dev tuning panel (F2 → Collisions).
 

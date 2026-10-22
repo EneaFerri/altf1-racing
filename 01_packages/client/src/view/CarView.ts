@@ -17,11 +17,11 @@ export interface CarPose {
 const WHEEL_RADIUS = 0.36;
 /** Visual front-wheel angle at full lock (rad). Purely cosmetic. */
 const MAX_WHEEL_STEER = 0.4;
-/** Which camera a body part is drawn for, see `CarView.setFirstPerson`. */
-type PartKind = 'body' | 'tip' | 'cockpit';
-
 /** Body roll per radian of slip. Purely cosmetic (~4° at max drift angle). */
 const ROLL_PER_SLIP = 0.1;
+
+/** Which camera a body part is drawn for, see `CarView.setFirstPerson`. */
+type PartKind = 'body' | 'tip' | 'cockpit';
 
 /**
  * Low-poly F1 car built from boxes, in local space: forward is -Z, right is +X, up is +Y,

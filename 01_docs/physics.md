@@ -21,7 +21,7 @@ and returns a new `CarState`. Each tick runs one of two modes:
 
 | Field            | Meaning                                                                                            |
 | ---------------- | -------------------------------------------------------------------------------------------------- |
-| `id`             | Unique car id (`'player'`, later opponents / network players)                                      |
+| `id`             | Unique car id (`'player'`, `'dummy'` in dev, later opponents / network players)                    |
 | `position`       | World position (m)                                                                                 |
 | `velocity`       | World velocity (m/s); may point away from `heading` while sliding                                  |
 | `heading`        | Facing angle (rad)                                                                                 |
@@ -157,4 +157,4 @@ The dev tuning panel (F2, see [architecture.md](architecture.md#dev-tools)) edit
 | Speed after 3 s full-throttle drift from 150 km/h                 | ~193 km/h (still accelerates, less than on a straight) |
 
 At high speed drifting turns up to ~2× tighter than gripping, which is the point: it's the fast way
-through tight corners. Values are a starting point, frozen after the feel pass (step 7).
+through tight corners. Values are frozen as provisional baseline v1 (step 7), see [tuning.md](tuning.md).

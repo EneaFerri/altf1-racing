@@ -3,6 +3,7 @@ import {
   CAR_PARAMS,
   COLLISION_PARAMS,
   SURFACE_PARAMS,
+  tuningLabel,
   type CarParams,
   type CollisionParams,
   type Surface,
@@ -97,7 +98,7 @@ const SURFACE_RANGES: Record<keyof SurfaceParams, Range> = {
  * so changes apply on the next tick. Loaded via dynamic import only when import.meta.env.DEV.
  */
 export class TuningPanel {
-  private readonly gui = new GUI({ title: 'Tuning (F2)', width: 320 });
+  private readonly gui = new GUI({ title: `Tuning (F2) · ${tuningLabel()}`, width: 320 });
 
   constructor(
     private readonly carParams: CarParams,
@@ -178,6 +179,8 @@ export class TuningPanel {
         `  ${surface}: { grip: ${round(p.grip)}, traction: ${round(p.traction)}, drag: ${round(p.drag)}, bumpSpin: ${round(p.bumpSpin)} },`,
     );
     const code = [
+      `// From ${tuningLabel()}. When freezing: bump TUNING_BASELINE in config/tuning.ts (01_docs/tuning.md).`,
+      '',
       '// config/car.ts',
       `export const CAR_PARAMS: CarParams = {\n${carLines.join('\n')}\n};`,
       '',

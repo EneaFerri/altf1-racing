@@ -88,7 +88,8 @@ between them, so motion is smooth at any refresh rate even though the Model tick
   First person / Speed FOV) and every surface (Surfaces → grip, traction, drag, bumpSpin). Mutates
   `Game`'s live params; **Copy as code** logs (and copies to the clipboard when available)
   ready-to-paste `CAR_PARAMS`, `COLLISION_PARAMS`, `SURFACE_PARAMS` and `CAMERA_PARAMS`; **Reset to
-  defaults** restores the original values.
+  defaults** restores the frozen baseline. The title shows the baseline label; re-tune workflow in
+  [tuning.md](tuning.md).
 - **Dummy car**: in dev, `Game` adds a parked car (`'dummy'`, grid slot 2, no input) to crash into.
   F4 parks it 25 m ahead of the player on the centreline (`placeCarAhead` in `sim/game.ts`, pure, applied
   to both the current and previous state). Cars other than the followed one are drawn greyed out.

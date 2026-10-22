@@ -4,6 +4,7 @@ import {
   length,
   right,
   slipAngle,
+  tuningLabel,
   type CarState,
   type GameState,
   type ImpactEvent,
@@ -90,8 +91,9 @@ export class DebugOverlay {
       `spin      ${car.spin.toFixed(2)} rad/s`,
       `wheels    ${car.wheelSurfaces.map((s) => SURFACE_LABEL[s]).join(' ')}  (FL FR RL RR)`,
       `impact    ${this.impactText(state.tick)}`,
+      `tuning    ${tuningLabel()}`,
       '',
-      `R reset · V camera · F2 tuning · F3 overlay${import.meta.env.DEV ? ' · F4 dummy' : ''}`,
+      `R reset · V camera · F3 overlay${import.meta.env.DEV ? ' · F2 tuning · F4 dummy' : ''}`,
     ].join('\n');
   }
 

@@ -24,7 +24,7 @@ import { SceneView } from '../view/SceneView';
 import { GameLoop } from './GameLoop';
 
 /** Id of the car driven by this machine's keyboard. */
-export const PLAYER_ID = 'player';
+const PLAYER_ID = 'player';
 /** Dev-only parked car to crash into (F4 brings it in front of the player). */
 const DUMMY_ID = 'dummy';
 /** How far ahead of the player F4 parks the dummy (m). */

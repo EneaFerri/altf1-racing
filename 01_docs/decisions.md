@@ -127,3 +127,12 @@
   That is enough because walls already stop real shortcuts.
 - HUD in a system sans-serif with tabular figures: no font dependency, works offline and in a desktop
   wrapper.
+
+## 2026-10-22 — Tuning frozen as a provisional baseline
+
+- Owner's choice: the values in the repo at the end of Phase 1 become the defaults, explicitly marked as
+  not final (`TUNING_BASELINE` in `shared/config/tuning.ts`, status `'provisional'`, v1).
+- The flag is data, not a mode switch: the defaults are always the config files, and re-tuning uses the
+  existing dev panel (F2 → Copy as code → paste → bump the baseline). No second "dev" set of values to
+  keep in sync.
+- The label is shown only in dev tools (F2 title, F3 overlay); players never see it.

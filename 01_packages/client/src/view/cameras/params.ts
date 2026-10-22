@@ -1,6 +1,7 @@
 /**
  * Camera tuning values. View-only (they never affect the simulation), so they live in the client.
  * Editable live in the dev tuning panel (F2 → Camera). See 01_docs/architecture.md.
+ * Values: provisional baseline, see TUNING_BASELINE in shared config/tuning.ts.
  */
 export interface CameraParams {
   /** Chase: distance behind the car (m). */

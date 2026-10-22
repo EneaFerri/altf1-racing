@@ -1,6 +1,6 @@
 /**
  * Collision response parameters. Meaning and measured effect of each value are documented in
- * 01_docs/collisions.md. Starting values, tuned in Phase 1 step 7.
+ * 01_docs/collisions.md. Values: provisional baseline, see config/tuning.ts.
  */
 export interface CollisionParams {
   /** Fraction of the speed into a wall that bounces back (0 = dead stop, 1 = elastic). */

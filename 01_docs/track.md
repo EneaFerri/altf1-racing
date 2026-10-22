@@ -1,7 +1,7 @@
 # Tracks & Surfaces
 
 Everything about the circuit lives in `01_packages/shared/src/track/`; it is static data that both
-the simulation (surfaces, reset, grid, later walls and laps) and the View (meshes) read.
+the simulation (surfaces, reset, grid, walls, lap timing) and the View (meshes) read.
 
 ## From definition to track
 
@@ -34,15 +34,15 @@ TrackDefinition (hand-written)  ──buildTrack()──►  Track (compiled, im
 
 ## Automatic rules (`config/track.ts` → `TRACK_RULES`)
 
-| Rule         | Value                         | Effect                                                                              |
-| ------------ | ----------------------------- | ----------------------------------------------------------------------------------- |
-| Low kerbs    | curvature > 1/110 m           | Both sides of every real corner (apex + exit), extended 8 m before/after            |
-| Gravel traps | curvature > 1/45 m            | Outside of tight corners, from 6 m before to 36 m after (where cars run wide)       |
-| High kerbs   | declared in `highKerbs`       | Inside of each curving sample in the range (replaces the low kerb there)            |
-| Kerb band    | edge − 0.6 m → edge + 1.0 m   | Lateral band where a kerb counts                                                    |
-| Walls        | local halfWidth + runoffWidth | One-sided polylines on both sides, `normal` pointing at the track (used in step 4b) |
-| Min width    | 24 m                          | `buildTrack` rejects narrower control points                                        |
-| Sectors      | 3 of equal length             | Timing sectors and anti-cut checkpoints (see [laps.md](laps.md))                    |
+| Rule         | Value                         | Effect                                                                                                 |
+| ------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Low kerbs    | curvature > 1/110 m           | Both sides of every real corner (apex + exit), extended 8 m before/after                               |
+| Gravel traps | curvature > 1/45 m            | Outside of tight corners, from 6 m before to 36 m after (where cars run wide)                          |
+| High kerbs   | declared in `highKerbs`       | Inside of each curving sample in the range (replaces the low kerb there)                               |
+| Kerb band    | edge − 0.6 m → edge + 1.0 m   | Lateral band where a kerb counts                                                                       |
+| Walls        | local halfWidth + runoffWidth | One-sided polylines on both sides, `normal` pointing at the track (see [collisions.md](collisions.md)) |
+| Min width    | 24 m                          | `buildTrack` rejects narrower control points                                                           |
+| Sectors      | 3 of equal length             | Timing sectors and anti-cut checkpoints (see [laps.md](laps.md))                                       |
 
 So a new track only needs a shape; kerbs and gravel follow the corners automatically.
 

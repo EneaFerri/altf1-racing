@@ -4,7 +4,7 @@
 
 - Monorepo, tooling, docs, pixel-textured cube rendering in the browser.
 
-## Phase 1 — Single-player on a test track (current)
+## Phase 1 — Single-player on a test track ✅
 
 Goal: a drivable, fun car with easy arcade drift on a trivial track, chase + first-person
 cameras, minimal HUD, live physics tuning. All game logic lives in `shared` (deterministic).
@@ -40,11 +40,12 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
 6. ✅ **HUD + laps** — free practice; `sim/laps.ts` (3 sectors as
    ordered checkpoints, times in ticks, reset invalidates the lap); `view/hud/Hud.ts` (F1-style strip
    top centre: lap, time, sector colours, last/best, speed, gap chip). See `laps.md`.
-7. **Feel pass** — tune together, freeze values in `config/car.ts`, update docs.
+7. ✅ **Feel pass** — current values confirmed as defaults and frozen as **baseline v1, provisional**
+   (`config/tuning.ts`, shown in F2/F3). Re-tune any time with the dev panel: see `tuning.md`.
 
 Out of scope for Phase 1: audio, AI opponents, menus, more tracks, gamepad, networking.
 
-## Phase 2 — Multiplayer
+## Phase 2 — Multiplayer (next)
 
 - `01_packages/server`: Node.js + WebSocket, authoritative simulation using `shared`.
 - Client-side prediction + reconciliation, interpolation of remote cars.
