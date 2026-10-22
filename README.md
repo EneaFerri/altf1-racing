@@ -2,6 +2,8 @@
 
 Arcade pixel-style F1 racing game for the browser.
 
+Repository: https://github.com/EneaFerri/altf1-racing
+
 ```
 npm install
 npm run dev

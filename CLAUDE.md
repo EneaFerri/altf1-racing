@@ -3,6 +3,7 @@
 Arcade F1-style racing game, Krunker.io-style pixel look (low-poly 3D + crisp nearest-filtered
 textures), drift-based handling, first/third-person cameras, WASD controls.
 Browser-first; must stay easy to wrap as a desktop app later. Multiplayer (client-server) comes later.
+Repository: https://github.com/EneaFerri/altf1-racing (private, branch `main`).
 
 ## Working rules (top priority)
 
