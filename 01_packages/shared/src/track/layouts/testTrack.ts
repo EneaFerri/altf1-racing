@@ -32,7 +32,7 @@ export const TEST_TRACK: TrackDefinition = {
     p(178, 55, 28),
     p(230, 64, 28),
     p(320, 64, 28),
-    // 16-21: long double-apex right, the drift showcase
+    // 16-21: long double-apex right
     p(378, 80, 28),
     p(410, 125, 28),
     p(416, 190, 28),

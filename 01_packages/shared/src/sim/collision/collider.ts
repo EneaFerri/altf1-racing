@@ -1,4 +1,4 @@
-import { CAR_COLLIDER, type CollisionParams } from '../../config/collision';
+import { CAR_COLLIDER } from '../../config/collision';
 import { toWorld, type Vec2 } from '../../math/vec2';
 import type { CarState } from '../car';
 
@@ -8,25 +8,16 @@ export function carCircles(car: CarState): Vec2[] {
 }
 
 /**
- * Applies the result of a hit to a car: the new velocity, a spin kick (see `kickSpin`) and, for a
- * hard hit, the end of a drift. Nothing else changes, so the handling is untouched next tick.
+ * Applies the result of a hit to a car: the new velocity and a spin kick (see `kickSpin`).
+ * Nothing else changes, so the handling is untouched next tick.
  */
 export function applyHit(
   car: CarState,
   velocity: Vec2,
   spinKick: number,
   maxSpin: number,
-  strength: number,
-  p: CollisionParams,
 ): CarState {
-  const endsDrift = car.drifting && strength > p.driftBreakImpactSpeed;
-  return {
-    ...car,
-    velocity,
-    spin: kickSpin(car.spin, spinKick, maxSpin),
-    // gripRecovery 0 = the usual drift exit: the car slides out and straightens without losing speed.
-    ...(endsDrift ? { drifting: false, driftDirection: 0, gripRecovery: 0 } : {}),
-  };
+  return { ...car, velocity, spin: kickSpin(car.spin, spinKick, maxSpin) };
 }
 
 /**

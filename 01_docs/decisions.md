@@ -214,3 +214,38 @@
   and kept where only partly inside: no gaps at the island's tips, at worst a short stub.
 - The shortcut is ~10% shorter but slower for the bot (−2 s for Hard): the owner may want it
   faster; tune the zigzag's angle (`±12.5°` now) to trade difficulty against time.
+
+## 2026-10-22 — Drift from braking, no drift key
+
+- Owner feedback: forward/back and steering feel right, the drift key and the on/off brake don't.
+  Space becomes the brake, S reverse, C is unbound; no key starts a drift.
+- **Brake pressure** lives in the Model (`CarState.brakePressure`), like the smoothed steering, so the
+  server computes the same braking: 30% on a tap, full after 0.6 s held, gone 0.1 s after release.
+- **Slide rule** = corner load (`|vF · yawRate|`, the real lateral acceleration, normalised) plus
+  weighted brake pressure, ≥ 1, with a minimum corner load so straights, soft and slow corners never
+  slide. Using the actual yaw rate (with inertia) instead of the steering key makes it depend on the
+  corner really being taken. A full friction-circle model was considered: harder to read and tune,
+  and the linear sum already gives "brake too hard in a fast corner = slide".
+- **Exit by letting go of the steering**, not of the brake (owner's choice): the drift can be held
+  with throttle (power slide) and countersteering, as before; the brake only starts it.
+- The existing drift (`stepDrift`: locked side, bounded slip, speed kept on exit) is unchanged; only
+  how it starts and ends changed.
+- Bots: Hard enters by braking like a player (look-ahead 0.45 → 0.6 s to cover the ramp); every bot
+  caps its normal braking below the slide threshold, so Easy/Medium never drift by accident.
+
+## 2026-10-22 — Drift removed: grip-only handling (step 9a.5)
+
+- Owner feedback after driving 9a.4: the brake should only slow the car (for tight corners). An
+  intermediate "mini drift" started by fast corners was tried and rejected by the owner: no drift at
+  all, cornering stays as it was, the brake stays as it is.
+- Removed from the Model: drift mode (`stepDrift`, `drifting`, `driftDirection`, `gripRecovery`, the
+  drift exit speed bonus), all `drift*` params, `cornerLoad`/`slideLoad`, the surface's `breaksDrift`
+  and the collision `driftBreakImpactSpeed` (`applyHit` no longer needs the hit strength).
+  The kinematic drift from step 3 is in git history if it ever comes back.
+- Bots: no drift logic left (`driftUse`, drift zones, drift steering, slide caps). Hard keeps its +3%
+  car and the shortcut; its narrower line (`lineCut` 0.5, only there to give a drifting car room)
+  goes back to 1.
+- The owner's F2 values became the defaults (`maxYawRate` 1.8 → 2.7, `yawResponse` 7 → 9.5). With the
+  faster yaw, Easy's `cornerSpeed` 0.65 → 0.5 keeps it ~20% slower than Medium.
+- The owner drove it and called it perfect: frozen as **baseline v2, final** (`config/tuning.ts`), the
+  reference setup every later tuning starts from.

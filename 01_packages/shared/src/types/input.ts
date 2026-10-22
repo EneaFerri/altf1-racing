@@ -5,11 +5,12 @@
 export interface InputCommand {
   /** 0..1 */
   throttle: number;
-  /** 0..1 */
+  /** 0..1. Brakes to a stop, never reverses; how long it is held sets the pressure (see stepCar). */
   brake: number;
+  /** 0..1. Brakes like `brake` while rolling forward, then drives backwards. */
+  reverse: number;
   /** -1 (full left) .. 1 (full right) */
   steer: number;
-  handbrake: boolean;
   /** True for exactly one tick when the player asks to be put back on the track. */
   reset: boolean;
 }
@@ -17,7 +18,7 @@ export interface InputCommand {
 export const NEUTRAL_INPUT: Readonly<InputCommand> = {
   throttle: 0,
   brake: 0,
+  reverse: 0,
   steer: 0,
-  handbrake: false,
   reset: false,
 };

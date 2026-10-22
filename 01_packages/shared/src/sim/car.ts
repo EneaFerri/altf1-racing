@@ -5,7 +5,7 @@ import type { Surface } from '../track/types';
 import type { InputCommand } from '../types/input';
 import { NEUTRAL_SURFACE_EFFECT, type SurfaceEffect } from './surface';
 
-/** Below this forward speed (m/s, ~1 km/h) the brake key engages reverse. */
+/** Below this forward speed (m/s, ~1 km/h) the reverse key drives backwards instead of braking. */
 const REVERSE_ENGAGE_SPEED = 0.3;
 
 export type CarId = string;
@@ -13,24 +13,18 @@ export type CarId = string;
 export interface CarState {
   readonly id: CarId;
   readonly position: Vec2;
-  /** World-space velocity (m/s). Can point away from `heading` when the car slides. */
+  /** World-space velocity (m/s). Points slightly away from `heading` in corners (slip). */
   readonly velocity: Vec2;
   /** Facing angle in radians: 0 = -Z, positive = counter-clockwise from above. */
   readonly heading: number;
-  /**
-   * Smoothed turn rate (rad/s): of the heading in grip mode, of the direction of travel in drift.
-   * It has inertia (yawResponse / driftTurnResponse), so turning in and out is never a step.
-   */
+  /** Smoothed turn rate of the heading (rad/s). It has inertia (yawResponse), so turning in and out is never a step. */
   readonly yawRate: number;
   /** Extra rotation from external kicks (high kerbs, impacts), decays over time (rad/s). */
   readonly spin: number;
   /** Smoothed steering, -1 (left) .. 1 (right). */
   readonly steer: number;
-  readonly drifting: boolean;
-  /** Side locked when the drift started: 1 = right, -1 = left, 0 = not drifting. */
-  readonly driftDirection: number;
-  /** 0 right after a drift, back to 1 (full grip) over driftRecoveryTime. */
-  readonly gripRecovery: number;
+  /** Brake pressure 0..1: builds up while the brake is held, drops quickly once released. */
+  readonly brakePressure: number;
   /** Surface under each wheel (order of CAR_WHEELS), sampled at the start of the last tick. */
   readonly wheelSurfaces: readonly Surface[];
 }
@@ -50,9 +44,7 @@ export function createCar({ id = 'car', position = ZERO, heading = 0 }: CarSpawn
     yawRate: 0,
     spin: 0,
     steer: 0,
-    drifting: false,
-    driftDirection: 0,
-    gripRecovery: 1,
+    brakePressure: 0,
     wheelSurfaces: ['asphalt', 'asphalt', 'asphalt', 'asphalt'],
   };
 }
@@ -65,7 +57,7 @@ export function slipAngle(car: CarState): number {
 
 /**
  * Advances one car by `dt` seconds on the given surface. Pure: returns a new state.
- * See 01_docs/physics.md.
+ * Tyres always grip; see 01_docs/physics.md.
  */
 export function stepCar(
   car: CarState,
@@ -76,40 +68,20 @@ export function stepCar(
 ): CarState {
   const steer = smoothSteer(car.steer, input.steer, p, dt);
   const spin = (car.spin + surface.spinKick) * Math.exp(-p.spinDamping * dt);
-  const vForward = dot(car.velocity, forward(car.heading));
-  const speed = length(car.velocity);
-  const canDrift = input.handbrake && !surface.breaksDrift;
-
-  if (car.drifting && canDrift && speed >= p.driftExitSpeed) {
-    return stepDrift(car, input, steer, spin, p, dt, surface);
-  }
-  if (!car.drifting && canDrift && input.steer !== 0 && vForward > p.driftMinSpeed) {
-    const entering = { ...car, drifting: true, driftDirection: Math.sign(input.steer) };
-    return stepDrift(entering, input, steer, spin, p, dt, surface);
-  }
-  return stepGrip(car, input, steer, spin, p, dt, surface);
-}
-
-/** Normal driving: tyres grip, steering sets the yaw rate. */
-function stepGrip(
-  car: CarState,
-  input: InputCommand,
-  steer: number,
-  spin: number,
-  p: CarParams,
-  dt: number,
-  surface: SurfaceEffect,
-): CarState {
-  const gripRecovery = car.drifting ? 0 : Math.min(1, car.gripRecovery + dt / p.driftRecoveryTime);
-  const grip = (p.driftExitGrip + (p.lateralGrip - p.driftExitGrip) * gripRecovery) * surface.grip;
+  const brakePressure = smoothBrake(
+    car.brakePressure,
+    input,
+    dot(car.velocity, forward(car.heading)),
+    p,
+    dt,
+  );
+  const grip = p.lateralGrip * surface.grip;
 
   // Split velocity into the car's own frame.
   const fwd = forward(car.heading);
   const side = right(car.heading);
-  const vLateralBefore = dot(car.velocity, side);
-  let vForward = longitudinal(dot(car.velocity, fwd), input, p, dt, surface);
-  if (input.handbrake) vForward = moveToward(vForward, 0, p.handbrakeDecel * dt);
-  const vLateral = vLateralBefore * Math.exp(-grip * dt);
+  const vForward = longitudinal(dot(car.velocity, fwd), brakePressure, input, p, dt, surface);
+  const vLateral = dot(car.velocity, side) * Math.exp(-grip * dt);
 
   const speed = Math.abs(vForward);
   const lowSpeedFactor = Math.min(1, speed / p.fullTurnSpeed);
@@ -118,14 +90,7 @@ function stepGrip(
   const targetYaw = -steer * p.maxYawRate * lowSpeedFactor * highSpeedFactor * Math.sign(vForward);
   const yawRate = approach(car.yawRate, targetYaw, p.yawResponse, dt);
 
-  let velocity = add(scale(fwd, vForward), scale(side, vLateral));
-  if (gripRecovery < 1) {
-    // Coming out of a drift: grip straightens the car without eating its speed (arcade reward).
-    const keptSpeed = Math.hypot(vForward, vLateralBefore);
-    const currentSpeed = length(velocity);
-    if (currentSpeed > 0) velocity = scale(velocity, keptSpeed / currentSpeed);
-  }
-
+  const velocity = add(scale(fwd, vForward), scale(side, vLateral));
   return {
     ...car,
     position: add(car.position, scale(velocity, dt)),
@@ -134,65 +99,7 @@ function stepGrip(
     yawRate,
     spin,
     steer,
-    drifting: false,
-    driftDirection: 0,
-    gripRecovery,
-  };
-}
-
-/**
- * Arcade drift: the direction of travel turns at a controlled rate and the nose is held at a
- * bounded slip angle into the turn, so a spin-out is impossible by construction.
- * External `spin` keeps decaying but does not rotate a drifting car (strong kicks end the drift).
- */
-function stepDrift(
-  car: CarState,
-  input: InputCommand,
-  steer: number,
-  spin: number,
-  p: CarParams,
-  dt: number,
-  surface: SurfaceEffect,
-): CarState {
-  const dir = car.driftDirection;
-  // +1 = steering into the drift (tighter), -1 = countersteering (wider).
-  const steerInto = steer * dir;
-
-  const speedBefore = length(car.velocity);
-  const travelBefore = speedBefore > 0 ? headingOf(car.velocity) : car.heading;
-  // The travel direction's turn rate blends from the current one (the corner you were already
-  // taking) towards the drift's, so the drift continues the line instead of snapping onto a new one.
-  const targetTurn = -dir * p.driftTurnRate * (1 + p.driftSteerInfluence * steerInto);
-  const travelTurn = approach(car.yawRate, targetTurn, p.driftTurnResponse, dt);
-  const travel = wrapAngle(travelBefore + travelTurn * dt);
-
-  // Smooth the slip angle itself (not the heading): chasing a heading that keeps turning
-  // would always lag behind and never reach the target slip.
-  const maxSlip = p.driftAngle + p.driftAngleSteerRange;
-  const targetSlip = p.driftAngle + p.driftAngleSteerRange * steerInto;
-  const slipBefore = dir * wrapAngle(travelBefore - car.heading);
-  const blend = 1 - Math.exp(-p.driftRotateStiffness * dt);
-  // Capped at maxSlip, unless an impact already pushed it past: then it eases back instead of snapping.
-  const slip = Math.min(
-    Math.max(maxSlip, slipBefore),
-    slipBefore + (targetSlip - slipBefore) * blend,
-  );
-  const heading = wrapAngle(travel - dir * slip);
-
-  const speed = Math.max(0, longitudinal(speedBefore, input, p, dt, surface) - p.driftDrag * dt);
-  const velocity = scale(forward(travel), speed);
-
-  return {
-    ...car,
-    position: add(car.position, scale(velocity, dt)),
-    velocity,
-    heading,
-    yawRate: travelTurn,
-    spin,
-    steer,
-    drifting: true,
-    driftDirection: dir,
-    gripRecovery: 0,
+    brakePressure,
   };
 }
 
@@ -206,9 +113,28 @@ function smoothSteer(current: number, target: number, p: CarParams, dt: number):
   return moveToward(current, target, (returning ? p.steerReturnSpeed : p.steerSpeed) * dt);
 }
 
-/** New forward speed after engine, brakes, drag and surface. */
+/**
+ * Brake pressure after this tick. The brake asks for `input.brake`, and so does the reverse key while
+ * still rolling forward. Pressing jumps to brakeInitialPressure, holding ramps up to full over
+ * brakeRampTime, releasing drops to 0 over brakeReleaseTime.
+ */
+function smoothBrake(
+  current: number,
+  input: InputCommand,
+  vForward: number,
+  p: CarParams,
+  dt: number,
+): number {
+  const demand = Math.max(input.brake, vForward > REVERSE_ENGAGE_SPEED ? input.reverse : 0);
+  if (current > demand) return moveToward(current, demand, dt / p.brakeReleaseTime);
+  const ramped = moveToward(current, demand, ((1 - p.brakeInitialPressure) / p.brakeRampTime) * dt);
+  return Math.max(ramped, p.brakeInitialPressure * demand);
+}
+
+/** New forward speed after engine, brakes, reverse, drag and surface. */
 function longitudinal(
   vForward: number,
+  brakePressure: number,
   input: InputCommand,
   p: CarParams,
   dt: number,
@@ -224,14 +150,14 @@ function longitudinal(
         : moveToward(v, 0, p.brakeDecel * traction * input.throttle * dt); // throttle while rolling back = brake
   }
 
-  if (input.brake > 0) {
-    v =
-      v > REVERSE_ENGAGE_SPEED
-        ? moveToward(v, 0, p.brakeDecel * traction * input.brake * dt)
-        : Math.max(v - p.reverseAccel * traction * input.brake * dt, -p.maxReverseSpeed);
+  // The brake stops the car whichever way it rolls; only the reverse key drives backwards.
+  if (brakePressure > 0) v = moveToward(v, 0, p.brakeDecel * traction * brakePressure * dt);
+
+  if (input.reverse > 0 && v <= REVERSE_ENGAGE_SPEED) {
+    v = Math.max(v - p.reverseAccel * traction * input.reverse * dt, -p.maxReverseSpeed);
   }
 
-  if (input.throttle === 0 && input.brake === 0) {
+  if (input.throttle === 0 && input.brake === 0 && input.reverse === 0) {
     v = moveToward(v, 0, p.coastDecel * dt);
   }
 

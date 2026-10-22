@@ -69,16 +69,12 @@ export function resolveCarPair(
     sub(nextA.velocity, impulse),
     spinFrom(nextA, point, scale(impulse, -1), strength, p),
     p.maxImpactSpin,
-    strength,
-    p,
   );
   nextB = applyHit(
     nextB,
     add(nextB.velocity, impulse),
     spinFrom(nextB, point, impulse, strength, p),
     p.maxImpactSpin,
-    strength,
-    p,
   );
 
   return {

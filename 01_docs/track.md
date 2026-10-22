@@ -75,18 +75,18 @@ indices, so results never depend on insertion order (determinism).
 Each car samples the surface under its **four wheels** (`CAR_WHEELS` in `config/car.ts`) at the start
 of every tick and **averages** their effects: two wheels on the grass give half the grass penalty.
 
-| Surface      | grip | traction | drag (m/s²) | bumpSpin (rad/s) | Feel                                                        |
-| ------------ | ---- | -------- | ----------- | ---------------- | ----------------------------------------------------------- |
-| `asphalt`    | 1    | 1        | 0           | 0                | Reference                                                   |
-| `kerb` (low) | 0.85 | 0.95     | 0.5         | 0                | Usable: a small cost for a shorter line                     |
-| `highKerb`   | 0.45 | 0.7      | 4           | 0.9              | Sausage kerb: kicks the car and ends a drift — don't cut it |
-| `grass`      | 0.5  | 0.6      | 5           | 0                | Slow and slippery, recoverable                              |
-| `gravel`     | 0.35 | 0.4      | 14          | 0                | Trap: kills speed fast                                      |
+| Surface      | grip | traction | drag (m/s²) | bumpSpin (rad/s) | Feel                                       |
+| ------------ | ---- | -------- | ----------- | ---------------- | ------------------------------------------ |
+| `asphalt`    | 1    | 1        | 0           | 0                | Reference                                  |
+| `kerb` (low) | 0.85 | 0.95     | 0.5         | 0                | Usable: a small cost for a shorter line    |
+| `highKerb`   | 0.45 | 0.7      | 4           | 0.9              | Sausage kerb: kicks the car — don't cut it |
+| `grass`      | 0.5  | 0.6      | 5           | 0                | Slow and slippery, recoverable             |
+| `gravel`     | 0.35 | 0.4      | 14          | 0                | Trap: kills speed fast                     |
 
 - `grip` multiplies lateral grip, `traction` multiplies thrust and braking, `drag` is extra deceleration.
 - **`bumpSpin`**: when a wheel _climbs onto_ that surface, the car gets a yaw kick (left wheel →
-  nose kicked right, and vice versa), scaled by speed (×1 at 30 m/s, max ×1.5), and can't drift
-  that tick. Staying on the kerb doesn't kick again. The kick goes into `CarState.spin` (see physics.md).
+  nose kicked right, and vice versa), scaled by speed (×1 at 30 m/s, max ×1.5).
+  Staying on the kerb doesn't kick again. The kick goes into `CarState.spin` (see physics.md).
 - All values are live-tunable in the dev panel (F2 → Surfaces).
 
 ## The test track (`track/layouts/testTrack.ts`)
@@ -101,7 +101,7 @@ distant sections keep ≥ 30 m of clearance beyond their walls.
 | 3–6    | Hairpin (radius ~45 m): wide entry for late-braking overtakes, gravel out | 30→28 m |
 | 7–11   | Short run into the fast chicane, **high kerbs** on the inside             | 26→24 m |
 | 12–15  | Fast left sweeper onto the back straight                                  | 28 m    |
-| 16–21  | Long double-apex right: the drift showcase                                | 28 m    |
+| 16–21  | Long double-apex right                                                    | 28 m    |
 | 22–24  | Fast kink, flat out                                                       | 26 m    |
 | 25–27  | Medium right back onto the main straight, gravel outside                  | 28→30 m |
 

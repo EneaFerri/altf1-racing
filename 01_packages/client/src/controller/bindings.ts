@@ -5,10 +5,12 @@ import type { InputCommand } from '@altf1/shared';
 /** Keys held down to drive. Sampled once per tick. */
 export const DRIVE_KEYS = {
   throttle: ['KeyW'],
-  brake: ['KeyS', 'KeyC'],
+  /** Held longer = harder braking. */
+  brake: ['Space'],
+  /** Brakes while rolling forward, then drives backwards. */
+  reverse: ['KeyS'],
   steerLeft: ['KeyA'],
   steerRight: ['KeyD'],
-  handbrake: ['Space'],
 } as const satisfies Record<string, readonly string[]>;
 
 /** Keys pressed once and delivered to the simulation for exactly one tick. */
@@ -45,8 +47,8 @@ export function inputFromKeys(
   return {
     throttle: isHeld(DRIVE_KEYS.throttle) ? 1 : 0,
     brake: isHeld(DRIVE_KEYS.brake) ? 1 : 0,
+    reverse: isHeld(DRIVE_KEYS.reverse) ? 1 : 0,
     steer: steerRight - steerLeft,
-    handbrake: isHeld(DRIVE_KEYS.handbrake),
     reset: triggers.has('reset'),
   };
 }

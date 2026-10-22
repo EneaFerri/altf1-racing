@@ -17,7 +17,7 @@ export interface CarPose {
 const WHEEL_RADIUS = 0.36;
 /** Visual front-wheel angle at full lock (rad). Purely cosmetic. */
 const MAX_WHEEL_STEER = 0.4;
-/** Body roll per radian of slip. Purely cosmetic (~4° at max drift angle). */
+/** Body roll per radian of slip. Purely cosmetic (~2° at full lock). */
 const ROLL_PER_SLIP = 0.1;
 
 /** Which camera a body part is drawn for, see `CarView.setFirstPerson`. */

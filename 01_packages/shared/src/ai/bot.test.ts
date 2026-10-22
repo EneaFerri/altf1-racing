@@ -32,7 +32,6 @@ interface Run {
   readonly state: GameState;
   readonly resets: number;
   readonly wallHits: number;
-  readonly driftTicks: number;
   /** Ticks with a wheel on grass or gravel. */
   readonly offTicks: number;
   /** Ticks spent on a branch (e.g. Kruncar's shortcut). */
@@ -55,7 +54,6 @@ function drive(
   let memory = NEW_BOT_MEMORY;
   let resets = 0;
   let wallHits = 0;
-  let driftTicks = 0;
   let offTicks = 0;
   let branchTicks = 0;
   for (let tick = 0; tick < seconds * TICK_RATE; tick++) {
@@ -65,11 +63,10 @@ function drive(
     state = stepGame(state, { bot: result.input }, botCtx);
     wallHits += state.impacts.filter((i) => i.carId === 'bot' && i.other === 'wall').length;
     const bot = findCar(state, 'bot')!;
-    if (bot.drifting) driftTicks++;
     if (bot.wheelSurfaces.some((s) => s === 'grass' || s === 'gravel')) offTicks++;
     if (locateOnTrack(on, bot.position).route >= 0) branchTicks++;
   }
-  return { state, resets, wallHits, driftTicks, offTicks, branchTicks };
+  return { state, resets, wallHits, offTicks, branchTicks };
 }
 
 const bestLapSeconds = (run: Run): number => findLap(run.state, 'bot')!.bestLap!.ticks / TICK_RATE;
@@ -109,10 +106,10 @@ describe('bot', () => {
     const hard = bestLapSeconds(runs.hard);
     const medium = bestLapSeconds(runs.medium);
     const easy = bestLapSeconds(runs.easy);
-    // Hard drifts and has a slightly stronger car: faster than the owner's best lap (29 s).
-    expect(hard).toBeLessThan(29);
-    expect(medium).toBeGreaterThan(33);
-    expect(medium).toBeLessThan(35);
+    // Hard only has a slightly stronger car here (no branch on the Test Ring).
+    expect(hard).toBeLessThan(31.7);
+    expect(medium).toBeGreaterThan(31);
+    expect(medium).toBeLessThan(33);
     expect(easy / medium).toBeGreaterThan(1.14);
     expect(easy / medium).toBeLessThan(1.25);
   });
@@ -129,12 +126,6 @@ describe('bot', () => {
     expect(kruncar.easy.branchTicks).toBeLessThan(TICK_RATE);
   });
 
-  it('drifts only on hard', () => {
-    expect(runs.hard.driftTicks).toBeGreaterThan(0);
-    expect(runs.medium.driftTicks).toBe(0);
-    expect(runs.easy.driftTicks).toBe(0);
-  });
-
   it('keeps its racing line inside the asphalt', () => {
     const widest = (level: BotLevel): number =>
       Math.max(...buildBotPlan(track, CAR_PARAMS, BOT_PARAMS[level]).lateral.map(Math.abs));
@@ -143,9 +134,7 @@ describe('bot', () => {
         expect(Math.abs(offset)).toBeLessThanOrEqual(track.samples[i]!.halfWidth);
       });
     }
-    // Hard drifts, and a drifting car needs more room: its line stays narrower than Medium's.
     expect(widest('easy')).toBeLessThan(widest('medium'));
-    expect(widest('hard')).toBeLessThan(widest('medium'));
   });
 
   it('gets going again after being stopped by a car parked on its line', () => {

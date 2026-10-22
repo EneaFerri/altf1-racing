@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { CAR_PARAMS } from '../config/car';
 import { FIXED_DT, TICK_RATE } from '../config/sim';
-import { dot, forward, headingOf, length, right, scale } from '../math/vec2';
+import { dot, forward, length, right, scale } from '../math/vec2';
 import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
-import { createCar, slipAngle, stepCar, type CarState } from './car';
+import { createCar, stepCar, type CarState } from './car';
 import { NEUTRAL_SURFACE_EFFECT, type SurfaceEffect } from './surface';
 
 const THROTTLE: InputCommand = { ...NEUTRAL_INPUT, throttle: 1 };
 const BRAKE: InputCommand = { ...NEUTRAL_INPUT, brake: 1 };
+const REVERSE: InputCommand = { ...NEUTRAL_INPUT, reverse: 1 };
 
 function run(car: CarState, input: InputCommand, seconds: number): CarState {
   for (let i = 0; i < Math.round(seconds * TICK_RATE); i++) {
@@ -32,11 +33,44 @@ describe('stepCar — longitudinal', () => {
     expect(forwardSpeed(run(moving, NEUTRAL_INPUT, 60))).toBe(0);
   });
 
-  it('brakes to a stop, then reverses up to maxReverseSpeed', () => {
+  it('the brake stops the car and never reverses', () => {
     const moving = run(createCar(), THROTTLE, 2);
-    const stopped = run(moving, BRAKE, 1);
+    expect(forwardSpeed(run(moving, BRAKE, 10))).toBe(0);
+  });
+
+  it('the reverse key brakes to a stop, then reverses up to maxReverseSpeed', () => {
+    const moving = run(createCar(), THROTTLE, 2);
+    const stopped = run(moving, REVERSE, 1.5);
     expect(forwardSpeed(stopped)).toBeLessThanOrEqual(0);
-    expect(forwardSpeed(run(stopped, BRAKE, 10))).toBeCloseTo(-CAR_PARAMS.maxReverseSpeed);
+    expect(forwardSpeed(run(stopped, REVERSE, 10))).toBeCloseTo(-CAR_PARAMS.maxReverseSpeed);
+  });
+});
+
+describe('stepCar — brake pressure', () => {
+  const moving: CarState = { ...createCar(), velocity: scale(forward(0), 40) };
+  const { brakeInitialPressure, brakeRampTime, brakeReleaseTime } = CAR_PARAMS;
+
+  it('a tap brakes at brakeInitialPressure, holding reaches full pressure after brakeRampTime', () => {
+    const tapped = stepCar(moving, BRAKE, CAR_PARAMS, FIXED_DT);
+    expect(tapped.brakePressure).toBeGreaterThanOrEqual(brakeInitialPressure);
+    expect(tapped.brakePressure).toBeLessThan(brakeInitialPressure + 0.05);
+    expect(run(moving, BRAKE, brakeRampTime * 0.5).brakePressure).toBeLessThan(1);
+    expect(run(moving, BRAKE, brakeRampTime + FIXED_DT).brakePressure).toBe(1);
+  });
+
+  it('drops to 0 over brakeReleaseTime once released', () => {
+    const held = run(moving, BRAKE, 1);
+    expect(run(held, NEUTRAL_INPUT, brakeReleaseTime * 0.5).brakePressure).toBeGreaterThan(0);
+    expect(run(held, NEUTRAL_INPUT, brakeReleaseTime + FIXED_DT).brakePressure).toBe(0);
+  });
+
+  it('holding brakes harder than tapping', () => {
+    const held = run(moving, BRAKE, 1);
+    let tapped = moving;
+    for (let i = 0; i < TICK_RATE; i++) {
+      tapped = stepCar(tapped, i % 12 < 3 ? BRAKE : NEUTRAL_INPUT, CAR_PARAMS, FIXED_DT);
+    }
+    expect(forwardSpeed(held)).toBeLessThan(forwardSpeed(tapped));
   });
 });
 
@@ -53,8 +87,8 @@ describe('stepCar — steering', () => {
   });
 
   it('inverts steering in reverse', () => {
-    const reversing = run(createCar(), BRAKE, 2);
-    const turned = run(reversing, { ...BRAKE, steer: 1 }, 0.5);
+    const reversing = run(createCar(), REVERSE, 2);
+    const turned = run(reversing, { ...REVERSE, steer: 1 }, 0.5);
     expect(turned.heading).toBeGreaterThan(reversing.heading);
   });
 
@@ -82,9 +116,9 @@ describe('stepCar — purity', () => {
   it('is deterministic: same inputs give the exact same state', () => {
     const script = (tick: number): InputCommand => ({
       throttle: tick % 200 < 150 ? 1 : 0,
-      brake: tick % 200 >= 180 ? 1 : 0,
+      brake: tick % 200 >= 180 || tick % 300 > 270 ? 1 : 0,
+      reverse: tick % 500 > 480 ? 1 : 0,
       steer: Math.sin(tick / 40) > 0 ? 1 : -1,
-      handbrake: tick % 300 > 200,
       reset: false,
     });
     const simulate = (): CarState => {
@@ -94,99 +128,6 @@ describe('stepCar — purity', () => {
       return car;
     };
     expect(simulate()).toEqual(simulate());
-  });
-});
-
-describe('stepCar — drift', () => {
-  const DRIFT_RIGHT: InputCommand = { ...THROTTLE, steer: 1, handbrake: true };
-  const MAX_SLIP = CAR_PARAMS.driftAngle + CAR_PARAMS.driftAngleSteerRange;
-  /** Car already rolling straight ahead at `speed` m/s. */
-  const rolling = (speed: number): CarState => ({
-    ...createCar(),
-    velocity: scale(forward(0), speed),
-  });
-
-  it('starts with handbrake + steer above driftMinSpeed', () => {
-    const car = stepCar(rolling(20), DRIFT_RIGHT, CAR_PARAMS, FIXED_DT);
-    expect(car.drifting).toBe(true);
-    expect(car.driftDirection).toBe(1);
-  });
-
-  it('does not start below driftMinSpeed', () => {
-    const car = stepCar(rolling(CAR_PARAMS.driftMinSpeed - 2), DRIFT_RIGHT, CAR_PARAMS, FIXED_DT);
-    expect(car.drifting).toBe(false);
-  });
-
-  it('keeps the slip angle bounded: no spin-out', () => {
-    let car = rolling(30);
-    let maxSlip = 0;
-    for (let i = 0; i < 5 * TICK_RATE; i++) {
-      car = stepCar(car, DRIFT_RIGHT, CAR_PARAMS, FIXED_DT);
-      maxSlip = Math.max(maxSlip, Math.abs(slipAngle(car)));
-    }
-    expect(car.drifting).toBe(true);
-    expect(maxSlip).toBeGreaterThan(CAR_PARAMS.driftAngle);
-    expect(maxSlip).toBeLessThanOrEqual(MAX_SLIP + 1e-6);
-  });
-
-  it('a slip pushed past the max by an impact eases back instead of snapping', () => {
-    const knocked: CarState = {
-      ...rolling(30),
-      velocity: scale(forward(1.05), 30), // travelling 60° left of the nose
-      drifting: true,
-      driftDirection: 1,
-      gripRecovery: 0,
-    };
-    const next = stepCar(knocked, DRIFT_RIGHT, CAR_PARAMS, FIXED_DT);
-    expect(slipAngle(next)).toBeLessThan(1.05);
-    expect(slipAngle(next)).toBeGreaterThan(0.95);
-    expect(Math.abs(slipAngle(run(next, DRIFT_RIGHT, 2)))).toBeLessThan(MAX_SLIP + 0.01);
-  });
-
-  it('countersteering gives a smaller slip angle than steering into the drift', () => {
-    const entered = run(rolling(30), DRIFT_RIGHT, 0.2);
-    const into = run(entered, DRIFT_RIGHT, 2);
-    const counter = run(entered, { ...DRIFT_RIGHT, steer: -1 }, 2);
-    expect(counter.drifting).toBe(true);
-    expect(Math.abs(slipAngle(counter))).toBeLessThan(Math.abs(slipAngle(into)));
-  });
-
-  it('releasing the handbrake ends the drift and straightens the car', () => {
-    const drifting = run(rolling(30), DRIFT_RIGHT, 2);
-    const released = run(drifting, THROTTLE, 1.5);
-    expect(released.drifting).toBe(false);
-    expect(Math.abs(slipAngle(released))).toBeLessThan(0.05);
-  });
-
-  it('keeps most of its speed with throttle', () => {
-    const drifting = run(rolling(30), DRIFT_RIGHT, 2);
-    expect(length(drifting.velocity)).toBeGreaterThan(30 * 0.85);
-  });
-
-  it('keeps its speed when grip comes back after the drift', () => {
-    const drifting = run(rolling(30), DRIFT_RIGHT, 2);
-    const released = run(drifting, THROTTLE, 1);
-    expect(length(released.velocity)).toBeGreaterThanOrEqual(length(drifting.velocity) * 0.95);
-  });
-
-  it('turns tighter than grip driving at high speed', () => {
-    const fast = rolling(150 / 3.6);
-    const grip = run(fast, { ...THROTTLE, steer: 1 }, 1);
-    const drift = run(fast, DRIFT_RIGHT, 1);
-    const travelChange = (car: CarState): number => Math.abs(headingOf(car.velocity));
-    expect(travelChange(drift)).toBeGreaterThan(travelChange(grip));
-  });
-
-  it('ends when braking below driftExitSpeed', () => {
-    const drifting = run(rolling(20), DRIFT_RIGHT, 0.5);
-    const braked = run(drifting, { ...BRAKE, steer: 1, handbrake: true }, 3);
-    expect(braked.drifting).toBe(false);
-  });
-
-  it('handbrake without steering just slows the car', () => {
-    const car = run(rolling(20), { ...NEUTRAL_INPUT, handbrake: true }, 1);
-    expect(car.drifting).toBe(false);
-    expect(length(car.velocity)).toBeLessThan(20 - CAR_PARAMS.handbrakeDecel * 0.9);
   });
 });
 
@@ -224,18 +165,6 @@ describe('stepCar — surfaces and spin', () => {
     expect(later.heading).toBeGreaterThan(0.1);
     expect(Math.abs(later.spin)).toBeLessThan(0.01);
   });
-
-  it('a bump prevents drifting', () => {
-    const moving: CarState = { ...createCar(), velocity: scale(forward(0), 30) };
-    const car = stepCar(
-      moving,
-      { ...THROTTLE, steer: 1, handbrake: true },
-      CAR_PARAMS,
-      FIXED_DT,
-      on({ breaksDrift: true }),
-    );
-    expect(car.drifting).toBe(false);
-  });
 });
 
 describe('stepCar — smoothness', () => {
@@ -259,20 +188,5 @@ describe('stepCar — smoothness', () => {
     const released = stepCar(turning, THROTTLE, CAR_PARAMS, FIXED_DT);
     expect(Math.abs(released.yawRate)).toBeGreaterThan(Math.abs(turning.yawRate) * 0.8);
     expect(Math.abs(run(turning, THROTTLE, 1.5).yawRate)).toBeLessThan(0.02);
-  });
-
-  it('a drift continues the current turn instead of snapping to a new one', () => {
-    const turning = run(rolling, FULL_RIGHT, 1);
-    const entered = stepCar(turning, { ...FULL_RIGHT, handbrake: true }, CAR_PARAMS, FIXED_DT);
-    expect(entered.drifting).toBe(true);
-    expect(Math.abs(entered.yawRate - turning.yawRate)).toBeLessThan(0.1);
-  });
-
-  it('the drift angle builds up gradually', () => {
-    const target = CAR_PARAMS.driftAngle + CAR_PARAMS.driftAngleSteerRange;
-    const drift: InputCommand = { ...FULL_RIGHT, handbrake: true };
-    const lockedSteer: CarState = { ...rolling, steer: 1 };
-    expect(Math.abs(slipAngle(run(lockedSteer, drift, 0.1)))).toBeLessThan(target * 0.5);
-    expect(Math.abs(slipAngle(run(lockedSteer, drift, 2)))).toBeCloseTo(target, 1);
   });
 });

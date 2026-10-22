@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CAR_COLLIDER, COLLISION_PARAMS } from '../../config/collision';
+import { CAR_COLLIDER } from '../../config/collision';
 import { vec2 } from '../../math/vec2';
 import { createCar } from '../car';
 import { applyHit, carCircles, kickSpin } from './collider';
@@ -32,18 +32,9 @@ describe('kickSpin', () => {
 });
 
 describe('applyHit', () => {
-  const drifting = { ...createCar(), drifting: true, driftDirection: 1, gripRecovery: 0 };
-  const limit = COLLISION_PARAMS.driftBreakImpactSpeed;
-
-  it('changes only velocity and spin on a soft hit', () => {
-    const out = applyHit(drifting, vec2(1, 2), 0.3, 1.2, limit - 1, COLLISION_PARAMS);
-    expect(out).toEqual({ ...drifting, velocity: vec2(1, 2), spin: 0.3 });
-  });
-
-  it('ends a drift on a hard hit', () => {
-    const out = applyHit(drifting, vec2(1, 2), 0, 1.2, limit + 1, COLLISION_PARAMS);
-    expect(out.drifting).toBe(false);
-    expect(out.driftDirection).toBe(0);
-    expect(out.gripRecovery).toBe(0);
+  it('changes only velocity and spin', () => {
+    const car = createCar();
+    const out = applyHit(car, vec2(1, 2), 0.3, 1.2);
+    expect(out).toEqual({ ...car, velocity: vec2(1, 2), spin: 0.3 });
   });
 });

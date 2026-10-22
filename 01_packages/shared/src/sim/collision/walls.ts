@@ -123,7 +123,7 @@ function wallHit(
     alongSpeed > 0 ? scale(along, 1 - friction / alongSpeed) : ZERO,
   );
   const spin = alignSpin(car, along, p);
-  return { car: applyHit(car, velocity, spin, p.maxAlignSpin, strength, p), strength };
+  return { car: applyHit(car, velocity, spin, p.maxAlignSpin), strength };
 }
 
 /** Spin that turns the nose parallel to the wall: `wallAlignSpin · (angle to the wall)`. */

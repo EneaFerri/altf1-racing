@@ -11,8 +11,8 @@ interface TuningBaseline {
 }
 
 export const TUNING_BASELINE: TuningBaseline = {
-  status: 'provisional',
-  version: 1,
+  status: 'final',
+  version: 2,
   frozenOn: '2026-10-22',
 };
 

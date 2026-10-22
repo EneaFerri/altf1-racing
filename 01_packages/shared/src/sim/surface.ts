@@ -12,8 +12,6 @@ export interface SurfaceEffect {
   readonly drag: number;
   /** Yaw kick to add this tick (rad/s). */
   readonly spinKick: number;
-  /** A wheel just hit a bumpy surface: no drifting this tick. */
-  readonly breaksDrift: boolean;
 }
 
 export const NEUTRAL_SURFACE_EFFECT: SurfaceEffect = {
@@ -21,7 +19,6 @@ export const NEUTRAL_SURFACE_EFFECT: SurfaceEffect = {
   traction: 1,
   drag: 0,
   spinKick: 0,
-  breaksDrift: false,
 };
 
 /** Speed at which a bump gives exactly `bumpSpin` (m/s); faster = harder kick, up to 1.5×. */
@@ -61,7 +58,7 @@ export function surfaceEffect(
     }
   });
 
-  return { grip, traction, drag, spinKick, breaksDrift: spinKick !== 0 };
+  return { grip, traction, drag, spinKick };
 }
 
 /** Convenience for stepGame: sample + combine in one call. */

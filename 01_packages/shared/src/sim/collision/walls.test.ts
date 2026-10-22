@@ -23,11 +23,10 @@ const WALL: WallSet = {
 const THROTTLE: InputCommand = { ...NEUTRAL_INPUT, throttle: 1 };
 const deg = (d: number): number => (d * Math.PI) / 180;
 
-function carAt(x: number, heading: number, speed: number, extra: Partial<CarState> = {}): CarState {
+function carAt(x: number, heading: number, speed: number): CarState {
   return {
     ...createCar({ position: vec2(x, 0), heading }),
     velocity: scale(forward(heading), speed),
-    ...extra,
   };
 }
 
@@ -96,7 +95,7 @@ describe('resolveWalls', () => {
   it('a head-on hit stops the car with a small bounce, and reversing gets it out', () => {
     const { car, after } = drive(carAt(3, deg(90), 100 / 3.6), NEUTRAL_INPUT, 1);
     expect(Math.max(...after.map((c) => c.velocity.x))).toBeLessThan(3);
-    const reversed = drive(car, { ...NEUTRAL_INPUT, brake: 1 }, 1.5).car;
+    const reversed = drive(car, { ...NEUTRAL_INPUT, reverse: 1 }, 1.5).car;
     expect(reversed.position.x - car.position.x).toBeGreaterThan(2);
   });
 
@@ -105,15 +104,5 @@ describe('resolveWalls', () => {
       const { minClearance } = drive(carAt(4, deg(angle), 70), { ...THROTTLE, steer: -1 }, 3);
       expect(minClearance).toBeGreaterThan(0);
     }
-  });
-
-  it('a gentle scrape keeps the drift, a hard hit ends it like a normal drift exit', () => {
-    const drifting = { drifting: true, driftDirection: 1, gripRecovery: 0 };
-    const gentle = carAt(1.15, deg(4), 40, drifting);
-    expect(resolveWalls(gentle, WALL, COLLISION_PARAMS).car.drifting).toBe(true);
-    const hard = carAt(1.15, deg(25), 40, drifting);
-    const out = resolveWalls(hard, WALL, COLLISION_PARAMS).car;
-    expect(out.drifting).toBe(false);
-    expect(out.gripRecovery).toBe(0);
   });
 });

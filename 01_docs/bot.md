@@ -12,7 +12,7 @@ with the same code.
 - The HUD strip ends with `● BOT MEDIUM` (dot in the bot's blue). The bot's lap and sector times are
   never shown (owner's choice): the timing HUD is the player's only.
 - It is a real car: same physics, same collisions, same reset. Push it, block it, overtake it.
-  On **Hard** it also drifts, and drives a slightly stronger car (+3% acceleration and top speed).
+  On **Hard** it drives a slightly stronger car (+3% acceleration and top speed) and takes shortcuts.
 
 ## How it drives
 
@@ -31,17 +31,9 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
      and was _slower_ with more cut.)
    - **Corner speed** from the car's own grip-mode yaw rate: at speed v the car turns at most
      `maxYawRate · (1 − highSpeedSteerLoss · v / maxSpeed)`, and following the line needs
-     `v · curvature`. Solving the equality, scaled by `cornerSpeed`, gives the grip speed per point.
-   - **Drift speed** (only with `driftUse` > 0): a drift turns the direction of travel at up to
-     `driftTurnRate · (1 + driftSteerInfluence)` whatever the speed, so it can carry
-     `driftUse ·` that rate `/ curvature`. Each point takes the faster of the two, capped at
-     `topSpeed · maxSpeed`. All from `CarParams`, so retuning the car keeps the bot valid.
-   - **No drift right after an opposite corner** (`driftZones`): a drift's turn blends in from the
-     turn the car is already taking, so within `driftBuildDistance` (100 m) after a corner the other
-     way (racing-line curvature above `oppositeCornerCurvature`, radius < 100 m) it builds too late and
-     runs wide. There the plan uses grip speed only and the driver doesn't start a drift. Found on
-     Kruncar (right-left esses, hairpins in a row): without it Hard hit walls; it costs 0.75 s on
-     the Test Ring's chicane.
+     `v · curvature`. Solving the equality, scaled by `cornerSpeed` and capped at
+     `topSpeed · maxSpeed`, gives the speed per point. All from `CarParams`, so retuning the car keeps
+     the bot valid.
    - **Braking**: a backward pass round the loop limits each point to what `brakeUse · brakeDecel`
      can bring down to the next point's speed.
    - **Which road**: the plan is built on the road the bot drives (`BotPlan.road`): the main loop,
@@ -52,15 +44,6 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
      proportionally to the angle (`steerGain`), clamped to full lock.
    - **Pedals**: full throttle under the planned speed `speed · speedLookAheadTime` metres ahead,
      brake (proportional) when more than 1 m/s over it.
-   - **Drift** (Space, like a player), decided on the speed the car really has: the corner
-     `speed · driftLookAheadTime` metres ahead needs a turn rate of `speed · curvature`. If grip can't
-     give it but a drift can (a drift never turns slower than `driftTurnRate · (1 − driftSteerInfluence)`),
-     the bot enters with full lock into the corner, which locks the drift's side. A new drift is only
-     started where the plan allows one (`driftOk`, below). Inside the drift it
-     steers to make the direction of travel turn exactly as fast as needed, plus `driftAimGain` per
-     radian towards the aim point, and it lets go once the corner needs less than `driftKeepShare` of
-     the drift's slowest turn. (Planning drift zones in advance from the planned speed was tried first:
-     whenever the bot was slower than planned, the drift turned too tight and it left the track.)
    - **Stuck**: slower than `stuckSpeed` (2 m/s) for `stuckSeconds` (2 s) → `reset: true`, the same
      R a player uses. The only memory (`BotMemory.stuckTicks`) is plain data kept by the caller.
 
@@ -68,50 +51,44 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
 
 | Param         | Easy | Medium | Hard | Meaning                                                      |
 | ------------- | ---- | ------ | ---- | ------------------------------------------------------------ |
-| `cornerSpeed` | 0.65 | 1.15   | 1.15 | × the corner speed estimated from the yaw rate               |
+| `cornerSpeed` | 0.5  | 1.15   | 1.15 | × the corner speed estimated from the yaw rate               |
 | `brakeUse`    | 0.55 | 1      | 1    | × `brakeDecel` used to plan braking (lower = brakes earlier) |
-| `lineCut`     | 0.4  | 1      | 0.5  | Share of the usable width the racing line may use            |
+| `lineCut`     | 0.4  | 1      | 1    | Share of the usable width the racing line may use            |
 | `topSpeed`    | 0.75 | 1      | 1    | × `maxSpeed` allowed anywhere                                |
-| `driftUse`    | 0    | 0      | 1.1  | × the corner speeds planned for drifting (0 = never drifts)  |
 | `performance` | 1    | 1      | 1.03 | × the car's `engineAccel` and `maxSpeed` vs the player's     |
 | `shortcuts`   | no   | no     | yes  | Drives the track's first branch (Kruncar's zigzag shortcut)  |
 
 - `cornerSpeed` above 1 is fine: the estimate ignores slip, so the car can really carry more.
-- `driftUse` above 1 is fine too: the aim correction tightens the drift where the plan is optimistic.
-- Hard uses _less_ width than Medium: a drifting car swings its tail wider, and with the full width
-  it put wheels on the grass at corner exits. 0.5 is both the fastest and the cleanest measured.
 
-## Measured behaviour (bot alone, baseline v1 car)
+## Measured behaviour (bot alone, no drift, step 9a.5)
 
 ### Test Ring
 
-| Level  | Lap    | Notes                                                                                         |
-| ------ | ------ | --------------------------------------------------------------------------------------------- |
-| Hard   | 28.6 s | Drifts, never a wheel off the asphalt (27.8 s before the no-drift-after-opposite-corner rule) |
-| Medium | 34.1 s | Grip only, the whole width: the grip-only limit is ~33.2 s                                    |
-| Easy   | 40.3 s | +18% on Medium                                                                                |
+| Level  | Lap     | Notes                                                            |
+| ------ | ------- | ---------------------------------------------------------------- |
+| Hard   | 31.35 s | Medium's driving with the +3% car (29.07 s when it could drift)  |
+| Medium | 31.95 s | The whole width                                                  |
+| Easy   | 38.15 s | +19% on Medium (`cornerSpeed` 0.5 since `maxYawRate` became 2.7) |
 
-The owner's best lap is 29 s (with drifts): Medium is a calm opponent, Hard is faster than the owner
-on purpose. Without its performance edge Hard would do 28.4 s; with +5% it does 27.4 s.
+The owner's best lap is 29 s, set with the old drift key, so all levels are now slower than that.
 
 ### Kruncar
 
-| Level  | Lap    | Road                                                      |
-| ------ | ------ | --------------------------------------------------------- |
-| Hard   | 44.5 s | Zigzag shortcut (owner's target ~45 s); never a wheel off |
-| Medium | 50.0 s | Wide road                                                 |
-| Easy   | 60.9 s | Wide road                                                 |
+| Level  | Lap     | Road                                                      |
+| ------ | ------- | --------------------------------------------------------- |
+| Hard   | 44.55 s | Zigzag shortcut (owner's target ~45 s); never a wheel off |
+| Medium | 44.98 s | Wide road                                                 |
+| Easy   | 56.58 s | Wide road                                                 |
 
-On the wide road Hard would do 42.2 s, putting wheels on the grass: for the bot the 14 m zigzag
-costs ~2 s (its line keeps to the middle of a narrow road). Measured with the fork (9a.3).
+Without drift the zigzag shortcut barely pays off for the bot: Hard is only 0.4 s ahead of Medium
+on the wide road (its line keeps to the middle of the narrow zigzag).
 
 The Hard bot is sensitive to the layout: small changes to hairpin radii or widths, or a narrow road
 straight after a fast corner, put wheels on the grass. The tests catch it; widen the exit, give the
 first and last zigzag turns a larger radius, or re-measure when editing a track.
 
 Tests (`ai/bot.test.ts`): clean laps on every level of every track in `TRACKS`, Hard alone on the
-Kruncar shortcut, lap-time bands, drift only on Hard, Hard never
-off the asphalt, line inside the asphalt, recovery from a car parked on its line, stuck → reset,
+Kruncar shortcut, lap-time bands, Hard never off the asphalt, line inside the asphalt, recovery from a car parked on its line, stuck → reset,
 determinism.
 
 ## Limits (for now)

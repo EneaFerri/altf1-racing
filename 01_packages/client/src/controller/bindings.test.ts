@@ -10,16 +10,20 @@ describe('inputFromKeys', () => {
   it('maps WASD and Space', () => {
     expect(inputFromKeys(new Set(['KeyW', 'KeyD', 'Space']))).toEqual({
       throttle: 1,
-      brake: 0,
+      brake: 1,
+      reverse: 0,
       steer: 1,
-      handbrake: true,
       reset: false,
     });
-    expect(inputFromKeys(new Set(['KeyS', 'KeyA'])).steer).toBe(-1);
+    expect(inputFromKeys(new Set(['KeyS', 'KeyA']))).toMatchObject({
+      reverse: 1,
+      brake: 0,
+      steer: -1,
+    });
   });
 
-  it('brakes with C as well as S', () => {
-    expect(inputFromKeys(new Set(['KeyC'])).brake).toBe(1);
+  it('leaves C unbound', () => {
+    expect(inputFromKeys(new Set(['KeyC']))).toEqual(NEUTRAL_INPUT);
   });
 
   it('passes tick triggers through', () => {

@@ -70,6 +70,18 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
      one wall outline for all roads, `locateOnTrack` per road with main-loop progress); Kruncar's
      wooden section becomes a fork: wide road with two comfortable corners or a 14 m wooden zigzag
      shortcut. Hard bot takes the shortcut (`shortcuts`), 44.5 s; Medium 50.0 s, Easy 60.9 s.
+   - 9a.4 ✅ **Brake drifting (owner feedback)** — no drift key: Space is the brake, with a
+     pressure that builds while held (30% on a tap, 100% after 0.6 s); S reverses (brakes first if
+     rolling forward); C unbound. Braking too hard in a fast corner (`slideLoad`: corner load +
+     brake pressure) starts the existing drift; it lasts while A/D is held. Straights, soft and slow
+     corners keep full grip. Hard bot drifts by braking, Easy/Medium cap their brake below the slide.
+     Test Ring Hard 29.07 s, Medium 33.58 s, Easy 40.22 s; Kruncar 44.05 / 49.40 / 60.53 s.
+     See `physics.md`.
+   - 9a.5 ✅ **Drift removed (owner feedback)** — grip-only handling: no drift mode, the brake only
+     slows the car (pressure as in 9a.4). Owner's F2 values as defaults (`maxYawRate` 2.7,
+     `yawResponse` 9.5). Bots drive grip only. Test Ring Hard 31.35 s, Medium 31.95 s, Easy 38.15 s;
+     Kruncar 44.55 / 44.98 / 56.58 s. Confirmed by the owner and frozen as **baseline v2 (final)**,
+     the reference setup. See `decisions.md`, `tuning.md`.
    - 9b–d **Monza, Barcelona, Monaco** — inspired by the real circuits (their character, not 1:1
      copies: scaled to our ≥ 24 m width and arcade speeds).
 

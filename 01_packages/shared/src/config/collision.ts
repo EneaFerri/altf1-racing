@@ -27,8 +27,6 @@ export interface CollisionParams {
   carSpinMinImpact: number;
   /** Car-vs-car hits never push `spin` beyond this (rad/s), so a hit is a nudge, never a spin-out. */
   maxImpactSpin: number;
-  /** Impact speed (m/s, into the wall or the other car) above which a drift ends. */
-  driftBreakImpactSpeed: number;
   /** Solver passes per tick; more = cleaner separation when several contacts touch one car. */
   solverIterations: number;
 }
@@ -43,7 +41,6 @@ export const COLLISION_PARAMS: CollisionParams = {
   carSpinScale: 0.5,
   carSpinMinImpact: 3,
   maxImpactSpin: 1.2,
-  driftBreakImpactSpeed: 6,
   solverIterations: 3,
 };
 

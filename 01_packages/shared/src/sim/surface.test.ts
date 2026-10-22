@@ -34,7 +34,6 @@ describe('surfaceEffect', () => {
       SURFACE_PARAMS,
     );
     expect(climbing.spinKick).toBeLessThan(0); // left wheel → nose kicked right
-    expect(climbing.breaksDrift).toBe(true);
 
     const staying = surfaceEffect(
       ['highKerb', 'asphalt', 'asphalt', 'asphalt'],

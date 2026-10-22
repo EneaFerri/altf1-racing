@@ -72,7 +72,8 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 ## Controller — `01_packages/client/src/controller`
 
 - `bindings.ts`: key map + pure `inputFromKeys()`; `KeyboardController` samples it once per tick.
-- Bindings (now): W throttle · S or C brake/reverse · A/D steer · Space handbrake/drift · R reset ·
+- Bindings (now): W throttle · Space brake (held longer = harder) ·
+  S reverse (brakes first if rolling forward) · A/D steer · R reset ·
   V camera (chase / first person) · B bot level · Esc back to the track menu · F2 tuning panel (dev) · F3 debug overlay · F4 park the dummy car
   ahead (dev). No key may be bound twice (tested).
 - Three kinds of keys: **drive keys** (held, sampled per tick), **tick triggers** (`TICK_TRIGGER_KEYS`,
@@ -104,8 +105,8 @@ between them, so motion is smooth at any refresh rate even though the Model tick
   `Game`. In production that condition is the constant `false`, so the bundler drops the code and its
   dependencies (verified: no lil-gui in the build output). Keeping the `import()` inside the `if`
   matters: moved to a separate method, Vite would still emit the chunk.
-- `TuningPanel` (F2): lil-gui sliders for every `CarParams` value (Engine & brakes / Steering & grip /
-  Drift), every `CollisionParams` value (Collisions), every `CameraParams` value (Camera → Chase /
+- `TuningPanel` (F2): lil-gui sliders for every `CarParams` value (Engine & brakes incl. brake pressure / Steering & grip),
+  every `CollisionParams` value (Collisions), every `CameraParams` value (Camera → Chase /
   First person / Speed FOV), every surface (Surfaces → grip, traction, drag, bumpSpin) and every bot
   level (Bot → easy / medium / hard). Mutates
   `Game`'s live params; **Copy as code** logs (and copies to the clipboard when available)

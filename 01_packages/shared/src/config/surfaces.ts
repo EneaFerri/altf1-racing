@@ -11,7 +11,7 @@ export interface SurfaceParams {
   traction: number;
   /** Extra deceleration (m/s²). */
   drag: number;
-  /** Yaw kick (rad/s, at 30 m/s) when a wheel climbs onto this surface; 0 = smooth. Also ends drifts. */
+  /** Yaw kick (rad/s, at 30 m/s) when a wheel climbs onto this surface; 0 = smooth. */
   bumpSpin: number;
 }
 

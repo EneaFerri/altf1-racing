@@ -102,7 +102,7 @@ describe('stepGame', () => {
     let state = createGame(track, ['player']);
     let hits = 0;
     for (let tick = 0; tick < 600; tick++) {
-      state = stepGame(state, { player: { ...THROTTLE, steer: -1 } }, ctx);
+      state = stepGame(state, { player: { ...THROTTLE, steer: -0.8 } }, ctx);
       hits += state.impacts.length;
       const location = locateOnTrack(track, findCar(state, 'player')!.position);
       expect(Math.abs(location.lateral)).toBeLessThan(location.halfWidth + track.runoffWidth);
@@ -163,7 +163,11 @@ describe('stepGame', () => {
 
   it('is deterministic with several cars on the track', () => {
     const script = (tick: number): InputMap => ({
-      player: { ...THROTTLE, steer: Math.sin(tick / 50) > 0 ? 1 : -1, handbrake: tick % 240 > 180 },
+      player: {
+        ...THROTTLE,
+        steer: Math.sin(tick / 50) > 0 ? 1 : -1,
+        brake: tick % 240 > 180 ? 1 : 0,
+      },
       rival: { ...THROTTLE, steer: tick % 100 < 50 ? 0.5 : -0.5 },
     });
     const simulate = (): GameState => {

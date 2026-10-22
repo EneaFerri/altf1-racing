@@ -22,6 +22,9 @@ const CAR_GROUPS: Record<string, Partial<Record<keyof CarParams, Range>>> = {
     maxSpeed: [20, 120, 1],
     engineAccel: [4, 40, 0.5],
     brakeDecel: [5, 60, 1],
+    brakeInitialPressure: [0, 1, 0.05],
+    brakeRampTime: [0, 2, 0.05],
+    brakeReleaseTime: [0, 1, 0.02],
     reverseAccel: [1, 20, 0.5],
     maxReverseSpeed: [2, 25, 0.5],
     coastDecel: [0, 6, 0.1],
@@ -37,20 +40,6 @@ const CAR_GROUPS: Record<string, Partial<Record<keyof CarParams, Range>>> = {
     lateralGrip: [0.5, 20, 0.1],
     spinDamping: [0.5, 12, 0.1],
   },
-  Drift: {
-    handbrakeDecel: [0, 20, 0.5],
-    driftMinSpeed: [3, 40, 0.5],
-    driftExitSpeed: [1, 30, 0.5],
-    driftTurnRate: [0.3, 4, 0.05],
-    driftTurnResponse: [0.5, 20, 0.5],
-    driftSteerInfluence: [0, 1, 0.05],
-    driftAngle: [0, 1.2, 0.01],
-    driftAngleSteerRange: [0, 0.8, 0.01],
-    driftRotateStiffness: [1, 20, 0.5],
-    driftDrag: [0, 10, 0.1],
-    driftExitGrip: [0, 10, 0.1],
-    driftRecoveryTime: [0.05, 2, 0.05],
-  },
 };
 
 const COLLISION_RANGES: Record<keyof CollisionParams, Range> = {
@@ -63,7 +52,6 @@ const COLLISION_RANGES: Record<keyof CollisionParams, Range> = {
   carSpinScale: [0, 1.5, 0.05],
   carSpinMinImpact: [0, 15, 0.5],
   maxImpactSpin: [0, 4, 0.05],
-  driftBreakImpactSpeed: [0, 30, 0.5],
   solverIterations: [1, 8, 1],
 };
 
@@ -102,7 +90,6 @@ const BOT_RANGES: Record<Exclude<keyof BotParams, 'shortcuts'>, Range> = {
   brakeUse: [0.2, 1.3, 0.01],
   lineCut: [0, 1, 0.05],
   topSpeed: [0.4, 1, 0.01],
-  driftUse: [0, 1.5, 0.05],
   performance: [0.9, 1.15, 0.01],
 };
 
@@ -209,7 +196,7 @@ export class TuningPanel {
     );
     const botLines = Object.entries(this.botParams).map(
       ([level, p]) =>
-        `  ${level}: { cornerSpeed: ${round(p.cornerSpeed)}, brakeUse: ${round(p.brakeUse)}, lineCut: ${round(p.lineCut)}, topSpeed: ${round(p.topSpeed)}, driftUse: ${round(p.driftUse)}, performance: ${round(p.performance)}, shortcuts: ${p.shortcuts} },`,
+        `  ${level}: { cornerSpeed: ${round(p.cornerSpeed)}, brakeUse: ${round(p.brakeUse)}, lineCut: ${round(p.lineCut)}, topSpeed: ${round(p.topSpeed)}, performance: ${round(p.performance)}, shortcuts: ${p.shortcuts} },`,
     );
     const code = [
       `// From ${tuningLabel()}. When freezing: bump TUNING_BASELINE in config/tuning.ts (01_docs/tuning.md).`,
