@@ -13,13 +13,11 @@ import {
 import { CameraRig } from './cameras/CameraRig';
 import type { CameraParams } from './cameras/params';
 import { CarView, type CarPose } from './CarView';
-import { createGroundTexture, LIVERIES, type Livery } from './pixelTexture';
+import { LIVERIES, type Livery } from './pixelTexture';
+import { trackBounds } from './scenery/placement';
+import { themeFor, type TrackTheme } from './themes/theme';
 import { createTrackView } from './TrackView';
 import { bindResize, createRenderer } from './renderer';
-
-const SKY_COLOR = '#87ceeb';
-const GROUND_SIZE = 1000;
-const GROUND_TILE = 2;
 
 /** Owns the Three.js scene and draws it. Reads game state, never writes it. */
 export class SceneView {
@@ -30,7 +28,7 @@ export class SceneView {
 
   /**
    * `followId`: the car the camera follows (the local player). `liveries`: colour per car id, others
-   * are grey. `cameraParams` are read live.
+   * are grey. `cameraParams` are read live. The look comes from the track's theme (`themeFor`).
    */
   constructor(
     track: Track,
@@ -38,13 +36,27 @@ export class SceneView {
     private readonly liveries: Readonly<Record<CarId, Livery>>,
     cameraParams: CameraParams,
   ) {
+    const theme = themeFor(track.name);
     this.cameraRig = new CameraRig(cameraParams);
-    this.scene.background = new THREE.Color(SKY_COLOR);
-    // Fog hides the ground's edge and gives depth.
-    this.scene.fog = new THREE.Fog(SKY_COLOR, 60, 250);
-    this.scene.add(new THREE.HemisphereLight('#ffffff', '#444444', 2.5));
+    this.cameraRig.camera.far = theme.viewDistance;
+    this.cameraRig.camera.updateProjectionMatrix();
+    this.scene.background = new THREE.Color(theme.sky);
+    this.scene.fog = new THREE.Fog(theme.sky, theme.fog.near, theme.fog.far);
+    this.scene.add(
+      new THREE.HemisphereLight(theme.light.sky, theme.light.ground, theme.light.intensity),
+    );
+    if (theme.light.sun > 0) {
+      const sun = new THREE.DirectionalLight('#ffffff', theme.light.sun);
+      sun.position.set(0.4, 1, 0.25); // high, slightly to one side: lights facets unevenly
+      this.scene.add(sun);
+    }
     // The camera is in the scene so the cockpit attached to it gets drawn.
-    this.scene.add(createGround(), createTrackView(track), this.cameraRig.camera);
+    this.scene.add(
+      createGround(track, theme),
+      createTrackView(track, theme),
+      ...theme.scenery(track),
+      this.cameraRig.camera,
+    );
     bindResize(this.renderer, this.cameraRig.camera);
   }
 
@@ -99,13 +111,17 @@ function interpolateCar(prev: CarState, curr: CarState, alpha: number): CarPose 
   };
 }
 
-function createGround(): THREE.Mesh {
-  const texture = createGroundTexture();
-  texture.repeat.set(GROUND_SIZE / GROUND_TILE, GROUND_SIZE / GROUND_TILE);
+/** Grass square under the whole circuit, `theme.ground.margin` m past it on every side. */
+function createGround(track: Track, theme: TrackTheme): THREE.Mesh {
+  const bounds = trackBounds(track, theme.ground.margin);
+  const size = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ);
+  const texture = theme.ground.texture();
+  texture.repeat.set(size / theme.ground.tile, size / theme.ground.tile);
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE),
+    new THREE.PlaneGeometry(size, size),
     new THREE.MeshLambertMaterial({ map: texture }),
   );
   ground.rotation.x = -Math.PI / 2; // PlaneGeometry is vertical by default
+  ground.position.set((bounds.minX + bounds.maxX) / 2, 0, (bounds.minZ + bounds.maxZ) / 2);
   return ground;
 }

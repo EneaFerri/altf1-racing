@@ -212,3 +212,230 @@ export function createSectorBoardTexture(label: string): THREE.Texture {
   texture.wrapS = THREE.RepeatWrapping;
   return texture;
 }
+
+// ---- Kruncar theme (Krunker-style): see 01_docs/themes.md ----
+
+/** Light grey asphalt with sparse darker and lighter specks, like Krunker's tracks. */
+export function createSpeckledAsphaltTexture(size = 32): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      ctx.fillStyle = '#7c7c80';
+      ctx.fillRect(0, 0, size, size);
+      sprinkle(ctx, size, '#66666b', 0.025, 5);
+      sprinkle(ctx, size, '#8a8a8f', 0.02, 9);
+    },
+    true,
+  );
+}
+
+/** Bright lime grass with blocky darker patches. */
+export function createLimeGrassTexture(size = 32): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#8bbd45', '#86b842', '#8fc149'], 13);
+      const random = seededRandom(17);
+      for (let k = 0; k < 7; k++) {
+        const x = Math.floor(random() * size);
+        const y = Math.floor(random() * size);
+        ctx.fillStyle = k % 2 === 0 ? '#6f9e35' : '#9ccb55';
+        // Small L-shaped blots, like Krunker's grass.
+        ctx.fillRect(x, y, 3, 1);
+        ctx.fillRect(x, y, 1, 2);
+      }
+    },
+    true,
+  );
+}
+
+/** Two brown rails and a post on transparent pixels (use with `alphaTest`): a wooden fence tile. */
+export function createWoodFenceTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      ctx.clearRect(0, 0, size, size);
+      ctx.fillStyle = '#6b4a2f';
+      ctx.fillRect(0, 3, size, 3);
+      ctx.fillRect(0, 9, size, 3);
+      ctx.fillStyle = '#7c5838';
+      ctx.fillRect(0, 3, size, 1);
+      ctx.fillRect(0, 9, size, 1);
+      ctx.fillStyle = '#3f2a1a';
+      ctx.fillRect(0, 1, 2, size - 1);
+    },
+    true,
+  );
+}
+
+/** Grey concrete wall: plain blocks with a darker seam. */
+export function createConcreteTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#9c9ca2', '#a3a3a9', '#97979d'], 19);
+      ctx.fillStyle = '#7a7a80';
+      ctx.fillRect(0, 0, 1, size);
+      ctx.fillRect(0, size - 2, size, 2);
+    },
+    true,
+  );
+}
+
+/** Chain-link fence: dark diamond mesh on transparent pixels (use with `alphaTest`). */
+export function createChainFenceTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      ctx.clearRect(0, 0, size, size);
+      ctx.fillStyle = '#3a3a40';
+      for (let i = 0; i < size; i++) {
+        ctx.fillRect(i, i % 8, 1, 1);
+        ctx.fillRect(i, 7 - (i % 8), 1, 1);
+        ctx.fillRect(i, 8 + (i % 8), 1, 1);
+        ctx.fillRect(i, 15 - (i % 8), 1, 1);
+      }
+      ctx.fillStyle = '#2a2a2e';
+      ctx.fillRect(0, 0, size, 1);
+      ctx.fillRect(0, 0, 1, size);
+    },
+    true,
+  );
+}
+
+/** Wooden planks across the deck (V runs along the track): light and dark boards. */
+export function createPlankTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      const boards = ['#8a6a48', '#7a5c3d', '#937252', '#6f5236'];
+      for (let y = 0; y < size; y += 2) {
+        ctx.fillStyle = boards[(y / 2) % boards.length]!;
+        ctx.fillRect(0, y, size, 2);
+      }
+      sprinkle(ctx, size, '#5a412b', 0.04, 23);
+    },
+    true,
+  );
+}
+
+/** Dark teal water with a few lighter ripples. */
+export function createWaterTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#2f5a63', '#2b545c', '#33606a'], 29);
+      sprinkle(ctx, size, '#4d7d86', 0.03, 31);
+    },
+    true,
+  );
+}
+
+/** Corner warning board: white chevrons pointing right on red (mirror it for left turns). */
+export function createChevronTexture(): THREE.Texture {
+  const width = 16;
+  return createPixelTexture(
+    width,
+    (ctx) => {
+      ctx.fillStyle = '#c8282a';
+      ctx.fillRect(0, 0, width, 8);
+      ctx.fillStyle = '#f4f4f4';
+      for (const start of [1, 6, 11]) {
+        for (let y = 0; y < 8; y++) {
+          const x = start + (y < 4 ? y : 7 - y);
+          ctx.fillRect(x, y, 2, 1);
+        }
+      }
+    },
+    false,
+    8,
+  );
+}
+
+/** Grandstand seats with a pixel crowd: rows of red seats and people in assorted colours. */
+export function createCrowdTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      ctx.fillStyle = '#8e2b2e';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#b13a3c';
+      for (let y = 0; y < size; y += 4) ctx.fillRect(0, y, size, 1);
+      const random = seededRandom(37);
+      const shirts = ['#e8836b', '#6cc1c9', '#f1c27d', '#9e6bd1', '#d9d9d9', '#4f7fd6'];
+      for (let k = 0; k < 14; k++) {
+        const x = Math.floor(random() * size);
+        const y = 1 + 4 * Math.floor(random() * 4);
+        ctx.fillStyle = shirts[k % shirts.length]!;
+        ctx.fillRect(x, y, 1, 2);
+        ctx.fillStyle = '#e0b48c';
+        ctx.fillRect(x, y - 1, 1, 1);
+      }
+    },
+    true,
+  );
+}
+
+/** Grandstand roof: white with grey stripes. */
+export function createRoofTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      ctx.fillStyle = '#f2f2f2';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#c9c9cc';
+      for (let x = 0; x < size; x += 3) ctx.fillRect(x, 0, 1, size);
+    },
+    true,
+  );
+}
+
+/** Weathered vertical wood boards (barn walls). */
+export function createBarnWallTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      const boards = ['#6e5338', '#5f4630', '#765a3d'];
+      for (let x = 0; x < size; x += 2) {
+        ctx.fillStyle = boards[(x / 2) % boards.length]!;
+        ctx.fillRect(x, 0, 2, size);
+      }
+      sprinkle(ctx, size, '#4a3624', 0.05, 41);
+    },
+    true,
+  );
+}
+
+/** Hay bale: straw yellow with darker stalks. */
+export function createHayTexture(size = 8): THREE.Texture {
+  return createPixelTexture(size, (ctx) => {
+    fillNoise(ctx, size, ['#e2c97a', '#d8bd6c', '#ead38a'], 43);
+    ctx.fillStyle = '#b89a50';
+    ctx.fillRect(0, size / 2, size, 1);
+  });
+}
+
+/** Hot-air balloon envelope: vertical stripes of `color` and white. */
+export function createBalloonTexture(color: string, size = 8): THREE.Texture {
+  return createPixelTexture(size, (ctx) => {
+    for (let x = 0; x < size; x++) {
+      ctx.fillStyle = x % 2 === 0 ? color : '#f4f4f8';
+      ctx.fillRect(x, 0, 1, size);
+    }
+  });
+}
+
+/** Scatters single pixels of `color` over roughly `share` of the tile. */
+function sprinkle(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  color: string,
+  share: number,
+  seed: number,
+): void {
+  const random = seededRandom(seed);
+  ctx.fillStyle = color;
+  for (let k = 0; k < Math.round(size * size * share); k++) {
+    ctx.fillRect(Math.floor(random() * size), Math.floor(random() * size), 1, 1);
+  }
+}

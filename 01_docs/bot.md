@@ -98,6 +98,8 @@ on purpose. Without its performance edge Hard would do 28.4 s; with +5% it does 
 | Medium | 50.3 s |                                                           |
 | Easy   | 63.8 s |                                                           |
 
+Re-measured after Kruncar got kerbs everywhere and a 6 m run-off (9a.2): unchanged.
+
 The Hard bot is sensitive to the layout: small changes to hairpin radii or widths put wheels on the
 grass on some exits. The tests catch it; widen the exit or re-measure when editing a track.
 

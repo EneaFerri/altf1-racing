@@ -8,13 +8,17 @@ import {
   type TrackSide,
 } from '@altf1/shared';
 import {
-  createAsphaltTexture,
+  createChainFenceTexture,
   createCheckerTexture,
+  createConcreteTexture,
   createGravelTexture,
   createKerbTexture,
   createSectorBoardTexture,
   createTyreWallTexture,
+  createWoodFenceTexture,
 } from './pixelTexture';
+import { ribbon, type Band } from './ribbon';
+import type { TrackTheme, WallStyle } from './themes/theme';
 
 // Heights above the grass, stacked to avoid z-fighting between overlapping layers.
 const Y_GRAVEL = 0.01;
@@ -25,10 +29,17 @@ const Y_START_LINE = 0.035;
 const Y_SECTOR_LINE = 0.035;
 const Y_HIGH_KERB = 0.12;
 const WALL_HEIGHT = 1;
+/** Wooden fence: two rails on posts, see-through between them. */
+const FENCE_HEIGHT = 1.4;
+const FENCE_REPEAT = 3;
+/** Concrete wall with a chain-link fence on top (grandstand stretches). */
+const CONCRETE_HEIGHT = 1.1;
+const CHAIN_HEIGHT = 2.2;
+const CONCRETE_REPEAT = 3;
+const CHAIN_REPEAT = 2;
 
 /** Metres covered by one texture repeat along the track. */
 const ASPHALT_TILE = 12; // also across: the asphalt is textured in world metres, so pixels stay square
-const KERB_REPEAT = 2; // 1 m per colour block
 const GRAVEL_REPEAT = 6;
 const WALL_REPEAT = 2;
 /** Painted white line just inside each asphalt edge (m). */
@@ -46,17 +57,15 @@ const SECTOR_LINE_DEPTH = 0.6;
 const SIDES: readonly TrackSide[] = ['left', 'right'];
 const sign = (side: TrackSide): number => (side === 'right' ? 1 : -1);
 
-/** Lateral band of a strip at one sample: [from, to] signed offsets (positive = right). */
-type Band = (sample: TrackSample) => readonly [number, number];
-
 const textured = (texture: THREE.Texture): THREE.Material =>
   new THREE.MeshLambertMaterial({ map: texture, side: THREE.DoubleSide });
 
 /**
  * Builds the circuit's meshes from the same compiled `Track` the simulation uses,
  * so what you see is exactly what the physics feels. Width varies per sample.
+ * Colours, textures and wall styles come from the track's `theme`.
  */
-export function createTrackView(track: Track): THREE.Group {
+export function createTrackView(track: Track, theme: TrackTheme): THREE.Group {
   const group = new THREE.Group();
   const { runoffWidth } = track;
 
@@ -65,7 +74,7 @@ export function createTrackView(track: Track): THREE.Group {
       track,
       (s) => [-s.halfWidth, s.halfWidth],
       Y_ASPHALT,
-      textured(createAsphaltTexture()),
+      textured(theme.asphalt()),
       ASPHALT_TILE,
       {
         metresAcross: ASPHALT_TILE,
@@ -74,7 +83,8 @@ export function createTrackView(track: Track): THREE.Group {
   );
 
   const lineMaterial = new THREE.MeshLambertMaterial({ color: '#e8e8e8', side: THREE.DoubleSide });
-  const lowKerb = textured(createKerbTexture('#e10600', '#f4f4f4'));
+  const lowKerb = textured(createKerbTexture(...theme.kerb.colors));
+  const kerbRepeat = theme.kerb.block * 2; // one texture repeat = two blocks
   const highKerb = textured(createKerbTexture('#f5c400', '#151515'));
   const gravel = textured(createGravelTexture());
 
@@ -90,7 +100,10 @@ export function createTrackView(track: Track): THREE.Group {
     group.add(
       ribbon(
         track,
-        (s) => [k * (s.halfWidth - EDGE_LINE_WIDTH), k * s.halfWidth],
+        (s) => [
+          k * (s.halfWidth - theme.edgeLineInset - EDGE_LINE_WIDTH),
+          k * (s.halfWidth - theme.edgeLineInset),
+        ],
         Y_EDGE_LINE,
         lineMaterial,
         1,
@@ -105,109 +118,113 @@ export function createTrackView(track: Track): THREE.Group {
           include: (i) => info.runoff[i] === 'gravel',
         },
       ),
-      ribbon(track, kerbBand, Y_KERB, lowKerb, KERB_REPEAT, { include: kerbIs('low') }),
-      ribbon(track, kerbBand, Y_HIGH_KERB, highKerb, KERB_REPEAT, { include: kerbIs('high') }),
+      ribbon(track, kerbBand, Y_KERB, lowKerb, kerbRepeat, { include: kerbIs('low') }),
+      ribbon(track, kerbBand, Y_HIGH_KERB, highKerb, 2, { include: kerbIs('high') }),
     );
   }
 
-  group.add(createWalls(track), createStartLine(track), ...createSectorGantries(track));
+  group.add(
+    ...createWalls(track, theme.wallStyle(track)),
+    createStartLine(track),
+    ...createSectorGantries(track),
+  );
   return group;
 }
 
+/** Vertical strips along the track's wall segments, one mesh per style (and layer) in use. */
+function createWalls(track: Track, styleOf: (index: number) => WallStyle): THREE.Mesh[] {
+  const indices = (style: WallStyle): number[] =>
+    track.walls.map((_, i) => i).filter((i) => styleOf(i) === style);
+  const cutout = (texture: THREE.Texture): THREE.Material =>
+    new THREE.MeshLambertMaterial({ map: texture, side: THREE.DoubleSide, alphaTest: 0.5 });
+  const meshes: THREE.Mesh[] = [];
+  const tyres = indices('tyres');
+  if (tyres.length > 0) {
+    meshes.push(
+      wallStrip(track, tyres, 0, WALL_HEIGHT, textured(createTyreWallTexture()), WALL_REPEAT),
+    );
+  }
+  const fence = indices('fence');
+  if (fence.length > 0) {
+    meshes.push(
+      wallStrip(track, fence, 0, FENCE_HEIGHT, cutout(createWoodFenceTexture()), FENCE_REPEAT),
+    );
+  }
+  const concrete = indices('concrete');
+  if (concrete.length > 0) {
+    meshes.push(
+      wallStrip(
+        track,
+        concrete,
+        0,
+        CONCRETE_HEIGHT,
+        textured(createConcreteTexture()),
+        CONCRETE_REPEAT,
+      ),
+      wallStrip(
+        track,
+        concrete,
+        CONCRETE_HEIGHT,
+        CONCRETE_HEIGHT + CHAIN_HEIGHT,
+        cutout(createChainFenceTexture()),
+        CHAIN_REPEAT,
+        CHAIN_REPEAT,
+      ),
+    );
+  }
+  return meshes;
+}
+
 /**
- * Flat strip along the track within `band`. V runs along the track (`metresPerRepeat` per repeat);
- * U spans the strip 0..1, or world metres / `metresAcross` when given. `include(i)` picks segments.
+ * Vertical strip from `bottom` to `top` along the wall segments `indices`: one texture tile every
+ * `repeat` m along the wall and every `tileHeight` m up it.
  */
-function ribbon(
+function wallStrip(
   track: Track,
-  band: Band,
-  y: number,
+  indices: readonly number[],
+  bottom: number,
+  top: number,
   material: THREE.Material,
-  metresPerRepeat: number,
-  {
-    include = () => true,
-    metresAcross,
-  }: { include?: (segment: number) => boolean; metresAcross?: number } = {},
+  repeat: number,
+  tileHeight: number = top - bottom,
 ): THREE.Mesh {
   const positions: number[] = [];
   const uvs: number[] = [];
-  const n = track.samples.length;
-
-  for (let i = 0; i < n; i++) {
-    if (!include(i)) continue;
-    const a = track.samples[i]!;
-    const b = track.samples[(i + 1) % n]!;
-    const vA = a.distance / metresPerRepeat;
-    const vB = (i + 1 === n ? track.length : b.distance) / metresPerRepeat;
-    const corner = (s: TrackSample, offset: number): [number, number, number] => [
-      s.position.x + s.normal.x * offset,
-      y,
-      s.position.z + s.normal.z * offset,
-    ];
-    const [a0, a1] = band(a);
-    const [b0, b1] = band(b);
-    const u = (offset: number, edge: 0 | 1): number =>
-      metresAcross ? offset / metresAcross : edge;
+  const vTop = (top - bottom) / tileHeight;
+  let along = 0;
+  for (const i of indices) {
+    const wall = track.walls[i]!;
+    const length = Math.hypot(wall.b.x - wall.a.x, wall.b.z - wall.a.z);
+    const u0 = along / repeat;
+    const u1 = (along + length) / repeat;
+    along += length;
     positions.push(
-      ...corner(a, a0),
-      ...corner(b, b0),
-      ...corner(a, a1),
-      ...corner(a, a1),
-      ...corner(b, b0),
-      ...corner(b, b1),
+      wall.a.x,
+      bottom,
+      wall.a.z,
+      wall.b.x,
+      bottom,
+      wall.b.z,
+      wall.a.x,
+      top,
+      wall.a.z,
+      wall.a.x,
+      top,
+      wall.a.z,
+      wall.b.x,
+      bottom,
+      wall.b.z,
+      wall.b.x,
+      top,
+      wall.b.z,
     );
-    uvs.push(u(a0, 0), vA, u(b0, 0), vB, u(a1, 1), vA, u(a1, 1), vA, u(b0, 0), vB, u(b1, 1), vB);
+    uvs.push(u0, 0, u1, 0, u0, vTop, u0, vTop, u1, 0, u1, vTop);
   }
-
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.computeVertexNormals();
   return new THREE.Mesh(geometry, material);
-}
-
-/** Vertical tyre walls along the track's wall segments. */
-function createWalls(track: Track): THREE.Mesh {
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  let along = 0;
-
-  for (const wall of track.walls) {
-    const length = Math.hypot(wall.b.x - wall.a.x, wall.b.z - wall.a.z);
-    const u0 = along / WALL_REPEAT;
-    const u1 = (along + length) / WALL_REPEAT;
-    along += length;
-    positions.push(
-      wall.a.x,
-      0,
-      wall.a.z,
-      wall.b.x,
-      0,
-      wall.b.z,
-      wall.a.x,
-      WALL_HEIGHT,
-      wall.a.z,
-      wall.a.x,
-      WALL_HEIGHT,
-      wall.a.z,
-      wall.b.x,
-      0,
-      wall.b.z,
-      wall.b.x,
-      WALL_HEIGHT,
-      wall.b.z,
-    );
-    uvs.push(u0, 0, u1, 0, u0, 1, u0, 1, u1, 0, u1, 1);
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.computeVertexNormals();
-  return new THREE.Mesh(
-    geometry,
-    new THREE.MeshLambertMaterial({ map: createTyreWallTexture(), side: THREE.DoubleSide }),
-  );
 }
 
 /** Chequered strip across the track at sample 0. */

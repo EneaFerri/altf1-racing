@@ -15,9 +15,10 @@ function highKerbs(track: Track) {
   );
 }
 
-describe.each(TRACKS.map((definition) => [definition.name, buildTrack(definition)] as const))(
+describe.each(TRACKS.map((definition) => [definition.name, definition] as const))(
   'buildTrack: every track (%s)',
-  (_name, track) => {
+  (_name, definition) => {
+    const track = buildTrack(definition);
     const n = track.samples.length;
 
     it('is a closed loop', () => {
@@ -52,10 +53,11 @@ describe.each(TRACKS.map((definition) => [definition.name, buildTrack(definition
       }
     });
 
-    it('puts kerbs in corners and none on the main straight just after the line', () => {
+    it('puts kerbs in corners, and on the main straight only on tracks with kerbs everywhere', () => {
       const straight = Math.round((60 * n) / track.length);
-      expect(track.sides.left.kerb[straight]).toBe('none');
-      expect(track.sides.right.kerb[straight]).toBe('none');
+      const expected = definition.kerbs === 'everywhere' ? 'low' : 'none';
+      expect(track.sides.left.kerb[straight]).toBe(expected);
+      expect(track.sides.right.kerb[straight]).toBe(expected);
 
       const tightest = track.samples.reduce(
         (best, s, i) =>

@@ -45,6 +45,8 @@ TrackDefinition (hand-written)  ──buildTrack()──►  Track (compiled, im
 | Sectors      | 3 of equal length             | Timing sectors and anti-cut checkpoints (see [laps.md](laps.md))                                       |
 
 So a new track only needs a shape; kerbs and gravel follow the corners automatically.
+A track can instead ask for low kerbs along **both edges everywhere** (`kerbs: 'everywhere'`, e.g.
+Kruncar); high kerbs and gravel stay as above.
 
 **Fixed rule for every track (owner's decision):** each track must show its **sector detection
 points**. At the start of every timing sector there is a gantry visible from far away (posts behind
@@ -109,7 +111,8 @@ kerbs only in corners, high kerbs only in the chicane.
 
 ## Kruncar (`track/layouts/kruncar.ts`)
 
-"Kruncar", ~2.56 km, clockwise, **24–32 m wide**, 10 m run-off. Inspired by the Krunker.io map
+"Kruncar", ~2.56 km, clockwise, **24–32 m wide**, **6 m run-off** and **kerbs along every edge**
+(`kerbs: 'everywhere'`), like the Krunker map (fence close to the track). Inspired by the Krunker.io map
 "KrunCar" by Keybi (https://krunker.io/?game=FRA:qtesb): the owner's description of the corner
 sequence plus 14 screenshots (kept locally in `02_screen_krunkerMap/`, git-ignored). Not a 1:1 copy:
 Krunker's square 90° corners become round ones (radius ≥ 45 m, ≥ 42 m in the wooden section) so the
@@ -136,7 +139,8 @@ solving two straight lengths; edit it the same way, keeping arc points evenly sp
 | 66     | Over the bridge to the line                                                 | 30 m    |
 
 Bot laps (alone, baseline v1 car): Hard 45.0 s, Medium 50.3 s, Easy 63.8 s, all clean.
-Scenery (river, wooden bridges, grandstands, hay bales, barn) is step 9a.2.
+Its look and scenery (rivers, bridges, grandstands, barn, ...) are in [themes.md](themes.md); the
+plank decks on the bridges are view only (the physics sees asphalt there).
 Tests (`track/buildTrack.test.ts`): every track in `TRACKS` passes the generic layout checks; Kruncar
 also checks its length and that high kerbs and the 24 m minimum are only in the wooden section.
 
@@ -147,10 +151,10 @@ also checks its length and that high kerbs and the 24 m minimum are only in the 
 2. Keep corner radii above the local half-width + `runoffWidth` (22–26 m here) plus a margin, or the
    inner wall folds back (the "walls never fold" test catches it). Keep distant sections apart by
    at least both half-widths + 2 × run-off.
-3. List chicanes or corners that need high kerbs in `highKerbs` (control point index ranges).
-4. Export it from `track/layouts/index.ts` and add it to `TRACKS` there (the track menu lists
+3. Optionally `kerbs: 'everywhere'`; give it a look in [themes.md](themes.md) (classic otherwise).
+4. List chicanes or corners that need high kerbs in `highKerbs` (control point index ranges).
+5. Export it from `track/layouts/index.ts` and add it to `TRACKS` there (the track menu lists
    that array, in order), then run the tests.
-5. Add a section for it in this doc, like the Test Ring table above.
+6. Add a section for it in this doc, like the Test Ring table above.
 
-Planned (Phase 1 step 9, see [roadmap.md](roadmap.md)): Kruncar's scenery (9a.2), then Monza,
-Barcelona and Monaco inspired layouts.
+Planned (Phase 1 step 9, see [roadmap.md](roadmap.md)): Monza, Barcelona and Monaco inspired layouts.

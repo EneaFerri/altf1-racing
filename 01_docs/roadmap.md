@@ -61,8 +61,11 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
      24–32 m, high kerbs in the narrow wooden section. Hard bot 45.0 s (target ~45 s), Medium 50.3 s,
      Easy 63.8 s. Bot fix found on the way: no drift right after an opposite corner (Test Ring Hard
      27.8 → 28.6 s, still under the owner's 29 s). Layout and bot tests now run on every track.
-   - 9a.2 **Kruncar scenery** — river and wooden bridges, grandstands on the main straight, hay bales,
-     barn, covered bridge (view only; narrow bridge walls may need per-section run-off in `track/`).
+   - 9a.2 ✅ **Kruncar look** — theme system (`view/themes/`, classic look kept for the Test Ring) and
+     Krunker-style scenery (`view/scenery/`): mint sky, grey mountains, light speckled asphalt,
+     pink/white kerbs along every edge (also physics), lime grass, wooden fences and concrete +
+     chain fence, run-off 6 m, grandstands with floodlights, three rivers with ponds and wooden
+     bridges (one covered), barn, hay bales, chevron boards, trees, balloons. See `themes.md`.
    - 9b–d **Monza, Barcelona, Monaco** — inspired by the real circuits (their character, not 1:1
      copies: scaled to our ≥ 24 m width and arcade speeds).
 

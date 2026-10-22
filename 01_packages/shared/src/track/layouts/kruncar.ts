@@ -12,7 +12,9 @@ const p = (x: number, z: number, width: number): TrackPoint => ({ at: vec2(x, z)
  */
 export const KRUNCAR: TrackDefinition = {
   name: 'Kruncar',
-  runoffWidth: 10,
+  // Like the Krunker map: pink/white kerbs along every edge, then a few metres of grass to the fence.
+  kerbs: 'everywhere',
+  runoffWidth: 6,
   points: [
     // 0-3: main straight between the grandstands; start line at point 0
     p(0, 0, 32),

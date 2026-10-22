@@ -49,8 +49,11 @@ between them, so motion is smooth at any refresh rate even though the Model tick
   They are attached to the camera and laid out in screen units (1 = half the screen height), so they
   always cover the same small strip: the wheel stays in the bottom ~12% (centre), the sides in the
   bottom corners. They are drawn last without depth test, so a wall can never cut through them.
-- `TrackView` builds asphalt, kerbs, high kerbs, gravel, tyre walls, the start line and the sector
+- `TrackView` builds asphalt, kerbs, high kerbs, gravel, walls, the start line and the sector
   gantries from the same compiled `Track` the physics uses.
+- **Themes** (`view/themes/`): sky, light, ground, asphalt, kerb colours, wall style and scenery per
+  track (`themeFor(track.name)`; Kruncar has its own, other tracks the classic look). Scenery builders
+  in `view/scenery/`. Details: [themes.md](themes.md).
 - **HUD** (`view/hud/Hud.ts` + `hud.css`): F1-style timing strip at the top centre (lap, running time,
   sector bars, last/best, speed, bot level) with a sector-gap chip; always on. The F3 debug overlay stays top left.
   Details: [laps.md](laps.md#hud-top-centre).

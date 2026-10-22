@@ -189,3 +189,15 @@
   in from the current one). Fixed in the bot (no drift within 100 m after an opposite corner) rather
   than by bending the track around it: every future track has esses. Cost: Test Ring Hard 27.8 →
   28.6 s, still faster than the owner's 29 s, so the Test Ring bound became "< 29 s".
+
+## 2026-10-22 — Kruncar look: themes per track, kerbs everywhere
+
+- A track's look is a `TrackTheme` in the client, picked by track name (`themeFor`): the simulation and
+  the server never need it, so it stays out of `TrackDefinition`. The Test Ring keeps the original
+  look as the "classic" theme.
+- Owner's choice: Kruncar's pink/white kerbs run along every edge **in the physics too** (new
+  `TrackDefinition.kerbs: 'everywhere'`), so what you see is what you drive; and the fence comes
+  closer (run-off 10 → 6 m). Bot lap times didn't change (its line keeps 3 m from the edge).
+- Bridge decks are drawn over the asphalt but stay asphalt in the physics: same grip, no new surface.
+- Scenery positions are plain data tested against the track (nothing inside the walls, rivers only
+  under bridges); trees are seeded so the map looks the same on every load.

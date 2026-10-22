@@ -1,0 +1,71 @@
+# Track themes & scenery
+
+How a track _looks_: sky, light, ground, asphalt, kerbs, walls and the props around it. View only:
+the simulation never sees a theme. Code in `01_packages/client/src/view/themes/` and
+`01_packages/client/src/view/scenery/`.
+
+## Theme system
+
+- `themes/theme.ts`: the `TrackTheme` interface and `themeFor(trackName)`. **Kruncar** has its own
+  theme; every other track gets **classic** (`themes/classic.ts`: the original look, Test Ring).
+- `SceneView` reads the theme for sky colour, fog, camera far plane (`viewDistance`), hemisphere light
+  plus an optional directional "sun", the ground (texture, tile size, margin past the track; the
+  ground is centred on the track's bounds) and adds the theme's scenery.
+- `createTrackView` reads asphalt texture, kerb colours and block length, where the white edge line
+  sits (`edgeLineInset`) and the wall style per wall segment:
+  `tyres` (classic), `fence` (wooden rails on posts, see-through), `concrete` (grey wall with a
+  chain-link fence on top). The physics wall is the same whatever the style.
+- Props are built once per track by `theme.scenery(track)`.
+
+## Kruncar theme (`themes/kruncar.ts`)
+
+After the Krunker.io map "KrunCar" by Keybi (owner's screenshots in `02_screen_krunkerMap/`).
+
+| Element  | Look                                                                  |
+| -------- | --------------------------------------------------------------------- |
+| Sky      | Pale mint `#bfe8d8`, fog only far away (350–1600 m)                   |
+| Backdrop | Ring of big grey low-poly mountains (flat-shaded, no fog), 5 balloons |
+| Asphalt  | Light grey `#7c7c80` with sparse darker/lighter specks                |
+| Kerbs    | Pink/white `#f2a0a0`/`#ffffff`, 2 m blocks, along **every** edge      |
+| Line     | White edge line inside the kerb                                       |
+| Grass    | Bright lime `#8bbd45` with blocky darker/lighter blots, 16 m tiles    |
+| Walls    | Concrete + chain fence on the main straight, wooden fence elsewhere   |
+| Light    | Hemisphere (sky white, ground olive) + a sun so facets read           |
+
+Kerbs everywhere and the 6 m run-off are **physics** too (`TrackDefinition.kerbs`, `runoffWidth`),
+see [track.md](track.md#kruncar-tracklayoutskruncarts).
+
+Props (positions in `themes/kruncarLayout.ts`, plain data checked by tests):
+
+- **Grandstands** both sides of the main straight (2 × 100 m per side, 3 m behind the wall):
+  7 stepped rows with a pixel crowd, concrete back wall, white striped roof; floodlight towers at
+  their ends.
+- **Rivers** (dark teal water, dirt banks), each ending in a pond: under the plank bridge (points
+  18–19), under the covered bridge in the wooden section (between points 49–50) and under the bridge
+  just before the finish (point 66).
+- **Bridges**: plank deck drawn over the asphalt between the kerbs (view only: grip stays asphalt);
+  the one in the wooden section is **covered** (posts on the wall line, plank walls, gable roof).
+- **Barn** by the barn straight, **hay-bale stacks** around the second hairpin and the barn.
+- **Chevron boards** (red, white arrows pointing the turn's way) on the outside of every corner
+  tighter than 70 m radius, 2.5 m behind the wall, facing the approaching cars. Automatic from the
+  track's curvature (`cornerApexes`), so any track could use them.
+- **Trees**: 260 seeded low-poly trees (instanced), never closer than 7 m to a wall and kept off
+  rivers, ponds, stands, barn and hay.
+
+## Placement rules (`scenery/placement.ts`, pure, tested)
+
+- `clearance(track, p)`: metres outside the walls (negative = drivable area). Every prop keeps a
+  positive clearance; `placement.test.ts` checks the Kruncar layout: rivers touch the track only at
+  bridges, ponds, barn, hay and stands stay clear.
+- `scatter`: seeded random points in an area, with a margin from the walls, spacing between points
+  and circles to avoid. Same result on every load.
+- `besideTrack`: a spot a given gap beyond the wall on one side, `along` metres from a control point,
+  with the direction towards the track (used to face stands and lights).
+- `cornerApexes`: one apex per corner (runs of same-way curvature above a threshold).
+
+## Theming a new track
+
+1. Add `themes/<track>.ts` exporting a `TrackTheme`, and map the track's name in `themeFor`.
+2. Put prop positions in a plain-data `themes/<track>Layout.ts` and test them like Kruncar's.
+3. Reuse the builders in `scenery/` (`nature.ts`, `buildings.ts`, `trackside.ts`) and the textures in
+   `view/pixelTexture.ts` (tiny canvas textures, nearest filtering: the pixel look).

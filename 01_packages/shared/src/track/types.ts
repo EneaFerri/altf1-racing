@@ -21,6 +21,8 @@ export interface TrackDefinition {
   readonly points: readonly TrackPoint[];
   /** Distance from the asphalt edge to the wall (m). */
   readonly runoffWidth: number;
+  /** Low kerbs only in corners (default), or along both edges of the whole track. */
+  readonly kerbs?: 'corners' | 'everywhere';
   /** Ranges of control points whose corners get high kerbs on the inside. */
   readonly highKerbs: readonly { readonly fromPoint: number; readonly toPoint: number }[];
 }

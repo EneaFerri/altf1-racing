@@ -68,9 +68,11 @@ export function buildTrack(def: TrackDefinition): Track {
   };
   const toSamples = (metres: number): number => Math.round(metres / rules.sampleSpacing);
 
-  // Low kerbs: both sides of every real corner, extended a little before and after.
+  // Low kerbs: both sides of every real corner, extended a little before and after
+  // (or of every sample, on tracks with kerbs everywhere).
+  const kerbsEverywhere = def.kerbs === 'everywhere';
   samples.forEach((sample, i) => {
-    if (Math.abs(sample.curvature) < rules.kerbMinCurvature) return;
+    if (!kerbsEverywhere && Math.abs(sample.curvature) < rules.kerbMinCurvature) return;
     for (let k = -toSamples(rules.kerbExtension); k <= toSamples(rules.kerbExtension); k++) {
       const j = (((i + k) % n) + n) % n;
       kerb.left[j] = 'low';
