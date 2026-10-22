@@ -138,3 +138,19 @@ export function createTyreWallTexture(size = 16): THREE.Texture {
     true,
   );
 }
+
+/**
+ * Steering-wheel display: a row of shift lights (green, red, blue) over a dark screen.
+ * Shown on a wide rectangle, so each texel becomes a wide block.
+ */
+export function createWheelDisplayTexture(size = 8): THREE.Texture {
+  return createPixelTexture(size, (ctx) => {
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0, 0, size, size);
+    const lights = ['#2ecc40', '#2ecc40', '#2ecc40', '#ff4136', '#ff4136', '#0074d9'];
+    lights.forEach((color, i) => {
+      ctx.fillStyle = color;
+      ctx.fillRect(1 + i, 1, 1, 2);
+    });
+  });
+}

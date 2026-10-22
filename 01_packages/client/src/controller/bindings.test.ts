@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NEUTRAL_INPUT } from '@altf1/shared';
-import { inputFromKeys } from './bindings';
+import { ACTION_KEYS, DRIVE_KEYS, inputFromKeys, TICK_TRIGGER_KEYS } from './bindings';
 
 describe('inputFromKeys', () => {
   it('returns neutral input when nothing is held', () => {
@@ -28,5 +28,18 @@ describe('inputFromKeys', () => {
 
   it('cancels out opposite steering keys', () => {
     expect(inputFromKeys(new Set(['KeyA', 'KeyD'])).steer).toBe(0);
+  });
+});
+
+describe('key maps', () => {
+  it('toggles the camera with V', () => {
+    expect(ACTION_KEYS.toggleCamera).toEqual(['KeyV']);
+  });
+
+  it('never binds one key to two things', () => {
+    const all = [DRIVE_KEYS, TICK_TRIGGER_KEYS, ACTION_KEYS].flatMap((map) =>
+      Object.values(map).flat(),
+    );
+    expect(new Set(all).size).toBe(all.length);
   });
 });

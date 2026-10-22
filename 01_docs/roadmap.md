@@ -34,7 +34,9 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
      walls with anti-tunnelling and alignment assist, car-vs-car ("F1 arcade": momentum-conserving
      impulses, low friction, bounded non-stacking spin), impact events in `GameState.impacts`;
      parked dummy car (dev only, F4). Sparks and sounds come later. See `collisions.md`.
-5. **Cameras** — `FirstPersonCamera.ts`, `CameraRig.ts` (toggle V, speed-based FOV).
+5. ✅ **Cameras** — `CameraRig` (toggle V, speed-based FOV),
+   `ChaseCamera` adjustable live from the tuning panel (F2 → Camera), `FirstPersonCamera` with a
+   minimal cockpit (real nose + front wing, `CockpitView` steering wheel + thin cockpit sides, never covering the track).
 6. **HUD + laps** — `sim/laps.ts` (finish line + ordered checkpoints, times in ticks),
    `view/hud/Hud.ts` (speed, lap, last/best).
 7. **Feel pass** — tune together, freeze values in `config/car.ts`, update docs.

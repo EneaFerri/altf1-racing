@@ -104,3 +104,15 @@
   speed, the worst case stays under 30°.
 - No damage model: it would punish the player for the whole race, the opposite of the goal.
 - Drift slip above its cap (only possible after an impact) eases back instead of snapping the nose.
+
+## 2026-10-22 — Cameras: params in the client, cockpit glued to the camera
+
+- Camera values are view-only, so `CAMERA_PARAMS` lives in `client/src/view/cameras/params.ts`, not in
+  `shared/config` (which is for the simulation the server will run). It is tuned live from F2 like the
+  physics (owner's choice: panel sliders, not in-game keys).
+- First person shows the real nose + front wing (owner's request: judging direction and distances needs
+  real perspective, so it is world geometry, not an overlay), plus a steering wheel and thin cockpit
+  sides (owner's choice). A slim front tub in the car's colour (world geometry, first person only)
+  joins the nose to the wheel, which otherwise looked like it was floating. The wheel and sides are a camera child laid out in screen units, so they
+  cover a fixed small part of the screen at any window size or FOV. They are drawn with no depth test, so walls never cut through them
+  when scraping.

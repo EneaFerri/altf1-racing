@@ -91,7 +91,7 @@ export class DebugOverlay {
       `wheels    ${car.wheelSurfaces.map((s) => SURFACE_LABEL[s]).join(' ')}  (FL FR RL RR)`,
       `impact    ${this.impactText(state.tick)}`,
       '',
-      `R reset · F2 tuning · F3 overlay${import.meta.env.DEV ? ' · F4 dummy' : ''}`,
+      `R reset · V camera · F2 tuning · F3 overlay${import.meta.env.DEV ? ' · F4 dummy' : ''}`,
     ].join('\n');
   }
 

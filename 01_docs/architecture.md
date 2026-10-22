@@ -31,9 +31,23 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 
 - Reads state, never writes it.
 - `SceneView` keeps one `CarView` per car id (created when a car first appears, so opponents need
-  no extra wiring), interpolates each car's pose, and feeds the followed car to `ChaseCamera`.
+  no extra wiring), interpolates each car's pose, and feeds the followed car to the `CameraRig`.
+- **Cameras** (`view/cameras/`): `CameraRig` owns the single `PerspectiveCamera` and switches (V)
+  between `ChaseCamera` (behind the car, smoothed yaw only) and `FirstPersonCamera` (driver's eye,
+  locked to the car). Both get a **speed FOV** (`speedFov`: + `fovSpeedGain` degrees at
+  `fovSpeedRef`, smoothed). Values live in `view/cameras/params.ts` (`CAMERA_PARAMS`). They are
+  view-only, so they stay in the client, and `Game` passes a live copy that the tuning panel edits.
+- **Cockpit** (`CockpitView`): in first person the own car's body is hidden (the eye is inside it)
+  except its **nose and front wing**, and a slim front tub (first person only) links them down to the
+  steering wheel (`CarView.setFirstPerson`). These are real world geometry with
+  normal depth, so they show where the car points and how far lines, kerbs, walls and other cars really
+  are. On top of that, a small steering wheel (turns with the smoothed steer) and two thin cockpit sides
+  are drawn as an overlay.
+  They are attached to the camera and laid out in screen units (1 = half the screen height), so they
+  always cover the same small strip: the wheel stays in the bottom ~12% (centre), the sides in the
+  bottom corners. They are drawn last without depth test, so a wall can never cut through them.
 - `TrackView` builds asphalt, kerbs, high kerbs, gravel, tyre walls and the start line from the same
-  compiled `Track` the physics uses. Planned: first-person camera + toggle (step 5), HUD (step 6).
+  compiled `Track` the physics uses. Planned: HUD (step 6).
 - `frameSeconds` is used only for visual smoothing (camera, wheel spin), never for gameplay.
 - Pixel look: tiny textures with `NearestFilter`, no antialiasing, full-resolution render. A low-res
   render pass (whole scene pixelated) is not implemented; it remains a possible later option.
@@ -42,7 +56,8 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 
 - `bindings.ts`: key map + pure `inputFromKeys()`; `KeyboardController` samples it once per tick.
 - Bindings (now): W throttle · S or C brake/reverse · A/D steer · Space handbrake/drift · R reset ·
-  F2 tuning panel (dev) · F3 debug overlay · F4 park the dummy car ahead (dev). Planned: V camera.
+  V camera (chase / first person) · F2 tuning panel (dev) · F3 debug overlay · F4 park the dummy car
+  ahead (dev). No key may be bound twice (tested).
 - Three kinds of keys: **drive keys** (held, sampled per tick), **tick triggers** (`TICK_TRIGGER_KEYS`,
   e.g. R: pressed once, delivered as `InputCommand.reset = true` for exactly one tick, so the
   simulation handles them and they can travel over the network) and **actions** (below).
@@ -65,10 +80,11 @@ between them, so motion is smooth at any refresh rate even though the Model tick
   dependencies (verified: no lil-gui in the build output). Keeping the `import()` inside the `if`
   matters: moved to a separate method, Vite would still emit the chunk.
 - `TuningPanel` (F2): lil-gui sliders for every `CarParams` value (Engine & brakes / Steering & grip /
-  Drift), every `CollisionParams` value (Collisions) and every surface (Surfaces → grip, traction, drag,
-  bumpSpin). Mutates `Game`'s live params; **Copy as code** logs (and copies to the clipboard when
-  available) ready-to-paste `CAR_PARAMS`, `COLLISION_PARAMS` and `SURFACE_PARAMS`; **Reset to defaults**
-  restores the config files' values.
+  Drift), every `CollisionParams` value (Collisions), every `CameraParams` value (Camera → Chase /
+  First person / Speed FOV) and every surface (Surfaces → grip, traction, drag, bumpSpin). Mutates
+  `Game`'s live params; **Copy as code** logs (and copies to the clipboard when available)
+  ready-to-paste `CAR_PARAMS`, `COLLISION_PARAMS`, `SURFACE_PARAMS` and `CAMERA_PARAMS`; **Reset to
+  defaults** restores the original values.
 - **Dummy car**: in dev, `Game` adds a parked car (`'dummy'`, grid slot 2, no input) to crash into.
   F4 parks it 25 m ahead of the player on the centreline (`placeCarAhead` in `sim/game.ts`, pure, applied
   to both the current and previous state). Cars other than the followed one are drawn greyed out.

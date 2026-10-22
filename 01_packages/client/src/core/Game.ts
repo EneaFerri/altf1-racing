@@ -17,6 +17,7 @@ import {
   type SurfaceParams,
 } from '@altf1/shared';
 import { KeyboardController } from '../controller/KeyboardController';
+import { CAMERA_PARAMS } from '../view/cameras/params';
 import { DebugOverlay } from '../view/hud/DebugOverlay';
 import { SceneView } from '../view/SceneView';
 import { GameLoop } from './GameLoop';
@@ -42,6 +43,7 @@ export class Game {
   private readonly carParams: CarParams = { ...CAR_PARAMS };
   private readonly surfaceParams = copySurfaceParams();
   private readonly collisionParams = { ...COLLISION_PARAMS };
+  private readonly cameraParams = { ...CAMERA_PARAMS };
   private readonly ctx: SimContext = {
     track: this.track,
     carParams: this.carParams,
@@ -50,7 +52,7 @@ export class Game {
   };
 
   private readonly controller = new KeyboardController();
-  private readonly view = new SceneView(this.track, PLAYER_ID);
+  private readonly view = new SceneView(this.track, PLAYER_ID, this.cameraParams);
   private readonly debugOverlay = new DebugOverlay();
   private readonly loop = new GameLoop({
     tick: () => this.tick(),
@@ -59,11 +61,17 @@ export class Game {
 
   constructor() {
     this.controller.onAction('toggleDebug', () => this.debugOverlay.toggle());
+    this.controller.onAction('toggleCamera', () => this.view.toggleCamera());
     // Dev tools (and lil-gui) are dynamically imported inside this block so that
     // production builds, where the condition is a constant `false`, drop them entirely.
     if (import.meta.env.DEV) {
       void import('../dev/TuningPanel').then(({ TuningPanel }) => {
-        const panel = new TuningPanel(this.carParams, this.surfaceParams, this.collisionParams);
+        const panel = new TuningPanel(
+          this.carParams,
+          this.surfaceParams,
+          this.collisionParams,
+          this.cameraParams,
+        );
         this.controller.onAction('toggleTuning', () => panel.toggle());
       });
       this.controller.onAction('placeDummy', () => {

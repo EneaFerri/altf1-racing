@@ -8,6 +8,7 @@ import {
   type Surface,
   type SurfaceParams,
 } from '@altf1/shared';
+import { CAMERA_PARAMS, type CameraParams } from '../view/cameras/params';
 
 type Range = readonly [min: number, max: number, step: number];
 
@@ -62,6 +63,28 @@ const COLLISION_RANGES: Record<keyof CollisionParams, Range> = {
   solverIterations: [1, 8, 1],
 };
 
+const CAMERA_GROUPS: Record<string, Partial<Record<keyof CameraParams, Range>>> = {
+  Chase: {
+    distance: [2, 20, 0.1],
+    height: [0.5, 10, 0.1],
+    lookAhead: [-5, 20, 0.1],
+    lookHeight: [0, 5, 0.1],
+    yawStiffness: [0.5, 30, 0.5],
+    fov: [40, 110, 1],
+  },
+  'First person': {
+    eyeAhead: [-2, 2, 0.05],
+    eyeHeight: [0.4, 2, 0.05],
+    pitch: [-0.4, 0.2, 0.01],
+    povFov: [40, 120, 1],
+  },
+  'Speed FOV': {
+    fovSpeedGain: [0, 30, 0.5],
+    fovSpeedRef: [10, 90, 1],
+    fovStiffness: [0.5, 20, 0.5],
+  },
+};
+
 const SURFACE_RANGES: Record<keyof SurfaceParams, Range> = {
   grip: [0, 1.5, 0.01],
   traction: [0, 1.5, 0.01],
@@ -80,6 +103,7 @@ export class TuningPanel {
     private readonly carParams: CarParams,
     private readonly surfaceParams: Record<Surface, SurfaceParams>,
     private readonly collisionParams: CollisionParams,
+    private readonly cameraParams: CameraParams,
   ) {
     for (const [title, ranges] of Object.entries(CAR_GROUPS)) {
       const folder = this.gui.addFolder(title);
@@ -94,6 +118,17 @@ export class TuningPanel {
       Range,
     ][]) {
       collisions.add(collisionParams, key, min, max, step);
+    }
+
+    const camera = this.gui.addFolder('Camera').close();
+    for (const [title, ranges] of Object.entries(CAMERA_GROUPS)) {
+      const folder = camera.addFolder(title);
+      for (const [key, [min, max, step]] of Object.entries(ranges) as [
+        keyof CameraParams,
+        Range,
+      ][]) {
+        folder.add(cameraParams, key, min, max, step);
+      }
     }
 
     const surfaces = this.gui.addFolder('Surfaces');
@@ -119,19 +154,23 @@ export class TuningPanel {
   private reset(): void {
     Object.assign(this.carParams, CAR_PARAMS);
     Object.assign(this.collisionParams, COLLISION_PARAMS);
+    Object.assign(this.cameraParams, CAMERA_PARAMS);
     for (const [surface, params] of Object.entries(SURFACE_PARAMS)) {
       Object.assign(this.surfaceParams[surface as Surface], params);
     }
     for (const controller of this.gui.controllersRecursive()) controller.updateDisplay();
   }
 
-  /** Copies the current values as ready-to-paste code for config/car.ts, collision.ts and surfaces.ts. */
+  /** Copies the current values as ready-to-paste code for the config files and the camera params. */
   private copyAsCode(): void {
     const round = (value: number): number => Number(value.toFixed(4));
     const carLines = Object.entries(this.carParams).map(
       ([key, value]) => `  ${key}: ${round(value as number)},`,
     );
     const collisionLines = Object.entries(this.collisionParams).map(
+      ([key, value]) => `  ${key}: ${round(value as number)},`,
+    );
+    const cameraLines = Object.entries(this.cameraParams).map(
       ([key, value]) => `  ${key}: ${round(value as number)},`,
     );
     const surfaceLines = Object.entries(this.surfaceParams).map(
@@ -147,6 +186,9 @@ export class TuningPanel {
       '',
       '// config/surfaces.ts',
       `export const SURFACE_PARAMS: Record<Surface, SurfaceParams> = {\n${surfaceLines.join('\n')}\n};`,
+      '',
+      '// client: view/cameras/params.ts',
+      `export const CAMERA_PARAMS: CameraParams = {\n${cameraLines.join('\n')}\n};`,
       '',
     ].join('\n');
     // The clipboard API needs a secure context (localhost is fine, a Tailscale IP over http is not).

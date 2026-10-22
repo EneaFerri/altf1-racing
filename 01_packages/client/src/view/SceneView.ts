@@ -10,7 +10,8 @@ import {
   type GameState,
   type Track,
 } from '@altf1/shared';
-import { ChaseCamera } from './cameras/ChaseCamera';
+import { CameraRig } from './cameras/CameraRig';
+import type { CameraParams } from './cameras/params';
 import { CarView, type CarPose } from './CarView';
 import { createGroundTexture } from './pixelTexture';
 import { createTrackView } from './TrackView';
@@ -26,26 +27,28 @@ const GROUND_TILE = 2;
 export class SceneView {
   private readonly renderer = createRenderer();
   private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(
-    70,
-    window.innerWidth / window.innerHeight,
-    0.3,
-    300,
-  );
   private readonly cars = new Map<CarId, CarView>();
-  private readonly chaseCamera = new ChaseCamera(this.camera);
+  private readonly cameraRig: CameraRig;
 
-  /** `followId`: the car the camera follows (the local player). */
+  /** `followId`: the car the camera follows (the local player). `cameraParams` are read live. */
   constructor(
     track: Track,
     private readonly followId: CarId,
+    cameraParams: CameraParams,
   ) {
+    this.cameraRig = new CameraRig(cameraParams);
     this.scene.background = new THREE.Color(SKY_COLOR);
     // Fog hides the ground's edge and gives depth.
     this.scene.fog = new THREE.Fog(SKY_COLOR, 60, 250);
     this.scene.add(new THREE.HemisphereLight('#ffffff', '#444444', 2.5));
-    this.scene.add(createGround(), createTrackView(track));
-    bindResize(this.renderer, this.camera);
+    // The camera is in the scene so the cockpit attached to it gets drawn.
+    this.scene.add(createGround(), createTrackView(track), this.cameraRig.camera);
+    bindResize(this.renderer, this.cameraRig.camera);
+  }
+
+  /** Switches between the chase and the first-person camera. */
+  toggleCamera(): void {
+    this.cameraRig.toggle();
   }
 
   /** Draws the world `alpha` of the way from `prev` to `curr`. */
@@ -53,10 +56,14 @@ export class SceneView {
     for (const car of curr.cars) {
       const before = prev.cars.find((c) => c.id === car.id) ?? car;
       const pose = interpolateCar(before, car, alpha);
-      this.carView(car.id).update(pose, frameSeconds);
-      if (car.id === this.followId) this.chaseCamera.update(pose, frameSeconds);
+      const view = this.carView(car.id);
+      view.update(pose, frameSeconds);
+      if (car.id === this.followId) {
+        this.cameraRig.update(pose, frameSeconds);
+        view.setFirstPerson(this.cameraRig.mode === 'pov');
+      }
     }
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.scene, this.cameraRig.camera);
   }
 
   /** CarView for `id`, created the first time the car appears (opponents can join any time). */
