@@ -42,8 +42,10 @@ export function botInput(
     ]!;
   const next = indexAhead(track, here, travel * BOT_DRIVER.speedLookAheadTime);
   const target = plan.speed[next]!;
-  const curve = plan.curvature[indexAhead(track, here, travel * BOT_DRIVER.driftLookAheadTime)]!;
-  const drift = wantsDrift(car, plan, curve, travel);
+  const curveAt = indexAhead(track, here, travel * BOT_DRIVER.driftLookAheadTime);
+  const curve = plan.curvature[curveAt]!;
+  // A new drift only where the plan allows one (not right after a corner the other way).
+  const drift = (car.drifting || plan.driftOk[curveAt]!) && wantsDrift(car, plan, curve, travel);
 
   // In a drift the nose points into the corner, so aim with the direction of travel instead.
   const facing = car.drifting ? headingOf(car.velocity) : car.heading;

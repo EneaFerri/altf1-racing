@@ -51,16 +51,18 @@ Conventions (units, axes, heading): see [physics.md](physics.md). Time is counte
    bot's times. Starts on Medium. See `bot.md`.
    - 8b ✅ **Track menu** — start screen (`view/menu/TrackMenu.ts`) listing every track in `TRACKS`
      (`track/layouts/index.ts`) with its length; mouse or W/S + Enter. Esc in a race goes back to it
-     (page reload). The Test Ring stays selectable; "Kruncar" is listed greyed out until step 9a.
+     (page reload). The Test Ring stays selectable.
 
 9. **Tracks: Kruncar first, then Monza, Barcelona, Monaco** — four new `TrackDefinition`s in
    `track/layouts/`, each added to `TRACKS` (so it appears in the menu), passing the layout tests,
    with its section in `track.md` and its sector gantries (fixed rule). The bot (step 8) must lap every track.
-   - 9a **Kruncar** — inspired by the owner's Krunker.io map "Kruncar"
-     (https://krunker.io/?game=FRA:qtesb). Target: **Hard bot laps in 40–45 s** (2 laps ≈ 1:25),
-     i.e. roughly 2.8–3.1 km at Hard's Test Ring pace, then checked by a bot lap test. Needs the map's
-     layout from the owner (editor JSON export or top-down screenshots + route, direction, start line).
-     Elevation is flattened (2D sim), width scaled to ≥ 24 m.
+   - 9a.1 ✅ **Kruncar layout** — inspired by the Krunker.io map "KrunCar" by Keybi
+     (https://krunker.io/?game=FRA:qtesb), from the owner's corner sequence and screenshots; ~2.56 km,
+     24–32 m, high kerbs in the narrow wooden section. Hard bot 45.0 s (target ~45 s), Medium 50.3 s,
+     Easy 63.8 s. Bot fix found on the way: no drift right after an opposite corner (Test Ring Hard
+     27.8 → 28.6 s, still under the owner's 29 s). Layout and bot tests now run on every track.
+   - 9a.2 **Kruncar scenery** — river and wooden bridges, grandstands on the main straight, hay bales,
+     barn, covered bridge (view only; narrow bridge walls may need per-section run-off in `track/`).
    - 9b–d **Monza, Barcelona, Monaco** — inspired by the real circuits (their character, not 1:1
      copies: scaled to our ≥ 24 m width and arcade speeds).
 

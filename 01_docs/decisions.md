@@ -170,9 +170,22 @@
 ## 2026-10-22 — Track menu before step 9
 
 - Owner's choice: the Test Ring stays playable next to the new tracks, and the track is picked in a
-  small start menu instead of with a key. The first new track is "Kruncar", from the owner's own
-  Krunker.io map, sized so the Hard bot laps it in 40–45 s.
+  small start menu instead of with a key. The first new track is "Kruncar", inspired by a
+  Krunker.io map ("KrunCar" by Keybi), sized so the Hard bot laps it in 40–45 s.
 - The track list (`TRACKS`) lives in `shared`, not in the client: the server will offer the same tracks.
 - Esc goes back to the menu with a page reload rather than tearing `Game` down: the renderer, the
   listeners and the dev panel all go away for free, and there is no state worth keeping yet.
   Revisit when there is (settings, multiplayer session).
+
+## 2026-10-22 — Kruncar: layout from screenshots, bot drift rule
+
+- No map file is available (the owner isn't the map's author, so the Krunker editor can't export it):
+  the layout comes from the owner's description of the corner order and 14 in-game screenshots.
+  The screenshots stay local (`02_screen_krunkerMap/`, git-ignored, ~22 MB).
+- Layout drafted as straights + circular arcs, then closed by solving two straight lengths, and sized
+  by measuring the Hard bot until it lapped in ~45 s (owner's target). Shape first (9a.1), scenery
+  later (9a.2), so the geometry can be reviewed on its own.
+- The Hard bot drifted wide in corners right after a corner the other way (the drift's turn blends
+  in from the current one). Fixed in the bot (no drift within 100 m after an opposite corner) rather
+  than by bending the track around it: every future track has esses. Cost: Test Ring Hard 27.8 →
+  28.6 s, still faster than the owner's 29 s, so the Test Ring bound became "< 29 s".

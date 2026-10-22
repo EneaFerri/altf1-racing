@@ -63,6 +63,10 @@ export const BOT_DRIVER = {
   driftLookAheadTime: 0.45,
   /** A drift continues while the corner needs at least this share of the drift's slowest turn rate. */
   driftKeepShare: 1,
+  /** No drift is planned or started within this distance (m) after a corner the other way ... */
+  driftBuildDistance: 100,
+  /** ... where a corner means a racing-line curvature above this (1/m, radius under 100 m). */
+  oppositeCornerCurvature: 0.01,
   /** In a drift, extra turn rate (rad/s) per radian between the direction of travel and the aim point. */
   driftAimGain: 3,
   /** Room kept between the racing line and the asphalt edge (m). */

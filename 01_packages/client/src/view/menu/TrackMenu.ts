@@ -1,9 +1,6 @@
 import { buildTrack, type TrackDefinition } from '@altf1/shared';
 import './menu.css';
 
-/** Tracks announced in the menu but not drivable yet (shown greyed out). Removed once they exist. */
-const COMING_SOON: readonly string[] = ['Kruncar'];
-
 const UP_KEYS = ['KeyW', 'ArrowUp'];
 const DOWN_KEYS = ['KeyS', 'ArrowDown'];
 const CONFIRM_KEYS = ['Enter', 'NumpadEnter', 'Space'];
@@ -27,16 +24,7 @@ export class TrackMenu {
       row.addEventListener('click', () => this.confirm(index));
       return row;
     });
-    const soon = COMING_SOON.map((name) => {
-      const row = trackRow(name, 'coming soon');
-      row.disabled = true;
-      return row;
-    });
-    panel.append(
-      ...this.rows,
-      ...soon,
-      element('p', 'menu-hint', 'W/S · Enter — Esc in race: back here'),
-    );
+    panel.append(...this.rows, element('p', 'menu-hint', 'W/S · Enter — Esc in race: back here'));
     this.root.append(panel);
     this.select(0);
   }

@@ -82,7 +82,7 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 ## Startup — `01_packages/client/src/main.ts`
 
 - `main.ts` shows the **track menu** (`view/menu/TrackMenu.ts` + `menu.css`): every entry of
-  `TRACKS` (`shared/src/track/layouts/index.ts`) with its length, plus greyed "coming soon" names.
+  `TRACKS` (`shared/src/track/layouts/index.ts`) with its length (Test Ring, Kruncar).
   Mouse, or W/S (↑/↓) + Enter. The chosen `TrackDefinition` goes to `new Game(track)`, which builds
   the `Track` and everything that depends on it.
 - **Esc** in a race (`backToMenu` action) reloads the page, which brings the menu back.

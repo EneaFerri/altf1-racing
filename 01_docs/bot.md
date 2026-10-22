@@ -36,6 +36,12 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
      `driftTurnRate · (1 + driftSteerInfluence)` whatever the speed, so it can carry
      `driftUse ·` that rate `/ curvature`. Each point takes the faster of the two, capped at
      `topSpeed · maxSpeed`. All from `CarParams`, so retuning the car keeps the bot valid.
+   - **No drift right after an opposite corner** (`driftZones`): a drift's turn blends in from the
+     turn the car is already taking, so within `driftBuildDistance` (100 m) after a corner the other
+     way (racing-line curvature above `oppositeCornerCurvature`, radius < 100 m) it builds too late and
+     runs wide. There the plan uses grip speed only and the driver doesn't start a drift. Found on
+     Kruncar (right-left esses, hairpins in a row): without it Hard hit walls; it costs 0.75 s on
+     the Test Ring's chicane.
    - **Braking**: a backward pass round the loop limits each point to what `brakeUse · brakeDecel`
      can bring down to the next point's speed.
 2. **Each tick** (`ai/driver.ts`, `botInput`):
@@ -46,7 +52,8 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
    - **Drift** (Space, like a player), decided on the speed the car really has: the corner
      `speed · driftLookAheadTime` metres ahead needs a turn rate of `speed · curvature`. If grip can't
      give it but a drift can (a drift never turns slower than `driftTurnRate · (1 − driftSteerInfluence)`),
-     the bot enters with full lock into the corner, which locks the drift's side. Inside the drift it
+     the bot enters with full lock into the corner, which locks the drift's side. A new drift is only
+     started where the plan allows one (`driftOk`, below). Inside the drift it
      steers to make the direction of travel turn exactly as fast as needed, plus `driftAimGain` per
      radian towards the aim point, and it lets go once the corner needs less than `driftKeepShare` of
      the drift's slowest turn. (Planning drift zones in advance from the planned speed was tried first:
@@ -70,18 +77,31 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
 - Hard uses _less_ width than Medium: a drifting car swings its tail wider, and with the full width
   it put wheels on the grass at corner exits. 0.5 is both the fastest and the cleanest measured.
 
-## Measured behaviour (Test Ring, bot alone, baseline v1 car)
+## Measured behaviour (bot alone, baseline v1 car)
 
-| Level  | Lap    | Notes                                                      |
-| ------ | ------ | ---------------------------------------------------------- |
-| Hard   | 27.8 s | Drifts ~11% of the lap, never a wheel off the asphalt      |
-| Medium | 34.1 s | Grip only, the whole width: the grip-only limit is ~33.2 s |
-| Easy   | 40.3 s | +18% on Medium                                             |
+### Test Ring
+
+| Level  | Lap    | Notes                                                                                         |
+| ------ | ------ | --------------------------------------------------------------------------------------------- |
+| Hard   | 28.6 s | Drifts, never a wheel off the asphalt (27.8 s before the no-drift-after-opposite-corner rule) |
+| Medium | 34.1 s | Grip only, the whole width: the grip-only limit is ~33.2 s                                    |
+| Easy   | 40.3 s | +18% on Medium                                                                                |
 
 The owner's best lap is 29 s (with drifts): Medium is a calm opponent, Hard is faster than the owner
 on purpose. Without its performance edge Hard would do 28.4 s; with +5% it does 27.4 s.
 
-Tests (`ai/bot.test.ts`): clean laps on every level, lap-time bands, drift only on Hard, Hard never
+### Kruncar
+
+| Level  | Lap    | Notes                                                     |
+| ------ | ------ | --------------------------------------------------------- |
+| Hard   | 45.0 s | The owner's target (~45 s); never a wheel off the asphalt |
+| Medium | 50.3 s |                                                           |
+| Easy   | 63.8 s |                                                           |
+
+The Hard bot is sensitive to the layout: small changes to hairpin radii or widths put wheels on the
+grass on some exits. The tests catch it; widen the exit or re-measure when editing a track.
+
+Tests (`ai/bot.test.ts`): clean laps on every level of every track in `TRACKS`, lap-time bands, drift only on Hard, Hard never
 off the asphalt, line inside the asphalt, recovery from a car parked on its line, stuck → reset,
 determinism.
 

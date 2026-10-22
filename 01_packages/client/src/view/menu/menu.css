@@ -76,11 +76,6 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
-.menu-row:disabled {
-  color: var(--menu-dim);
-  cursor: default;
-}
-
 .menu-name {
   font-weight: 800;
 }

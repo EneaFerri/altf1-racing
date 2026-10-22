@@ -56,13 +56,14 @@ npm run format     # Prettier
 npm run build      # production build of the client
 ```
 
-## Generated files (never edit, all git-ignored except the lockfile)
+## Generated and local files (never edit, all git-ignored except the lockfile)
 
 - `node_modules/` — installed libraries. Only one, at the root; Vite's cache lives in
   `node_modules/.vite` (`cacheDir` in `01_packages/client/vite.config.ts`). No package may get its own.
 - `01_packages/*/dist/` — output of `npm run build`; safe to delete anytime.
 - `package-lock.json` — exact dependency versions. **Committed**, never hand-edited.
 - `.DS_Store` — macOS Finder metadata.
+- `02_screen_krunkerMap/` — local reference screenshots of the Krunker map Kruncar is based on (owner's, ~22 MB).
 
 `.vscode/settings.json` hides `node_modules`, `dist` and `.DS_Store` from the VS Code file tree.
 
@@ -80,4 +81,4 @@ npm run build      # production build of the client
 
 ## Current status
 
-Phase 1, step 8b done (start menu to pick the track; Test Ring playable, "Kruncar" listed as coming soon). Next: step 9a, the Kruncar track from the owner's Krunker.io map (Hard bot lap 40–45 s), then Monza, Barcelona, Monaco (see roadmap).
+Phase 1, step 9a.1 done (Kruncar layout, ~2.56 km, Hard bot 45.0 s; bot no longer drifts right after an opposite corner). Next: step 9a.2, Kruncar scenery, then Monza, Barcelona, Monaco (see roadmap).

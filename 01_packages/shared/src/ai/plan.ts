@@ -14,6 +14,8 @@ export interface BotPlan {
   readonly speed: readonly number[];
   /** Signed curvature of the racing line (1/m, + = right turn), per sample. */
   readonly curvature: readonly number[];
+  /** Per sample: may the bot drift here? False shortly after a corner the other way (`driftZones`). */
+  readonly driftOk: readonly boolean[];
   /** The bot's own car (`botCarParams`) and level, which the driver needs to judge when to drift. */
   readonly car: CarParams;
   readonly bot: BotParams;
@@ -48,10 +50,14 @@ export function buildBotPlan(track: Track, player: CarParams, bot: BotParams): B
 
   const topSpeed = bot.topSpeed * car.maxSpeed;
   const curvature = line.map((_, i) => lineCurvature(line, i, at));
-  const speed = curvature.map((k) =>
+  const driftOk = driftZones(curvature, track);
+  const speed = curvature.map((k, i) =>
     Math.min(
       topSpeed,
-      Math.max(cornerSpeed(Math.abs(k), car, bot), driftSpeed(Math.abs(k), car, bot)),
+      Math.max(
+        cornerSpeed(Math.abs(k), car, bot),
+        driftOk[i] ? driftSpeed(Math.abs(k), car, bot) : 0,
+      ),
     ),
   );
 
@@ -64,7 +70,7 @@ export function buildBotPlan(track: Track, player: CarParams, bot: BotParams): B
     const reachable = Math.sqrt(speed[next]! ** 2 + 2 * decel * distance(line[i]!, line[next]!));
     if (reachable < speed[i]!) speed[i] = reachable;
   }
-  return { lateral, line, speed, curvature, car, bot };
+  return { lateral, line, speed, curvature, driftOk, car, bot };
 }
 
 /** Signed curvature (1/m, + = right) of the racing line at point `i`, over two samples each side. */
@@ -95,6 +101,28 @@ export function gripYawRate(car: CarParams, speed: number): number {
 function cornerSpeed(curvature: number, car: CarParams, bot: BotParams): number {
   const yaw = bot.cornerSpeed * car.maxYawRate;
   return yaw / (curvature + (yaw * car.highSpeedSteerLoss) / car.maxSpeed);
+}
+
+/**
+ * Where a drift can be planned: not within `driftBuildDistance` after a corner the other way.
+ * A drift's turn blends in from the turn the car is already taking, so straight after an opposite
+ * corner it builds too late and runs wide; there the bot takes the corner in grip.
+ */
+function driftZones(curvature: readonly number[], track: Track): boolean[] {
+  const n = curvature.length;
+  const back = Math.round((BOT_DRIVER.driftBuildDistance * n) / track.length);
+  return curvature.map((k, i) => {
+    for (let d = 1; d <= back; d++) {
+      const before = curvature[(i - d + n) % n]!;
+      if (
+        Math.abs(before) > BOT_DRIVER.oppositeCornerCurvature &&
+        Math.sign(before) !== Math.sign(k)
+      ) {
+        return false;
+      }
+    }
+    return true;
+  });
 }
 
 /**

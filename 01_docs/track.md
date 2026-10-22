@@ -107,6 +107,39 @@ Tests (`track/buildTrack.test.ts`) guard the layout: closed loop of ~2 km, never
 (and the width really varies), walls never fold back, distant sections keep their run-offs apart,
 kerbs only in corners, high kerbs only in the chicane.
 
+## Kruncar (`track/layouts/kruncar.ts`)
+
+"Kruncar", ~2.56 km, clockwise, **24–32 m wide**, 10 m run-off. Inspired by the Krunker.io map
+"KrunCar" by Keybi (https://krunker.io/?game=FRA:qtesb): the owner's description of the corner
+sequence plus 14 screenshots (kept locally in `02_screen_krunkerMap/`, git-ignored). Not a 1:1 copy:
+Krunker's square 90° corners become round ones (radius ≥ 45 m, ≥ 42 m in the wooden section) so the
+walls never fold, elevation is flattened (2D sim), widths follow our ≥ 24 m rule.
+Sized for the owner's target: **Hard bot ≈ 45 s a lap** (the Krunker record is 1:25.4 for 2 laps).
+
+Corners are circular arcs sampled every 30°: with uneven spacing the spline tightens between points
+and the walls fold. The layout was drafted with a turtle script (straights + arcs) and closed by
+solving two straight lengths; edit it the same way, keeping arc points evenly spaced.
+
+| Points | Section (Krunker landmark)                                                  | Width   |
+| ------ | --------------------------------------------------------------------------- | ------- |
+| 0–3    | Main straight between the grandstands, start line at point 0                | 32 m    |
+| 4–10   | 90° right, immediately 90° left                                             | 30 m    |
+| 11–17  | Short straight into the first hairpin (180° right), wide for braking        | 28→32 m |
+| 18–19  | Straight over the plank bridge (river)                                      | 26 m    |
+| 20–24  | S-bend (left, immediately right), short straight                            | 26→28 m |
+| 25–28  | Right, a bit of straight                                                    | 28 m    |
+| 29–34  | Second hairpin (180° left)                                                  | 28 m    |
+| 35–36  | Straight along the barn and the hay bales                                   | 28 m    |
+| 37–42  | Third hairpin (180° right)                                                  | 30 m    |
+| 43–55  | **Wooden section**: covered bridge + ramp, left-right steps, **high kerbs** | 24 m    |
+| 56–65  | Straight, then left, right onto the main straight's line, left              | 28 m    |
+| 66     | Over the bridge to the line                                                 | 30 m    |
+
+Bot laps (alone, baseline v1 car): Hard 45.0 s, Medium 50.3 s, Easy 63.8 s, all clean.
+Scenery (river, wooden bridges, grandstands, hay bales, barn) is step 9a.2.
+Tests (`track/buildTrack.test.ts`): every track in `TRACKS` passes the generic layout checks; Kruncar
+also checks its length and that high kerbs and the 24 m minimum are only in the wooden section.
+
 ## Making a new track
 
 1. Copy `layouts/testTrack.ts`, change `name` and `points` (driving order, closed loop, no crossings),
@@ -119,5 +152,5 @@ kerbs only in corners, high kerbs only in the chicane.
    that array, in order), then run the tests.
 5. Add a section for it in this doc, like the Test Ring table above.
 
-Planned (Phase 1 step 9, see [roadmap.md](roadmap.md)): first "Kruncar", inspired by the owner's
-Krunker.io map (Hard bot lap 40–45 s), then Monza, Barcelona and Monaco inspired layouts.
+Planned (Phase 1 step 9, see [roadmap.md](roadmap.md)): Kruncar's scenery (9a.2), then Monza,
+Barcelona and Monaco inspired layouts.
