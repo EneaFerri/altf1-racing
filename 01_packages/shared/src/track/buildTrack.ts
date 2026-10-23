@@ -21,11 +21,23 @@ import type {
  */
 export function buildTrack(def: TrackDefinition): Track {
   const rules = TRACK_RULES;
+  const minWidth = def.minWidth ?? rules.minWidth;
   def.points.forEach(({ width }, i) => {
-    if (width < rules.minWidth) {
-      throw new Error(`${def.name}: point ${i} is ${width} m wide, minimum is ${rules.minWidth} m`);
+    if (width < minWidth) {
+      throw new Error(`${def.name}: point ${i} is ${width} m wide, minimum is ${minWidth} m`);
     }
   });
+  const sectorPoints = def.sectorPoints;
+  if (
+    sectorPoints &&
+    (sectorPoints.length !== rules.sectorCount - 1 ||
+      sectorPoints.some((p, i) => p <= (i === 0 ? 0 : sectorPoints[i - 1]!)) ||
+      sectorPoints.some((p) => p >= def.points.length))
+  ) {
+    throw new Error(
+      `${def.name}: sectorPoints must be ${rules.sectorCount - 1} increasing control points after 0`,
+    );
+  }
   for (const branch of def.branches ?? []) {
     branch.points.forEach(({ width }, i) => {
       if (width < rules.minShortcutWidth) {
@@ -75,7 +87,8 @@ function compileRoute(def: TrackDefinition, branch: TrackBranch, route: number, 
     }
     return [];
   });
-  const loop = compileLoop({ ...def, points, highKerbs }, route);
+  // Sectors are timed on main-loop progress: the route reuses the main loop's (set below).
+  const loop = compileLoop({ ...def, points, highKerbs, sectorPoints: undefined }, route);
   const sampleAt = (control: number, of: Loop): TrackSample =>
     of.track.samples[of.controlIndices[control]!]!;
   const span = {
@@ -87,6 +100,7 @@ function compileRoute(def: TrackDefinition, branch: TrackBranch, route: number, 
   const progress = (d: number): number => routeProgress(span, d);
   return {
     ...loop.track,
+    sectorStarts: main.track.sectorStarts,
     walls: loop.track.walls.map((w) => ({ ...w, progress: progress(w.progress) })),
     branch: span,
     routes: [],
@@ -215,7 +229,10 @@ function compileLoop(def: TrackDefinition, route: number): Loop {
     name: def.name,
     maxHalfWidth: Math.max(...samples.map((s) => s.halfWidth)),
     runoffWidth: def.runoffWidth,
+    kerbInset: def.kerbBand?.inset ?? rules.kerbInset,
+    kerbOutset: def.kerbBand?.outset ?? rules.kerbOutset,
     length,
+    sectorStarts: sectorStarts(def, samples, controlIndices, length),
     samples,
     sides: {
       left: { kerb: kerb.left, runoff: runoff.left },
@@ -227,6 +244,22 @@ function compileLoop(def: TrackDefinition, route: number): Loop {
     routes: [],
   };
   return { track, controlIndices };
+}
+
+/** Where each timing sector starts: at the declared control points, or every length / count. */
+function sectorStarts(
+  def: TrackDefinition,
+  samples: readonly TrackSample[],
+  controlIndices: readonly number[],
+  length: number,
+): number[] {
+  const ends = def.sectorPoints
+    ? def.sectorPoints.map((p) => samples[controlIndices[p]!]!.distance)
+    : Array.from(
+        { length: TRACK_RULES.sectorCount - 1 },
+        (_, i) => ((i + 1) * length) / TRACK_RULES.sectorCount,
+      );
+  return [0, ...ends];
 }
 
 /** Width at spline parameter `param`, eased between control points so edges stay smooth. */

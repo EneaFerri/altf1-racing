@@ -28,10 +28,11 @@ describe.each(TRACKS.map((definition) => [definition.name, definition] as const)
       );
     });
 
-    it('is never narrower than the minimum width, and the width varies', () => {
+    it('is never narrower than its minimum width, and the width varies', () => {
       const widths = track.samples.map((s) => s.halfWidth * 2);
-      expect(Math.min(...widths)).toBeGreaterThanOrEqual(TRACK_RULES.minWidth - 1e-9);
-      expect(Math.max(...widths)).toBeGreaterThan(Math.min(...widths) + 4);
+      const minWidth = definition.minWidth ?? TRACK_RULES.minWidth;
+      expect(Math.min(...widths)).toBeGreaterThanOrEqual(minWidth - 1e-9);
+      expect(Math.max(...widths)).toBeGreaterThan(Math.min(...widths) + 2);
     });
 
     it('has walls that never fold back on themselves', () => {
@@ -86,6 +87,16 @@ describe.each(TRACKS.map((definition) => [definition.name, definition] as const)
         expect(side).toBe(s.curvature > 0 ? 'right' : 'left');
       }
     });
+
+    // Real circuits (they declare their own minimum width): only normal kerbs, wider (owner's rule).
+    it.runIf(definition.minWidth !== undefined)(
+      'has only normal, wide kerbs (real circuit)',
+      () => {
+        expect(highKerbs(track)).toHaveLength(0);
+        expect(track.kerbOutset).toBeGreaterThan(TRACK_RULES.kerbOutset);
+        expect(track.kerbInset).toBeGreaterThan(TRACK_RULES.kerbInset);
+      },
+    );
   },
 );
 
@@ -100,6 +111,21 @@ describe('buildTrack (test track)', () => {
   it('rejects a definition narrower than the minimum width', () => {
     const narrow = { ...TEST_TRACK, points: TEST_TRACK.points.map((p) => ({ ...p, width: 12 })) };
     expect(() => buildTrack(narrow)).toThrow(/minimum/);
+    // A real circuit declares its own minimum.
+    expect(() => buildTrack({ ...narrow, minWidth: 12 })).not.toThrow();
+  });
+
+  it('splits the lap into equal sectors unless the track places them', () => {
+    const third = track.length / TRACK_RULES.sectorCount;
+    expect(track.sectorStarts).toEqual([0, third, 2 * third]);
+    const placed = buildTrack({ ...TEST_TRACK, sectorPoints: [3, 16] });
+    const at = (point: number) => locateOnTrack(placed, TEST_TRACK.points[point]!.at).distance;
+    expect(placed.sectorStarts[0]).toBe(0);
+    // Within one sample of the control point.
+    expect(Math.abs(placed.sectorStarts[1]! - at(3))).toBeLessThan(TRACK_RULES.sampleSpacing);
+    expect(Math.abs(placed.sectorStarts[2]! - at(16))).toBeLessThan(TRACK_RULES.sampleSpacing);
+    expect(() => buildTrack({ ...TEST_TRACK, sectorPoints: [16, 3] })).toThrow(/sectorPoints/);
+    expect(() => buildTrack({ ...TEST_TRACK, sectorPoints: [3] })).toThrow(/sectorPoints/);
   });
 
   it('places high kerbs only in the chicane', () => {

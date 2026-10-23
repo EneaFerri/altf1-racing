@@ -11,8 +11,11 @@ the next one. There are no start lights and no finish (a race mode can come late
 
 ## Sectors = checkpoints
 
-- `TRACK_RULES.sectorCount` (3) sectors of equal length along the centreline. Sector `k` ends at
-  `(k + 1) · length / 3`; the last one ends on the start line (distance 0, sample 0).
+- `TRACK_RULES.sectorCount` (3) sectors. They start at `Track.sectorStarts` (the first at 0, the
+  start line); `sectorEnd(k, track)` is where the next one starts, the last one ending on the line.
+  By default sectors have equal length; a track can place them at control points
+  (`TrackDefinition.sectorPoints`): the real circuits use their real sector positions (see
+  [circuits.md](circuits.md)).
 - Every tick, after collisions, `stepGame` gives each car's `LapState` its new progress
   (`locateOnTrack(position).distance`).
 - **Crossing rule**: progress change `delta` is wrapped into (−L/2, L/2], and only forward movement

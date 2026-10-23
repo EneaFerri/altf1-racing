@@ -79,11 +79,22 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
 Without drift the zigzag shortcut barely pays off for the bot: Hard is only 0.4 s ahead of Medium
 on the wide road (its line keeps to the middle of the narrow zigzag).
 
+### Real circuits
+
+Hard laps in the real 2025 pole time by construction (each circuit's scale is calibrated for it);
+all levels' laps and sectors vs reality: [circuits.md](circuits.md).
+
+| Level  | Monza (pole 78.79 s) |
+| ------ | -------------------- |
+| Hard   | 78.62 s              |
+| Medium | 80.28 s              |
+| Easy   | 94.83 s              |
+
 When editing a track, re-run the bot tests: they catch a layout the bots can't lap cleanly (wheels on
 the grass, walls) and the lap-time bands.
 
 Tests (`ai/bot.test.ts`): clean laps on every level of every track in `TRACKS`, Hard alone on the
-Kruncar shortcut, lap-time bands, Hard never off the asphalt, line inside the asphalt, recovery from a car parked on its line, stuck → reset,
+Kruncar shortcut, lap-time bands (real circuits: Hard within 1.5% of the pole, sectors within 7%), Hard never off the asphalt, line inside the asphalt, recovery from a car parked on its line, stuck → reset,
 determinism.
 
 ## Limits (for now)

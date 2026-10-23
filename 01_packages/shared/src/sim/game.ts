@@ -74,7 +74,7 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
       locateOnTrack(ctx.track, cars[i]!.position).distance,
       inputs[lap.carId]?.reset ?? false,
       tick,
-      ctx.track.length,
+      ctx.track,
     ),
   );
   return { tick, cars, impacts, laps };

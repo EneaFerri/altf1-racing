@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { TRACK_RULES, type Track, type Vec2 } from '@altf1/shared';
+import type { Track, Vec2 } from '@altf1/shared';
 import { createChevronTexture, createHayTexture, createPlankTexture } from '../pixelTexture';
 import { ribbon } from '../ribbon';
 import { face } from './buildings';
@@ -95,7 +95,7 @@ export function createHayStacks(spots: readonly Vec2[], seed: number): THREE.Gro
  * kerbs. View only: the physics still sees asphalt (same grip).
  */
 export function createDeck(road: Track, include: (segment: number) => boolean): THREE.Mesh {
-  const inner = (halfWidth: number): number => halfWidth - TRACK_RULES.kerbInset;
+  const inner = (halfWidth: number): number => halfWidth - road.kerbInset;
   return ribbon(
     road,
     (s) => [-inner(s.halfWidth), inner(s.halfWidth)],

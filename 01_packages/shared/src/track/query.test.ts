@@ -61,6 +61,19 @@ describe('surfaceAt', () => {
     );
     expect(found).toBe(true);
   });
+
+  it("uses the track's own kerb band when it declares one (real circuits: wider)", () => {
+    const wide = buildTrack({ ...TEST_TRACK, kerbBand: { inset: 0.9, outset: 1.5 } });
+    // The outside of the tightest corner: a low kerb, in the middle of its run.
+    const i = tightest;
+    const out = track.samples[i]!.curvature > 0 ? -1 : 1;
+    // Further out than the default band (1.0 m), still inside the wide one (1.5 m)...
+    expect(surfaceAt(track, beside(i, out * (hw(i) + 1.3)))).not.toBe('kerb');
+    expect(surfaceAt(wide, beside(i, out * (hw(i) + 1.3)))).toBe('kerb');
+    // ...and further in (default 0.6 m, wide 0.9 m).
+    expect(surfaceAt(track, beside(i, out * (hw(i) - 0.8)))).toBe('asphalt');
+    expect(surfaceAt(wide, beside(i, out * (hw(i) - 0.8)))).toBe('kerb');
+  });
 });
 
 describe('gridSlot', () => {

@@ -1,5 +1,9 @@
 import { TRACK_RULES } from '../config/track';
+import type { Track } from '../track/types';
 import type { CarId } from './car';
+
+/** What lap timing needs from a track. */
+export type LapTrack = Pick<Track, 'length' | 'sectorStarts'>;
 
 /** A completed lap. Times are in ticks (see config/sim.ts). */
 export interface LapTime {
@@ -49,9 +53,8 @@ export function createLapState(carId: CarId, distance: number): LapState {
 }
 
 /** Distance along the track where sector `sector` ends; the last one ends on the start line (0). */
-export function sectorEnd(sector: number, trackLength: number): number {
-  const count = TRACK_RULES.sectorCount;
-  return sector >= count - 1 ? 0 : ((sector + 1) * trackLength) / count;
+export function sectorEnd(sector: number, track: LapTrack): number {
+  return sector >= TRACK_RULES.sectorCount - 1 ? 0 : track.sectorStarts[sector + 1]!;
 }
 
 /**
@@ -64,11 +67,12 @@ export function stepLap(
   distance: number,
   reset: boolean,
   tick: number,
-  trackLength: number,
+  track: LapTrack,
 ): LapState {
+  const trackLength = track.length;
   const current: LapState = { ...lap, distance, valid: lap.valid && !reset };
   const delta = wrapDistance(distance - lap.distance, trackLength);
-  const boundary = lap.sector < 0 ? 0 : sectorEnd(lap.sector, trackLength);
+  const boundary = lap.sector < 0 ? 0 : sectorEnd(lap.sector, track);
   const ahead = mod(boundary - lap.distance, trackLength);
   if (delta <= 0 || ahead === 0 || ahead > delta) return current;
 

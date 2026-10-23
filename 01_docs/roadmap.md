@@ -28,8 +28,11 @@ Done (details in the linked docs; superseded designs in [decisions.md](decisions
    - 9a.4–9a.5 ✅ **Brake and handling (owner feedback)** — Space = brake with pressure, S = reverse;
      drift tried from braking, then removed: grip-only handling. Frozen as **baseline v2 (final)**,
      the owner's reference setup (git tag `baseline-v2`).
-   - 9b–d **Monza, Barcelona, Monaco** (next) — inspired by the real circuits (their character, not
-     1:1 copies: scaled to our ≥ 24 m width and arcade speeds).
+   - 9b–d **Monza, Barcelona, Monaco** — the real circuits from open data (OpenF1 times and sectors,
+     OpenStreetMap shape, published widths), scaled so the Hard bot laps in the real pole time
+     ([circuits.md](circuits.md)). Their scenery comes later.
+     - 9b ✅ **Monza** — with the tool (`01_tools/openf1/`) and per-track widths and sectors.
+     - 9c **Barcelona** (next), 9d **Monaco**.
 
 Out of scope for Phase 1: audio, menus beyond the track menu, gamepad, networking.
 

@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import {
   locateOnTrack,
-  sectorEnd,
   TRACK_RULES,
   vec2,
   type KerbKind,
@@ -137,12 +136,12 @@ function createRoad(
     const k = sign(side);
     const info = road.sides[side];
     const kerbMid = (i: number): number =>
-      k * (road.samples[i]!.halfWidth + (TRACK_RULES.kerbOutset - TRACK_RULES.kerbInset) / 2);
+      k * (road.samples[i]!.halfWidth + (road.kerbOutset - road.kerbInset) / 2);
     const kerbIs = (kind: KerbKind) => (i: number) =>
       include(i) && info.kerb[i] === kind && owns(i, kerbMid(i));
     const kerbBand: Band = (s) => [
-      k * (s.halfWidth - TRACK_RULES.kerbInset),
-      k * (s.halfWidth + TRACK_RULES.kerbOutset),
+      k * (s.halfWidth - road.kerbInset),
+      k * (s.halfWidth + road.kerbOutset),
     ];
     const lineAt = (s: TrackSample): number => s.halfWidth - theme.edgeLineInset;
 
@@ -297,8 +296,7 @@ function createSectorGantries(track: Track): THREE.Object3D[] {
   const post = new THREE.MeshLambertMaterial({ color: '#2a2a33' });
   const line = new THREE.MeshLambertMaterial({ color: '#f5c518' });
   return Array.from({ length: TRACK_RULES.sectorCount }, (_, sector) => {
-    // Sector `sector` starts where the previous one ends.
-    const start = sector === 0 ? 0 : sectorEnd(sector - 1, track.length);
+    const start = track.sectorStarts[sector]!;
     const sample = nearestSample(track, start);
     const across = Math.atan2(-sample.normal.z, sample.normal.x);
     const reach = sample.halfWidth + track.runoffWidth + POST_SIZE;

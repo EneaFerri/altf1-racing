@@ -1,4 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Plain Node can run the Model (01_tools, the future server): only syntax it can strip.
+    "erasableSyntaxOnly": true
+  },
   "include": ["src"]
 }

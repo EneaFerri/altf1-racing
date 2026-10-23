@@ -25,8 +25,10 @@ TrackDefinition (hand-written)  ──buildTrack()──►  Track (compiled, im
 
   Then it derives kerbs, run-off, walls and grids. Pure and deterministic.
 
-- **Width is variable but never below `TRACK_RULES.minWidth` (24 m)**, twice the original 12 m:
-  `buildTrack` throws on a narrower control point, so the rule can't be broken by accident.
+- **Width is variable but never below the track's minimum**: `TRACK_RULES.minWidth` (24 m, twice
+  the original 12 m) for imaginary tracks; a real circuit declares its own (`minWidth`), its widths
+  coming from reality (see [circuits.md](circuits.md)). `buildTrack` throws on a narrower control
+  point, so the rule can't be broken by accident.
 
 - **Sample 0 is the start/finish line**, at control point 0. Segment `i` joins sample `i` to `i + 1`.
 - The **`Track` is never part of `GameState`**: it is passed in `SimContext`, not cloned per tick
@@ -39,10 +41,10 @@ TrackDefinition (hand-written)  ──buildTrack()──►  Track (compiled, im
 | Low kerbs    | curvature > 1/110 m           | Both sides of every real corner (apex + exit), extended 8 m before/after                               |
 | Gravel traps | curvature > 1/45 m            | Outside of tight corners, from 6 m before to 36 m after (where cars run wide)                          |
 | High kerbs   | declared in `highKerbs`       | Inside of each curving sample in the range (replaces the low kerb there)                               |
-| Kerb band    | edge − 0.6 m → edge + 1.0 m   | Lateral band where a kerb counts                                                                       |
+| Kerb band    | edge − 0.6 m → edge + 1.0 m   | Lateral band where a kerb counts; a track may set its own (`kerbBand`, real circuits: wider)           |
 | Walls        | local halfWidth + runoffWidth | One-sided polylines on both sides, `normal` pointing at the track (see [collisions.md](collisions.md)) |
-| Min width    | 24 m                          | `buildTrack` rejects narrower control points                                                           |
-| Sectors      | 3 of equal length             | Timing sectors and anti-cut checkpoints (see [laps.md](laps.md))                                       |
+| Min width    | 24 m (or the track's own)     | `buildTrack` rejects narrower control points                                                           |
+| Sectors      | 3, equal or at `sectorPoints` | Timing sectors and anti-cut checkpoints (see [laps.md](laps.md)); `Track.sectorStarts`                 |
 
 So a new track only needs a shape; kerbs and gravel follow the corners automatically.
 A track can instead ask for low kerbs along **both edges everywhere** (`kerbs: 'everywhere'`, e.g.
@@ -51,9 +53,9 @@ Kruncar); high kerbs and gravel stay as above.
 **Fixed rule for every track (owner's decision):** each track must show its **sector detection
 points**. At the start of every timing sector there is a gantry visible from far away (posts behind
 the walls, board across the track labelled `S1`/`S2`/`S3`, yellow line on the asphalt; S1 is the
-start line). They are generated automatically from `TRACK_RULES.sectorCount` and `sectorEnd()`, the
-same boundaries the timing uses (see [laps.md](laps.md)). Never place them by hand, and if sector
-positions ever become per-track, the gantries must follow them.
+start line). They are generated automatically from `Track.sectorStarts`, the same boundaries the
+timing uses (see [laps.md](laps.md)), so on real circuits they stand where the real sectors start.
+Never place them by hand.
 
 ## Queries (`track/query.ts`)
 
@@ -169,7 +171,15 @@ Tests (`track/buildTrack.test.ts`): every track and route passes the generic lay
 also checks the fork: 24 m main loop, 14 m shortcut, shortcut shorter than the wide road, cars on
 the shortcut located there with progress running on, the island walled off.
 
+## Real circuits (`track/layouts/monza.ts`, ...)
+
+Generated from open data (OpenF1 + OpenStreetMap) by `01_tools/openf1/`, never edited by hand: real
+shape, real widths, real sector positions, scaled so the Hard bot laps in the real pole time. Only
+normal kerbs (no high kerbs), with a wider band (`kerbBand`). All in [circuits.md](circuits.md). They pass the same layout tests as every track.
+
 ## Making a new track
+
+For a real circuit, see [circuits.md](circuits.md). For an imaginary one:
 
 1. Copy `layouts/testTrack.ts`, change `name` and `points` (driving order, closed loop, no crossings),
    giving each point a `width` ≥ 24 m (wider where you want overtaking room).
@@ -182,4 +192,4 @@ the shortcut located there with progress running on, the island walled off.
    that array, in order), then run the tests.
 6. Add a section for it in this doc, like the Test Ring table above.
 
-Planned (Phase 1 step 9, see [roadmap.md](roadmap.md)): Monza, Barcelona and Monaco inspired layouts.
+Real circuits (Phase 1 step 9, see [roadmap.md](roadmap.md)): Monza done, Barcelona and Monaco next.

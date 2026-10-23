@@ -6,11 +6,10 @@ import type { Vec2 } from './vec2';
  */
 export class SegmentGrid {
   private readonly cells = new Map<number, number[]>();
+  private readonly cellSize: number;
 
-  constructor(
-    segments: readonly (readonly [Vec2, Vec2])[],
-    private readonly cellSize = 10,
-  ) {
+  constructor(segments: readonly (readonly [Vec2, Vec2])[], cellSize = 10) {
+    this.cellSize = cellSize;
     segments.forEach(([a, b], index) => {
       this.forEachCell(
         Math.min(a.x, b.x),

@@ -213,3 +213,24 @@
   code is in git history (before tag `baseline-v2`) if it ever comes back.
 - With it, the owner's F2 values became the defaults (`maxYawRate` 1.8 → 2.7, `yawResponse` 7 → 9.5),
   and Easy's `cornerSpeed` 0.65 → 0.5 keeps it ~20% slower than Medium.
+
+## 2026-10-23 — Real circuits from open data (step 9b)
+
+- Owner's rules: real shape (the PNGs in `03_F1Circuits/` as reference), real widths (the 24 m minimum is for imaginary
+  tracks only), **Hard bot = real 2025 pole time**, sectors where they really are; car untouched.
+- **Scale per circuit** is the lever for the lap time: our car is slower on straights and much
+  faster in corners than an F1, so no single scale fits all; changing the car was ruled out
+  (baseline v2 is the owner's reference).
+- **Shape from OpenStreetMap, not OpenF1**: OpenF1 positions are map-matched onto one racing line
+  (no width information at all, < 10 cm spread over ~1000 laps) whose chicanes are 8–10 m off the
+  road; built on it, Monza's Roggia was a 200 km/h kink and the bots ran off. OSM's centreline,
+  registered onto the OpenF1 lap, keeps the real corners; OpenF1 still gives times, sectors, speed.
+- **Widths from published figures** (owner's choice when the data had none): each circuit's range,
+  per section by real corner, × 1.6 for the game (one factor for all, not scaled with the lap).
+- Corners too tight for our walls are opened only where the compiled track's walls really fold:
+  a margin-based rule alone either left a fold or distorted the chicanes.
+- Owner's feedback after driving Monza: real circuits get **only normal kerbs** (no yellow high
+  kerbs that kick the car), **wider** (`kerbBand`, 1.5× the default band). The kerb band became a
+  per-track value, defaulting to `TRACK_RULES`.
+- The tool runs on plain Node (type stripping): `shared` became erasable-syntax only (one parameter
+  property in `SegmentGrid`), which also suits the future Node server. `@types/node` added.

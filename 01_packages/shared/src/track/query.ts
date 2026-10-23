@@ -93,8 +93,8 @@ export function surfaceAt(track: Track, p: Vec2): Surface {
 
   const edge = loc.halfWidth;
 
-  if (offset <= edge - TRACK_RULES.kerbInset) return 'asphalt';
-  if (offset <= edge + TRACK_RULES.kerbOutset && kerb !== 'none') {
+  if (offset <= edge - track.kerbInset) return 'asphalt';
+  if (offset <= edge + track.kerbOutset && kerb !== 'none') {
     return kerb === 'high' ? 'highKerb' : 'kerb';
   }
   if (offset <= edge) return 'asphalt';

@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { TRACK_RULES } from '../config/track';
-import { createLapState, sectorEnd, stepLap, type LapState } from './laps';
+import { createLapState, sectorEnd, stepLap, type LapState, type LapTrack } from './laps';
 
 const L = 1200;
 const SECTOR = L / TRACK_RULES.sectorCount;
+const TRACK: LapTrack = { length: L, sectorStarts: [0, SECTOR, 2 * SECTOR] };
 
 /** Drives a car's timing through a list of distances, one per tick, starting at `fromTick`. */
 function drive(lap: LapState, distances: number[], fromTick = 1, reset = (_tick: number) => false) {
   distances.forEach((d, i) => {
-    lap = stepLap(lap, d, reset(fromTick + i), fromTick + i, L);
+    lap = stepLap(lap, d, reset(fromTick + i), fromTick + i, TRACK);
   });
   return lap;
 }
@@ -21,10 +22,13 @@ function forwardFrom(from: number, metres: number, step: number): number[] {
 }
 
 describe('sectorEnd', () => {
-  it('splits the lap into equal sectors, the last one ending on the line', () => {
-    expect(sectorEnd(0, L)).toBe(400);
-    expect(sectorEnd(1, L)).toBe(800);
-    expect(sectorEnd(2, L)).toBe(0);
+  it('ends each sector where the next one starts, the last one on the line', () => {
+    expect(sectorEnd(0, TRACK)).toBe(400);
+    expect(sectorEnd(1, TRACK)).toBe(800);
+    expect(sectorEnd(2, TRACK)).toBe(0);
+    const uneven: LapTrack = { length: L, sectorStarts: [0, 300, 1000] };
+    expect(sectorEnd(0, uneven)).toBe(300);
+    expect(sectorEnd(1, uneven)).toBe(1000);
   });
 });
 

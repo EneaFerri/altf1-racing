@@ -10,7 +10,7 @@ export type Surface = 'asphalt' | 'kerb' | 'highKerb' | 'grass' | 'gravel';
 /** A spline control point with the asphalt width there; width is blended smoothly between points. */
 export interface TrackPoint {
   readonly at: Vec2;
-  /** Full asphalt width (m), at least TRACK_RULES.minWidth (minShortcutWidth on a branch). */
+  /** Full asphalt width (m), at least the track's minimum width (minShortcutWidth on a branch). */
   readonly width: number;
 }
 
@@ -37,6 +37,21 @@ export interface TrackDefinition {
   readonly highKerbs: readonly { readonly fromPoint: number; readonly toPoint: number }[];
   /** Alternative roads; see 01_docs/track.md#branches. */
   readonly branches?: readonly TrackBranch[];
+  /**
+   * Narrowest allowed asphalt (m). Imaginary tracks leave it out (TRACK_RULES.minWidth); real
+   * circuits declare their own, since their widths come from real data (see 01_docs/circuits.md).
+   */
+  readonly minWidth?: number;
+  /**
+   * Control points where each timing sector but the last ends, in order (TRACK_RULES.sectorCount − 1
+   * of them). Left out: sectors of equal length. Real circuits use their real sector positions.
+   */
+  readonly sectorPoints?: readonly number[];
+  /**
+   * Where a kerb counts across the edge: from `inset` inside it to `outset` outside it (m).
+   * Left out: TRACK_RULES.kerbInset / kerbOutset. Real circuits use wider kerbs.
+   */
+  readonly kerbBand?: { readonly inset: number; readonly outset: number };
 }
 
 export interface TrackSample {
@@ -86,7 +101,15 @@ export interface Track {
   /** Widest half-width anywhere on the track (m), for search radii. */
   readonly maxHalfWidth: number;
   readonly runoffWidth: number;
+  /** Kerb band across the edge (m): from `kerbInset` inside it to `kerbOutset` outside it. */
+  readonly kerbInset: number;
+  readonly kerbOutset: number;
   readonly length: number;
+  /**
+   * Main-loop progress (m from the start line) where each timing sector starts; the first is 0.
+   * On a route it is the main loop's, since lap timing always runs on main-loop progress.
+   */
+  readonly sectorStarts: readonly number[];
   /** Closed loop: segment i goes from sample i to sample (i + 1) % n. Sample 0 is the start line. */
   readonly samples: readonly TrackSample[];
   readonly sides: Readonly<Record<TrackSide, TrackSideInfo>>;

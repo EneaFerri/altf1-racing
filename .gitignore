@@ -6,3 +6,6 @@ coverage/
 
 # Local reference screenshots of the Krunker map (large, not part of the game)
 02_screen_krunkerMap/
+
+# Layout previews written by 01_tools/openf1/layout.ts
+01_tools/openf1/preview/

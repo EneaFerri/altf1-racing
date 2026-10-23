@@ -15,7 +15,7 @@ import {
 } from '../sim/game';
 import { buildTrack } from '../track/buildTrack';
 import { locateOnTrack } from '../track/query';
-import { KRUNCAR, TEST_TRACK, TRACKS } from '../track/layouts';
+import { KRUNCAR, MONZA, TEST_TRACK, TRACKS } from '../track/layouts';
 import type { Track } from '../track/types';
 import { botInput, NEW_BOT_MEMORY } from './driver';
 import { botCarParams, buildBotPlan } from './plan';
@@ -82,6 +82,12 @@ const runsByTrack = TRACKS.map((definition) => {
 });
 const runs = runsByTrack.find((t) => t.name === TEST_TRACK.name)!.runs;
 const kruncar = runsByTrack.find((t) => t.name === KRUNCAR.name)!.runs;
+const monza = runsByTrack.find((t) => t.name === MONZA.name)!.runs;
+
+/** Real 2025 pole laps (OpenF1, see 01_docs/circuits.md): the Hard bot's targets. */
+const REAL_POLES = [
+  { name: MONZA.name, runs: monza, lap: 78.792, sectors: [26.262, 26.483, 26.047] },
+];
 
 describe.each(runsByTrack.map((t) => [t.name, t.runs] as const))('bot on %s', (_name, runs) => {
   it.each(BOT_LEVELS)('laps cleanly on %s: no walls, no resets', (level) => {
@@ -119,6 +125,17 @@ describe('bot', () => {
     expect(hard).toBeGreaterThan(44);
     expect(hard).toBeLessThan(46);
   });
+
+  it.each(REAL_POLES)(
+    'laps $name on hard in the real pole time (±1.5%), each sector within 7%',
+    ({ runs, lap, sectors }) => {
+      const best = findLap(runs.hard.state, 'bot')!.bestLap!;
+      expect(Math.abs(best.ticks / TICK_RATE / lap - 1)).toBeLessThan(0.015);
+      best.sectors.forEach((ticks, i) => {
+        expect(Math.abs(ticks / TICK_RATE / sectors[i]! - 1)).toBeLessThan(0.07);
+      });
+    },
+  );
 
   it('takes the Kruncar shortcut on hard only', () => {
     expect(kruncar.hard.branchTicks).toBeGreaterThan(20 * TICK_RATE);
