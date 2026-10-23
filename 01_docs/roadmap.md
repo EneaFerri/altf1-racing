@@ -33,7 +33,8 @@ Done (details in the linked docs; superseded designs in [decisions.md](decisions
      ([circuits.md](circuits.md)); then their scenery from OpenStreetMap ([themes.md](themes.md)).
      - 9b ✅ **Monza** — with the tool (`01_tools/openf1/`) and per-track widths and sectors;
        9b.2 ✅ scenery: real grandstands, pit lane and buildings, woods, the old oval, armco.
-     - 9c ✅ **Barcelona** — circuit only; its scenery (9c.2) after the owner's review.
+     - 9c ✅ **Barcelona** — circuit; 9c.2 ✅ scenery: Mediterranean look, real grandstands, pit
+       lane and buildings, pines in the real woods.
      - 9d **Monaco** (next).
 
 Out of scope for Phase 1: audio, menus beyond the track menu, gamepad, networking.

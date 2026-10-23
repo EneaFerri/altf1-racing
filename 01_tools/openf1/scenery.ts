@@ -42,6 +42,8 @@ const PIT_LANE_WIDTH = 12;
 const PIT_WALL = 1;
 /** Pit buildings: within this distance of the pit lane (m, real). */
 const PIT_REACH = 80;
+/** A footprint's points are located within this distance along the lap of its centre (m, real). */
+const FOOTPRINT_REACH = 200;
 /** Old raceways kept as scenery, by name (Monza's high-speed oval). */
 const OVAL = /sopraelevata|anello alta velocit/i;
 /** Oval: deck height over the GP track (m), length of the ramps either side (m), max bank (rad). */
@@ -159,11 +161,16 @@ function writeLayout(): void {
   const stations = profile.stations;
   const n = stations.length;
 
-  /** Lap fraction, signed lateral offset and gap beyond the real asphalt of a real point. */
-  const relative = (p: Point) => {
+  /**
+   * Lap fraction, signed lateral offset and gap beyond the real asphalt of a real point; with
+   * `around`, only the stations within FOOTPRINT_REACH of that one are searched.
+   */
+  const relative = (p: Point, around?: number) => {
     let best = 0;
     let bestDistance = Infinity;
+    const window = Math.round(FOOTPRINT_REACH / profile.spacing);
     stations.forEach(([x, y], i) => {
+      if (around !== undefined && Math.abs(wrappedIndex(i - around, n)) > window) return;
       const d = Math.hypot(x - p[0], y - p[1]);
       if (d < bestDistance) {
         bestDistance = d;
@@ -177,28 +184,55 @@ function writeLayout(): void {
     const lateral =
       ((p[0] - stations[best]![0]) * (by - ay) - (p[1] - stations[best]![1]) * (bx - ax)) / len;
     const half = widthAt(circuit.widths, best * profile.spacing, profile.length) / 2;
-    return { at: best / n, lateral, edgeGap: Math.abs(lateral) - half };
+    return { index: best, at: best / n, lateral, edgeGap: Math.abs(lateral) - half };
   };
 
   /**
    * Real points → track spots, all moved out by the same amount so the nearest is at least `minGap`
-   * beyond the game's wall (the game's asphalt and run-off are wider than the real ones).
+   * beyond the game's wall (the game's asphalt and run-off are wider than the real ones); null when
+   * it straddles the track or lands near another stretch of it. Every point is located near the
+   * footprint's centre: a corner can't jump to another part of the lap that passes close behind it.
    */
   const place = (points: readonly Point[], minGap: number): Spot[] | null => {
-    const rel = points.map(relative);
+    const centre: Point = [
+      points.reduce((sum, p) => sum + p[0], 0) / points.length,
+      points.reduce((sum, p) => sum + p[1], 0) / points.length,
+    ];
+    const around = relative(centre).index;
+    const rel = points.map((p) => relative(p, around));
     const side = Math.sign(rel[0]!.lateral);
     if (rel.some((r) => Math.sign(r.lateral) !== side)) return null; // straddles the track
     const gaps = rel.map((r) => r.edgeGap * circuit.scale - circuit.runoffWidth);
     const shift = Math.max(0, minGap - Math.min(...gaps));
-    return rel.map((r, i) => [round(r.at, 5), round(side * (gaps[i]! + shift))]);
+    const spots = rel.map((r, i): Spot => [round(r.at, 5), round(side * (gaps[i]! + shift))]);
+    return spots.every(clearOfWalls) ? spots : null;
+  };
+  /**
+   * False when a spot lands near another stretch of the game's track: wider than the real one, it
+   * can swallow the room between two real stretches (e.g. a building between them).
+   */
+  const clearOfWalls = ([at, gap]: Spot): boolean => {
+    const samples = track.samples;
+    const s = samples[Math.round(at * samples.length) % samples.length]!;
+    const offset = Math.sign(gap) * (s.halfWidth + track.runoffWidth + Math.abs(gap));
+    const p = vec2(s.position.x + s.normal.x * offset, s.position.z + s.normal.z * offset);
+    const loc = locateOnTrack(track, p);
+    return Math.abs(loc.lateral) - loc.halfWidth - track.runoffWidth > MIN_GAP - 1;
   };
   const real = (f: SceneryFeature): Point[] => f.points.map((p) => toProfile(p));
   const length = (ps: readonly Point[]): number =>
     ps.slice(1).reduce((sum, p, i) => sum + Math.hypot(p[0] - ps[i]![0], p[1] - ps[i]![1]), 0);
 
   // Pit lane and the buildings along it, moved out together past the pit wall.
-  const laneReal = raw.features.filter((f) => f.kind === 'pitLane').flatMap(real);
-  const laneRel = laneReal.map(relative);
+  // Its ways (entry, lane, exit) joined into one line, in the driving direction.
+  const laneLine = chain(raw.features.filter((f) => f.kind === 'pitLane').map(real)).reduce(
+    (longest, line) => (line.length > longest.length ? line : longest),
+  );
+  const wrapped = (d: number): number => (((d % 1) + 1.5) % 1) - 0.5;
+  const laneAt = laneLine.map((p) => relative(p).at);
+  const forward = laneAt.slice(1).reduce((sum, at, i) => sum + wrapped(at - laneAt[i]!), 0) > 0;
+  const laneReal = forward ? laneLine : [...laneLine].reverse();
+  const laneRel = laneReal.map((p) => relative(p));
   const laneSide = Math.sign(laneRel.reduce((sum, r) => sum + r.lateral, 0));
   const laneHalf = (PIT_LANE_WIDTH * circuit.scale) / 2;
   const laneGaps = laneRel.map((r) => Math.max(0, r.edgeGap) * circuit.scale - circuit.runoffWidth);
@@ -231,7 +265,7 @@ function writeLayout(): void {
 
   // Grandstands: real footprints beside the track; on the pit side, beyond the pit lane.
   const besideLane = (ps: readonly Point[]): boolean =>
-    ps.map(relative).some((r) => Math.sign(r.lateral) === laneSide && inLaneSpan(r.at));
+    ps.map((p) => relative(p)).some((r) => Math.sign(r.lateral) === laneSide && inLaneSpan(r.at));
   const stands = raw.features
     .filter((f) => f.kind === 'grandstand')
     .map((f) => ({ name: f.name || 'Tribuna', points: real(f) }))
@@ -435,6 +469,11 @@ function resample(line: readonly Point[], step: number): Point[] {
     carry = len - (at - step);
   }
   return out;
+}
+
+/** A station index difference brought into (-n/2, n/2]: the short way round the lap. */
+function wrappedIndex(d: number, n: number): number {
+  return (((d % n) + n + n / 2) % n) - n / 2;
 }
 
 function round(value: number, digits = 1): number {

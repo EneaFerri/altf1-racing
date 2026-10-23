@@ -441,6 +441,19 @@ export function createParkGrassTexture(size = 32): THREE.Texture {
   );
 }
 
+/** Dry Mediterranean grass (Barcelona): straw and olive tones with bare ochre earth showing. */
+export function createDryGrassTexture(size = 32): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#a9a35c', '#b3aa63', '#9e9a55'], 53);
+      sprinkle(ctx, size, '#c2a46a', 0.06, 59);
+      sprinkle(ctx, size, '#7f8446', 0.04, 61);
+    },
+    true,
+  );
+}
+
 /**
  * Guard rail (armco) on transparent pixels (use with `alphaTest`): a steel double-wave beam with
  * a dark post at the tile's left edge.

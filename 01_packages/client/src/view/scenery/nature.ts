@@ -5,7 +5,7 @@ import { polylineRibbon } from '../ribbon';
 import type { Circle } from './placement';
 import { seededRandom } from './placement';
 
-// Low-poly nature for themed tracks: mountains, trees, water, balloons. Flat-shaded, Krunker-style.
+// Low-poly nature for themed tracks: mountains, trees, pines, water, balloons. Flat-shaded, Krunker-style.
 
 const Y_BANK = 0.004;
 const Y_WATER = 0.008;
@@ -89,6 +89,49 @@ export function createTrees(spots: readonly Vec2[], seed: number): THREE.Group {
   });
   const group = new THREE.Group();
   group.add(trunk, crown, top);
+  return group;
+}
+
+/**
+ * Mediterranean umbrella pines (instanced): a tall bare trunk, leaning a little, under a wide flat
+ * dark crown. Seeded, so the same spots always grow the same trees.
+ */
+export function createPines(spots: readonly Vec2[], seed: number): THREE.Group {
+  const random = seededRandom(seed);
+  const trunk = new THREE.InstancedMesh(
+    new THREE.CylinderGeometry(0.3, 0.45, 8, 5),
+    new THREE.MeshLambertMaterial({ color: '#5a4030', flatShading: true }),
+    spots.length,
+  );
+  const crown = new THREE.InstancedMesh(
+    new THREE.IcosahedronGeometry(1, 0),
+    new THREE.MeshLambertMaterial({ color: '#2f5230', flatShading: true }),
+    spots.length,
+  );
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const lean = new THREE.Quaternion();
+  const up = new THREE.Vector3(0, 1, 0);
+  const side = new THREE.Vector3(1, 0, 0);
+  spots.forEach((spot, i) => {
+    const size = 0.8 + random() * 0.5;
+    q.setFromAxisAngle(up, random() * Math.PI * 2);
+    lean.setFromAxisAngle(side, (random() - 0.5) * 0.25);
+    m.compose(
+      new THREE.Vector3(spot.x, 4 * size, spot.z),
+      q.clone().multiply(lean),
+      new THREE.Vector3(size, size, size),
+    );
+    trunk.setMatrixAt(i, m);
+    m.compose(
+      new THREE.Vector3(spot.x, 8.6 * size, spot.z),
+      q,
+      new THREE.Vector3(5 * size, 1.3 * size, 5 * size),
+    );
+    crown.setMatrixAt(i, m);
+  });
+  const group = new THREE.Group();
+  group.add(trunk, crown);
   return group;
 }
 

@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { Track } from '@altf1/shared';
+import { BARCELONA_THEME } from './barcelona';
 import { CLASSIC_THEME } from './classic';
 import { KRUNCAR_THEME } from './kruncar';
 import { MONZA_THEME } from './monza';
@@ -40,7 +41,11 @@ export interface TrackTheme {
   readonly scenery: (track: Track) => THREE.Object3D[];
 }
 
-const THEMES: Readonly<Record<string, TrackTheme>> = { Kruncar: KRUNCAR_THEME, Monza: MONZA_THEME };
+const THEMES: Readonly<Record<string, TrackTheme>> = {
+  Kruncar: KRUNCAR_THEME,
+  Monza: MONZA_THEME,
+  Barcelona: BARCELONA_THEME,
+};
 
 /** The theme drawn for a track: its own when it has one, else the classic look. */
 export function themeFor(trackName: string): TrackTheme {

@@ -6,8 +6,8 @@ the simulation never sees a theme. Code in `01_packages/client/src/view/themes/`
 
 ## Theme system
 
-- `themes/theme.ts`: the `TrackTheme` interface and `themeFor(trackName)`. **Kruncar** and **Monza**
-  have their own theme; every other track gets **classic** (`themes/classic.ts`: the original look,
+- `themes/theme.ts`: the `TrackTheme` interface and `themeFor(trackName)`. **Kruncar**, **Monza** and
+  **Barcelona** have their own theme; every other track gets **classic** (`themes/classic.ts`: the original look,
   Test Ring).
 - `SceneView` reads the theme for sky colour, fog, camera far plane (`viewDistance`), hemisphere light
   plus an optional directional "sun", the ground (texture, tile size, margin past the track; the
@@ -73,11 +73,14 @@ woods (`landuse=forest`, `natural=wood`) and old raceways (`highway=raceway`) in
 - **Track-relative positions** (`TrackSpot` = lap fraction + metres beyond the wall, + right):
   the game's track is wider than the real one, so stands and buildings are stored relative to the
   wall, not in absolute metres. A footprint is moved out as a whole until its nearest point is
-  ≥ 3 m beyond the wall; footprints straddling the track are dropped.
+  ≥ 3 m beyond the wall. Its points are located within 200 m (along the lap) of its centre's, so a
+  corner never jumps to another stretch passing behind it. Dropped: footprints straddling the
+  track, and those that would land < 3 m from another stretch's wall (the wider game track can
+  swallow the real room between two stretches, e.g. a pit building at Barcelona).
 - **Filters**: grandstands shorter than 12 m (kiosks, camera towers) or further than 250 m from the
   real asphalt are left out.
-- **Pit lane** (12 m real, × scale): decorative behind a 1 m pit wall (drivable later). Pit
-  buildings are those within 80 m of it, moved out beyond its outer edge with the stands beside it.
+- **Pit lane** (12 m real, × scale): decorative behind a 1 m pit wall (drivable later). Its ways
+  (entry, lane, exit) are joined into one line in the driving direction. Pit buildings are those within 80 m of it, moved out beyond its outer edge with the stands beside it.
 - **Woods**: absolute polygons in game coordinates, filled with seeded trees.
 - **Old oval** (Monza's _sopraelevata_): kept as scenery. Dropped where it runs along the GP track,
   raised on a bridge (8 m deck, 70 m ramps, piers) where it crosses it, banked in its curves
@@ -86,18 +89,35 @@ woods (`landuse=forest`, `natural=wood`) and old raceways (`highway=raceway`) in
 Builders: `scenery/realCircuit.ts` (`createPitLane`, `createOldRaceway`), `createPitBuilding` in
 `scenery/buildings.ts`, `polylineRibbon`/`surfaceBetween` in `view/ribbon.ts`.
 
-## Monza theme (`themes/monza.ts`)
+**`themes/realCircuitTheme.ts`** turns a generated layout (`RealCircuitScenery`) and a look
+(`RealCircuitLook`: sky, fog, light, ground, kerbs, tree builder) into a `TrackTheme`, the same for
+every real circuit:
 
-The Parco di Monza: pale blue sky, fog 450–2200 m, striped park grass, red/white kerbs.
-
-- **Props** from `themes/monzaLayout.ts` (generated, see above): the real grandstands, pit lane and
-  pit buildings on the inside of the main straight, the old oval with its bridges, trees dense in
-  the real woods (≤ 2400) and sparse in the open park (500), kept off stands, pits and oval.
+- **Props**: the stands, pit buildings, pit lane and old raceways (if any); trees dense in the real
+  woods (≤ 400 per wood, 2400 in all) and sparse in the open (500), kept off all of them.
 - **Walls**: `concrete` by the stands and the pit lane (15 m past each end), `tyres` where the
   run-off is gravel, `armco` everywhere else.
-- `monzaLayout.test.ts`: stands beyond the walls and clear of the pit lane, pit lane behind the
-  wall on the inside of the main straight, oval never on the track (bridge where it crosses), trees
-  off the track.
+
+`themes/realCircuitLayouts.test.ts` checks every real circuit: stands beyond the walls and clear of
+the pit lane, pit lane behind the wall on the inside of the main straight and running along the
+lap, buildings behind it, trees in the woods off the track (Monza also: the oval never on the
+track, on a bridge where it crosses).
+
+## Monza theme (`themes/monza.ts`)
+
+The Parco di Monza: pale blue sky, fog 450–2200 m, striped green park grass, broadleaf trees,
+red/white kerbs. Props from `themes/monzaLayout.ts` (generated): 42 real grandstands, pit lane and
+pit buildings on the inside of the main straight, the old oval with its bridges, 41 woods.
+
+## Barcelona theme (`themes/barcelona.ts`)
+
+Mediterranean (owner's choice): warm hazy sky, fog 450–2000 m, warmer and stronger sun, dry
+straw-and-olive grass with bare ochre earth (`createDryGrassTexture`), umbrella pines
+(`createPines`: tall bare trunk, wide flat crown), red/white kerbs. Props from
+`themes/barcelonaLayout.ts` (generated): 17 real grandstands (Graderia principal, A–N, T1, T10), the
+pit lane on the inside of the main straight (entry before the last corner, exit at turn 2) with 5
+pit buildings, 8 woods. Only the GP circuit: the karting, motocross and old-chicane raceways around
+it are left out (owner's choice).
 
 ## Placement rules (`scenery/placement.ts`, pure, tested)
 

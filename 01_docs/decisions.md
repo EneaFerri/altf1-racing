@@ -256,3 +256,8 @@
 - **Sector tolerance per circuit** in the bot test: Barcelona's S1 (main straight + Renault) is 9%
   slower than reality because our car tops out ~80 km/h below an F1. The lap still matches the
   pole; the car is frozen, so the test allows 10% there instead of 7%.
+- Scenery (9c.2): **Mediterranean look** and **GP circuit only** (karting, motocross and old chicane
+  left out), owner's choices. Monza's theme logic moved into `realCircuitTheme.ts` so every real
+  circuit shares it and only its look differs. The OSM tool became general: pit lane from several
+  ways, footprint points located near their centre, footprints dropped where the wider game track
+  leaves no room (Monza's output unchanged).
