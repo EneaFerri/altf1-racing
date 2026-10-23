@@ -44,12 +44,14 @@ and speed from OpenF1**.
    - oriented like the owner's PNG (`lineDirection`), scaled by `scale`, start line at the origin;
      the real `(x, y north)` becomes the game's `(x, z = −y)`, so clockwise stays clockwise;
    - **widths**: the real width at each point (eased between the circuit's width marks) ×
-     `WIDTH_FACTOR` (1.6, the same for every circuit, independent of `scale`);
+     `WIDTH_FACTOR` (1.6, independent of `scale`), or the circuit's own `widthFactor` (Monaco 1.2);
    - **game limits**, changing the real shape as little as possible: corners tighter than the
      half-width plus the run-off plus 2 m are opened a little (smoothing), then the compiled track
      is checked and only the corners whose wall really folds are opened further; distant sections
-     closer than both half-widths plus both run-offs are pushed apart (Monaco's tunnel passes
-     under Beau Rivage);
+     closer than both half-widths plus both run-offs are pushed apart; **hairpins** (stations
+     < 150 m apart along the lap facing opposite ways, e.g. Monaco's Grand Hotel) get their legs
+     spread to 1.25 × both minimum radii instead of being smoothed (smoothing tightens a U-turn),
+     so the turn between them can be round; pushes stop within 1 cm of their target;
    - **kerbs** (owner's rule): only normal kerbs (grip 0.85, a little slower), never the yellow
      high kerbs that kick the car; and wider than on imaginary tracks: `KERB_BAND` (edge − 0.9 m →
      edge + 1.5 m, 2.4 m instead of 1.6 m), written as the layout's `kerbBand`;
@@ -66,14 +68,17 @@ and speed from OpenF1**.
 
 `scale` is the only lever left with the car frozen: our car tops out at ~283 km/h (F1: ~350) but
 corners much harder, so fast circuits shrink and slow ones grow. Widths are not scaled: they
-follow reality × `WIDTH_FACTOR`, so the circuits keep their character.
+follow reality × `WIDTH_FACTOR`, so the circuits keep their character. **Monaco** uses × 1.2
+(owner's choice): our car is 2.2 m wide, an F1 2 m, so the road holds as many cars side by side as
+the real one (4.4–6.5): overtaking stays as hard as in reality.
 
 | Circuit   | Real length | Scale | Game length | Real width (m) | Game width (m) | Run-off |
 | --------- | ----------- | ----- | ----------- | -------------- | -------------- | ------- |
 | Monza     | 5766 m      | 0.948 | 5.45 km     | 10–12          | 16–19.2        | 10 m    |
 | Barcelona | 4643 m      | 1.011 | 4.69 km     | 12–14          | 19.2–22.4      | 10 m    |
+| Monaco    | 3281 m      | 1.133 | 3.72 km     | 8–12           | 9.6–14.4       | 3 m     |
 
-Real lengths are the OSM centreline's (official: Monza 5793 m, Barcelona 4657 m).
+Real lengths are the OSM centreline's (official: Monza 5793 m, Barcelona 4657 m, Monaco 3337 m).
 
 ### Widths (published, then per section)
 
@@ -87,6 +92,10 @@ within that range unless marked with their own source there.
 - **Barcelona**: 12–14 m (motogp.com 12 m, gedlich-racing.com 12–14 m). 14 m on the main
   straight and its braking zone, 13 m through turns 1–2 and on the back straight, 12 m in every
   other corner (Renault, Repsol, Seat, 7–8, Campsa, La Caixa, Banc Sabadell, 13, New Holland).
+- **Monaco**: 8–12 m (kymillman.com, with measured spots: start straight 12, Mirabeau Haute 9.45,
+  Portier 8.87, Nouvelle Chicane 9.3 → 10.12). Estimates elsewhere: 9–10 m through the town, 8 m at
+  La Rascasse (the published minimum), 12 m at the Piscine entry (turns 13–14: the fast left-right
+  where the bots ran wide at 9–10 m).
 
 ### Monza (`layouts/monza.ts`, step 9b)
 
@@ -138,8 +147,35 @@ the braking gets bigger. Hard bot, top speed before the corner → minimum (km/h
 | Barcelona, Seat (T5) | 226 → 124      | 251 → 139      |
 | Barcelona, La Caixa  | 248 → 121      | 278 → 132      |
 
+### Monaco (`layouts/monaco.ts`, step 9d)
+
+Shape from OSM relation 148194; target: the 2025 pole, 1:09.954 (car #4, OpenF1 session 9975).
+Oriented by the owner's PNG (`lineDirection` 80: up the start straight). The game's limits moved
+30 stations (> 1 m), mostly the Grand Hotel hairpin's legs (spread so its walls don't fold).
+
+| Lap (s)   | Lap   | S1    | S2    | S3    | Walls | Off |
+| --------- | ----- | ----- | ----- | ----- | ----- | --- |
+| Real pole | 69.95 | 18.22 | 33.25 | 18.48 |       |     |
+| Hard      | 70.05 | 19.22 | 32.05 | 18.78 | 0     | 0   |
+| Medium    | 71.05 | 19.53 | 32.48 | 19.03 | 0     | 0   |
+| Easy      | 91.65 | 25.60 | 41.07 | 24.98 | 0     | 0   |
+
+S1 is 5.5% slow (the start straight and the climb to Casino), S2 3.6% fast (the slow corners: our
+car corners harder). Tests: Hard within 1.5% of the pole, every sector within 7%.
+
+The tricky corners stay tricky (owner's request): Hard bot, top speed before → minimum (km/h):
+
+| Corner              | Real F1 minimum | Hard bot  |
+| ------------------- | --------------- | --------- |
+| Sainte Dévote       | 121             | → 125     |
+| Mirabeau Haute      | 84              | 233 → 106 |
+| Grand Hotel hairpin | 47              | 233 → 72  |
+| Portier             | 88              | 165 → 100 |
+| Nouvelle Chicane    | 69              | 273 → 109 |
+| La Rascasse         | 65              | 225 → 90  |
+
 ## Re-tuning a circuit
 
-Change `01_tools/openf1/circuits.ts` (widths, run-off, `WIDTH_FACTOR`, `KERB_BAND`), then run
+Change `01_tools/openf1/circuits.ts` (widths, run-off, `WIDTH_FACTOR` or `widthFactor`, `KERB_BAND`), then run
 `layout` and `calibrate`, put the scale it finds back in `circuits.ts`, run `layout` again, then
 `npm test`. Update the tables above.

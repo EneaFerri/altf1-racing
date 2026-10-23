@@ -270,3 +270,18 @@
   scales were recalibrated (~+10%) to keep Hard = real pole. Tight corners stay hard (bigger
   braking, corner minimums +0–15 km/h): numbers in circuits.md. The scenery rule became "as far
   from every wall as from its own" (a Barcelona pit building came back too close at the new scale).
+
+## 2026-10-23 — Monaco (step 9d)
+
+- **Width × 1.2 for Monaco only** (owner's choice over × 1.6 and × 1.0): the real car-to-road ratio
+  (4.4–6.5 cars side by side), so overtaking is as hard as in reality. × 1.6 made it easy;
+  × 1.0 had the bots touching the walls. `WIDTH_FACTOR` stays the default (`widthFactor` per circuit).
+- **Hairpins in the generator**: the Grand Hotel's legs are ~24 m apart and smoothing (how corners
+  were opened) tightens a U-turn, so the limits never converged. Now opposite-facing neighbours
+  are spread to 1.25 × both minimum radii (exactly 2 × leaves room only for a perfect semicircle,
+  which smoothing can't reach); pushes stop within 1 cm (they approach their target geometrically
+  and stalled 4·10⁻¹³ m short). Monza and Barcelona come out byte-identical.
+- `lineDirection` was a placeholder (260): the first preview was upside down against the owner's
+  PNG; 80 matches it.
+- The Piscine entry got 12 m (the published maximum, an estimate): at 9–10 m the Hard and Medium
+  bots ran wide on its exit; the bots are frozen, so the circuit's adaptation was the lever.

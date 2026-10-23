@@ -171,7 +171,7 @@ Tests (`track/buildTrack.test.ts`): every track and route passes the generic lay
 also checks the fork: 24 m main loop, 14 m shortcut, shortcut shorter than the wide road, cars on
 the shortcut located there with progress running on, the island walled off.
 
-## Real circuits (`track/layouts/monza.ts`, `barcelona.ts`, ...)
+## Real circuits (`track/layouts/monza.ts`, `barcelona.ts`, `monaco.ts`)
 
 Generated from open data (OpenF1 + OpenStreetMap) by `01_tools/openf1/`, never edited by hand: real
 shape, real widths, real sector positions, scaled so the Hard bot laps in the real pole time. Only
@@ -192,4 +192,4 @@ For a real circuit, see [circuits.md](circuits.md). For an imaginary one:
    that array, in order), then run the tests.
 6. Add a section for it in this doc, like the Test Ring table above.
 
-Real circuits (Phase 1 step 9, see [roadmap.md](roadmap.md)): Monza and Barcelona done, Monaco next.
+Real circuits (Phase 1 step 9, see [roadmap.md](roadmap.md)): Monza, Barcelona and Monaco done.

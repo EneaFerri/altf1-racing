@@ -35,6 +35,8 @@ export interface CircuitConfig {
   readonly widths: readonly WidthMark[];
 
   // ---- Adaptation to the game ----
+  /** Game width / real width, when not WIDTH_FACTOR (see there). */
+  readonly widthFactor?: number;
   /** Uniform scale of the real circuit, calibrated so the Hard bot laps in the real pole time. */
   readonly scale: number;
   /** Direction of the start straight seen from above (degrees, 0 = right, 90 = up): as in the PNG. */
@@ -45,10 +47,16 @@ export interface CircuitConfig {
 }
 
 /**
- * Game width = real width × WIDTH_FACTOR, the same for every real circuit so their differences stay
- * (Monaco the narrowest). Not multiplied by `scale`: that only fits the lap time.
+ * Game width = real width × WIDTH_FACTOR, the same for the real circuits so their differences stay.
+ * Not multiplied by `scale`: that only fits the lap time. A circuit may set its own `widthFactor`:
+ * Monaco keeps the real car-to-road ratio so that overtaking stays as hard as in reality.
  */
 export const WIDTH_FACTOR = 1.6;
+
+/** A circuit's game width / real width. */
+export function widthFactorOf(circuit: CircuitConfig): number {
+  return circuit.widthFactor ?? WIDTH_FACTOR;
+}
 
 /**
  * Kerb band of every real circuit (m across the edge): 1.5× the default (TRACK_RULES), owner's
@@ -138,13 +146,16 @@ export const CIRCUITS: readonly CircuitConfig[] = [
       { at: 2000, width: 9.3, place: 'Nouvelle Chicane (turn-in)', source: ILLMAN },
       { at: 2100, width: 10.12, place: 'Nouvelle Chicane (exit)', source: ILLMAN },
       { at: 2290, width: 9, place: 'Tabac' },
-      { at: 2650, width: 9, place: 'Piscine' },
+      { at: 2480, width: 12, place: 'Piscine entry (turns 13–14)' },
+      { at: 2650, width: 9, place: 'Piscine exit (turns 15–16)' },
       { at: 2840, width: 8, place: 'La Rascasse (narrowest, published minimum)' },
       { at: 2950, width: 9, place: 'Anthony Noghes' },
       { at: 3150, width: 12, place: 'start/finish straight', source: ILLMAN },
     ],
-    scale: 1.1,
-    lineDirection: 260,
+    // Real car-to-road ratio (our car is 2.2 m wide, an F1 2 m): overtaking as hard as in reality.
+    widthFactor: 1.2,
+    scale: 1.133,
+    lineDirection: 80,
     runoffWidth: 3,
     kerbs: 'corners',
   },

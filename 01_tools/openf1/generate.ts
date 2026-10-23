@@ -10,7 +10,7 @@ import {
   type Track,
   type TrackDefinition,
 } from '../../01_packages/shared/src/index.ts';
-import { KERB_BAND, WIDTH_FACTOR, type CircuitConfig, type WidthMark } from './circuits.ts';
+import { KERB_BAND, widthFactorOf, type CircuitConfig, type WidthMark } from './circuits.ts';
 import type { Point } from './geometry.ts';
 import type { CircuitProfile } from './openf1.ts';
 
@@ -20,6 +20,13 @@ const CONTROL_SPACING = 10;
 const MARGIN = 2;
 /** Sections this close along the lap are neighbours, not "distant" (m; buildTrack tests use 120). */
 const NEIGHBOURS = 150;
+/** Two neighbouring stations whose directions are more opposite than this (−cos) face each other
+ * across a hairpin. */
+const HAIRPIN_FACING = 0.7;
+/** A hairpin's legs are kept this × both minimum radii apart: room for a round turn between them. */
+const HAIRPIN_ROOM = 1.25;
+/** Pushing stations apart stops this close to the target distance (m): it approaches it geometrically. */
+const CLOSE_ENOUGH = 0.01;
 
 export interface Generated {
   readonly definition: TrackDefinition;
@@ -42,7 +49,7 @@ export function generate(
   const n = profile.stations.length;
   // Real width at each station, then game width.
   const widths = profile.stations.map(
-    (_, i) => widthAt(circuit.widths, i * profile.spacing, profile.length) * WIDTH_FACTOR,
+    (_, i) => widthAt(circuit.widths, i * profile.spacing, profile.length) * widthFactorOf(circuit),
   );
   const half = widths.map((w) => w / 2);
 
@@ -55,15 +62,19 @@ export function generate(
   const apart = Math.round(NEIGHBOURS / spacing);
   let radiusRounds = 0;
   let separationRounds = 0;
-  for (let round = 0; ; round++) {
-    if (round === 500) throw new Error(`${circuit.name}: the game's limits do not converge`);
-    const opened = openTightCorners(points, minRadius);
-    const separated = separate(opened.points, half, circuit.runoffWidth + MARGIN, apart);
-    points = separated.points;
-    if (opened.changed) radiusRounds++;
-    if (separated.changed) separationRounds++;
-    if (!opened.changed && !separated.changed) break;
-  }
+  const applyLimits = (): void => {
+    for (let round = 0; ; round++) {
+      if (round === 500) throw new Error(`${circuit.name}: the game's limits do not converge`);
+      const spread = spreadHairpins(points, minRadius, apart);
+      const opened = openTightCorners(spread.points, minRadius, spread.spreading);
+      const separated = separate(opened.points, half, circuit.runoffWidth + MARGIN, apart);
+      points = separated.points;
+      if (spread.changed || opened.changed) radiusRounds++;
+      if (separated.changed) separationRounds++;
+      if (!spread.changed && !opened.changed && !separated.changed) break;
+    }
+  };
+  applyLimits();
   // Control points: every `step` stations, so the spline's spacing stays even.
   const step = Math.max(1, Math.round(CONTROL_SPACING / spacing));
   const controls = Array.from({ length: Math.round(n / step) }, (_, k) => k * step);
@@ -160,9 +171,18 @@ function radiusAt(points: readonly Point[], i: number): number {
   return area2 < 1e-9 ? Infinity : (ab * bc * ca) / (2 * area2);
 }
 
-/** Smooths the stations around every corner tighter than its minimum radius (opens it up). */
-function openTightCorners(points: Point[], minRadius: readonly number[]) {
-  const tight = points.map((_, i) => i).filter((i) => radiusAt(points, i) < minRadius[i]!);
+/**
+ * Smooths the stations around every corner tighter than its minimum radius (opens it up), except
+ * the `skip` ones (a hairpin whose legs are still being spread: smoothing would tighten it).
+ */
+function openTightCorners(
+  points: Point[],
+  minRadius: readonly number[],
+  skip: ReadonlySet<number>,
+) {
+  const tight = points
+    .map((_, i) => i)
+    .filter((i) => !skip.has(i) && radiusAt(points, i) < minRadius[i]!);
   if (tight.length === 0) return { points, changed: false };
   return { points: smoothAround(points, tight), changed: true };
 }
@@ -191,6 +211,66 @@ function foldedStations(track: Track, spacing: number, n: number): number[] {
   return [...new Set(stations)];
 }
 
+/** Unit direction of the stations at `i`. */
+function tangentAt(points: readonly Point[], i: number): Point {
+  const n = points.length;
+  const a = points[(i - 1 + n) % n]!;
+  const c = points[(i + 1) % n]!;
+  const len = Math.hypot(c[0] - a[0], c[1] - a[1]);
+  return [(c[0] - a[0]) / len, (c[1] - a[1]) / len];
+}
+
+/** Pairs [i, k] of (even) stations i and i + k, k < `apart`, facing each other across a hairpin. */
+function hairpinPairs(points: readonly Point[], apart: number): [number, number][] {
+  const n = points.length;
+  const pairs: [number, number][] = [];
+  for (let i = 0; i < n; i += 2) {
+    const ti = tangentAt(points, i);
+    for (let k = 2; k < apart; k += 2) {
+      const tj = tangentAt(points, (i + k) % n);
+      if (ti[0] * tj[0] + ti[1] * tj[1] <= -HAIRPIN_FACING) pairs.push([i, k]);
+    }
+  }
+  return pairs;
+}
+
+/**
+ * Opens hairpins (e.g. Monaco's Grand Hotel): stations facing opposite ways and closer than `apart`
+ * along the lap are the two legs of a U-turn; they are pushed apart to HAIRPIN_ROOM × both minimum
+ * radii, so the turn between them can be that wide. Smoothing can't do it: it tightens a U-turn.
+ * Returns the stations being spread (with the ±4 that smoothing would touch).
+ */
+function spreadHairpins(points: Point[], minRadius: readonly number[], apart: number) {
+  const n = points.length;
+  const shift = points.map((): [number, number] => [0, 0]);
+  const spreading = new Set<number>();
+  for (const [i, k] of hairpinPairs(points, apart)) {
+    const j = (i + k) % n;
+    const dx = points[i]![0] - points[j]![0];
+    const dz = points[i]![1] - points[j]![1];
+    const d = Math.hypot(dx, dz);
+    const need = HAIRPIN_ROOM * (minRadius[i]! + minRadius[j]!);
+    if (d >= need - CLOSE_ENOUGH) continue;
+    const push = (need - d) / 2 / 4; // a quarter of the gap per round, like separate()
+    for (let s = -8; s <= 8; s++) {
+      const w = Math.exp(-(s * s) / 18);
+      const a = shift[(i + s + n) % n]!;
+      const b = shift[(j + s + n) % n]!;
+      a[0] += (dx / d) * push * w;
+      a[1] += (dz / d) * push * w;
+      b[0] -= (dx / d) * push * w;
+      b[1] -= (dz / d) * push * w;
+    }
+    for (let s = i - 4; s <= i + k + 4; s++) spreading.add((s + n) % n);
+  }
+  if (spreading.size === 0) return { points, changed: false, spreading };
+  return {
+    points: points.map((p, i): Point => [p[0] + shift[i]![0], p[1] + shift[i]![1]]),
+    changed: true,
+    spreading,
+  };
+}
+
 /**
  * Pushes apart distant sections closer than both half-widths plus both run-offs (e.g. where the
  * real track crosses at another height), moving a smooth stretch of each.
@@ -206,7 +286,7 @@ function separate(points: Point[], half: readonly number[], clearance: number, a
       const dz = points[i]![1] - points[j]![1];
       const d = Math.hypot(dx, dz);
       const need = half[i]! + half[j]! + 2 * clearance;
-      if (d >= need) continue;
+      if (d >= need - CLOSE_ENOUGH) continue;
       changed = true;
       const push = (need - d) / 2 / 4; // a quarter of the gap per round: converges smoothly
       const ux = dx / d;

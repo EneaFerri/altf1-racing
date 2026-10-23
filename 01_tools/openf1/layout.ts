@@ -7,7 +7,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { circuitById, WIDTH_FACTOR } from './circuits.ts';
+import { circuitById, widthFactorOf } from './circuits.ts';
 import { generate } from './generate.ts';
 import { layoutPath, profilePath, readJson, type CircuitProfile } from './openf1.ts';
 import { Canvas, type Rgb } from './png.ts';
@@ -35,7 +35,7 @@ const lines = [
   ` * - Target: the 2025 pole, ${time(pole.time)} (car #${source.driver}, lap ${source.lap}, OpenF1 session ${source.session}),`,
   ` *   sectors ${pole.sectors.map(time).join(' / ')}; the sectors start where they really do.`,
   ` * - Scale ${circuit.scale} (real ${Math.round(profile.length)} m), calibrated so the Hard bot laps in the pole time.`,
-  ` * - Widths: the real ones (${circuit.widthRange.join('–')} m) × ${WIDTH_FACTOR}.`,
+  ` * - Widths: the real ones (${circuit.widthRange.join('–')} m) × ${widthFactorOf(circuit)}.`,
   ` * - Normal kerbs only (no high kerbs), wider than on the imaginary tracks.`,
   ` */`,
   `export const ${circuit.constName}: TrackDefinition = {`,

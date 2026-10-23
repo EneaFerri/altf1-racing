@@ -88,11 +88,11 @@ on the wide road (its line keeps to the middle of the narrow zigzag).
 Hard laps in the real 2025 pole time by construction (each circuit's scale is calibrated for it);
 all levels' laps and sectors vs reality: [circuits.md](circuits.md).
 
-| Level  | Monza (pole 78.79 s) | Barcelona (pole 71.55 s) |
-| ------ | -------------------- | ------------------------ |
-| Hard   | 78.50 s              | 71.53 s                  |
-| Medium | 80.03 s              | 72.77 s                  |
-| Easy   | 93.30 s              | 82.85 s                  |
+| Level  | Monza (pole 78.79 s) | Barcelona (pole 71.55 s) | Monaco (pole 69.95 s) |
+| ------ | -------------------- | ------------------------ | --------------------- |
+| Hard   | 78.50 s              | 71.53 s                  | 70.05 s               |
+| Medium | 80.03 s              | 72.77 s                  | 71.05 s               |
+| Easy   | 93.30 s              | 82.85 s                  | 91.65 s               |
 
 When editing a track, re-run the bot tests: they catch a layout the bots can't lap cleanly (wheels on
 the grass, walls) and the real circuits' lap times.
