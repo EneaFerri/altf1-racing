@@ -42,7 +42,7 @@ export interface CarParams {
 }
 
 export const CAR_PARAMS: CarParams = {
-  maxSpeed: 80,
+  maxSpeed: 95,
   engineAccel: 18,
   brakeDecel: 30,
   brakeInitialPressure: 0.3,

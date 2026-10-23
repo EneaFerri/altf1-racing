@@ -75,8 +75,9 @@ woods (`landuse=forest`, `natural=wood`) and old raceways (`highway=raceway`) in
   wall, not in absolute metres. A footprint is moved out as a whole until its nearest point is
   ≥ 3 m beyond the wall. Its points are located within 200 m (along the lap) of its centre's, so a
   corner never jumps to another stretch passing behind it. Dropped: footprints straddling the
-  track, and those that would land < 3 m from another stretch's wall (the wider game track can
-  swallow the real room between two stretches, e.g. a pit building at Barcelona).
+  track, and those that would land closer to another stretch's wall than to their own (3 m, or
+  beyond the pit lane on its side): the wider game track can swallow the real room between two
+  stretches (e.g. a pit building at Barcelona).
 - **Filters**: grandstands shorter than 12 m (kiosks, camera towers) or further than 250 m from the
   real asphalt are left out.
 - **Pit lane** (12 m real, × scale): decorative behind a 1 m pit wall (drivable later). Its ways

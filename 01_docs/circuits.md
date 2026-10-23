@@ -5,7 +5,7 @@ tool in `01_tools/openf1/` (how to run it: its [README](../01_tools/openf1/READM
 rules: **shape** faithful to the real track (the PNGs in `03_F1Circuits/` are the visual
 reference), **real widths** (Monza wide, Monaco narrow, varying along the lap), and **lap times
 close to reality**: the **Hard bot laps in the real 2025 pole time**, with the frozen car
-(baseline v2, see [tuning.md](tuning.md)). The 24 m minimum width applies to imaginary tracks only.
+(baseline v3, see [tuning.md](tuning.md)). The 24 m minimum width applies to imaginary tracks only.
 
 ## Sources
 
@@ -64,14 +64,14 @@ and speed from OpenF1**.
 
 ## Adaptation to the game
 
-`scale` is the only lever left with the car frozen: our car tops out at ~250 km/h (F1: ~350) but
+`scale` is the only lever left with the car frozen: our car tops out at ~283 km/h (F1: ~350) but
 corners much harder, so fast circuits shrink and slow ones grow. Widths are not scaled: they
 follow reality × `WIDTH_FACTOR`, so the circuits keep their character.
 
 | Circuit   | Real length | Scale | Game length | Real width (m) | Game width (m) | Run-off |
 | --------- | ----------- | ----- | ----------- | -------------- | -------------- | ------- |
-| Monza     | 5766 m      | 0.858 | 4.93 km     | 10–12          | 16–19.2        | 10 m    |
-| Barcelona | 4643 m      | 0.915 | 4.25 km     | 12–14          | 19.2–22.4      | 10 m    |
+| Monza     | 5766 m      | 0.948 | 5.45 km     | 10–12          | 16–19.2        | 10 m    |
+| Barcelona | 4643 m      | 1.011 | 4.69 km     | 12–14          | 19.2–22.4      | 10 m    |
 
 Real lengths are the OSM centreline's (official: Monza 5793 m, Barcelona 4657 m).
 
@@ -91,16 +91,16 @@ within that range unless marked with their own source there.
 ### Monza (`layouts/monza.ts`, step 9b)
 
 Shape from OSM relation 284565; target: the 2025 pole, 1:18.792 (car #1, OpenF1 session 9908).
-The game's limits moved 23 stations (> 1 m), around the Rettifilo's entry.
+The game's limits moved 20 stations (> 1 m), around the Rettifilo's entry.
 
 | Lap (s)   | Lap   | S1    | S2    | S3    | Walls | Off |
 | --------- | ----- | ----- | ----- | ----- | ----- | --- |
 | Real pole | 78.79 | 26.26 | 26.48 | 26.05 |       |     |
-| Hard      | 78.62 | 24.73 | 26.13 | 27.75 | 0     | 0   |
-| Medium    | 80.28 | 25.32 | 26.65 | 28.32 | 0     | 0   |
-| Easy      | 94.83 | 29.68 | 31.50 | 33.65 | 0     | 0   |
+| Hard      | 78.50 | 24.80 | 26.28 | 27.42 | 0     | 0   |
+| Medium    | 80.03 | 25.33 | 26.77 | 27.93 | 0     | 0   |
+| Easy      | 93.30 | 28.97 | 31.45 | 32.88 | 0     | 0   |
 
-S3 is 6.5% slow and S1 6% fast: S3 is almost all flat out (Ascari, back straight, Parabolica, start
+S3 is 5% slow and S1 5.5% fast: S3 is almost all flat out (Ascari, back straight, Parabolica, start
 straight) where our car's lower top speed loses time, made up in S1's chicanes. Tests
 (`ai/bot.test.ts`): Hard within 1.5% of the pole, every sector within 7%.
 
@@ -113,14 +113,30 @@ moved no station: Barcelona's corners are all wider than our walls need.
 | Lap (s)   | Lap   | S1    | S2    | S3    | Walls | Off |
 | --------- | ----- | ----- | ----- | ----- | ----- | --- |
 | Real pole | 71.55 | 21.26 | 28.58 | 21.71 |       |     |
-| Hard      | 71.62 | 23.20 | 27.78 | 20.63 | 0     | 0   |
-| Medium    | 73.00 | 23.68 | 28.32 | 21.00 | 0     | 0   |
-| Easy      | 83.97 | 27.20 | 32.40 | 24.37 | 0     | 0   |
+| Hard      | 71.53 | 23.08 | 27.72 | 20.73 | 0     | 0   |
+| Medium    | 72.77 | 23.53 | 28.20 | 21.03 | 0     | 0   |
+| Easy      | 82.85 | 26.28 | 32.55 | 24.02 | 0     | 0   |
 
-S1 is 9% slow: the ~1 km main straight at up to 328 km/h (our car: ~250) and the fast Renault
-(T3); S2 (−3%) and S3 (−5%) win it back in the slower corners. Tests: Hard within 1.5% of the
+S1 is 8.5% slow: the ~1 km main straight at up to 328 km/h (our car: ~283) and the fast Renault
+(T3); S2 (−3%) and S3 (−4.5%) win it back in the slower corners. Tests: Hard within 1.5% of the
 pole, every sector within 10% (Monza's 7% would need a faster car on straights, and the car is
 frozen).
+
+### Baseline v3 recalibration (2026-10-23)
+
+With `maxSpeed` 80 → 95 the Hard bot lapped ~8% under the poles, so both scales grew ~10%
+(Monza 0.858 → 0.948, Barcelona 0.915 → 1.011). The owner asked that the tight corners stay hard:
+radii grow 10% but corner speed only with its square root, while the straights end much faster, so
+the braking gets bigger. Hard bot, top speed before the corner → minimum (km/h):
+
+| Corner               | v2 (old scale) | v3 (new scale) |
+| -------------------- | -------------- | -------------- |
+| Monza, Rettifilo     | 256 → 151      | 289 → 158      |
+| Monza, Roggia        | 253 → 141      | 284 → 140      |
+| Monza, Ascari        | 254 → 155      | 286 → 178      |
+| Barcelona, turn 1    | 255 → 141      | 288 → 158      |
+| Barcelona, Seat (T5) | 226 → 124      | 251 → 139      |
+| Barcelona, La Caixa  | 248 → 121      | 278 → 132      |
 
 ## Re-tuning a circuit
 

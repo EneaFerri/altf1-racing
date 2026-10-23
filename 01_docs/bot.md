@@ -58,7 +58,11 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
 
 - `cornerSpeed` above 1 is fine: the estimate ignores slip, so the car can really carry more.
 
-## Measured behaviour (bot alone, baseline v2)
+## Measured behaviour (bot alone)
+
+**Test Ring and Kruncar** are early test maps: measured with baseline v2 and frozen as they are
+(owner's rule: their track, bots and look are never re-tuned). With v3 (`maxSpeed` 95) the Hard bot
+laps them faster (Kruncar ~42 s, Test Ring Medium ~29.6 s); no test checks their lap times.
 
 ### Test Ring
 
@@ -86,15 +90,15 @@ all levels' laps and sectors vs reality: [circuits.md](circuits.md).
 
 | Level  | Monza (pole 78.79 s) | Barcelona (pole 71.55 s) |
 | ------ | -------------------- | ------------------------ |
-| Hard   | 78.62 s              | 71.62 s                  |
-| Medium | 80.28 s              | 73.00 s                  |
-| Easy   | 94.83 s              | 83.97 s                  |
+| Hard   | 78.50 s              | 71.53 s                  |
+| Medium | 80.03 s              | 72.77 s                  |
+| Easy   | 93.30 s              | 82.85 s                  |
 
 When editing a track, re-run the bot tests: they catch a layout the bots can't lap cleanly (wheels on
-the grass, walls) and the lap-time bands.
+the grass, walls) and the real circuits' lap times.
 
 Tests (`ai/bot.test.ts`): clean laps on every level of every track in `TRACKS`, Hard alone on the
-Kruncar shortcut, lap-time bands (real circuits: Hard within 1.5% of the pole, sectors within 7%, Barcelona 10%), Hard never off the asphalt, line inside the asphalt, recovery from a car parked on its line, stuck → reset,
+Kruncar shortcut, real circuits' lap times (Hard within 1.5% of the pole, sectors within 7%, Barcelona 10%), Hard never off the asphalt, line inside the asphalt, recovery from a car parked on its line, stuck → reset,
 determinism.
 
 ## Limits (for now)

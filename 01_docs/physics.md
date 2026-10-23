@@ -85,7 +85,7 @@ lateral on the next tick and grip pulls it back in line: a natural slip in turns
 
 | Param                  | Value  | Unit  | Higher means…                                              |
 | ---------------------- | ------ | ----- | ---------------------------------------------------------- |
-| `maxSpeed`             | 80     | m/s   | Higher engine limit (real top speed is lower, see below)   |
+| `maxSpeed`             | 95     | m/s   | Higher engine limit (real top speed is lower, see below)   |
 | `engineAccel`          | 18     | m/s²  | Punchier launch                                            |
 | `brakeDecel`           | 30     | m/s²  | Shorter braking (at full pressure)                         |
 | `brakeInitialPressure` | 0.3    | —     | A tap brakes harder                                        |
@@ -110,11 +110,13 @@ The dev tuning panel (F2, see [architecture.md](architecture.md), Dev tools) edi
 
 | Metric                                         | Value               |
 | ---------------------------------------------- | ------------------- |
-| Top speed                                      | ~250 km/h           |
-| 0–100 km/h                                     | 1.9 s               |
+| Top speed                                      | ~283 km/h (v2: 250) |
+| 0–100 km/h                                     | 1.85 s              |
 | Braking 100–0 km/h (Space held from the start) | 17.9 m, 1.15 s      |
 | Turn-in to 90% yaw at 100 km/h (full lock)     | 0.45 s              |
 | Turn radius at full lock — 50 / 100 / 150 km/h | 5.7 / 12.7 / 21.8 m |
 | Slip angle at full lock — 50 / 100 / 150 km/h  | 30° / 25° / 21°     |
 
-These are **baseline v2** (final, the owner's reference setup): see [tuning.md](tuning.md).
+These are **baseline v3** (final, the owner's reference setup): see [tuning.md](tuning.md). Top
+speed and 0–100 are computed from the model for v3; the other rows were measured with v2, whose
+only difference is `maxSpeed` (80), which barely affects them below ~150 km/h.

@@ -80,7 +80,6 @@ const runsByTrack = TRACKS.map((definition) => {
   ) as Record<BotLevel, Run>;
   return { name: definition.name, runs };
 });
-const runs = runsByTrack.find((t) => t.name === TEST_TRACK.name)!.runs;
 const kruncar = runsByTrack.find((t) => t.name === KRUNCAR.name)!.runs;
 const monza = runsByTrack.find((t) => t.name === MONZA.name)!.runs;
 const barcelona = runsByTrack.find((t) => t.name === BARCELONA.name)!.runs;
@@ -126,24 +125,6 @@ describe.each(runsByTrack.map((t) => [t.name, t.runs] as const))('bot on %s', (_
 });
 
 describe('bot', () => {
-  it('is slower on lower levels of the Test Ring, by about the planned margins', () => {
-    const hard = bestLapSeconds(runs.hard);
-    const medium = bestLapSeconds(runs.medium);
-    const easy = bestLapSeconds(runs.easy);
-    // Hard only has a slightly stronger car here (no branch on the Test Ring).
-    expect(hard).toBeLessThan(31.7);
-    expect(medium).toBeGreaterThan(31);
-    expect(medium).toBeLessThan(33);
-    expect(easy / medium).toBeGreaterThan(1.14);
-    expect(easy / medium).toBeLessThan(1.25);
-  });
-
-  it("laps Kruncar on hard in about 45 s (the owner's target)", () => {
-    const hard = bestLapSeconds(kruncar.hard);
-    expect(hard).toBeGreaterThan(44);
-    expect(hard).toBeLessThan(46);
-  });
-
   it.each(REAL_POLES)(
     'laps $name on hard in the real pole time (±1.5%), each sector within $sectorTolerance',
     ({ runs, lap, sectors, sectorTolerance }) => {

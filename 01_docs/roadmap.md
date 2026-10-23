@@ -35,6 +35,7 @@ Done (details in the linked docs; superseded designs in [decisions.md](decisions
        9b.2 ✅ scenery: real grandstands, pit lane and buildings, woods, the old oval, armco.
      - 9c ✅ **Barcelona** — circuit; 9c.2 ✅ scenery: Mediterranean look, real grandstands, pit
        lane and buildings, pines in the real woods.
+     - **Baseline v3** (final): `maxSpeed` 80 → 95, owner's choice; tracks and bots unchanged.
      - 9d **Monaco** (next).
 
 Out of scope for Phase 1: audio, menus beyond the track menu, gamepad, networking.

@@ -261,3 +261,12 @@
   circuit shares it and only its look differs. The OSM tool became general: pit lane from several
   ways, footprint points located near their centre, footprints dropped where the wider game track
   leaves no room (Monza's output unchanged).
+
+## 2026-10-23 — Baseline v3: faster car, real circuits recalibrated
+
+- Owner's F2 change: `maxSpeed` 80 → 95 (top speed ~250 → ~283 km/h), frozen as baseline v3. The
+  owner's idea: a faster car at the end of the straights makes braking and corner entry matter more.
+- The Hard bot then lapped ~8% under the real poles; at the owner's request the GP circuits'
+  scales were recalibrated (~+10%) to keep Hard = real pole. Tight corners stay hard (bigger
+  braking, corner minimums +0–15 km/h): numbers in circuits.md. The scenery rule became "as far
+  from every wall as from its own" (a Barcelona pit building came back too close at the new scale).

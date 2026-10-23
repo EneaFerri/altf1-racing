@@ -12,11 +12,11 @@ interface TuningBaseline {
 
 export const TUNING_BASELINE: TuningBaseline = {
   status: 'final',
-  version: 2,
-  frozenOn: '2026-10-22',
+  version: 3,
+  frozenOn: '2026-10-23',
 };
 
-/** Short label for dev tools, e.g. "baseline v2 final". */
+/** Short label for dev tools, e.g. "baseline v3 final". */
 export function tuningLabel(): string {
   return `baseline v${TUNING_BASELINE.version} ${TUNING_BASELINE.status}`;
 }

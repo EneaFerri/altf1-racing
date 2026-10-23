@@ -205,19 +205,20 @@ function writeLayout(): void {
     const gaps = rel.map((r) => r.edgeGap * circuit.scale - circuit.runoffWidth);
     const shift = Math.max(0, minGap - Math.min(...gaps));
     const spots = rel.map((r, i): Spot => [round(r.at, 5), round(side * (gaps[i]! + shift))]);
-    return spots.every(clearOfWalls) ? spots : null;
+    return spots.every((spot) => clearOfWalls(spot, minGap)) ? spots : null;
   };
   /**
-   * False when a spot lands near another stretch of the game's track: wider than the real one, it
-   * can swallow the room between two real stretches (e.g. a building between them).
+   * False when a spot lands closer than `minGap` to another stretch of the game's track: wider than
+   * the real one, it can swallow the room between two real stretches (e.g. a building between them).
    */
-  const clearOfWalls = ([at, gap]: Spot): boolean => {
+  const clearOfWalls = ([at, gap]: Spot, minGap: number): boolean => {
     const samples = track.samples;
     const s = samples[Math.round(at * samples.length) % samples.length]!;
     const offset = Math.sign(gap) * (s.halfWidth + track.runoffWidth + Math.abs(gap));
     const p = vec2(s.position.x + s.normal.x * offset, s.position.z + s.normal.z * offset);
     const loc = locateOnTrack(track, p);
-    return Math.abs(loc.lateral) - loc.halfWidth - track.runoffWidth > MIN_GAP - 1;
+    // 1 m of slack: spots are rounded and located on the nearest sample.
+    return Math.abs(loc.lateral) - loc.halfWidth - track.runoffWidth > minGap - 1;
   };
   const real = (f: SceneryFeature): Point[] => f.points.map((p) => toProfile(p));
   const length = (ps: readonly Point[]): number =>

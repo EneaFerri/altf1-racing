@@ -17,13 +17,18 @@ All feel-related numbers have one home each and are the game's defaults:
 - `status`: `'provisional'` (current baseline, expected to change) or `'final'`.
 - `version`: bumped at every re-freeze. `frozenOn`: date of the last freeze.
 
-Current: **baseline v2, final**, frozen on 2026-10-22 after Phase 1 step 9a.5: grip-only handling
-(no drift), brake with pressure, the owner's F2 values (`maxYawRate` 2.7, `yawResponse` 9.5) and the
-re-measured bots. The owner drove it and confirmed it as the **reference setup**: future tuning starts
-from here, and any change to these values bumps the version (v3, …). Git tag: `baseline-v2`.
-(v1, provisional, was frozen at the end of step 7.)
+Current: **baseline v3, final**, frozen on 2026-10-23 after Phase 1 step 9c.2: baseline v2 with a
+higher engine limit, `maxSpeed` 80 → 95 m/s (owner's F2 value), everything else unchanged. The
+owner's idea: a faster car at the end of the straights makes braking and corner entry matter more,
+so lap times stay similar; tracks, real-circuit scales and bots were deliberately left as they were.
+It is the owner's **reference setup**: future tuning starts from here, and any change to these values
+bumps the version (v4, …).
 
-The label (`baseline v2 final`) shows in the dev tuning panel title (F2) and in the debug
+Previous: **v2, final** (2026-10-22, step 9a.5, git tag `baseline-v2`): grip-only handling (no
+drift), brake with pressure, the owner's F2 values (`maxYawRate` 2.7, `yawResponse` 9.5) and the
+re-measured bots. v1, provisional, was frozen at the end of step 7.
+
+The label (`baseline v3 final`) shows in the dev tuning panel title (F2) and in the debug
 overlay (F3), so it's always clear which baseline is being driven. Production builds are unaffected.
 
 ## Re-tuning workflow

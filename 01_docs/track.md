@@ -141,8 +141,8 @@ map (fence close to the track). Inspired by the Krunker.io map "KrunCar" by Keyb
 (https://krunker.io/?game=FRA:qtesb): the owner's description of the corner sequence plus 14
 screenshots (kept locally in `02_screen_krunkerMap/`, git-ignored). Not a 1:1 copy: Krunker's square
 90° corners become round ones (radius ≥ 45 m on the main loop) so the walls never fold, elevation is
-flattened (2D sim). Sized for the owner's target: **Hard bot ≈ 45 s a lap** (the Krunker record is
-1:25.4 for 2 laps).
+flattened (2D sim). Sized for the owner's target: **Hard bot ≈ 45 s a lap** with baseline v2 (the Krunker record is
+1:25.4 for 2 laps); an early test map, frozen as it is (~42 s with v3).
 
 Corners are circular arcs: with uneven spacing the spline tightens between points and the walls fold.
 The layout is drafted with a turtle script (straights + arcs), closed by solving two straight lengths
