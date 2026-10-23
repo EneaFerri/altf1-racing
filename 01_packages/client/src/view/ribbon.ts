@@ -112,6 +112,31 @@ export function polylineRibbon(
   return flatMesh(positions, uvs, material);
 }
 
+/**
+ * Surface joining two 3D polylines point by point (a deck between its edges, a wall between its
+ * foot and its top). V runs along `a` (`metresPerRepeat` per repeat), U goes 0 → 1 from `a` to `b`.
+ */
+export function surfaceBetween(
+  a: readonly THREE.Vector3[],
+  b: readonly THREE.Vector3[],
+  material: THREE.Material,
+  metresPerRepeat: number,
+): THREE.Mesh {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  let along = 0;
+  for (let i = 0; i + 1 < a.length; i++) {
+    const [a0, a1, b0, b1] = [a[i]!, a[i + 1]!, b[i]!, b[i + 1]!];
+    const v0 = along / metresPerRepeat;
+    along += a0.distanceTo(a1);
+    const v1 = along / metresPerRepeat;
+    positions.push(...a0.toArray(), ...a1.toArray(), ...b0.toArray());
+    positions.push(...b0.toArray(), ...a1.toArray(), ...b1.toArray());
+    uvs.push(0, v0, 0, v1, 1, v0, 1, v0, 0, v1, 1, v1);
+  }
+  return flatMesh(positions, uvs, material);
+}
+
 function flatMesh(positions: number[], uvs: number[], material: THREE.Material): THREE.Mesh {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));

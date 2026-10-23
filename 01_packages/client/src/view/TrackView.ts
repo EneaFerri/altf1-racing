@@ -9,6 +9,7 @@ import {
   type TrackSide,
 } from '@altf1/shared';
 import {
+  createArmcoTexture,
   createChainFenceTexture,
   createCheckerTexture,
   createConcreteTexture,
@@ -38,6 +39,9 @@ const CONCRETE_HEIGHT = 1.1;
 const CHAIN_HEIGHT = 2.2;
 const CONCRETE_REPEAT = 3;
 const CHAIN_REPEAT = 2;
+/** Guard rail (armco): a steel beam on posts, see-through below and above it. */
+const ARMCO_HEIGHT = 1.2;
+const ARMCO_REPEAT = 2.5;
 
 /** Metres covered by one texture repeat along the track. */
 const ASPHALT_TILE = 12; // also across: the asphalt is textured in world metres, so pixels stay square
@@ -191,6 +195,12 @@ function createWalls(track: Track, styleOf: (index: number) => WallStyle): THREE
   if (fence.length > 0) {
     meshes.push(
       wallStrip(track, fence, 0, FENCE_HEIGHT, cutout(createWoodFenceTexture()), FENCE_REPEAT),
+    );
+  }
+  const armco = indices('armco');
+  if (armco.length > 0) {
+    meshes.push(
+      wallStrip(track, armco, 0, ARMCO_HEIGHT, cutout(createArmcoTexture()), ARMCO_REPEAT),
     );
   }
   const concrete = indices('concrete');

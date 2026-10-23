@@ -46,18 +46,7 @@ export function generate(
   );
   const half = widths.map((w) => w / 2);
 
-  // Orient like the owner's PNG (start straight along `lineDirection`), scale, start line at 0.
-  const [x0, y0] = profile.stations[0]!;
-  const [x1, y1] = profile.stations[Math.round(50 / profile.spacing)]!;
-  const turn = (circuit.lineDirection * Math.PI) / 180 - Math.atan2(y1 - y0, x1 - x0);
-  const cos = Math.cos(turn) * scale;
-  const sin = Math.sin(turn) * scale;
-  // Real y points north; the game's -z is "up" seen from above, so z = -y keeps clockwise clockwise.
-  let points: Point[] = profile.stations.map(([x, y]) => {
-    const dx = x - x0;
-    const dy = y - y0;
-    return [dx * cos - dy * sin, -(dx * sin + dy * cos)];
-  });
+  let points: Point[] = profile.stations.map(toGame(profile, circuit, scale));
   const original = points;
   const spacing = profile.spacing * scale;
 
@@ -118,6 +107,28 @@ export function generate(
       separationRounds,
       foldRounds,
     },
+  };
+}
+
+/**
+ * The profile's frame (real m, y north) → the game's (x, z): oriented like the owner's PNG (start
+ * straight along `lineDirection`), scaled, start line at the origin. Real y points north and the
+ * game's -z is "up" seen from above, so z = -y keeps clockwise clockwise.
+ */
+export function toGame(
+  profile: CircuitProfile,
+  circuit: CircuitConfig,
+  scale: number,
+): (p: readonly [number, number]) => Point {
+  const [x0, y0] = profile.stations[0]!;
+  const [x1, y1] = profile.stations[Math.round(50 / profile.spacing)]!;
+  const turn = (circuit.lineDirection * Math.PI) / 180 - Math.atan2(y1 - y0, x1 - x0);
+  const cos = Math.cos(turn) * scale;
+  const sin = Math.sin(turn) * scale;
+  return ([x, y]) => {
+    const dx = x - x0;
+    const dy = y - y0;
+    return [dx * cos - dy * sin, -(dx * sin + dy * cos)];
   };
 }
 

@@ -4,6 +4,7 @@ import {
   createCheckerTexture,
   createConcreteTexture,
   createCrowdTexture,
+  createGarageTexture,
   createRoofTexture,
 } from '../pixelTexture';
 
@@ -50,6 +51,35 @@ export function createGrandstand(length: number): THREE.Group {
   roof.position.set(0, ROWS * ROW_RISE + 5, -depth / 2 + 1);
   roof.rotation.x = 0.12; // slopes down towards the track
   group.add(back, roof);
+  return group;
+}
+
+/**
+ * Pit building `length` × `depth` m, `height` m tall: a row of garages facing +Z (the pit lane),
+ * concrete elsewhere, a railing round the roof terrace.
+ */
+export function createPitBuilding(length: number, depth: number, height: number): THREE.Group {
+  const garages = createGarageTexture();
+  garages.repeat.set(length / 6, 1);
+  const concrete = createConcreteTexture();
+  concrete.repeat.set(length / 4, height / 3);
+  const wall = new THREE.MeshLambertMaterial({ map: concrete });
+  const box = new THREE.Mesh(new THREE.BoxGeometry(length, height, depth), [
+    wall,
+    wall,
+    wall,
+    wall,
+    new THREE.MeshLambertMaterial({ map: garages }),
+    wall,
+  ]);
+  box.position.set(0, height / 2, -depth / 2);
+  const railing = new THREE.Mesh(
+    new THREE.BoxGeometry(length, 1, 0.2),
+    new THREE.MeshLambertMaterial({ color: '#f2f2f2' }),
+  );
+  railing.position.set(0, height + 0.5, -0.1);
+  const group = new THREE.Group();
+  group.add(box, railing);
   return group;
 }
 

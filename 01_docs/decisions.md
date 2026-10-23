@@ -234,3 +234,17 @@
   per-track value, defaulting to `TRACK_RULES`.
 - The tool runs on plain Node (type stripping): `shared` became erasable-syntax only (one parameter
   property in `SegmentGrid`), which also suits the future Node server. `@types/node` added.
+
+## 2026-10-23 — Real circuits' scenery from OpenStreetMap (step 9b.2, Monza)
+
+- **OSM for the surroundings too**, through the same registration as the shape (`osmFrame`): real
+  grandstands, pit lane, pit buildings, woods and Monza's old oval end up where they really are,
+  with no hand-placed props, and the next circuits reuse the tool.
+- **Positions relative to the wall** (`TrackSpot`), not absolute: the game's asphalt is 1.6× wider
+  than the real one, so absolute positions would put stands on the run-off.
+- **Pit lane decorative for now** (behind the wall): a drivable pit lane needs branches into the
+  pits and rules for them; left for later.
+- **Old oval as scenery only**: it is not a track of the game; on bridges where it crosses the GP
+  track, removed where it shares the GP straights.
+- **Wall styles by place** (concrete by stands and pits, tyres at gravel, armco elsewhere): what
+  the real circuit looks like; the physics wall is unchanged.

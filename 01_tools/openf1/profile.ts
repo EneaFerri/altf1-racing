@@ -12,7 +12,9 @@ import {
   profilePath,
   rawPath,
   readJson,
+  osmMetres,
   type CircuitProfile,
+  type OsmFrame,
   type RawOsmCircuit,
   type RawPoleLap,
 } from './openf1.ts';
@@ -75,15 +77,15 @@ const lapSpacing = lapLength / lapStations.length;
 
 // 2. The OSM centreline in the same frame: metres, then registered onto the lap.
 const lat0 = osm.ways.flat().reduce((sum, [lat]) => sum + lat, 0) / osm.ways.flat().length;
-const toMetres = ([lat, lon]: readonly [number, number]): Point => [
-  lon * 111320 * Math.cos((lat0 * Math.PI) / 180),
-  lat * 110574,
-];
-const segments = register(
-  osm.ways.flatMap((way) =>
-    way.slice(1).map((p, i): [Point, Point] => [toMetres(way[i]!), toMetres(p)]),
-  ),
-  lapStations,
+const toMetres = osmMetres(lat0);
+const original = osm.ways.flatMap((way) =>
+  way.slice(1).map((p, i): [Point, Point] => [toMetres(way[i]!), toMetres(p)]),
+);
+const segments = register(original, lapStations);
+const osmFrame = rigidFit(
+  original.map(([a]) => a),
+  segments.map(([a]) => a),
+  lat0,
 );
 
 // 3. Each lap station moved onto the road centreline (the lap is a racing line: it cuts corners).
@@ -169,6 +171,7 @@ const profile: CircuitProfile = {
   stations: stations.map((p) => [round(p[0]), round(p[1])]),
   speed,
   corners,
+  osmFrame,
 };
 writeFileSync(profilePath(circuit.id), JSON.stringify(profile) + '\n');
 
@@ -188,6 +191,27 @@ console.log(
 function round(value: number, digits = 1): number {
   const f = 10 ** digits;
   return Math.round(value * f) / f;
+}
+
+/** The rotation + translation taking `from` onto `to` (same points, moved rigidly). */
+function rigidFit(from: readonly Point[], to: readonly Point[], lat0: number): OsmFrame {
+  const mean = (ps: readonly Point[]): Point => [
+    ps.reduce((s, p) => s + p[0], 0) / ps.length,
+    ps.reduce((s, p) => s + p[1], 0) / ps.length,
+  ];
+  const [fx, fy] = mean(from);
+  const [gx, gy] = mean(to);
+  let sxx = 0;
+  let sxy = 0;
+  from.forEach(([x, y], i) => {
+    const [u, v] = to[i]!;
+    sxx += (x - fx) * (u - gx) + (y - fy) * (v - gy);
+    sxy += (x - fx) * (v - gy) - (y - fy) * (u - gx);
+  });
+  const angle = Math.atan2(sxy, sxx);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return { lat0, angle, tx: gx - (fx * cos - fy * sin), ty: gy - (fx * sin + fy * cos) };
 }
 
 function nearestOnSegments(segs: readonly (readonly [Point, Point])[], p: Point) {

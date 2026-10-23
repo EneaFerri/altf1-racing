@@ -425,6 +425,63 @@ export function createBalloonTexture(color: string, size = 8): THREE.Texture {
   });
 }
 
+/** Park grass (Monza): deep green with mown stripes, so the long straights read speed. */
+export function createParkGrassTexture(size = 32): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#4c8a36', '#518f3a', '#478432'], 37);
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = '#6aa64a';
+      ctx.fillRect(0, 0, size, size / 2);
+      ctx.globalAlpha = 1;
+      sprinkle(ctx, size, '#3c7029', 0.03, 41);
+    },
+    true,
+  );
+}
+
+/**
+ * Guard rail (armco) on transparent pixels (use with `alphaTest`): a steel double-wave beam with
+ * a dark post at the tile's left edge.
+ */
+export function createArmcoTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      ctx.clearRect(0, 0, size, size);
+      ctx.fillStyle = '#3d3d42';
+      ctx.fillRect(0, 4, 2, size - 4);
+      ctx.fillStyle = '#a9adb3';
+      ctx.fillRect(0, 2, size, 6);
+      ctx.fillStyle = '#d4d7db';
+      ctx.fillRect(0, 3, size, 1);
+      ctx.fillRect(0, 6, size, 1);
+      ctx.fillStyle = '#7d8187';
+      ctx.fillRect(0, 4, size, 1);
+      ctx.fillRect(0, 7, size, 1);
+    },
+    true,
+  );
+}
+
+/** Pit garage front: grey frame, a dark roller door with slats, a red team stripe on top. */
+export function createGarageTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#c9c9cc', '#c2c2c6'], 43);
+      ctx.fillStyle = '#c8102e';
+      ctx.fillRect(0, 0, size, 2);
+      ctx.fillStyle = '#2e2f33';
+      ctx.fillRect(2, 5, size - 4, size - 5);
+      ctx.fillStyle = '#44464c';
+      for (let y = 6; y < size; y += 2) ctx.fillRect(2, y, size - 4, 1);
+    },
+    true,
+  );
+}
+
 /** Scatters single pixels of `color` over roughly `share` of the tile. */
 function sprinkle(
   ctx: CanvasRenderingContext2D,

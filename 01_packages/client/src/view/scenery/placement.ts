@@ -1,4 +1,4 @@
-import { locateOnTrack, vec2, type Track, type TrackSide, type Vec2 } from '@altf1/shared';
+import { locateOnTrack, roadOf, vec2, type Track, type TrackSide, type Vec2 } from '@altf1/shared';
 
 // Pure placement helpers for scenery (no Three.js): where props may stand. Tested in placement.test.ts.
 
@@ -14,6 +14,101 @@ export interface Area {
   readonly maxX: number;
   readonly minZ: number;
   readonly maxZ: number;
+}
+
+/**
+ * A point given relative to the track, so it stays beside the track whatever its width: lap
+ * fraction (0 = start line, along the main loop) and metres beyond the wall (+ right, − left).
+ */
+export type TrackSpot = readonly [at: number, gap: number];
+
+/** Where a `TrackSpot` is on the ground. */
+export function fromTrack(track: Track, [at, gap]: TrackSpot): Vec2 {
+  const n = track.samples.length;
+  const s = track.samples[((Math.round(at * n) % n) + n) % n]!;
+  const offset = Math.sign(gap) * (s.halfWidth + track.runoffWidth + Math.abs(gap));
+  return vec2(s.position.x + s.normal.x * offset, s.position.z + s.normal.z * offset);
+}
+
+/** A `TrackSpot` path as ground points every ~`step` m (interpolated along the track). */
+export function alongTrack(track: Track, path: readonly TrackSpot[], step: number): Vec2[] {
+  const points: Vec2[] = [];
+  path.forEach((spot, i) => {
+    const next = path[i + 1];
+    if (!next) {
+      points.push(fromTrack(track, spot));
+      return;
+    }
+    // Lap fractions wrap over the line: take the short way round.
+    const dAt = ((((next[0] - spot[0]) % 1) + 1.5) % 1) - 0.5;
+    const steps = Math.max(1, Math.ceil((Math.abs(dAt) * track.length) / step));
+    for (let k = 0; k < steps; k++) {
+      const f = k / steps;
+      points.push(fromTrack(track, [spot[0] + dAt * f, spot[1] + (next[1] - spot[1]) * f]));
+    }
+  });
+  return points;
+}
+
+/** A rectangular footprint beside the track: its front centre, facing direction and size. */
+export interface Footprint {
+  /** Middle of the side nearest the track, on the ground. */
+  readonly front: Vec2;
+  /** Unit vector from the footprint towards the track. */
+  readonly towardsTrack: Vec2;
+  /** Along the track, and away from it (m). */
+  readonly length: number;
+  readonly depth: number;
+}
+
+/** The box around a footprint (e.g. a grandstand's), aligned with the track beside it. */
+export function footprintBox(track: Track, spots: readonly TrackSpot[]): Footprint {
+  const points = spots.map((s) => fromTrack(track, s));
+  const c = vec2(
+    points.reduce((sum, p) => sum + p.x, 0) / points.length,
+    points.reduce((sum, p) => sum + p.z, 0) / points.length,
+  );
+  const loc = locateOnTrack(track, c);
+  const normal = roadOf(track, loc.route).samples[loc.index]!.normal;
+  // Unit vector pointing away from the track, through the footprint.
+  const dir = loc.lateral >= 0 ? normal : vec2(-normal.x, -normal.z);
+  const along = points.map((p) => (p.x - c.x) * loc.tangent.x + (p.z - c.z) * loc.tangent.z);
+  // `dir` points away from the track: the front is the smallest projection on it.
+  const across = points.map((p) => (p.x - c.x) * dir.x + (p.z - c.z) * dir.z);
+  const midAlong = (Math.max(...along) + Math.min(...along)) / 2;
+  const front = Math.min(...across);
+  return {
+    front: vec2(
+      c.x + loc.tangent.x * midAlong + dir.x * front,
+      c.z + loc.tangent.z * midAlong + dir.z * front,
+    ),
+    towardsTrack: vec2(-dir.x, -dir.z),
+    length: Math.max(...along) - Math.min(...along),
+    depth: Math.max(...across) - front,
+  };
+}
+
+/** True when `p` is inside the polygon (even-odd rule). */
+export function insidePolygon(p: Vec2, polygon: readonly Vec2[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i]!;
+    const b = polygon[j]!;
+    if (a.z > p.z !== b.z > p.z && p.x < ((b.x - a.x) * (p.z - a.z)) / (b.z - a.z) + a.x) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/** The bounding box of a polygon. */
+export function polygonBounds(polygon: readonly Vec2[]): Area {
+  return {
+    minX: Math.min(...polygon.map((p) => p.x)),
+    maxX: Math.max(...polygon.map((p) => p.x)),
+    minZ: Math.min(...polygon.map((p) => p.z)),
+    maxZ: Math.max(...polygon.map((p) => p.z)),
+  };
 }
 
 /** How far `p` is outside the walls (asphalt + run-off); negative = inside the drivable area. */
@@ -41,8 +136,9 @@ export function seededRandom(seed: number): () => number {
 }
 
 /**
- * Up to `count` seeded random points in `area`, each at least `margin` outside the walls, outside
- * every `avoid` circle and `spacing` away from the others. Gives up after a fixed number of tries.
+ * Up to `count` seeded random points in `area` (and `inside` a polygon, when given), each at least
+ * `margin` outside the walls, outside every `avoid` circle and `spacing` away from the others.
+ * Gives up after a fixed number of tries.
  */
 export function scatter(
   track: Track,
@@ -53,13 +149,19 @@ export function scatter(
     margin,
     spacing,
     avoid = [],
+    inside,
   }: {
     seed: number;
     margin: number;
     spacing: number;
     avoid?: readonly Circle[];
+    inside?: readonly Vec2[];
   },
 ): Vec2[] {
+  // Far from every road's centreline the walls can't be within `margin`: skip the costly check.
+  const roads = [track, ...track.routes];
+  const near = (p: Vec2): boolean =>
+    roads.some((r) => r.centerGrid.query(p, r.maxHalfWidth + r.runoffWidth + margin).length > 0);
   const random = seededRandom(seed);
   const points: Vec2[] = [];
   for (let attempt = 0; attempt < count * 30 && points.length < count; attempt++) {
@@ -67,9 +169,10 @@ export function scatter(
       area.minX + random() * (area.maxX - area.minX),
       area.minZ + random() * (area.maxZ - area.minZ),
     );
+    if (inside && !insidePolygon(p, inside)) continue;
     if (avoid.some((c) => Math.hypot(p.x - c.x, p.z - c.z) < c.r)) continue;
     if (points.some((q) => Math.hypot(p.x - q.x, p.z - q.z) < spacing)) continue;
-    if (clearance(track, p) < margin) continue;
+    if (near(p) && clearance(track, p) < margin) continue;
     points.push(p);
   }
   return points;

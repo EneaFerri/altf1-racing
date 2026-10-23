@@ -2,9 +2,10 @@ import type * as THREE from 'three';
 import type { Track } from '@altf1/shared';
 import { CLASSIC_THEME } from './classic';
 import { KRUNCAR_THEME } from './kruncar';
+import { MONZA_THEME } from './monza';
 
 /** How a stretch of wall is drawn (the physics wall is the same everywhere). */
-export type WallStyle = 'tyres' | 'fence' | 'concrete';
+export type WallStyle = 'tyres' | 'fence' | 'concrete' | 'armco';
 
 /**
  * Everything that makes a track look the way it does: sky, light, ground, asphalt, kerbs, walls
@@ -39,7 +40,9 @@ export interface TrackTheme {
   readonly scenery: (track: Track) => THREE.Object3D[];
 }
 
-/** The theme drawn for a track: Kruncar has its own, every other track the classic look. */
+const THEMES: Readonly<Record<string, TrackTheme>> = { Kruncar: KRUNCAR_THEME, Monza: MONZA_THEME };
+
+/** The theme drawn for a track: its own when it has one, else the classic look. */
 export function themeFor(trackName: string): TrackTheme {
-  return trackName === 'Kruncar' ? KRUNCAR_THEME : CLASSIC_THEME;
+  return THEMES[trackName] ?? CLASSIC_THEME;
 }

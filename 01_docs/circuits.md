@@ -36,7 +36,9 @@ and speed from OpenF1**.
 2. `profile` → `data/<id>.json`, real metres: the lap resampled every 5 m; the OSM ways registered
    onto it (iterative closest point) and each lap point moved onto the nearest OSM segment (within
    15 m); the lap's speed, its corners (speed minima) and the sector starts (where the car was at
-   S1 and S1 + S2) carried over to the centreline's distances.
+   S1 and S1 + S2) carried over to the centreline's distances; and `osmFrame`, the rigid fit
+   (rotation + shift) of the OSM centreline onto the lap, so any other OSM feature lands in the
+   same frame (scenery).
 3. `layout` → `01_packages/shared/src/track/layouts/<id>.ts` (generated: never edit by hand), plus
    a preview from above (`01_tools/openf1/preview/<id>.png`, git-ignored):
    - oriented like the owner's PNG (`lineDirection`), scaled by `scale`, start line at the origin;
@@ -56,6 +58,9 @@ and speed from OpenF1**.
 4. `calibrate`: drives the Hard bot headless with the game's own simulation and corrects `scale` by
    the time ratio until the lap is within 0.2% of the pole; then prints every level's lap and
    sectors vs reality, wall hits and off-track moments (with where they happen, in real metres).
+5. `scenery` (optional, per circuit): grandstands, pit lane and buildings, woods and old raceways
+   from OSM → the client's generated `themes/<id>Layout.ts`. Rules in
+   [themes.md](themes.md#real-circuits-scenery-from-openstreetmap).
 
 ## Adaptation to the game
 

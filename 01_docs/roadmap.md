@@ -30,8 +30,9 @@ Done (details in the linked docs; superseded designs in [decisions.md](decisions
      the owner's reference setup (git tag `baseline-v2`).
    - 9b–d **Monza, Barcelona, Monaco** — the real circuits from open data (OpenF1 times and sectors,
      OpenStreetMap shape, published widths), scaled so the Hard bot laps in the real pole time
-     ([circuits.md](circuits.md)). Their scenery comes later.
-     - 9b ✅ **Monza** — with the tool (`01_tools/openf1/`) and per-track widths and sectors.
+     ([circuits.md](circuits.md)); then their scenery from OpenStreetMap ([themes.md](themes.md)).
+     - 9b ✅ **Monza** — with the tool (`01_tools/openf1/`) and per-track widths and sectors;
+       9b.2 ✅ scenery: real grandstands, pit lane and buildings, woods, the old oval, armco.
      - 9c **Barcelona** (next), 9d **Monaco**.
 
 Out of scope for Phase 1: audio, menus beyond the track menu, gamepad, networking.
