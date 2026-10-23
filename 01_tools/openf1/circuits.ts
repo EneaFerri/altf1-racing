@@ -18,6 +18,17 @@ export interface WidthMark {
   readonly source?: string;
 }
 
+/** A grandstand placed by hand (temporary stands are not in OSM). Real metres. */
+export interface HandStand {
+  readonly name: string;
+  /** Distance of its middle from the line along the profile's centreline. */
+  readonly at: number;
+  readonly length: number;
+  readonly depth: number;
+  /** Side of the track, seen driving. */
+  readonly side: 'left' | 'right';
+}
+
 export interface CircuitConfig {
   /** File name of the data (`data/<id>.json`) and of the layout (`layouts/<id>.ts`). */
   readonly id: string;
@@ -44,6 +55,15 @@ export interface CircuitConfig {
   /** Distance from the asphalt edge to the wall (m, game scale). */
   readonly runoffWidth: number;
   readonly kerbs: 'corners' | 'everywhere';
+
+  // ---- Scenery (scenery.ts) ----
+  /**
+   * A town circuit: every building around with its height, the sea, piers, pools, trees and the
+   * tunnel, from OSM (Monaco). See 01_docs/themes.md.
+   */
+  readonly town?: boolean;
+  /** Grandstands placed by hand where OSM has none. */
+  readonly stands?: readonly HandStand[];
 }
 
 /**
@@ -158,6 +178,13 @@ export const CIRCUITS: readonly CircuitConfig[] = [
     lineDirection: 80,
     runoffWidth: 3,
     kerbs: 'corners',
+    town: true,
+    // The harbour is on the left from Tabac to La Rascasse.
+    stands: [
+      { name: 'Tribune B (Casino)', at: 870, length: 50, depth: 10, side: 'left' },
+      { name: 'Tribune K (Tabac)', at: 2390, length: 120, depth: 14, side: 'left' },
+      { name: 'Tribune T (Piscine, Rascasse)', at: 2770, length: 110, depth: 18, side: 'left' },
+    ],
   },
 ];
 

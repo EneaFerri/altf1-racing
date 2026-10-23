@@ -15,13 +15,13 @@ node --import ./01_tools/openf1/resolveTs.ts 01_tools/openf1/scenery.ts <id> [--
 `layout`, `calibrate` and `scenery` use the game's own code in `01_packages/shared`, whose imports have no
 extension: `resolveTs.ts` lets Node resolve them.
 
-| File           | Role                                                                           |
-| -------------- | ------------------------------------------------------------------------------ |
-| `circuits.ts`  | Every circuit: sources, real widths, adaptation (scale, width factor, run-off) |
-| `fetch.ts`     | Downloads `data/<id>.openf1.json` and `data/<id>.osm.json` (committed)         |
-| `profile.ts`   | Turns them into `data/<id>.json` (committed), incl. `osmFrame` (OSM → frame)   |
-| `generate.ts`  | Profile + adaptation → `TrackDefinition` (used by layout and calibrate)        |
-| `layout.ts`    | Writes `01_packages/shared/src/track/layouts/<id>.ts` and `preview/<id>.png`   |
-| `calibrate.ts` | Finds the scale at which the Hard bot laps in the real pole time               |
-| `scenery.ts`   | OSM scenery → `data/<id>.scenery.json` (committed) → client `<id>Layout.ts`    |
-| `openf1.ts`    | Data shapes and paths · `geometry.ts` polyline helpers · `png.ts` previews     |
+| File           | Role                                                                               |
+| -------------- | ---------------------------------------------------------------------------------- |
+| `circuits.ts`  | Every circuit: sources, real widths, adaptation (scale, width factor, run-off)     |
+| `fetch.ts`     | Downloads `data/<id>.openf1.json` and `data/<id>.osm.json` (committed)             |
+| `profile.ts`   | Turns them into `data/<id>.json` (committed), incl. `osmFrame` (OSM → frame)       |
+| `generate.ts`  | Profile + adaptation → `TrackDefinition` (used by layout and calibrate)            |
+| `layout.ts`    | Writes `01_packages/shared/src/track/layouts/<id>.ts` and `preview/<id>.png`       |
+| `calibrate.ts` | Finds the scale at which the Hard bot laps in the real pole time                   |
+| `scenery.ts`   | OSM scenery (+ town layers if `town`) → `data/<id>.scenery.json` → `<id>Layout.ts` |
+| `openf1.ts`    | Data shapes and paths · `geometry.ts` polyline helpers · `png.ts` previews         |

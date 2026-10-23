@@ -509,3 +509,87 @@ function sprinkle(
     ctx.fillRect(Math.floor(random() * size), Math.floor(random() * size), 1, 1);
   }
 }
+
+/**
+ * Riviera facade, one window bay per floor (repeat it every bay and every floor): a pastel wall,
+ * a dark window with a light reflection, shutters either side and a white sill.
+ */
+export function createFacadeTexture(wall: string, shutter: string, size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, [wall], 71);
+      sprinkle(ctx, size, '#00000014', 0.08, 73);
+      ctx.fillStyle = shutter;
+      ctx.fillRect(2, 4, 2, 8);
+      ctx.fillRect(12, 4, 2, 8);
+      ctx.fillStyle = '#2d3a46';
+      ctx.fillRect(5, 4, 6, 8);
+      ctx.fillStyle = '#6f8597';
+      ctx.fillRect(5, 4, 2, 3);
+      ctx.fillStyle = '#f4f1ea';
+      ctx.fillRect(4, 12, 8, 1);
+      ctx.fillStyle = '#00000022';
+      ctx.fillRect(0, 15, size, 1);
+    },
+    true,
+  );
+}
+
+/** Modern tower (the tall apartment blocks): blue-grey glass in bands, white floor slabs. */
+export function createGlassFacadeTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#7f97a8', '#8aa3b4', '#7690a2'], 79);
+      ctx.fillStyle = '#a9bfcd';
+      ctx.fillRect(0, 3, size, 2);
+      ctx.fillStyle = '#e9e9e4';
+      ctx.fillRect(0, 13, size, 3);
+      ctx.fillStyle = '#5e7383';
+      ctx.fillRect(7, 0, 1, 13);
+    },
+    true,
+  );
+}
+
+/** Town ground: pale stone paving with darker joints. */
+export function createPavingTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#cfc7b6', '#d6cebd', '#c8c0ae'], 83);
+      ctx.fillStyle = '#b3aa98';
+      for (let i = 0; i < size; i += 8) {
+        ctx.fillRect(0, i, size, 1);
+        ctx.fillRect(i + (i % 16 === 0 ? 0 : 4), 0, 1, size);
+      }
+    },
+    true,
+  );
+}
+
+/** Mediterranean sea: deep blue with light glints. */
+export function createSeaTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#1d6aa3', '#1a649b', '#2272ab'], 89);
+      sprinkle(ctx, size, '#6fb3dd', 0.03, 97);
+    },
+    true,
+  );
+}
+
+/** Swimming pool: bright blue with a darker lane line. */
+export function createPoolTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#3fb5e6', '#45bdec', '#3aaedf'], 101);
+      ctx.fillStyle = '#1f6f9c';
+      ctx.fillRect(7, 0, 2, size);
+    },
+    true,
+  );
+}

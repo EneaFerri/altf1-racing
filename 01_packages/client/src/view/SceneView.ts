@@ -111,14 +111,20 @@ function interpolateCar(prev: CarState, curr: CarState, alpha: number): CarPose 
   };
 }
 
+/** Ground cell size (m), see createGround. */
+const GROUND_CELL = 50;
+
 /** Grass square under the whole circuit, `theme.ground.margin` m past it on every side. */
 function createGround(track: Track, theme: TrackTheme): THREE.Mesh {
   const bounds = trackBounds(track, theme.ground.margin);
   const size = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ);
   const texture = theme.ground.texture();
   texture.repeat.set(size / theme.ground.tile, size / theme.ground.tile);
+  // Split into ~GROUND_CELL m cells: one huge quad loses depth precision near the camera and can
+  // hide the track's surfaces just above it.
+  const cells = Math.ceil(size / GROUND_CELL);
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(size, size),
+    new THREE.PlaneGeometry(size, size, cells, cells),
     new THREE.MeshLambertMaterial({ map: texture }),
   );
   ground.rotation.x = -Math.PI / 2; // PlaneGeometry is vertical by default

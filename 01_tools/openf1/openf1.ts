@@ -35,10 +35,24 @@ export interface RawOsmCircuit {
 
 /** One OpenStreetMap feature around a circuit, as scenery.ts keeps it. */
 export interface SceneryFeature {
-  readonly kind: 'grandstand' | 'building' | 'pitLane' | 'wood' | 'raceway';
+  readonly kind:
+    | 'grandstand'
+    | 'building'
+    | 'pitLane'
+    | 'wood'
+    | 'raceway'
+    // Town circuits only (`CircuitConfig.town`):
+    | 'townBuilding'
+    | 'coastline'
+    | 'pier'
+    | 'pool'
+    | 'tree'
+    | 'tunnel';
   readonly name: string;
-  /** [lat, lon]; closed polygons repeat their first point. */
+  /** [lat, lon]; closed polygons repeat their first point; a tree is one point. */
   readonly points: readonly (readonly [number, number])[];
+  /** Town buildings: height (m), from OSM `height`, `building:levels` or the building's type. */
+  readonly height?: number;
 }
 
 /** What scenery.ts downloads (`data/<id>.scenery.json`). */

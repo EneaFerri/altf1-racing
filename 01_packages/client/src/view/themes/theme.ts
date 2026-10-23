@@ -3,10 +3,11 @@ import type { Track } from '@altf1/shared';
 import { BARCELONA_THEME } from './barcelona';
 import { CLASSIC_THEME } from './classic';
 import { KRUNCAR_THEME } from './kruncar';
+import { MONACO_THEME } from './monaco';
 import { MONZA_THEME } from './monza';
 
 /** How a stretch of wall is drawn (the physics wall is the same everywhere). */
-export type WallStyle = 'tyres' | 'fence' | 'concrete' | 'armco';
+export type WallStyle = 'tyres' | 'fence' | 'concrete' | 'armco' | 'armcoFence';
 
 /**
  * Everything that makes a track look the way it does: sky, light, ground, asphalt, kerbs, walls
@@ -45,6 +46,7 @@ const THEMES: Readonly<Record<string, TrackTheme>> = {
   Kruncar: KRUNCAR_THEME,
   Monza: MONZA_THEME,
   Barcelona: BARCELONA_THEME,
+  Monaco: MONACO_THEME,
 };
 
 /** The theme drawn for a track: its own when it has one, else the classic look. */

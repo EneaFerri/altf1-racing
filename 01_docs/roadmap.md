@@ -36,7 +36,9 @@ Done (details in the linked docs; superseded designs in [decisions.md](decisions
      - 9c ✅ **Barcelona** — circuit; 9c.2 ✅ scenery: Mediterranean look, real grandstands, pit
        lane and buildings, pines in the real woods.
      - **Baseline v3** (final): `maxSpeed` 80 → 95, owner's choice; tracks and bots unchanged.
-     - 9d ✅ **Monaco** — circuit (width × 1.2: overtaking as hard as in reality); scenery (9d.2) next.
+     - 9d ✅ **Monaco** — circuit (width × 1.2: overtaking as hard as in reality); 9d.2a ✅ the town
+       and the sea (buildings with real heights, Port Hercule, pools, palms, tunnel, catch fences);
+       9d.2b next: yachts, Casino, Sainte-Dévote, hills.
 
 Out of scope for Phase 1: audio, menus beyond the track menu, gamepad, networking.
 

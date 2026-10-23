@@ -1,6 +1,7 @@
 /**
  * A circuit's scenery from OpenStreetMap: grandstands, pit lane and pit buildings, woods and old
- * raceways (e.g. Monza's oval). Downloads them (`--fetch`) into `data/<id>.scenery.json`
+ * raceways (e.g. Monza's oval); on a town circuit also every building with its height, the sea,
+ * piers, pools, trees and the tunnel (Monaco). Downloads them (`--fetch`) into `data/<id>.scenery.json`
  * (committed), then writes the game's plain-data layout
  * `01_packages/client/src/view/themes/<id>Layout.ts` (generated: never edit by hand).
  * Usage: node --import ./01_tools/openf1/resolveTs.ts 01_tools/openf1/scenery.ts <id> [--fetch]
@@ -9,7 +10,7 @@
 import { existsSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildTrack, locateOnTrack, vec2 } from '../../01_packages/shared/src/index.ts';
+import { buildTrack, locateOnTrack, vec2, type Track } from '../../01_packages/shared/src/index.ts';
 import { circuitById } from './circuits.ts';
 import { generate, toGame, widthAt } from './generate.ts';
 import type { Point } from './geometry.ts';
@@ -30,6 +31,21 @@ const OVERPASS = 'https://overpass-api.de/api/interpreter';
 const MARGIN = 0.008;
 /** Buildings further than this from the circuit are town, not circuit (m). */
 const BUILDING_REACH = 250;
+/** Town circuits: area searched for the town layers (degrees), metres per building level. */
+const TOWN_MARGIN = 0.003;
+const LEVEL_HEIGHT = 3.2;
+/** Town building height by type when OSM has none (m). */
+const TYPE_HEIGHT: Readonly<Record<string, number>> = {
+  house: 8,
+  detached: 8,
+  roof: 4,
+  garage: 4,
+  kiosk: 3,
+  chapel: 10,
+  church: 16,
+  cathedral: 25,
+};
+const TOWN_HEIGHT = 18;
 
 /** Grandstands and buildings further than this beyond the real asphalt are left out (m, real). */
 const MAX_REACH = 250;
@@ -42,6 +58,8 @@ const PIT_LANE_WIDTH = 12;
 const PIT_WALL = 1;
 /** Pit buildings: within this distance of the pit lane (m, real). */
 const PIT_REACH = 80;
+/** Each pit lane point is located within this (plus the step) along the lap of the previous one (m, real). */
+const LANE_FOLLOW = 60;
 /** A footprint's points are located within this distance along the lap of its centre (m, real). */
 const FOOTPRINT_REACH = 200;
 /** Old raceways kept as scenery, by name (Monza's high-speed oval). */
@@ -52,6 +70,23 @@ const BRIDGE_HEIGHT = 8;
 const OVAL_WIDTH = 12;
 const RAMP = 70;
 const MAX_BANK = 0.45;
+/** Town: buildings within this of the centreline (m, game), and their least gap beyond the wall. */
+const CITY_REACH = 200;
+const CITY_GAP = 1.5;
+/** Town: footprints simplified to this tolerance (m). */
+const SIMPLIFY = 0.5;
+/** Tunnel: height of its roof's top, where the buildings over it stand (m). */
+const TUNNEL_TOP = 8;
+/** Town: the sea is drawn this far around the track (m, game) and kept this far beyond the wall. */
+const SEA_REACH = 700;
+const SEA_GAP = 2;
+/** Town: piers and pools at least this far beyond the wall, trees at least this far (m). */
+const WATERSIDE_GAP = 1;
+const TREE_GAP = 4;
+/** Town: the pit garages, temporary boxes beside the pit lane (m, real): depth, length, ends left out. */
+const GARAGE_DEPTH = 10;
+const GARAGE_CHUNK = 60;
+const GARAGE_ENDS = 0.15;
 
 const circuit = circuitById(process.argv[2] ?? '');
 if (process.argv.includes('--fetch') || !existsSync(sceneryPath(circuit.id))) {
@@ -69,13 +104,31 @@ async function fetchScenery(): Promise<void> {
     Math.max(...lats) + MARGIN,
     Math.max(...lons) + MARGIN,
   ].join(',');
-  const query = `[out:json][timeout:120];
+  const town = circuit.town
+    ? (() => {
+        const b = [
+          Math.min(...lats) - TOWN_MARGIN,
+          Math.min(...lons) - TOWN_MARGIN,
+          Math.max(...lats) + TOWN_MARGIN,
+          Math.max(...lons) + TOWN_MARGIN,
+        ].join(',');
+        return `
+  relation["building"](${b});
+  way["natural"="coastline"](${b});
+  way["man_made"="pier"](${b});
+  way["leisure"="swimming_pool"](${b});
+  node["natural"="tree"](${b});
+  way(r.circuit)["tunnel"];`;
+      })()
+    : '';
+  const query = `[out:json][timeout:180];
+relation(${circuit.osmRelation})->.circuit;
 (
-  relation(${circuit.osmRelation});
+  .circuit;
   way["building"](${bbox});
   way["landuse"="forest"](${bbox});
   way["natural"="wood"](${bbox});
-  way["highway"="raceway"](${bbox});
+  way["highway"="raceway"](${bbox});${town}
 );
 out geom;`;
   const response = await fetch(OVERPASS, {
@@ -91,6 +144,8 @@ out geom;`;
   interface Element {
     readonly type: string;
     readonly id: number;
+    readonly lat?: number;
+    readonly lon?: number;
     readonly tags?: Record<string, string>;
     readonly geometry?: readonly { readonly lat: number; readonly lon: number }[];
     readonly members?: readonly {
@@ -105,7 +160,27 @@ out geom;`;
     g.map((p) => [Math.round(p.lat * 1e7) / 1e7, Math.round(p.lon * 1e7) / 1e7]);
   const features: SceneryFeature[] = [];
   for (const e of elements) {
+    const tags = e.tags ?? {};
+    const name = tags.name ?? '';
+    if (e.type === 'node') {
+      if (e.lat !== undefined && e.lon !== undefined) {
+        const points = geometry([{ lat: e.lat, lon: e.lon }]);
+        if (points.some(near)) features.push({ kind: 'tree', name, points });
+      }
+      continue;
+    }
     if (e.type === 'relation') {
+      if (tags.building) {
+        // A multipolygon building: its outer ring, joined from its outer ways.
+        const outer = (e.members ?? [])
+          .filter((m) => m.type === 'way' && m.role === 'outer' && m.geometry)
+          .map((m) => geometry(m.geometry!));
+        const ring = joinRing(outer);
+        if (ring && ring.some(near)) {
+          features.push({ kind: 'townBuilding', name, points: ring, height: heightOf(tags) });
+        }
+        continue;
+      }
       for (const m of e.members ?? []) {
         if (m.type === 'way' && m.role === 'pit_lane' && m.geometry) {
           features.push({ kind: 'pitLane', name: 'pit lane', points: geometry(m.geometry) });
@@ -114,13 +189,19 @@ out geom;`;
       continue;
     }
     if (!e.geometry) continue;
-    const tags = e.tags ?? {};
     const points = geometry(e.geometry);
-    const name = tags.name ?? '';
-    if (tags.building === 'grandstand') features.push({ kind: 'grandstand', name, points });
+    if (circuit.town && tags.tunnel && tags.highway) {
+      features.push({ kind: 'tunnel', name, points });
+    } else if (tags.building === 'grandstand') features.push({ kind: 'grandstand', name, points });
     else if (tags.building) {
-      if (points.some(near)) features.push({ kind: 'building', name, points });
-    } else if (tags.landuse === 'forest' || tags.natural === 'wood') {
+      if (!points.some(near)) continue;
+      if (circuit.town) {
+        features.push({ kind: 'townBuilding', name, points, height: heightOf(tags) });
+      } else features.push({ kind: 'building', name, points });
+    } else if (tags.natural === 'coastline') features.push({ kind: 'coastline', name, points });
+    else if (tags.man_made === 'pier') features.push({ kind: 'pier', name, points });
+    else if (tags.leisure === 'swimming_pool') features.push({ kind: 'pool', name, points });
+    else if (tags.landuse === 'forest' || tags.natural === 'wood') {
       features.push({ kind: 'wood', name, points });
     } else if (tags.highway === 'raceway') {
       features.push({ kind: 'raceway', name, points });
@@ -135,8 +216,39 @@ out geom;`;
   const count = (kind: string): number => features.filter((f) => f.kind === kind).length;
   console.log(
     `${circuit.name}: ${count('grandstand')} grandstands, ${count('building')} buildings, ` +
-      `${count('pitLane')} pit lane ways, ${count('wood')} woods, ${count('raceway')} raceway ways`,
+      `${count('pitLane')} pit lane ways, ${count('wood')} woods, ${count('raceway')} raceway ways` +
+      (circuit.town
+        ? `; town: ${count('townBuilding')} buildings, ${count('coastline')} coastline ways, ` +
+          `${count('pier')} piers, ${count('pool')} pools, ${count('tree')} trees, ` +
+          `${count('tunnel')} tunnel ways`
+        : ''),
   );
+}
+
+/** A town building's height (m): OSM `height`, else its levels, else a guess from its type. */
+function heightOf(tags: Record<string, string>): number {
+  const height = parseFloat(tags.height ?? '');
+  if (height > 0) return height;
+  const levels = parseFloat(tags['building:levels'] ?? '');
+  if (levels > 0) return levels * LEVEL_HEIGHT + 1;
+  return TYPE_HEIGHT[tags.building ?? ''] ?? TOWN_HEIGHT;
+}
+
+/** Joins ways sharing end nodes into one closed ring (null if they don't close). */
+function joinRing(ways: readonly [number, number][][]): [number, number][] | null {
+  if (ways.length === 0) return null;
+  const same = (a: readonly number[], b: readonly number[]): boolean =>
+    a[0] === b[0] && a[1] === b[1];
+  const rest = ways.slice(1).map((w) => [...w]);
+  let ring = [...ways[0]!];
+  while (!same(ring[0]!, ring[ring.length - 1]!)) {
+    const end = ring[ring.length - 1]!;
+    const i = rest.findIndex((w) => same(w[0]!, end) || same(w[w.length - 1]!, end));
+    if (i < 0) return null;
+    const w = rest.splice(i, 1)[0]!;
+    ring = [...ring, ...(same(w[0]!, end) ? w : [...w].reverse()).slice(1)];
+  }
+  return ring;
 }
 
 /** True for [lat, lon] points within BUILDING_REACH of the circuit's centreline. */
@@ -163,12 +275,12 @@ function writeLayout(): void {
 
   /**
    * Lap fraction, signed lateral offset and gap beyond the real asphalt of a real point; with
-   * `around`, only the stations within FOOTPRINT_REACH of that one are searched.
+   * `around`, only the stations within `reach` m of that one are searched.
    */
-  const relative = (p: Point, around?: number) => {
+  const relative = (p: Point, around?: number, reach = FOOTPRINT_REACH) => {
     let best = 0;
     let bestDistance = Infinity;
-    const window = Math.round(FOOTPRINT_REACH / profile.spacing);
+    const window = Math.round(reach / profile.spacing);
     stations.forEach(([x, y], i) => {
       if (around !== undefined && Math.abs(wrappedIndex(i - around, n)) > window) return;
       const d = Math.hypot(x - p[0], y - p[1]);
@@ -211,15 +323,9 @@ function writeLayout(): void {
    * False when a spot lands closer than `minGap` to another stretch of the game's track: wider than
    * the real one, it can swallow the room between two real stretches (e.g. a building between them).
    */
-  const clearOfWalls = ([at, gap]: Spot, minGap: number): boolean => {
-    const samples = track.samples;
-    const s = samples[Math.round(at * samples.length) % samples.length]!;
-    const offset = Math.sign(gap) * (s.halfWidth + track.runoffWidth + Math.abs(gap));
-    const p = vec2(s.position.x + s.normal.x * offset, s.position.z + s.normal.z * offset);
-    const loc = locateOnTrack(track, p);
+  const clearOfWalls = (spot: Spot, minGap: number): boolean =>
     // 1 m of slack: spots are rounded and located on the nearest sample.
-    return Math.abs(loc.lateral) - loc.halfWidth - track.runoffWidth > minGap - 1;
-  };
+    clearance(track, fromSpot(track, spot)) > minGap - 1;
   const real = (f: SceneryFeature): Point[] => f.points.map((p) => toProfile(p));
   const length = (ps: readonly Point[]): number =>
     ps.slice(1).reduce((sum, p, i) => sum + Math.hypot(p[0] - ps[i]![0], p[1] - ps[i]![1]), 0);
@@ -230,18 +336,54 @@ function writeLayout(): void {
     (longest, line) => (line.length > longest.length ? line : longest),
   );
   const wrapped = (d: number): number => (((d % 1) + 1.5) % 1) - 0.5;
-  const laneAt = laneLine.map((p) => relative(p).at);
+  // Each point located near the previous one's station: the lane follows one stretch even where
+  // another runs close on its other side (Monaco's pits, between the start straight and the Piscine).
+  const follow = (ps: readonly Point[]) => {
+    const out: ReturnType<typeof relative>[] = [];
+    ps.forEach((p, i) => {
+      if (i === 0) return out.push(relative(p));
+      const step = Math.hypot(p[0] - ps[i - 1]![0], p[1] - ps[i - 1]![1]);
+      return out.push(relative(p, out[i - 1]!.index, LANE_FOLLOW + step));
+    });
+    return out;
+  };
+  const laneAt = follow(laneLine).map((r) => r.at);
   const forward = laneAt.slice(1).reduce((sum, at, i) => sum + wrapped(at - laneAt[i]!), 0) > 0;
-  const laneReal = forward ? laneLine : [...laneLine].reverse();
-  const laneRel = laneReal.map((p) => relative(p));
+  const ordered = forward ? laneLine : [...laneLine].reverse();
+  // Points running back along the lap (a spur into the garages) are left out.
+  const orderedRel = follow(ordered);
+  const keep = orderedRel.map(() => true);
+  let last = orderedRel[0]!.at;
+  orderedRel.forEach((r, i) => {
+    if (i > 0 && wrapped(r.at - last) < -0.002) keep[i] = false;
+    else last = r.at;
+  });
+  const laneReal = ordered.filter((_, i) => keep[i]);
+  const laneRel = orderedRel.filter((_, i) => keep[i]);
   const laneSide = Math.sign(laneRel.reduce((sum, r) => sum + r.lateral, 0));
   const laneHalf = (PIT_LANE_WIDTH * circuit.scale) / 2;
   const laneGaps = laneRel.map((r) => Math.max(0, r.edgeGap) * circuit.scale - circuit.runoffWidth);
   const laneShift = PIT_WALL + laneHalf - Math.min(...laneGaps);
-  const pitLane: Spot[] = laneRel.map((r, i) => [
+  // The longest run that really is beyond the wall, points and the way between them: past a tight
+  // corner an offset along the normal can land on another stretch, and where the real lane cuts a
+  // corner the wider game track leaves it no room (Monaco's, from La Rascasse by the Piscine).
+  const laneSpots = laneRel.map((r, i): Spot => [
     round(r.at, 5),
     round(laneSide * (laneGaps[i]! + laneShift)),
   ]);
+  const laneClear = (spot: Spot): boolean => clearOfWalls(spot, PIT_WALL + laneHalf);
+  const pitLane = longestRun(
+    laneSpots,
+    (a, b) => {
+      if (!laneClear(b)) return false;
+      const dAt = wrapped(b[0] - a[0]);
+      for (let f = 0.25; f < 1; f += 0.25) {
+        if (!laneClear([a[0] + dAt * f, a[1] + (b[1] - a[1]) * f])) return false;
+      }
+      return true;
+    },
+    (a, b) => Math.abs(wrapped(b[0] - a[0])),
+  ).filter((spot, i, run) => i > 0 || laneClear(spot) || run.length === 1);
   // Everything beside the lane stands beyond its outer edge (it's further out mid-straight).
   const laneOuter = Math.max(...pitLane.map(([, gap]) => Math.abs(gap))) + laneHalf;
   const laneAts = laneRel.map((r) => r.at);
@@ -257,12 +399,20 @@ function writeLayout(): void {
   };
   const nearLane = (p: Point): boolean =>
     laneReal.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < PIT_REACH);
-  const pitBuildings = raw.features
-    .filter((f) => f.kind === 'building')
-    .map(real)
-    .filter((ps) => ps.every(nearLane) && length(ps) / 2 >= MIN_STAND)
-    .map((ps) => place(ps, laneOuter + 2))
-    .filter((spots): spots is Spot[] => spots !== null && Math.sign(spots[0]![1]) === laneSide);
+  const pitBuildings = circuit.town
+    ? garageRow(
+        pitLane,
+        profile.length,
+        laneHalf + 1,
+        laneSide * GARAGE_DEPTH * circuit.scale,
+        (box) => box.every((spot) => clearOfWalls(spot, MIN_GAP)),
+      )
+    : raw.features
+        .filter((f) => f.kind === 'building')
+        .map(real)
+        .filter((ps) => ps.every(nearLane) && length(ps) / 2 >= MIN_STAND)
+        .map((ps) => place(ps, laneOuter + 2))
+        .filter((spots): spots is Spot[] => spots !== null && Math.sign(spots[0]![1]) === laneSide);
 
   // Grandstands: real footprints beside the track; on the pit side, beyond the pit lane.
   const besideLane = (ps: readonly Point[]): boolean =>
@@ -277,6 +427,28 @@ function writeLayout(): void {
       footprint: place(f.points, besideLane(f.points) ? laneOuter + 2 : MIN_GAP),
     }))
     .filter((f): f is { name: string; footprint: Spot[] } => f.footprint !== null);
+  // Hand-placed ones (temporary stands are not in OSM), by the same rules.
+  for (const hand of circuit.stands ?? []) {
+    const index = Math.round(hand.at / profile.spacing);
+    const side = hand.side === 'right' ? 1 : -1;
+    const from = (index - hand.length / 2 / profile.spacing) / n;
+    const to = (index + hand.length / 2 / profile.spacing) / n;
+    const lane = side === laneSide && inLaneSpan(index / n);
+    const near = lane ? laneOuter + 2 : MIN_GAP;
+    const far = near + hand.depth * circuit.scale;
+    const lap = (a: number): number => round((a + 1) % 1, 5);
+    const footprint: Spot[] = [
+      [lap(from), side * near],
+      [lap(to), side * near],
+      [lap(to), side * far],
+      [lap(from), side * far],
+      [lap(from), side * near],
+    ];
+    if (!footprint.every((spot) => clearOfWalls(spot, near))) {
+      throw new Error(`${hand.name}: no room there`);
+    }
+    stands.push({ name: hand.name, footprint });
+  }
 
   // Woods: absolute, in game coordinates.
   const woods = raw.features
@@ -290,6 +462,19 @@ function writeLayout(): void {
     track,
     (OVAL_WIDTH * circuit.scale) / 2,
   );
+
+  const town = circuit.town
+    ? townLayers(
+        raw,
+        track,
+        (p) => toWorld(toProfile(p)),
+        [...stands.map((st) => st.footprint), ...pitBuildings, pitLane].map((f) =>
+          f.map((spot) => fromSpot(track, spot)),
+        ),
+        (PIT_LANE_WIDTH * circuit.scale) / 2 + GARAGE_DEPTH * circuit.scale + 2,
+        tunnelSpan(raw.features.filter((f) => f.kind === 'tunnel').flatMap(real), relative),
+      )
+    : null;
 
   const pt = ([x, z]: readonly number[]): string => `vec2(${round(x!)}, ${round(z!)})`;
   const spots = (list: readonly Spot[]): string =>
@@ -343,6 +528,7 @@ function writeLayout(): void {
     ),
     `];`,
     ``,
+    ...(town ? townLines(circuit.constName, town, pt) : []),
   ];
   const file = join(
     dirname(fileURLToPath(import.meta.url)),
@@ -352,15 +538,318 @@ function writeLayout(): void {
   console.log(
     `${circuit.name} layout: ${stands.length} stands, pit lane ${pitLane.length} points ` +
       `(${laneSide > 0 ? 'right' : 'left'}), ${pitBuildings.length} pit buildings, ` +
-      `${woods.length} woods, oval in ${oval.length} pieces`,
+      `${woods.length} woods, oval in ${oval.length} pieces` +
+      (town
+        ? `; town: ${town.city.length} buildings (${town.city.filter((b) => b.base > 0).length} ` +
+          `over the tunnel), ${town.sea.length} sea and ${town.islands.length} island polygons, ` +
+          `${town.piers.length} piers, ${town.pools.length} pools, ${town.palms.length} palms, ` +
+          `tunnel ${town.tunnel ? `${town.tunnel.from}–${town.tunnel.to}` : 'none'}`
+        : ''),
   );
+}
+
+/**
+ * The longest run of consecutive points where every step a → b is `ok` (b's own check included),
+ * by the summed `step` lengths.
+ */
+function longestRun<T>(
+  points: readonly T[],
+  ok: (a: T, b: T) => boolean,
+  step: (a: T, b: T) => number,
+): T[] {
+  let best: T[] = points.slice(0, 1);
+  let bestLength = 0;
+  let run: T[] = points.slice(0, 1);
+  let length = 0;
+  for (let i = 1; i < points.length; i++) {
+    if (ok(points[i - 1]!, points[i]!)) {
+      run.push(points[i]!);
+      length += step(points[i - 1]!, points[i]!);
+    } else {
+      run = [points[i]!];
+      length = 0;
+    }
+    if (length > bestLength) {
+      best = [...run];
+      bestLength = length;
+    }
+  }
+  return best;
+}
+
+/** Where a track spot is on the ground (as the client's `fromTrack`). */
+function fromSpot(track: Track, [at, gap]: Spot): Point {
+  const samples = track.samples;
+  const s =
+    samples[
+      ((Math.round(at * samples.length) % samples.length) + samples.length) % samples.length
+    ]!;
+  const offset = Math.sign(gap) * (s.halfWidth + track.runoffWidth + Math.abs(gap));
+  return [s.position.x + s.normal.x * offset, s.position.z + s.normal.z * offset];
+}
+
+/** Metres beyond the walls (negative: on the asphalt or the run-off). */
+function clearance(track: Track, [x, z]: Point): number {
+  const loc = locateOnTrack(track, vec2(x, z));
+  return Math.abs(loc.lateral) - loc.halfWidth - track.runoffWidth;
+}
+
+/**
+ * Town circuits: the pit garages as a row of boxes `depth` deep (signed: towards the pit side),
+ * `beyond` the pit lane's centreline where it runs, over its middle (the ends are entry and exit);
+ * shallower where another stretch of the track is close behind, left out where none `fits`.
+ */
+function garageRow(
+  pitLane: readonly Spot[],
+  lapLength: number,
+  beyond: number,
+  depth: number,
+  fits: (box: Spot[]) => boolean,
+): Spot[][] {
+  const lap = (a: number): number => round(((a % 1) + 1) % 1, 5);
+  const first = pitLane[0]![0];
+  const span = (((pitLane[pitLane.length - 1]![0] - first) % 1) + 1) % 1;
+  const from = first + span * GARAGE_ENDS;
+  const to = first + span * (1 - GARAGE_ENDS);
+  const side = Math.sign(depth);
+  const ahead = (at: number): number => (((at - first) % 1) + 1) % 1;
+  /** The lane's farthest gap from the wall between a and b (lap fractions from `first`). */
+  const laneGap = (a: number, b: number): number => {
+    const inside = pitLane.filter(([at]) => ahead(at) >= a - first && ahead(at) <= b - first);
+    const pool = inside.length > 0 ? inside : pitLane;
+    return Math.max(...pool.map(([, g]) => Math.abs(g)));
+  };
+  const chunk = GARAGE_CHUNK / lapLength;
+  const boxes: Spot[][] = [];
+  for (let a = from; a < to - 1e-9; a += chunk) {
+    const b = Math.min(to, a + chunk);
+    const lane = laneGap(a, b);
+    // Beyond the lane, as deep as there is room for (down to a third).
+    const near = lane + beyond;
+    for (let k = 0; k < 3; k++) {
+      const back = near + (Math.abs(depth) * (3 - k)) / 3;
+      const box: Spot[] = [
+        [lap(a), round(side * near)],
+        [lap(b), round(side * near)],
+        [lap(b), round(side * back)],
+        [lap(a), round(side * back)],
+        [lap(a), round(side * near)],
+      ];
+      if (fits(box)) {
+        boxes.push(box);
+        break;
+      }
+    }
+  }
+  return boxes;
+}
+
+/** The tunnel's lap fractions [from, to] (driving order), from its real points; null without one. */
+function tunnelSpan(
+  points: readonly Point[],
+  relative: (p: Point) => { readonly at: number },
+): { from: number; to: number } | null {
+  if (points.length === 0) return null;
+  const ats = points.map((p) => relative(p).at).sort((a, b) => a - b);
+  // The span is the circle minus its widest gap between consecutive points.
+  let gapAfter = ats.length - 1;
+  let widest = ats[0]! + 1 - ats[ats.length - 1]!;
+  for (let i = 0; i + 1 < ats.length; i++) {
+    if (ats[i + 1]! - ats[i]! > widest) {
+      widest = ats[i + 1]! - ats[i]!;
+      gapAfter = i;
+    }
+  }
+  return { from: round(ats[(gapAfter + 1) % ats.length]!, 5), to: round(ats[gapAfter]!, 5) };
+}
+
+interface Town {
+  readonly city: { points: Point[]; height: number; base: number; name: string }[];
+  readonly sea: Point[][];
+  readonly islands: Point[][];
+  readonly piers: { points: Point[]; area: boolean }[];
+  readonly pools: Point[][];
+  readonly palms: Point[];
+  readonly tunnel: { from: number; to: number } | null;
+}
+
+/**
+ * A town circuit's layers in game coordinates. Buildings within CITY_REACH, pushed out to CITY_GAP
+ * beyond the wall (the street canyon stays); dropped where they straddle the track, except over
+ * the tunnel (they stand on its roof) and where they'd stand on the stands, pits or pit lane
+ * (`occupied` footprints, plus `laneReach` around their points). The sea from the coastline
+ * (OSM: land on the left), kept SEA_GAP beyond the wall; piers, pools and trees clear of it.
+ */
+function townLayers(
+  raw: RawScenery,
+  track: Track,
+  toWorld: (p: readonly [number, number]) => Point,
+  occupied: readonly Point[][],
+  laneReach: number,
+  tunnel: { from: number; to: number } | null,
+): Town {
+  const world = (f: SceneryFeature): Point[] => f.points.map((p) => toWorld(p));
+  const loc = ([x, z]: Point) => locateOnTrack(track, vec2(x, z));
+  const inTunnel = (distance: number): boolean => {
+    if (!tunnel) return false;
+    const at = distance / track.length;
+    return tunnel.from <= tunnel.to
+      ? at >= tunnel.from && at <= tunnel.to
+      : at >= tunnel.from || at <= tunnel.to;
+  };
+  /** Moves `p` out along the track's normal until it is `gap` beyond the wall. */
+  const pushOut = (p: Point, gap: number): Point => {
+    const l = loc(p);
+    const missing = gap - (Math.abs(l.lateral) - l.halfWidth - track.runoffWidth);
+    if (missing <= 0) return p;
+    const s = Math.sign(l.lateral) || 1;
+    // The normal: the tangent turned right.
+    return [p[0] - l.tangent.z * s * missing, p[1] + l.tangent.x * s * missing];
+  };
+  const onOccupied = (p: Point): boolean =>
+    occupied.some(
+      (f) =>
+        insidePolygon(p, f) || f.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < laneReach / 2),
+    );
+
+  const city: Town['city'] = [];
+  for (const f of raw.features.filter((g) => g.kind === 'townBuilding')) {
+    const ring = simplify(world(f).slice(0, -1), SIMPLIFY);
+    if (ring.length < 3) continue;
+    const locs = ring.map(loc);
+    if (locs.every((l) => Math.abs(l.lateral) > CITY_REACH)) continue;
+    if (ring.some(onOccupied)) continue;
+    const near = locs.filter(
+      (l) => Math.abs(l.lateral) - l.halfWidth - track.runoffWidth < CITY_GAP,
+    );
+    const straddles =
+      near.length > 0 && locs.some((l) => Math.sign(l.lateral) !== Math.sign(near[0]!.lateral));
+    if (straddles) {
+      // Over the tunnel it stands on the roof (the Fairmont); elsewhere it would block the track.
+      if (near.every((l) => inTunnel(l.distance))) {
+        city.push({
+          points: ring,
+          height: f.height ?? TOWN_HEIGHT,
+          base: TUNNEL_TOP,
+          name: f.name,
+        });
+      }
+      continue;
+    }
+    const pushed = ring.map((p) => pushOut(p, CITY_GAP));
+    if (pushed.some((p) => clearance(track, p) < CITY_GAP - 0.5)) continue; // between two stretches
+    city.push({ points: pushed, height: f.height ?? TOWN_HEIGHT, base: 0, name: f.name });
+  }
+
+  const bounds = trackBounds(track, SEA_REACH);
+  const { sea, islands } = seaPolygons(
+    chain(raw.features.filter((f) => f.kind === 'coastline').map(world)),
+    bounds,
+  );
+  const keepOff = (ring: Point[]): Point[] => resample(ring, 5).map((p) => pushOut(p, SEA_GAP));
+
+  const clearBy =
+    (gap: number) =>
+    (ps: readonly Point[]): boolean =>
+      ps.every((p) => clearance(track, p) >= gap);
+  const piers = raw.features
+    .filter((f) => f.kind === 'pier')
+    .map((f) => {
+      const points = world(f);
+      const area =
+        points.length > 3 &&
+        f.points[0]![0] === f.points[f.points.length - 1]![0] &&
+        f.points[0]![1] === f.points[f.points.length - 1]![1];
+      return { points: area ? points.slice(0, -1) : points, area };
+    })
+    .filter((pier) => clearBy(WATERSIDE_GAP)(pier.points));
+  const pools = raw.features
+    .filter((f) => f.kind === 'pool' && f.points.length > 3)
+    .map((f) => world(f).slice(0, -1))
+    .filter(clearBy(WATERSIDE_GAP));
+  const palms = raw.features
+    .filter((f) => f.kind === 'tree')
+    .map((f) => world(f)[0]!)
+    .filter((p) => clearance(track, p) >= TREE_GAP)
+    .filter((p) => !city.some((b) => insidePolygon(p, b.points)));
+
+  return {
+    city,
+    sea: sea.map(keepOff),
+    islands,
+    piers,
+    pools,
+    palms,
+    tunnel,
+  };
+}
+
+/** The town's generated exports (see `townLayers`). */
+function townLines(constName: string, town: Town, pt: (p: readonly number[]) => string): string[] {
+  const poly = (ps: readonly Point[]): string => `[${ps.map(pt).join(', ')}]`;
+  return [
+    `/** Town buildings (OSM, with heights): footprints, height and base (m; > 0: on the tunnel's roof). */`,
+    `export const ${constName}_CITY: readonly {`,
+    `  readonly points: readonly Vec2[];`,
+    `  readonly height: number;`,
+    `  readonly base: number;`,
+    `  readonly name: string;`,
+    `}[] = [`,
+    ...town.city.map(
+      (b) =>
+        `  { points: ${poly(b.points)}, height: ${round(b.height)}, base: ${b.base}, name: ${JSON.stringify(b.name)} },`,
+    ),
+    `];`,
+    ``,
+    `/** The sea (from the OSM coastline), and land patches in it: polygons. */`,
+    `export const ${constName}_SEA: readonly (readonly Vec2[])[] = [`,
+    ...town.sea.map((ring) => `  ${poly(ring)},`),
+    `];`,
+    ``,
+    `export const ${constName}_ISLANDS: readonly (readonly Vec2[])[] = [`,
+    ...town.islands.map((ring) => `  ${poly(ring)},`),
+    `];`,
+    ``,
+    `/** Piers and pontoons: walkways (lines) or decks (areas). */`,
+    `export const ${constName}_PIERS: readonly { readonly points: readonly Vec2[]; readonly area: boolean }[] = [`,
+    ...town.piers.map((p) => `  { points: ${poly(p.points)}, area: ${p.area} },`),
+    `];`,
+    ``,
+    `/** Swimming pools: polygons. */`,
+    `export const ${constName}_POOLS: readonly (readonly Vec2[])[] = [`,
+    ...town.pools.map((ring) => `  ${poly(ring)},`),
+    `];`,
+    ``,
+    `/** Trees of the streets and gardens (palms). */`,
+    `export const ${constName}_PALMS: readonly Vec2[] = ${poly(town.palms)};`,
+    ``,
+    `/** The tunnel: lap fractions it covers (driving order), and its roof's top (m). */`,
+    `export const ${constName}_TUNNEL: { readonly from: number; readonly to: number; readonly height: number } | null = ${
+      town.tunnel
+        ? `{ from: ${town.tunnel.from}, to: ${town.tunnel.to}, height: ${TUNNEL_TOP} }`
+        : 'null'
+    };`,
+    ``,
+  ];
+}
+
+/** The track's bounding box grown by `margin`. */
+function trackBounds(track: Track, margin: number) {
+  const xs = track.samples.map((s) => s.position.x);
+  const zs = track.samples.map((s) => s.position.z);
+  return {
+    minX: Math.min(...xs) - margin,
+    maxX: Math.max(...xs) + margin,
+    minZ: Math.min(...zs) - margin,
+    maxZ: Math.max(...zs) + margin,
+  };
 }
 
 /**
  * Chains the oval's ways into lines, then keeps them as scenery: dropped where they run along the GP
  * track (shared straights), raised on a bridge where they cross it, banked in the curves.
  */
-function ovalPieces(ways: Point[][], track: ReturnType<typeof buildTrack>, halfDeck: number) {
+function ovalPieces(ways: Point[][], track: Track, halfDeck: number) {
   const lines = chain(ways).map((line) => resample(line, 5));
   const pieces: { points: Point[]; height: number[]; bank: number[] }[] = [];
   for (const line of lines) {
@@ -424,6 +913,196 @@ function ovalPieces(ways: Point[][], track: ReturnType<typeof buildTrack>, halfD
     });
   }
   return pieces.filter((p) => p.points.length >= 4);
+}
+
+/**
+ * The sea within `box`, from coastline lines in game coordinates. OSM draws the coastline with the
+ * land on its left; the game's z = -y mirrors that, so here the water is on the left of the line
+ * ((-dz, dx)), the inside of a positively oriented polygon. Lines are cut by the box and closed
+ * along its edges (in that orientation); closed loops are lakes (positive) or islands (negative).
+ */
+function seaPolygons(
+  lines: readonly Point[][],
+  box: { minX: number; maxX: number; minZ: number; maxZ: number },
+): { sea: Point[][]; islands: Point[][] } {
+  const w = box.maxX - box.minX;
+  const h = box.maxZ - box.minZ;
+  const perimeter = 2 * (w + h);
+  const inside = ([x, z]: Point): boolean =>
+    x > box.minX && x < box.maxX && z > box.minZ && z < box.maxZ;
+  // Position along the box's edge, going round positively: top, right, bottom, left (x right, z down).
+  const along = ([x, z]: Point): number => {
+    const d = [z - box.minZ, box.maxX - x, box.maxZ - z, x - box.minX];
+    const edge = d.indexOf(Math.min(...d));
+    return [x - box.minX, w + (z - box.minZ), w + h + (box.maxX - x), 2 * w + h + (box.maxZ - z)][
+      edge
+    ]!;
+  };
+  const corners: [number, Point][] = [
+    [0, [box.minX, box.minZ]],
+    [w, [box.maxX, box.minZ]],
+    [w + h, [box.maxX, box.maxZ]],
+    [2 * w + h, [box.minX, box.maxZ]],
+  ];
+  /** Where segment a → b leaves (or enters) the box. */
+  const crossing = (a: Point, b: Point): Point => {
+    let t = 1;
+    const dx = b[0] - a[0];
+    const dz = b[1] - a[1];
+    for (const [edge, d, v] of [
+      [box.minX, dx, a[0]],
+      [box.maxX, dx, a[0]],
+    ] as const) {
+      if (d !== 0) {
+        const s = (edge - v) / d;
+        if (s >= 0 && s <= 1 && (inside(a) ? s < t : true)) t = Math.min(t, s);
+      }
+    }
+    for (const [edge, d, v] of [
+      [box.minZ, dz, a[1]],
+      [box.maxZ, dz, a[1]],
+    ] as const) {
+      if (d !== 0) {
+        const s = (edge - v) / d;
+        if (s >= 0 && s <= 1) t = Math.min(t, s);
+      }
+    }
+    return [a[0] + dx * t, a[1] + dz * t];
+  };
+  const area = (ring: readonly Point[]): number =>
+    ring.reduce((sum, p, i) => {
+      const q = ring[(i + 1) % ring.length]!;
+      return sum + p[0] * q[1] - q[0] * p[1];
+    }, 0) / 2;
+
+  const pieces: { points: Point[]; from: number; to: number }[] = [];
+  const sea: Point[][] = [];
+  const islands: Point[][] = [];
+  for (const line of lines) {
+    const closed =
+      line.length > 3 &&
+      Math.hypot(line[0]![0] - line[line.length - 1]![0], line[0]![1] - line[line.length - 1]![1]) <
+        3;
+    if (closed && line.every(inside)) {
+      (area(line) > 0 ? sea : islands).push(line.slice(0, -1));
+      continue;
+    }
+    // The runs of the line inside the box, each from the box's edge to its edge.
+    let run: Point[] | null = null;
+    line.forEach((p, i) => {
+      const prev = line[i - 1];
+      if (inside(p)) {
+        if (!run) {
+          // Entering (or starting inside: the coastline data ends there; joined straight to the edge).
+          run = prev ? [crossing(p, prev)] : [];
+          if (!prev) run.push(nearestEdge(p, box));
+        }
+        run.push(p);
+      } else if (run) {
+        run.push(crossing(prev!, p));
+        pieces.push({ points: run, from: along(run[0]!), to: along(run[run.length - 1]!) });
+        run = null;
+      }
+    });
+    if (run) {
+      const r: Point[] = run;
+      r.push(nearestEdge(r[r.length - 1]!, box));
+      pieces.push({ points: r, from: along(r[0]!), to: along(r[r.length - 1]!) });
+    }
+  }
+  // Chain the pieces: after one ends, go round the box positively to the next one's start.
+  const used = new Set<number>();
+  pieces.forEach((start, k) => {
+    if (used.has(k)) return;
+    used.add(k);
+    const ring: Point[] = [...start.points];
+    let at = start.to;
+    for (;;) {
+      let next = k;
+      let best = (start.from - at + perimeter) % perimeter;
+      pieces.forEach((p, j) => {
+        if (used.has(j)) return;
+        const d = (p.from - at + perimeter) % perimeter;
+        if (d < best) {
+          best = d;
+          next = j;
+        }
+      });
+      // The box's corners passed on the way, in order.
+      const ahead = (c: number): number => (c - at + perimeter) % perimeter;
+      corners
+        .filter(([c]) => ahead(c) > 0 && ahead(c) < best)
+        .sort(([a], [b]) => ahead(a) - ahead(b))
+        .forEach(([, point]) => ring.push(point));
+      if (next === k) break;
+      used.add(next);
+      ring.push(...pieces[next]!.points);
+      at = pieces[next]!.to;
+    }
+    sea.push(ring);
+  });
+  return { sea, islands };
+}
+
+/** The point of the box's edge nearest to `p`. */
+function nearestEdge(
+  [x, z]: Point,
+  box: { minX: number; maxX: number; minZ: number; maxZ: number },
+): Point {
+  const d = [z - box.minZ, box.maxX - x, box.maxZ - z, x - box.minX];
+  const edge = d.indexOf(Math.min(...d));
+  return (
+    [
+      [x, box.minZ],
+      [box.maxX, z],
+      [x, box.maxZ],
+      [box.minX, z],
+    ] as Point[]
+  )[edge]!;
+}
+
+/** Douglas–Peucker simplification of a closed ring (keeps points off the straight by > `tol`). */
+function simplify(ring: readonly Point[], tol: number): Point[] {
+  if (ring.length <= 4) return [...ring];
+  const keep = new Array<boolean>(ring.length).fill(false);
+  const far = (a: number, b: number): void => {
+    let worst = -1;
+    let at = -1;
+    const [ax, az] = ring[a]!;
+    const [bx, bz] = ring[b]!;
+    const len = Math.hypot(bx - ax, bz - az) || 1;
+    for (let i = a + 1; i < b; i++) {
+      const [px, pz] = ring[i]!;
+      const d = Math.abs((bx - ax) * (az - pz) - (ax - px) * (bz - az)) / len;
+      if (d > worst) {
+        worst = d;
+        at = i;
+      }
+    }
+    if (worst > tol) {
+      keep[at] = true;
+      far(a, at);
+      far(at, b);
+    }
+  };
+  keep[0] = true;
+  const mid = Math.floor(ring.length / 2);
+  keep[mid] = true;
+  far(0, mid);
+  far(mid, ring.length - 1);
+  keep[ring.length - 1] = true;
+  return ring.filter((_, i) => keep[i]);
+}
+
+/** True when `p` is inside the polygon (even-odd rule). */
+function insidePolygon([x, z]: Point, polygon: readonly Point[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [ax, az] = polygon[i]!;
+    const [bx, bz] = polygon[j]!;
+    if (az > z !== bz > z && x < ((bx - ax) * (z - az)) / (bz - az) + ax) inside = !inside;
+  }
+  return inside;
 }
 
 /** Joins ways sharing end points (within 3 m) into continuous lines. */

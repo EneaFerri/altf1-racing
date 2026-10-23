@@ -4,6 +4,7 @@ import { createGrandstand, createPitBuilding, face } from '../scenery/buildings'
 import {
   alongTrack,
   footprintBox,
+  insidePolygon,
   polygonBounds,
   polylineFootprint,
   scatter,
@@ -13,6 +14,15 @@ import {
   type TrackSpot,
 } from '../scenery/placement';
 import { createOldRaceway, createPitLane, type RacewayPiece } from '../scenery/realCircuit';
+import {
+  createCity,
+  createPalms,
+  createPiers,
+  createPools,
+  createSea,
+  type TownBuilding,
+} from '../scenery/town';
+import { createTunnel, type TunnelSpan } from '../scenery/tunnel';
 import type { TrackTheme, WallStyle } from './theme';
 
 /** Concrete walls reach this far past a grandstand or the pit lane, either end (m). */
@@ -33,11 +43,26 @@ export interface RealCircuitScenery {
   readonly woods: readonly (readonly Vec2[])[];
   readonly oval: readonly RacewayPiece[];
   readonly ovalWidth: number;
+  /** A town circuit (Monaco): every building, the sea, piers, pools, palms and the tunnel. */
+  readonly town?: {
+    readonly city: readonly TownBuilding[];
+    readonly sea: readonly (readonly Vec2[])[];
+    readonly islands: readonly (readonly Vec2[])[];
+    readonly piers: readonly { readonly points: readonly Vec2[]; readonly area: boolean }[];
+    readonly pools: readonly (readonly Vec2[])[];
+    readonly palms: readonly Vec2[];
+    readonly tunnel: TunnelSpan | null;
+  };
 }
 
-/** What differs between real circuits' looks: sky, light, ground, kerbs, and their trees. */
+/**
+ * What differs between real circuits' looks: sky, light, ground, kerbs, their trees (and how many
+ * in the open: PARK_TREES by default) and the barrier where there are no stands, pits or gravel.
+ */
 export type RealCircuitLook = Omit<TrackTheme, 'wallStyle' | 'scenery'> & {
   readonly trees: (spots: readonly Vec2[], seed: number) => THREE.Object3D;
+  readonly parkTrees?: number;
+  readonly barrier?: WallStyle;
 };
 
 /**
@@ -46,11 +71,11 @@ export type RealCircuitLook = Omit<TrackTheme, 'wallStyle' | 'scenery'> & {
  * 01_docs/themes.md.
  */
 export function realCircuitTheme(scenery: RealCircuitScenery, look: RealCircuitLook): TrackTheme {
-  const { trees, ...theme } = look;
+  const { trees, parkTrees = PARK_TREES, barrier = 'armco', ...theme } = look;
   return {
     ...theme,
-    wallStyle: (track) => wallsByPlace(track, scenery),
-    scenery: (track) => buildScenery(track, scenery, trees),
+    wallStyle: (track) => wallsByPlace(track, scenery, barrier),
+    scenery: (track) => buildScenery(track, scenery, trees, parkTrees),
   };
 }
 
@@ -74,8 +99,12 @@ function stretchOf(spots: readonly TrackSpot[], margin: number): Stretch[] {
   return [{ side, from: from - margin, to: to + margin }];
 }
 
-/** Concrete with a fence by the stands and the pit lane, tyres where there's gravel, else armco. */
-function wallsByPlace(track: Track, scenery: RealCircuitScenery): (index: number) => WallStyle {
+/** Concrete with a fence by the stands and the pit lane, tyres where there's gravel, else `barrier`. */
+function wallsByPlace(
+  track: Track,
+  scenery: RealCircuitScenery,
+  barrier: WallStyle,
+): (index: number) => WallStyle {
   const margin = CONCRETE_MARGIN / track.length;
   const concrete = [
     ...scenery.stands.flatMap((s) => stretchOf(s.footprint, margin)),
@@ -89,7 +118,7 @@ function wallsByPlace(track: Track, scenery: RealCircuitScenery): (index: number
     const at = wall.progress / track.length;
     if (concrete.some((s) => s.side === side && at >= s.from && at <= s.to)) return 'concrete';
     if (track.sides[side].runoff[wall.sample] === 'gravel') return 'tyres';
-    return 'armco';
+    return barrier;
   };
 }
 
@@ -113,6 +142,7 @@ function buildScenery(
   track: Track,
   scenery: RealCircuitScenery,
   trees: RealCircuitLook['trees'],
+  parkTrees: number,
 ): THREE.Object3D[] {
   const objects: THREE.Object3D[] = [];
   const keepClear: Circle[] = [];
@@ -140,6 +170,20 @@ function buildScenery(
     }
   }
 
+  const { town } = scenery;
+  if (town) {
+    objects.push(
+      createCity(town.city, 11),
+      createSea(town.sea, town.islands),
+      createPiers(town.piers),
+      createPools(town.pools),
+      createPalms(town.palms, 13),
+    );
+    if (town.tunnel) objects.push(createTunnel(track, town.tunnel));
+  }
+  // A town's trees grow in its gardens, never inside its buildings.
+  const free = (p: Vec2): boolean => !town?.city.some((b) => insidePolygon(p, b.points));
+
   // Dense in the woods, sparse elsewhere.
   const options = { margin: TREE_MARGIN, avoid: keepClear };
   const inWoods = scenery.woods
@@ -155,11 +199,11 @@ function buildScenery(
       });
     })
     .slice(0, MAX_WOOD_TREES);
-  const inPark = scatter(track, PARK_TREES, trackBounds(track, 350), {
+  const inPark = scatter(track, parkTrees, trackBounds(track, 350), {
     ...options,
     seed: 7,
     spacing: PARK_SPACING,
   });
-  objects.push(trees([...inWoods, ...inPark], 5));
+  objects.push(trees([...inWoods, ...inPark].filter(free), 5));
   return objects;
 }

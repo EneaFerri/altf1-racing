@@ -6,8 +6,8 @@ the simulation never sees a theme. Code in `01_packages/client/src/view/themes/`
 
 ## Theme system
 
-- `themes/theme.ts`: the `TrackTheme` interface and `themeFor(trackName)`. **Kruncar**, **Monza** and
-  **Barcelona** have their own theme; every other track gets **classic** (`themes/classic.ts`: the original look,
+- `themes/theme.ts`: the `TrackTheme` interface and `themeFor(trackName)`. **Kruncar**, **Monza**,
+  **Barcelona** and **Monaco** have their own theme; every other track gets **classic** (`themes/classic.ts`: the original look,
   Test Ring).
 - `SceneView` reads the theme for sky colour, fog, camera far plane (`viewDistance`), hemisphere light
   plus an optional directional "sun", the ground (texture, tile size, margin past the track; the
@@ -17,8 +17,11 @@ the simulation never sees a theme. Code in `01_packages/client/src/view/themes/`
   mouth of the other road at a fork. It reads asphalt texture, kerb colours and block length, where the white edge line
   sits (`edgeLineInset`) and the wall style per wall segment:
   `tyres` (classic), `fence` (wooden rails on posts, see-through), `concrete` (grey wall with a
-  chain-link fence on top), `armco` (steel guard rail on posts, see-through). The physics wall is
-  the same whatever the style.
+  chain-link fence on top), `armco` (steel guard rail on posts, see-through), `armcoFence` (armco
+  with a 3.3 m catch fence on top: the street circuit). The physics wall is the same whatever the
+  style.
+- The ground is split into 50 m cells: one huge quad loses depth precision near the camera and
+  hid the track's surfaces just above it (seen first at Monaco).
 - Props are built once per track by `theme.scenery(track)`.
 
 ## Kruncar theme (`themes/kruncar.ts`)
@@ -81,7 +84,15 @@ woods (`landuse=forest`, `natural=wood`) and old raceways (`highway=raceway`) in
 - **Filters**: grandstands shorter than 12 m (kiosks, camera towers) or further than 250 m from the
   real asphalt are left out.
 - **Pit lane** (12 m real, × scale): decorative behind a 1 m pit wall (drivable later). Its ways
-  (entry, lane, exit) are joined into one line in the driving direction. Pit buildings are those within 80 m of it, moved out beyond its outer edge with the stands beside it.
+  (entry, lane, exit) are joined into one line in the driving direction; each point is located
+  near the previous one's station (within 60 m plus the step), so the lane follows one stretch even
+  where another runs close on its other side, and points running back are dropped. Only the
+  longest run (along the lap) that really is beyond the wall, points and the way between them, is
+  kept: where the real lane cuts a corner the wider game track can leave it no room (Monaco's,
+  from La Rascasse by the Piscine). Pit buildings are those within 80 m of it, moved out beyond
+  its outer edge with the stands beside it.
+- **Hand-placed grandstands** (`CircuitConfig.stands`: real distance, length, depth, side) where
+  OSM has none (temporary stands): the same rules, an error if there's no room.
 - **Woods**: absolute polygons in game coordinates, filled with seeded trees.
 - **Old oval** (Monza's _sopraelevata_): kept as scenery. Dropped where it runs along the GP track,
   raised on a bridge (8 m deck, 70 m ramps, piers) where it crosses it, banked in its curves
@@ -97,12 +108,46 @@ every real circuit:
 - **Props**: the stands, pit buildings, pit lane and old raceways (if any); trees dense in the real
   woods (≤ 400 per wood, 2400 in all) and sparse in the open (500), kept off all of them.
 - **Walls**: `concrete` by the stands and the pit lane (15 m past each end), `tyres` where the
-  run-off is gravel, `armco` everywhere else.
+  run-off is gravel, the look's `barrier` everywhere else (`armco` by default).
+- **Town** layers when the layout has them (see below); the look can turn the trees in the open
+  off (`parkTrees`).
+
+### Town circuits (`CircuitConfig.town`: Monaco)
+
+Extra OSM layers, absolute in game coordinates (only for town circuits: Monza and Barcelona are
+unchanged):
+
+- **City**: every building (ways and multipolygon relations) within 200 m of the centreline, with
+  its height (`height`, else `building:levels` × 3.2 m + 1, else by type: house 8, church 16, …,
+  18 m), simplified to 0.5 m. Vertices closer than 1.5 m to the wall are pushed out along the
+  track's normal (the street canyon stays); dropped where the footprint straddles the track,
+  except **over the tunnel**, where it stands on the roof (`base` = 8 m: the Fairmont), and where
+  it would stand on the stands, the pits or the pit lane.
+- **Sea**: the coastline chained into lines; OSM draws it with the land on its left, the game's
+  z = −y mirrors that, so the water is on the left of the line in game coordinates. Lines are cut
+  by a box 700 m around the track and closed along its edges; closed loops are lakes or islands.
+  Resampled every 5 m and kept 2 m beyond the wall.
+- **Piers** (lines or areas) and **pools** at least 1 m beyond the wall; **palms** (OSM tree
+  nodes) at least 4 m, never inside a building.
+- **Tunnel**: the lap fractions of the relation's ways tagged `tunnel` (the street ways, not only
+  `raceway`s).
+- **Pit garages**: a row of temporary boxes (10 m real deep, ~60 m long) just beyond the pit lane
+  where it runs, over its middle (15% at each end are entry and exit), shallower where another
+  stretch is close behind, left out where none fits; OSM's apartments are never used as garages.
+
+Builders: `scenery/town.ts` (`createCity`: walls and flat roofs merged into one mesh per material,
+Riviera pastel facades (`createFacadeTexture`) picked per building, glass above 45 m, terracotta
+roofs below 20 m; `createSea`, `createPiers`, `createPools`, `createPalms`), `scenery/tunnel.ts`
+(`createTunnel`: walls past the run-off, a 6.5 m ceiling with glowing strip lights every 6 m, the
+roof's top at 8 m, portals). The sea sits 15 cm above the ground: big flat triangles fight with it
+far away.
 
 `themes/realCircuitLayouts.test.ts` checks every real circuit: stands beyond the walls and clear of
 the pit lane, pit lane behind the wall on the inside of the main straight and running along the
 lap, buildings behind it, trees in the woods off the track (Monza also: the oval never on the
-track, on a bridge where it crosses).
+track, on a bridge where it crosses; Monaco: hundreds of buildings, every vertex beyond the walls
+except on the tunnel roof, the tunnel where it really is, sea, pools, piers and palms off the
+track).
 
 ## Monza theme (`themes/monza.ts`)
 
@@ -119,6 +164,18 @@ straw-and-olive grass with bare ochre earth (`createDryGrassTexture`), umbrella 
 pit lane on the inside of the main straight (entry before the last corner, exit at turn 2) with 5
 pit buildings, 8 woods. Only the GP circuit: the karting, motocross and old-chicane raceways around
 it are left out (owner's choice).
+
+## Monaco theme (`themes/monaco.ts`, step 9d.2a)
+
+A street circuit: bright Riviera sky, fog 500–2400 m, pale stone paving as the ground
+(`createPavingTexture`), red/white kerbs, guard rails with tall catch fences (`armcoFence`),
+tyres where there's gravel. From `themes/monacoLayout.ts` (generated): ~300 buildings with their
+real heights (towers up to 80 m), Port Hercule and the sea with 27 pontoons, 34 pools (the Rainier
+III stadium on the quay), ~150 palms, the tunnel along the sea under the Fairmont (two footprints
+on its roof), three grandstands placed by hand (B at the Casino, K at Tabac, T from the Piscine to
+La Rascasse: the owner wanted few), the pit lane along the start straight with its garages. Pines
+in OSM's woods, no trees in the open. Next (9d.2b): yachts, the Casino and the Chapelle
+Sainte-Dévote, the hills behind the town.
 
 ## Placement rules (`scenery/placement.ts`, pure, tested)
 

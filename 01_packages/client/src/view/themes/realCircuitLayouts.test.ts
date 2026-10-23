@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { BARCELONA, buildTrack, locateOnTrack, MONZA, type TrackDefinition } from '@altf1/shared';
+import {
+  BARCELONA,
+  buildTrack,
+  locateOnTrack,
+  MONACO,
+  MONZA,
+  type TrackDefinition,
+} from '@altf1/shared';
 import {
   alongTrack,
   clearance,
@@ -16,6 +23,21 @@ import {
   BARCELONA_STANDS,
   BARCELONA_WOODS,
 } from './barcelonaLayout';
+import {
+  MONACO_CITY,
+  MONACO_ISLANDS,
+  MONACO_OVAL,
+  MONACO_OVAL_WIDTH,
+  MONACO_PALMS,
+  MONACO_PIERS,
+  MONACO_PIT_BUILDINGS,
+  MONACO_PIT_LANE,
+  MONACO_POOLS,
+  MONACO_SEA,
+  MONACO_STANDS,
+  MONACO_TUNNEL,
+  MONACO_WOODS,
+} from './monacoLayout';
 import {
   MONZA_OVAL,
   MONZA_OVAL_WIDTH,
@@ -58,6 +80,20 @@ const CIRCUITS: readonly {
     },
     minStands: 12,
     mainStand: 'Graderia principal',
+  },
+  {
+    definition: MONACO,
+    scenery: {
+      stands: MONACO_STANDS,
+      pitLane: MONACO_PIT_LANE,
+      pitBuildings: MONACO_PIT_BUILDINGS,
+      woods: MONACO_WOODS,
+      oval: MONACO_OVAL,
+      ovalWidth: MONACO_OVAL_WIDTH,
+    },
+    // Placed by hand (temporary stands are not in OSM).
+    minStands: 2,
+    mainStand: 'Tribune T (Piscine, Rascasse)',
   },
 ];
 
@@ -139,5 +175,50 @@ describe('Monza scenery', () => {
     }
     // The Sopraelevata Sud passes over the Serraglio straight.
     expect(bridged).toBeGreaterThan(3);
+  });
+});
+
+describe('Monaco town (generated from OpenStreetMap)', () => {
+  const track = buildTrack(MONACO);
+  const atOf = (p: { x: number; z: number }): number =>
+    locateOnTrack(track, p).distance / track.length;
+  const inTunnel = (at: number): boolean =>
+    !!MONACO_TUNNEL && at >= MONACO_TUNNEL.from && at <= MONACO_TUNNEL.to;
+
+  it('has its town: hundreds of buildings with real heights, a few on the tunnel roof', () => {
+    expect(MONACO_CITY.length).toBeGreaterThan(200);
+    expect(Math.max(...MONACO_CITY.map((b) => b.height))).toBeGreaterThan(50);
+    const onRoof = MONACO_CITY.filter((b) => b.base > 0);
+    expect(onRoof.length).toBeGreaterThan(0);
+    for (const b of onRoof) expect(b.base).toBe(MONACO_TUNNEL!.height);
+  });
+
+  it('keeps every building beyond the walls, except those standing on the tunnel', () => {
+    for (const b of MONACO_CITY) {
+      for (const p of b.points) {
+        if (b.base > 0) {
+          if (clearance(track, p) < 0) expect(inTunnel(atOf(p))).toBe(true);
+        } else expect(clearance(track, p)).toBeGreaterThan(0.9);
+      }
+    }
+  });
+
+  it('has the tunnel where it really is, under the Fairmont along the sea (~1.35–1.8 km of 3.3)', () => {
+    expect(MONACO_TUNNEL!.from).toBeGreaterThan(0.38);
+    expect(MONACO_TUNNEL!.to).toBeLessThan(0.6);
+    expect(MONACO_TUNNEL!.to - MONACO_TUNNEL!.from).toBeGreaterThan(0.1);
+  });
+
+  it('never puts the sea, islands, piers or pools on the track, nor palms', () => {
+    for (const s of track.samples) {
+      for (const ring of [...MONACO_SEA, ...MONACO_ISLANDS, ...MONACO_POOLS]) {
+        expect(insidePolygon(s.position, ring)).toBe(false);
+      }
+    }
+    for (const pier of MONACO_PIERS)
+      for (const p of pier.points) expect(clearance(track, p)).toBeGreaterThan(0.9);
+    for (const p of MONACO_PALMS) expect(clearance(track, p)).toBeGreaterThanOrEqual(3.9);
+    expect(MONACO_PIERS.length).toBeGreaterThan(10);
+    expect(MONACO_PALMS.length).toBeGreaterThan(50);
   });
 });

@@ -61,7 +61,9 @@ and speed from OpenF1**.
    the time ratio until the lap is within 0.2% of the pole; then prints every level's lap and
    sectors vs reality, wall hits and off-track moments (with where they happen, in real metres).
 5. `scenery` (optional, per circuit): grandstands, pit lane and buildings, woods and old raceways
-   from OSM → the client's generated `themes/<id>Layout.ts`. Rules in
+   from OSM (on a town circuit, `town: true`, also every building with its height, the sea, piers,
+   pools, trees and the tunnel; `stands` places temporary grandstands by hand) → the client's
+   generated `themes/<id>Layout.ts`. Rules in
    [themes.md](themes.md#real-circuits-scenery-from-openstreetmap).
 
 ## Adaptation to the game

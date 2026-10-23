@@ -285,3 +285,16 @@
   PNG; 80 matches it.
 - The Piscine entry got 12 m (the published maximum, an estimate): at 9–10 m the Hard and Medium
   bots ran wide on its exit; the bots are frozen, so the circuit's adaptation was the lever.
+
+## 2026-10-23 — Monaco scenery, the town and the sea (step 9d.2a)
+
+- **Town layers from OSM, opt-in per circuit** (`town`): Monaco's identity is its town, and OSM has
+  it (heights included), so nothing is hand-placed but three grandstands (temporary, not in OSM;
+  the owner wanted few). Monza and Barcelona stay byte-identical.
+- **Buildings pushed out, not dropped**, when too close to the wall: dropping them emptied the
+  streets; the street canyon is what Monaco looks like. Over the tunnel they stand on its roof.
+- **The pit lane follows one stretch** and keeps only the run that fits: at Monaco it lies between
+  the start straight and the Piscine, and the wider game track leaves no room for its entry from
+  La Rascasse. The garages are generated (temporary boxes on the quay), never OSM's apartments.
+- **Ground split into 50 m cells** (all tracks): a single huge quad hid Monaco's asphalt (depth
+  precision); a latent bug that the other tracks hadn't shown yet.
