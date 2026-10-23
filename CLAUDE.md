@@ -88,4 +88,4 @@ npm run build      # production build of the client
 
 ## Current status
 
-Phase 1, step 9b done: **Monza** from real data (OpenF1 times/sectors, OpenStreetMap shape, published widths; Hard bot laps in the real pole time), with the `01_tools/openf1/` tool and per-track widths and sectors (see `01_docs/circuits.md`); 9b.2: its scenery from OpenStreetMap (see `01_docs/themes.md`). Tuning frozen as **baseline v2 (final)** (see `01_docs/tuning.md`). Next: step 9c Barcelona, then 9d Monaco (see roadmap).
+Phase 1, step 9b done: **Monza** from real data (OpenF1 times/sectors, OpenStreetMap shape, published widths; Hard bot laps in the real pole time), with the `01_tools/openf1/` tool and per-track widths and sectors (see `01_docs/circuits.md`); 9b.2: its scenery from OpenStreetMap (see `01_docs/themes.md`). Step 9c: **Barcelona** circuit (same pipeline; classic look until its scenery, 9c.2). Tuning frozen as **baseline v2 (final)** (see `01_docs/tuning.md`). Next: Barcelona's scenery (9c.2), then 9d Monaco (see roadmap).

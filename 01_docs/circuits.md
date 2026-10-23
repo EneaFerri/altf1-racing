@@ -68,11 +68,12 @@ and speed from OpenF1**.
 corners much harder, so fast circuits shrink and slow ones grow. Widths are not scaled: they
 follow reality × `WIDTH_FACTOR`, so the circuits keep their character.
 
-| Circuit | Real length | Scale | Game length | Real width (m) | Game width (m) | Run-off |
-| ------- | ----------- | ----- | ----------- | -------------- | -------------- | ------- |
-| Monza   | 5766 m      | 0.858 | 4.93 km     | 10–12          | 16–19.2        | 10 m    |
+| Circuit   | Real length | Scale | Game length | Real width (m) | Game width (m) | Run-off |
+| --------- | ----------- | ----- | ----------- | -------------- | -------------- | ------- |
+| Monza     | 5766 m      | 0.858 | 4.93 km     | 10–12          | 16–19.2        | 10 m    |
+| Barcelona | 4643 m      | 0.915 | 4.25 km     | 12–14          | 19.2–22.4      | 10 m    |
 
-Real lengths are the OSM centreline's (official: Monza 5793 m).
+Real lengths are the OSM centreline's (official: Monza 5793 m, Barcelona 4657 m).
 
 ### Widths (published, then per section)
 
@@ -83,6 +84,9 @@ within that range unless marked with their own source there.
 - **Monza**: 10–12 m ([monzanet.it](https://www.monzanet.it/en/circuit/)). 12 m on the start
   straight, its braking zone and the Parabolica; 11 m in the Curva Grande, Serraglio and back
   straight; 10 m in the chicanes and the Lesmos.
+- **Barcelona**: 12–14 m (motogp.com 12 m, gedlich-racing.com 12–14 m). 14 m on the main
+  straight and its braking zone, 13 m through turns 1–2 and on the back straight, 12 m in every
+  other corner (Renault, Repsol, Seat, 7–8, Campsa, La Caixa, Banc Sabadell, 13, New Holland).
 
 ### Monza (`layouts/monza.ts`, step 9b)
 
@@ -99,6 +103,24 @@ The game's limits moved 23 stations (> 1 m), around the Rettifilo's entry.
 S3 is 6.5% slow and S1 6% fast: S3 is almost all flat out (Ascari, back straight, Parabolica, start
 straight) where our car's lower top speed loses time, made up in S1's chicanes. Tests
 (`ai/bot.test.ts`): Hard within 1.5% of the pole, every sector within 7%.
+
+### Barcelona (`layouts/barcelona.ts`, step 9c)
+
+Shape from OSM relation 284540 (the current layout: no chicane before the last corner, as in the
+owner's PNG); target: the 2025 pole, 1:11.546 (car #81, OpenF1 session 9967). The game's limits
+moved no station: Barcelona's corners are all wider than our walls need.
+
+| Lap (s)   | Lap   | S1    | S2    | S3    | Walls | Off |
+| --------- | ----- | ----- | ----- | ----- | ----- | --- |
+| Real pole | 71.55 | 21.26 | 28.58 | 21.71 |       |     |
+| Hard      | 71.62 | 23.20 | 27.78 | 20.63 | 0     | 0   |
+| Medium    | 73.00 | 23.68 | 28.32 | 21.00 | 0     | 0   |
+| Easy      | 83.97 | 27.20 | 32.40 | 24.37 | 0     | 0   |
+
+S1 is 9% slow: the ~1 km main straight at up to 328 km/h (our car: ~250) and the fast Renault
+(T3); S2 (−3%) and S3 (−5%) win it back in the slower corners. Tests: Hard within 1.5% of the
+pole, every sector within 10% (Monza's 7% would need a faster car on straights, and the car is
+frozen).
 
 ## Re-tuning a circuit
 

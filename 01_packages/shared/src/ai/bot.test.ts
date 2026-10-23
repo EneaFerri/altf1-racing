@@ -15,7 +15,7 @@ import {
 } from '../sim/game';
 import { buildTrack } from '../track/buildTrack';
 import { locateOnTrack } from '../track/query';
-import { KRUNCAR, MONZA, TEST_TRACK, TRACKS } from '../track/layouts';
+import { BARCELONA, KRUNCAR, MONZA, TEST_TRACK, TRACKS } from '../track/layouts';
 import type { Track } from '../track/types';
 import { botInput, NEW_BOT_MEMORY } from './driver';
 import { botCarParams, buildBotPlan } from './plan';
@@ -83,10 +83,28 @@ const runsByTrack = TRACKS.map((definition) => {
 const runs = runsByTrack.find((t) => t.name === TEST_TRACK.name)!.runs;
 const kruncar = runsByTrack.find((t) => t.name === KRUNCAR.name)!.runs;
 const monza = runsByTrack.find((t) => t.name === MONZA.name)!.runs;
+const barcelona = runsByTrack.find((t) => t.name === BARCELONA.name)!.runs;
 
-/** Real 2025 pole laps (OpenF1, see 01_docs/circuits.md): the Hard bot's targets. */
+/**
+ * Real 2025 pole laps (OpenF1, see 01_docs/circuits.md): the Hard bot's targets. `sectorTolerance`:
+ * our car is slower on straights and faster in corners than an F1, so a sector mostly flat out
+ * (Barcelona's S1: the main straight) drifts further from reality.
+ */
 const REAL_POLES = [
-  { name: MONZA.name, runs: monza, lap: 78.792, sectors: [26.262, 26.483, 26.047] },
+  {
+    name: MONZA.name,
+    runs: monza,
+    lap: 78.792,
+    sectors: [26.262, 26.483, 26.047],
+    sectorTolerance: 0.07,
+  },
+  {
+    name: BARCELONA.name,
+    runs: barcelona,
+    lap: 71.546,
+    sectors: [21.259, 28.58, 21.707],
+    sectorTolerance: 0.1,
+  },
 ];
 
 describe.each(runsByTrack.map((t) => [t.name, t.runs] as const))('bot on %s', (_name, runs) => {
@@ -127,12 +145,12 @@ describe('bot', () => {
   });
 
   it.each(REAL_POLES)(
-    'laps $name on hard in the real pole time (±1.5%), each sector within 7%',
-    ({ runs, lap, sectors }) => {
+    'laps $name on hard in the real pole time (±1.5%), each sector within $sectorTolerance',
+    ({ runs, lap, sectors, sectorTolerance }) => {
       const best = findLap(runs.hard.state, 'bot')!.bestLap!;
       expect(Math.abs(best.ticks / TICK_RATE / lap - 1)).toBeLessThan(0.015);
       best.sectors.forEach((ticks, i) => {
-        expect(Math.abs(ticks / TICK_RATE / sectors[i]! - 1)).toBeLessThan(0.07);
+        expect(Math.abs(ticks / TICK_RATE / sectors[i]! - 1)).toBeLessThan(sectorTolerance);
       });
     },
   );

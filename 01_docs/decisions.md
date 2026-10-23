@@ -248,3 +248,11 @@
   track, removed where it shares the GP straights.
 - **Wall styles by place** (concrete by stands and pits, tyres at gravel, armco elsewhere): what
   the real circuit looks like; the physics wall is unchanged.
+
+## 2026-10-23 — Barcelona (step 9c)
+
+- Same pipeline as Monza, no tool change: only the width marks were moved onto the real corners
+  (Campsa; turn 13 and New Holland split) and the scale calibrated (0.915).
+- **Sector tolerance per circuit** in the bot test: Barcelona's S1 (main straight + Renault) is 9%
+  slower than reality because our car tops out ~80 km/h below an F1. The lap still matches the
+  pole; the car is frozen, so the test allows 10% there instead of 7%.
