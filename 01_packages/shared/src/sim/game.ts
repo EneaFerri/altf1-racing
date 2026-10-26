@@ -1,8 +1,9 @@
 import type { CarParams } from '../config/car';
 import type { CollisionParams } from '../config/collision';
 import { FIXED_DT } from '../config/sim';
+import type { SlipstreamParams } from '../config/slipstream';
 import type { SurfaceParams } from '../config/surfaces';
-import { headingOf } from '../math/vec2';
+import { distance, headingOf } from '../math/vec2';
 import { gridSlot, locateOnTrack } from '../track/query';
 import type { Surface, Track } from '../track/types';
 import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
@@ -10,6 +11,7 @@ import { createCar, stepCar, type CarId, type CarState } from './car';
 import { resolveCollisions } from './collision/resolve';
 import type { ImpactEvent } from './collision/types';
 import { createLapState, stepLap, type LapState } from './laps';
+import { slipstreamEffect, slipstreamFactor } from './slipstream';
 import { carSurface } from './surface';
 
 /** Complete simulation state. Plain data only, so it can be copied, compared and sent over the network. */
@@ -32,7 +34,11 @@ export interface SimContext {
   readonly carParamsById?: Readonly<Record<CarId, CarParams>>;
   readonly surfaceParams: Readonly<Record<Surface, SurfaceParams>>;
   readonly collisionParams: CollisionParams;
+  readonly slipstreamParams: SlipstreamParams;
 }
+
+/** A grid slot counts as free when no car is closer than this to it (m). */
+const SPAWN_CLEARANCE = 6;
 
 /** One input per car id; cars without an entry get NEUTRAL_INPUT. */
 export type InputMap = Readonly<Record<CarId, InputCommand>>;
@@ -54,7 +60,8 @@ export function createGame(track: Track, carIds: readonly CarId[]): GameState {
 
 /**
  * Advances the simulation by exactly one fixed tick. Pure: never mutates `state`.
- * Every car moves first, then one collision pass resolves walls and car-vs-car contacts,
+ * Every car moves first (towed by the wakes of the cars as they were at the start of the tick),
+ * then one collision pass resolves walls and car-vs-car contacts,
  * then lap timing reads where each car ended up.
  */
 export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): GameState {
@@ -64,7 +71,13 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
 
     const { surfaces, effect } = carSurface(ctx.track, car, ctx.surfaceParams);
     const params = ctx.carParamsById?.[car.id] ?? ctx.carParams;
-    return { ...stepCar(car, input, params, FIXED_DT, effect), wheelSurfaces: surfaces };
+    const slipstream = slipstreamFactor(car, state.cars, ctx.slipstreamParams);
+    const slip = slipstreamEffect(slipstream, ctx.slipstreamParams);
+    return {
+      ...stepCar(car, input, params, FIXED_DT, effect, slip),
+      wheelSurfaces: surfaces,
+      slipstream,
+    };
   });
   const { cars, impacts } = resolveCollisions(moved, ctx.track, ctx.collisionParams);
   const tick = state.tick + 1;
@@ -135,6 +148,31 @@ export function placeCar(
     car.id === id ? timing : state.laps.find((lap) => lap.carId === car.id)!,
   );
   return { ...state, cars, laps };
+}
+
+/**
+ * Adds car `id` at rest on the first grid slot with no car near it, with its timing on an out-lap
+ * (replaces the car if `id` is already there). Used when a player joins a multiplayer room.
+ */
+export function spawnOnGrid(state: GameState, track: Track, id: CarId): GameState {
+  const others = removeCar(state, id);
+  let slot = 0;
+  while (
+    others.cars.some(
+      (car) => distance(car.position, gridSlot(track, slot).position) < SPAWN_CLEARANCE,
+    )
+  ) {
+    slot++;
+  }
+  const { position, direction } = gridSlot(track, slot);
+  const car = createCar({ id, position, heading: headingOf(direction) });
+  const cars = sortById([...others.cars, car]);
+  const laps = cars.map((c) =>
+    c.id === id
+      ? createLapState(id, locateOnTrack(track, position).distance)
+      : others.laps.find((lap) => lap.carId === c.id)!,
+  );
+  return { ...others, cars, laps };
 }
 
 /** Takes car `id` out of the race (no-op if it isn't there). */

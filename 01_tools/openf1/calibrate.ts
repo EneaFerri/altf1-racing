@@ -2,7 +2,7 @@
  * Finds the scale at which the Hard bot laps a circuit in the real pole time: drives it headless
  * with the game's own simulation and bot, then corrects the scale by the time ratio until it is
  * within TOLERANCE. Prints the scale to put in circuits.ts, and every level's times vs reality.
- * Usage: node --import ./01_tools/openf1/resolveTs.ts 01_tools/openf1/calibrate.ts <id> [scale]
+ * Usage: node --import ./01_tools/resolveTs.ts 01_tools/openf1/calibrate.ts <id> [scale]
  * (with a scale: only measures it).
  */
 import {
@@ -18,6 +18,7 @@ import {
   findCar,
   findLap,
   NEW_BOT_MEMORY,
+  SLIPSTREAM_PARAMS,
   stepGame,
   SURFACE_PARAMS,
   TICK_RATE,
@@ -50,6 +51,7 @@ function measure(definition: TrackDefinition, level: BotLevel, poleTime: number)
     carParams: CAR_PARAMS,
     surfaceParams: SURFACE_PARAMS,
     collisionParams: COLLISION_PARAMS,
+    slipstreamParams: SLIPSTREAM_PARAMS,
     carParamsById: { bot: botCarParams(CAR_PARAMS, BOT_PARAMS[level]) },
   };
   let state = createGame(track, ['bot']);

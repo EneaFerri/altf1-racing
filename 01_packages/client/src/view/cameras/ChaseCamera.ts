@@ -20,7 +20,8 @@ export class ChaseCamera {
     this.yaw = null;
   }
 
-  update(pose: CarPose, frameSeconds: number): void {
+  /** `yawOffset` turns the view round the car (π = looking back) without touching the smoothing. */
+  update(pose: CarPose, frameSeconds: number, yawOffset: number): void {
     const p = this.params;
     // Frame-rate independent exponential smoothing.
     this.yaw =
@@ -28,7 +29,7 @@ export class ChaseCamera {
         ? pose.heading
         : lerpAngle(this.yaw, pose.heading, 1 - Math.exp(-p.yawStiffness * frameSeconds));
 
-    const behind = forward(this.yaw);
+    const behind = forward(this.yaw + yawOffset);
     this.camera.position.set(
       pose.x - behind.x * p.distance,
       p.height,

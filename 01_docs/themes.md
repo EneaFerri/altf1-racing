@@ -131,23 +131,37 @@ unchanged):
   nodes) at least 4 m, never inside a building.
 - **Tunnel**: the lap fractions of the relation's ways tagged `tunnel` (the street ways, not only
   `raceway`s).
+- **Landmarks** (`CircuitConfig.landmarks`: name → kind): the building of that name, or the one
+  holding an OSM POI of it (else the nearest within 40 m), is marked (`landmark`) and drawn with
+  its own model instead of a plain block. Monaco: the Casino (POI "Casino de Monte Carlo") and the
+  Chapelle Sainte-Dévote (the Hôtel de Paris's building is left out by grandstand B).
 - **Pit garages**: a row of temporary boxes (10 m real deep, ~60 m long) just beyond the pit lane
   where it runs, over its middle (15% at each end are entry and exit), shallower where another
   stretch is close behind, left out where none fits; OSM's apartments are never used as garages.
 
 Builders: `scenery/town.ts` (`createCity`: walls and flat roofs merged into one mesh per material,
 Riviera pastel facades (`createFacadeTexture`) picked per building, glass above 45 m, terracotta
-roofs below 20 m; `createSea`, `createPiers`, `createPools`, `createPalms`), `scenery/tunnel.ts`
+roofs below 20 m; `extrude`; `createSea`, `createPiers`, `createPools`, `createPalms`),
+`scenery/landmarks.ts` (`createCasino`: Belle Époque walls, a copper mansard and two towers on the
+side facing the track; `createChapel`: ochre walls, tiled pyramid roof, bell tower),
+`scenery/yachts.ts` (`createYachts`: instanced hulls with a pointed bow, white or navy, a white
+superstructure with dark windows, a second deck above 26 m), `scenery/tunnel.ts`
 (`createTunnel`: walls past the run-off, a 6.5 m ceiling with glowing strip lights every 6 m, the
-roof's top at 8 m, portals). The sea sits 15 cm above the ground: big flat triangles fight with it
-far away.
+roof's top at 8 m, portals). The sea sits 15 cm above the ground with a polygon offset: big flat
+triangles fight with it far away. Behind the town, hills (`createMountains` on an arc of 2.4 rad
+on the side away from the sea, green-grey).
+
+`mooredBoats` (`scenery/placement.ts`, pure, tested) moors yachts stern-to, Monaco's way: along
+both sides of pier lines and the outer side of each edge of pier areas (all of Port Hercule's are
+areas), one every beam + 1.2 m, seeded 14–46 m long; kept only with every corner on the sea and
+off the pontoons, the bow 1 m from any pier, 3 m beyond the walls, never overlapping another.
 
 `themes/realCircuitLayouts.test.ts` checks every real circuit: stands beyond the walls and clear of
 the pit lane, pit lane behind the wall on the inside of the main straight and running along the
 lap, buildings behind it, trees in the woods off the track (Monza also: the oval never on the
 track, on a bridge where it crosses; Monaco: hundreds of buildings, every vertex beyond the walls
 except on the tunnel roof, the tunnel where it really is, sea, pools, piers and palms off the
-track).
+track, the Casino and the chapel, hundreds of yachts on the water and off the track).
 
 ## Monza theme (`themes/monza.ts`)
 
@@ -174,8 +188,8 @@ real heights (towers up to 80 m), Port Hercule and the sea with 27 pontoons, 34 
 III stadium on the quay), ~150 palms, the tunnel along the sea under the Fairmont (two footprints
 on its roof), three grandstands placed by hand (B at the Casino, K at Tabac, T from the Piscine to
 La Rascasse: the owner wanted few), the pit lane along the start straight with its garages. Pines
-in OSM's woods, no trees in the open. Next (9d.2b): yachts, the Casino and the Chapelle
-Sainte-Dévote, the hills behind the town.
+in OSM's woods, no trees in the open. 9d.2b: yachts moored stern-to in Port Hercule, the Casino
+and the Chapelle Sainte-Dévote on their footprints, green-grey hills behind the town.
 
 ## Placement rules (`scenery/placement.ts`, pure, tested)
 

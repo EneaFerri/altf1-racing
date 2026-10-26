@@ -30,6 +30,7 @@ and returns a new `CarState`. The tyres always grip: there is no drift (removed 
 | `brakePressure` | 0..1, builds up while the brake is held, drops quickly once released                        |
 | `steer`         | Smoothed steering −1..1                                                                     |
 | `wheelSurfaces` | Surface under each wheel (FL, FR, RL, RR), sampled at the start of the last tick            |
+| `slipstream`    | Tow from another car's wake in the last tick, 0..1 (see [Slipstream](#slipstream))          |
 
 ## Brake pressure
 
@@ -80,6 +81,49 @@ lateral on the next tick and grip pulls it back in line: a natural slip in turns
   spin too, bounded and non-stacking: see [collisions.md](collisions.md).
 - **Reset** (`InputCommand.reset`, R): handled in `stepGame`, not `stepCar` — the car is placed at
   the closest centreline point, facing the driving direction, at rest (`createCar` with the same id).
+
+## Slipstream
+
+A car close behind another one at speed meets less air and gets towed along (step 10b). Model in
+`sim/slipstream.ts`, values in `config/slipstream.ts` (`SLIPSTREAM_PARAMS`, F2 → Slipstream),
+applied by `stepGame` to every car (player and bot alike).
+
+- **Factor 0..1** (`slipstreamFactor`), from the positions at the start of the tick, the strongest
+  wake among the other cars. In the leader's frame, three linear fades multiplied together:
+  - **distance** behind it: 1 at `fullGap` (6 m, centre to centre ≈ nose to gearbox) → 0 at
+    `range` (40 m): the closer, the stronger;
+  - **side offset** from its axis: 1 on the axis → 0 at `halfWidth` (3 m);
+  - **leader's speed**: 0 below `minSpeed` (25 m/s, 90 km/h: no wake at all) → 1 at `fullSpeed`
+    (60 m/s, 216 km/h). The wake is made by the car ahead, so it is as strong as that car is fast.
+  - No tow when the follower is alongside or ahead, or points more than `maxHeadingDiff` (45°) away.
+- **Effect** (`slipstreamEffect`) in the speed update: air drag × `(1 − factor · dragCut)` (−45%
+  at full tow) and, on throttle, `+ factor · towAccel` (1 m/s²). Drag alone isn't enough to be felt:
+  the engine's thrust fades to 0 near `maxSpeed`, so −45% drag only gives ~305 km/h; the small push
+  brings it to the owner's target, ~320 km/h.
+- The factor is stored on the car (`CarState.slipstream`): the HUD (SLIP bar + %) and the wind lines
+  read that one value (see [architecture.md](architecture.md)), and it travels with the state.
+
+| Param            | Value | Unit | Higher means…                                  |
+| ---------------- | ----- | ---- | ---------------------------------------------- |
+| `range`          | 40    | m    | Tow felt from further back                     |
+| `fullGap`        | 6     | m    | Full tow from further back                     |
+| `halfWidth`      | 3     | m    | Wider wake, easier to stay in                  |
+| `maxHeadingDiff` | π/4   | rad  | Tow still while angled to the leader           |
+| `minSpeed`       | 25    | m/s  | Wake starts at a higher speed                  |
+| `fullSpeed`      | 60    | m/s  | Full-strength wake only at a higher speed      |
+| `dragCut`        | 0.45  | —    | Less air drag in the wake                      |
+| `towAccel`       | 1     | m/s² | Stronger push in the wake (and top speed gain) |
+
+Measured (full throttle from rest, constant tow, baseline v3 car):
+
+| Tow  | 10 s     | 20 s     | Top speed |
+| ---- | -------- | -------- | --------- |
+| 0%   | 261 km/h | 282 km/h | 283 km/h  |
+| 25%  | 267 km/h | 290 km/h | 291 km/h  |
+| 50%  | 274 km/h | 298 km/h | 300 km/h  |
+| 100% | 287 km/h | 317 km/h | 320 km/h  |
+
+From 250 km/h, 3 s of full throttle: 268 km/h alone, 285 km/h at full tow.
 
 ## Parameters
 

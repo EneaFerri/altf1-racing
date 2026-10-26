@@ -29,6 +29,12 @@ export interface HandStand {
   readonly side: 'left' | 'right';
 }
 
+/** A landmark drawn with its own model: the OSM building of that name, or holding a POI of it. */
+export interface Landmark {
+  readonly name: string;
+  readonly kind: 'casino' | 'chapel';
+}
+
 export interface CircuitConfig {
   /** File name of the data (`data/<id>.json`) and of the layout (`layouts/<id>.ts`). */
   readonly id: string;
@@ -64,6 +70,8 @@ export interface CircuitConfig {
   readonly town?: boolean;
   /** Grandstands placed by hand where OSM has none. */
   readonly stands?: readonly HandStand[];
+  /** Town circuits: buildings drawn with their own model. */
+  readonly landmarks?: readonly Landmark[];
 }
 
 /**
@@ -184,6 +192,10 @@ export const CIRCUITS: readonly CircuitConfig[] = [
       { name: 'Tribune B (Casino)', at: 870, length: 50, depth: 10, side: 'left' },
       { name: 'Tribune K (Tabac)', at: 2390, length: 120, depth: 14, side: 'left' },
       { name: 'Tribune T (Piscine, Rascasse)', at: 2770, length: 110, depth: 18, side: 'left' },
+    ],
+    landmarks: [
+      { name: 'Casino de Monte Carlo', kind: 'casino' },
+      { name: 'Chapelle Sainte-Dévote', kind: 'chapel' },
     ],
   },
 ];

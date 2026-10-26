@@ -2,13 +2,14 @@
 
 All feel-related numbers have one home each and are the game's defaults:
 
-| Values             | File                                            | Docs                               |
-| ------------------ | ----------------------------------------------- | ---------------------------------- |
-| `CAR_PARAMS`       | `01_packages/shared/src/config/car.ts`          | [physics.md](physics.md)           |
-| `COLLISION_PARAMS` | `01_packages/shared/src/config/collision.ts`    | [collisions.md](collisions.md)     |
-| `SURFACE_PARAMS`   | `01_packages/shared/src/config/surfaces.ts`     | [track.md](track.md)               |
-| `BOT_PARAMS`       | `01_packages/shared/src/config/bot.ts`          | [bot.md](bot.md)                   |
-| `CAMERA_PARAMS`    | `01_packages/client/src/view/cameras/params.ts` | [architecture.md](architecture.md) |
+| Values              | File                                            | Docs                                |
+| ------------------- | ----------------------------------------------- | ----------------------------------- |
+| `CAR_PARAMS`        | `01_packages/shared/src/config/car.ts`          | [physics.md](physics.md)            |
+| `COLLISION_PARAMS`  | `01_packages/shared/src/config/collision.ts`    | [collisions.md](collisions.md)      |
+| `SURFACE_PARAMS`    | `01_packages/shared/src/config/surfaces.ts`     | [track.md](track.md)                |
+| `BOT_PARAMS`        | `01_packages/shared/src/config/bot.ts`          | [bot.md](bot.md)                    |
+| `SLIPSTREAM_PARAMS` | `01_packages/shared/src/config/slipstream.ts`   | [physics.md](physics.md#slipstream) |
+| `CAMERA_PARAMS`     | `01_packages/client/src/view/cameras/params.ts` | [architecture.md](architecture.md)  |
 
 ## Status flag
 
@@ -21,6 +22,8 @@ Current: **baseline v3, final**, frozen on 2026-10-23 after Phase 1 step 9c.2: b
 higher engine limit, `maxSpeed` 80 → 95 m/s (owner's F2 value), everything else unchanged. The
 owner's idea: a faster car at the end of the straights makes braking and corner entry matter more,
 so lap times stay similar; tracks, real-circuit scales and bots were deliberately left as they were.
+`SLIPSTREAM_PARAMS` (step 10b) were added on top of v3 without touching its values: a car alone
+drives exactly as before, so the real circuits' Hard-bot pole times (lapped alone) still hold.
 It is the owner's **reference setup**: future tuning starts from here, and any change to these values
 bumps the version (v4, …).
 

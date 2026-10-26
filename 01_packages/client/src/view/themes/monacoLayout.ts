@@ -779,6 +779,8 @@ export const MONACO_CITY: readonly {
   readonly height: number;
   readonly base: number;
   readonly name: string;
+  /** Drawn with its own model: 'casino', 'chapel' (empty: a plain building). */
+  readonly landmark: string;
 }[] = [
   {
     points: [
@@ -794,6 +796,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: "Ministère d'État",
+    landmark: '',
   },
   {
     points: [
@@ -820,6 +823,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -833,6 +837,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -845,18 +850,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: "Ministère d'État",
+    landmark: '',
   },
   {
     points: [vec2(-38.5, 571.9), vec2(-38.8, 578.8), vec2(-28.5, 592.6), vec2(-22.3, 581)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-73.4, 534), vec2(-79.5, 548), vec2(-5.3, 580.2), vec2(0.8, 566.1)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -874,6 +882,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -890,6 +899,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -903,6 +913,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -916,6 +927,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -933,6 +945,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -950,6 +963,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -965,6 +979,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -978,6 +993,7 @@ export const MONACO_CITY: readonly {
     height: 10,
     base: 0,
     name: 'Chapelle de la Miséricorde',
+    landmark: '',
   },
   {
     points: [
@@ -992,6 +1008,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1008,6 +1025,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Centre Cardio Thoracique de Monaco',
+    landmark: '',
   },
   {
     points: [
@@ -1034,12 +1052,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-155.2, -138.7), vec2(-168.6, -157), vec2(-198.2, -135.6), vec2(-187.3, -119.2)],
     height: 42.6,
     base: 0,
     name: 'Résidence Azur',
+    landmark: '',
   },
   {
     points: [
@@ -1053,6 +1073,7 @@ export const MONACO_CITY: readonly {
     height: 52.2,
     base: 0,
     name: 'Villa Stella',
+    landmark: '',
   },
   {
     points: [
@@ -1071,6 +1092,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1090,6 +1112,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1105,12 +1128,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(360.6, -291.5), vec2(370.2, -285.2), vec2(357.8, -269.8), vec2(350.2, -275.6)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1128,6 +1153,7 @@ export const MONACO_CITY: readonly {
     height: 16,
     base: 0,
     name: 'Chapelle Sainte-Dévote',
+    landmark: 'chapel',
   },
   {
     points: [
@@ -1140,6 +1166,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'FAMI',
+    landmark: '',
   },
   {
     points: [
@@ -1152,6 +1179,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1171,6 +1199,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: 'Girasole',
+    landmark: '',
   },
   {
     points: [
@@ -1213,6 +1242,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1225,12 +1255,14 @@ export const MONACO_CITY: readonly {
     height: 26.6,
     base: 0,
     name: 'Harbour Crest',
+    landmark: '',
   },
   {
     points: [vec2(805.3, -807.9), vec2(826.4, -796.6), vec2(811.8, -771.4), vec2(793.3, -781.5)],
     height: 18,
     base: 0,
     name: 'Casa Emma',
+    landmark: '',
   },
   {
     points: [
@@ -1261,30 +1293,35 @@ export const MONACO_CITY: readonly {
     height: 81,
     base: 0,
     name: 'Le Schuylkill',
+    landmark: '',
   },
   {
     points: [vec2(454.2, -458.1), vec2(432.5, -426.4), vec2(444.4, -418.5), vec2(466.4, -450.1)],
     height: 18,
     base: 0,
     name: '26 Carré Or',
+    landmark: '',
   },
   {
     points: [vec2(-168.7, 23.8), vec2(-169.7, 37.6), vec2(-182.3, 36.7), vec2(-181.3, 22.9)],
     height: 13.8,
     base: 0,
     name: "Villa de L'Avenir",
+    landmark: '',
   },
   {
     points: [vec2(-76.6, -154), vec2(-92.4, -143.2), vec2(-78.8, -123.5), vec2(-63, -134.3)],
     height: 26.6,
     base: 0,
     name: 'Villa Bellevue Bât. B',
+    landmark: '',
   },
   {
     points: [vec2(-50.9, -44.7), vec2(-54.8, -22.2), vec2(-49.5, -21.4), vec2(-45.5, -43.8)],
     height: 13.8,
     base: 0,
     name: 'Villa Florio',
+    landmark: '',
   },
   {
     points: [
@@ -1297,12 +1334,14 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: 'Villa Colombe',
+    landmark: '',
   },
   {
     points: [vec2(558.4, -591.3), vec2(570.2, -581.5), vec2(554.5, -562.9), vec2(542.7, -572.6)],
     height: 18,
     base: 0,
     name: 'Office du Tourisme de Monaco',
+    landmark: '',
   },
   {
     points: [
@@ -1316,18 +1355,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Villa Colibri',
+    landmark: '',
   },
   {
     points: [vec2(-156.9, 111.1), vec2(-119.9, 113.5), vec2(-121.3, 135.2), vec2(-158.3, 132.8)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(767.5, -737.3), vec2(786.4, -726.2), vec2(799, -747.9), vec2(780.4, -759.1)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1343,12 +1385,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Les Boulingrins',
+    landmark: '',
   },
   {
     points: [vec2(-202.2, 211.8), vec2(-202.5, 220.5), vec2(-213.2, 220.1), vec2(-212.9, 211.4)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1362,6 +1406,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1375,6 +1420,7 @@ export const MONACO_CITY: readonly {
     height: 20.2,
     base: 0,
     name: 'Villa Bijou',
+    landmark: '',
   },
   {
     points: [
@@ -1389,12 +1435,14 @@ export const MONACO_CITY: readonly {
     height: 7.4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-126.4, -57.9), vec2(-139.9, -46.1), vec2(-149.3, -57), vec2(-135.8, -68.5)],
     height: 20.2,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1408,6 +1456,7 @@ export const MONACO_CITY: readonly {
     height: 17,
     base: 0,
     name: 'Villa Montjoie',
+    landmark: '',
   },
   {
     points: [
@@ -1429,12 +1478,14 @@ export const MONACO_CITY: readonly {
     height: 26.6,
     base: 0,
     name: 'Le Montaigne',
+    landmark: '',
   },
   {
     points: [vec2(-163.2, 198.1), vec2(-163.4, 208.1), vec2(-149.5, 208.2), vec2(-149.4, 198.4)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1448,6 +1499,7 @@ export const MONACO_CITY: readonly {
     height: 17,
     base: 0,
     name: 'Rose De France',
+    landmark: '',
   },
   {
     points: [
@@ -1462,12 +1514,14 @@ export const MONACO_CITY: readonly {
     height: 23.4,
     base: 0,
     name: 'Villa La Madone',
+    landmark: '',
   },
   {
     points: [vec2(-115.5, 117.1), vec2(-99.7, 118.5), vec2(-100.9, 132.4), vec2(-116.7, 131)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1486,6 +1540,7 @@ export const MONACO_CITY: readonly {
     height: 81,
     base: 0,
     name: 'Le Mirabeau',
+    landmark: '',
   },
   {
     points: [
@@ -1498,6 +1553,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1512,6 +1568,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1536,6 +1593,7 @@ export const MONACO_CITY: readonly {
     height: 26.6,
     base: 0,
     name: 'Le Beau Rivage',
+    landmark: '',
   },
   {
     points: [
@@ -1550,6 +1608,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1562,6 +1621,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1576,6 +1636,7 @@ export const MONACO_CITY: readonly {
     height: 33,
     base: 0,
     name: 'Villa La Lestra',
+    landmark: '',
   },
   {
     points: [
@@ -1601,6 +1662,7 @@ export const MONACO_CITY: readonly {
     height: 26.6,
     base: 0,
     name: 'Domaine du Roqueville',
+    landmark: '',
   },
   {
     points: [
@@ -1620,6 +1682,7 @@ export const MONACO_CITY: readonly {
     height: 17,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1635,6 +1698,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1648,6 +1712,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1667,6 +1732,7 @@ export const MONACO_CITY: readonly {
     height: 52.2,
     base: 0,
     name: 'Le Panorama',
+    landmark: '',
   },
   {
     points: [
@@ -1683,6 +1749,7 @@ export const MONACO_CITY: readonly {
     height: 29.8,
     base: 0,
     name: 'Le Winch',
+    landmark: '',
   },
   {
     points: [
@@ -1700,6 +1767,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: 'Le Saint-Michel',
+    landmark: '',
   },
   {
     points: [
@@ -1716,6 +1784,7 @@ export const MONACO_CITY: readonly {
     height: 26.6,
     base: 0,
     name: 'Villa Bellevue Bât. A',
+    landmark: '',
   },
   {
     points: [
@@ -1729,6 +1798,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1744,12 +1814,14 @@ export const MONACO_CITY: readonly {
     height: 17,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(7.1, -343.8), vec2(42.2, -335.2), vec2(46.7, -353.6), vec2(11.6, -362.2)],
     height: 20.2,
     base: 0,
     name: 'Villa Hermosa',
+    landmark: '',
   },
   {
     points: [
@@ -1762,6 +1834,7 @@ export const MONACO_CITY: readonly {
     height: 7.4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1776,12 +1849,14 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-219.2, 25), vec2(-231.4, 12), vec2(-209.1, -8.7), vec2(-196.9, 4.3)],
     height: 23.4,
     base: 0,
     name: 'Le Monator',
+    landmark: '',
   },
   {
     points: [
@@ -1815,18 +1890,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Monte Carlo',
+    landmark: '',
   },
   {
     points: [vec2(-171, -35.4), vec2(-181.4, -26), vec2(-172.7, -16.5), vec2(-162.3, -25.9)],
     height: 10.6,
     base: 0,
     name: 'Villa Leopold',
+    landmark: '',
   },
   {
     points: [vec2(750.4, -689), vec2(737.7, -678.7), vec2(754.6, -658.2), vec2(767.3, -668.4)],
     height: 18,
     base: 0,
     name: 'Le Cordusio',
+    landmark: '',
   },
   {
     points: [
@@ -1840,6 +1918,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: 'Villa Hyacinthe',
+    landmark: '',
   },
   {
     points: [
@@ -1854,6 +1933,7 @@ export const MONACO_CITY: readonly {
     height: 36.2,
     base: 0,
     name: 'La Petite Afrique',
+    landmark: '',
   },
   {
     points: [
@@ -1867,12 +1947,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(716.8, -701.8), vec2(698.6, -689.8), vec2(718.4, -660.2), vec2(736.6, -672.3)],
     height: 13.8,
     base: 0,
     name: 'Villa Eugénie Louise',
+    landmark: '',
   },
   {
     points: [
@@ -1885,18 +1967,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-5.8, -117.2), vec2(-20.3, -82.9), vec2(-1.3, -74.9), vec2(13.2, -109.3)],
     height: 52.2,
     base: 0,
     name: 'Les Caravelles',
+    landmark: '',
   },
   {
     points: [vec2(-16.6, -384.9), vec2(-7.2, -376.3), vec2(-13.5, -369.5), vec2(-22.9, -378.1)],
     height: 10.6,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1933,6 +2018,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -1950,6 +2036,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Villa Miraflores',
+    landmark: '',
   },
   {
     points: [
@@ -1965,6 +2052,7 @@ export const MONACO_CITY: readonly {
     height: 36.2,
     base: 0,
     name: 'Les Jacarandas - Bât. 4',
+    landmark: '',
   },
   {
     points: [
@@ -1979,6 +2067,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Monaco Telecom',
+    landmark: '',
   },
   {
     points: [
@@ -1992,6 +2081,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2011,12 +2101,14 @@ export const MONACO_CITY: readonly {
     height: 29.8,
     base: 0,
     name: 'Château de Plaisance',
+    landmark: '',
   },
   {
     points: [vec2(70.9, -329.9), vec2(104.2, -324.6), vec2(108.5, -351.6), vec2(75.2, -356.9)],
     height: 20.2,
     base: 0,
     name: 'Le Royal',
+    landmark: '',
   },
   {
     points: [
@@ -2038,6 +2130,7 @@ export const MONACO_CITY: readonly {
     height: 7.4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2051,6 +2144,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2065,18 +2159,21 @@ export const MONACO_CITY: readonly {
     height: 33,
     base: 0,
     name: 'Harbour Lights',
+    landmark: '',
   },
   {
     points: [vec2(-170, 37.7), vec2(-170.9, 53.6), vec2(-186.6, 52.6), vec2(-185.7, 36.8)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-178.1, 218.8), vec2(-179, 232.8), vec2(-197.8, 231.5), vec2(-196.9, 217.5)],
     height: 13.8,
     base: 0,
     name: 'La Brasserie du Mystic',
+    landmark: '',
   },
   {
     points: [
@@ -2090,6 +2187,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: 'Villa Marthe',
+    landmark: '',
   },
   {
     points: [
@@ -2103,6 +2201,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2115,24 +2214,28 @@ export const MONACO_CITY: readonly {
     height: 36.2,
     base: 0,
     name: 'Les Jacarandas - Bât. 5',
+    landmark: '',
   },
   {
     points: [vec2(470.2, -380.9), vec2(447.9, -343.3), vec2(468.4, -331.3), vec2(490.7, -368.8)],
     height: 71.4,
     base: 0,
     name: 'Sun Tower',
+    landmark: '',
   },
   {
     points: [vec2(777.2, -655.2), vec2(765, -642.8), vec2(778, -630.2), vec2(790.2, -642.7)],
     height: 7.4,
     base: 0,
     name: 'Villa Belgica',
+    landmark: '',
   },
   {
     points: [vec2(-132.1, 217), vec2(-142.4, 216.2), vec2(-142.2, 198.5), vec2(-131.2, 197.8)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2150,12 +2253,14 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(583.5, -614.5), vec2(572.1, -604.9), vec2(585.2, -587.2), vec2(597.1, -597.1)],
     height: 18,
     base: 0,
     name: 'Le Bromar',
+    landmark: '',
   },
   {
     points: [
@@ -2169,6 +2274,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2182,6 +2288,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2194,12 +2301,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-40, -134.1), vec2(-34.8, -126.7), vec2(-79, -95.6), vec2(-84.1, -103.3)],
     height: 10.6,
     base: 0,
     name: 'Villa Trianon',
+    landmark: '',
   },
   {
     points: [
@@ -2212,6 +2321,7 @@ export const MONACO_CITY: readonly {
     height: 45.8,
     base: 0,
     name: 'Le Shangri-La',
+    landmark: '',
   },
   {
     points: [
@@ -2227,6 +2337,7 @@ export const MONACO_CITY: readonly {
     height: 20.2,
     base: 0,
     name: 'Villa Ménésini',
+    landmark: '',
   },
   {
     points: [
@@ -2244,6 +2355,7 @@ export const MONACO_CITY: readonly {
     height: 29.8,
     base: 0,
     name: 'Le Régina',
+    landmark: '',
   },
   {
     points: [
@@ -2256,6 +2368,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2268,12 +2381,14 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-151.1, -55.3), vec2(-141, -44.8), vec2(-157.3, -29.4), vec2(-167.4, -40)],
     height: 17,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2302,6 +2417,7 @@ export const MONACO_CITY: readonly {
     height: 20.2,
     base: 0,
     name: 'Les Princes',
+    landmark: '',
   },
   {
     points: [
@@ -2315,6 +2431,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2330,12 +2447,14 @@ export const MONACO_CITY: readonly {
     height: 29.8,
     base: 0,
     name: 'Les Floralies',
+    landmark: '',
   },
   {
     points: [vec2(-163, 184.7), vec2(-142, 185.1), vec2(-142.2, 198.5), vec2(-163.2, 198.1)],
     height: 18,
     base: 0,
     name: 'Villa Portofino',
+    landmark: '',
   },
   {
     points: [
@@ -2353,6 +2472,7 @@ export const MONACO_CITY: readonly {
     height: 7.4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2386,18 +2506,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Casa Mia',
+    landmark: '',
   },
   {
     points: [vec2(-157.7, 147.3), vec2(-133, 148.7), vec2(-134.6, 177.1), vec2(-159.3, 175.7)],
     height: 18,
     base: 0,
     name: 'CFM Indosuez Wealth Management',
+    landmark: '',
   },
   {
     points: [vec2(-84.2, -75.4), vec2(-73, -84.6), vec2(-62.2, -72.1), vec2(-73.8, -62.7)],
     height: 10.6,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2414,6 +2537,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Villa les Hirondelles',
+    landmark: '',
   },
   {
     points: [
@@ -2429,6 +2553,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2441,6 +2566,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Palais Saint James',
+    landmark: '',
   },
   {
     points: [
@@ -2454,12 +2580,14 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-110.6, -89.9), vec2(-132.7, -70.9), vec2(-123.4, -60.2), vec2(-101.3, -79.1)],
     height: 23.4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2476,12 +2604,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(795.2, -671), vec2(777.2, -655.2), vec2(790.2, -642.7), vec2(807, -659.7)],
     height: 7.4,
     base: 0,
     name: 'Riviera Palace',
+    landmark: '',
   },
   {
     points: [
@@ -2494,6 +2624,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2510,18 +2641,21 @@ export const MONACO_CITY: readonly {
     height: 29.8,
     base: 0,
     name: 'Saint André',
+    landmark: '',
   },
   {
     points: [vec2(-76.6, -42.1), vec2(-79.8, -25.4), vec2(-66.7, -22.4), vec2(-63, -40.7)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(51, -355.8), vec2(45.8, -331), vec2(66.7, -326.6), vec2(71.9, -351.4)],
     height: 20.2,
     base: 0,
     name: 'Villa de Rome',
+    landmark: '',
   },
   {
     points: [
@@ -2543,6 +2677,7 @@ export const MONACO_CITY: readonly {
     height: 23.4,
     base: 0,
     name: 'Palais du Soleil',
+    landmark: '',
   },
   {
     points: [
@@ -2559,6 +2694,7 @@ export const MONACO_CITY: readonly {
     height: 20.2,
     base: 0,
     name: 'Les Bruyères',
+    landmark: '',
   },
   {
     points: [
@@ -2572,6 +2708,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2587,6 +2724,7 @@ export const MONACO_CITY: readonly {
     height: 17,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2603,6 +2741,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Croix-Rouge monégasque',
+    landmark: '',
   },
   {
     points: [
@@ -2617,6 +2756,7 @@ export const MONACO_CITY: readonly {
     height: 20.2,
     base: 0,
     name: "Villa L'Echauguette",
+    landmark: '',
   },
   {
     points: [
@@ -2631,6 +2771,7 @@ export const MONACO_CITY: readonly {
     height: 20.2,
     base: 0,
     name: 'Villa Floriane',
+    landmark: '',
   },
   {
     points: [
@@ -2644,18 +2785,21 @@ export const MONACO_CITY: readonly {
     height: 26.6,
     base: 0,
     name: 'Winter Palace',
+    landmark: '',
   },
   {
     points: [vec2(-188.7, -27.2), vec2(-175.6, -14.5), vec2(-182.3, -8.2), vec2(-196.8, -19.8)],
     height: 20.2,
     base: 0,
     name: 'Villa Anna',
+    landmark: '',
   },
   {
     points: [vec2(226.3, -285.2), vec2(245.5, -289.2), vec2(249.2, -271.8), vec2(229.9, -267.8)],
     height: 18,
     base: 0,
     name: 'Villa de La Costa',
+    landmark: '',
   },
   {
     points: [
@@ -2669,6 +2813,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2681,6 +2826,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Le Bristol',
+    landmark: '',
   },
   {
     points: [
@@ -2698,6 +2844,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: 'Villa Pereira',
+    landmark: '',
   },
   {
     points: [
@@ -2711,6 +2858,7 @@ export const MONACO_CITY: readonly {
     height: 17,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2725,6 +2873,7 @@ export const MONACO_CITY: readonly {
     height: 39.4,
     base: 0,
     name: 'Résidence Herakleia',
+    landmark: '',
   },
   {
     points: [
@@ -2746,12 +2895,14 @@ export const MONACO_CITY: readonly {
     height: 17,
     base: 0,
     name: 'Villa Le Sphinx',
+    landmark: '',
   },
   {
     points: [vec2(66.6, -311.7), vec2(80.2, -310.2), vec2(78.5, -293.9), vec2(64.9, -295.4)],
     height: 10.6,
     base: 0,
     name: 'Villa Marie Antoinette',
+    landmark: '',
   },
   {
     points: [
@@ -2764,6 +2915,7 @@ export const MONACO_CITY: readonly {
     height: 29.8,
     base: 0,
     name: 'Le Shakespeare',
+    landmark: '',
   },
   {
     points: [
@@ -2778,6 +2930,7 @@ export const MONACO_CITY: readonly {
     height: 23.4,
     base: 0,
     name: "Soleil d'Or",
+    landmark: '',
   },
   {
     points: [
@@ -2806,6 +2959,7 @@ export const MONACO_CITY: readonly {
     height: 20.2,
     base: 0,
     name: 'Palais de la Scala',
+    landmark: '',
   },
   {
     points: [
@@ -2819,12 +2973,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(993.5, -739.2), vec2(981.1, -700.4), vec2(957.4, -707.2), vec2(969.9, -746.6)],
     height: 18,
     base: 0,
     name: 'La Réserve',
+    landmark: '',
   },
   {
     points: [
@@ -2837,6 +2993,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2855,6 +3012,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Palais Solemar',
+    landmark: '',
   },
   {
     points: [
@@ -2872,6 +3030,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2884,6 +3043,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Les Acanthes',
+    landmark: '',
   },
   {
     points: [
@@ -2915,6 +3075,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'George V',
+    landmark: '',
   },
   {
     points: [
@@ -2933,12 +3094,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Prince de Galles',
+    landmark: '',
   },
   {
     points: [vec2(866.5, -669.9), vec2(904.5, -659.9), vec2(898.3, -636.1), vec2(860.3, -646.1)],
     height: 18,
     base: 0,
     name: 'Le Mirabel',
+    landmark: '',
   },
   {
     points: [
@@ -2962,12 +3125,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(277.5, 502.2), vec2(289.9, 499.5), vec2(292.4, 510.9), vec2(280, 513.6)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -2986,18 +3151,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(94.7, 375.3), vec2(95.2, 387.5), vec2(122.9, 385.9), vec2(122.5, 374.1)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-113.4, 77.1), vec2(-115.7, 100), vec2(-155.6, 95.8), vec2(-153.6, 74.1)],
     height: 26.6,
     base: 0,
     name: 'Suffren',
+    landmark: '',
   },
   {
     points: [
@@ -3016,6 +3184,7 @@ export const MONACO_CITY: readonly {
     height: 12.5,
     base: 8,
     name: 'Auditorium Rainier III',
+    landmark: '',
   },
   {
     points: [
@@ -3033,18 +3202,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Quai Lucciana',
+    landmark: '',
   },
   {
     points: [vec2(1055.8, -724.1), vec2(1064.7, -722.5), vec2(1061.8, -707), vec2(1053, -708.6)],
     height: 4.2,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(1012.1, -682.5), vec2(1017, -681.1), vec2(1015.3, -675.3), vec2(1010.5, -676.7)],
     height: 4.2,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3082,6 +3254,7 @@ export const MONACO_CITY: readonly {
     height: 7.4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3122,6 +3295,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3175,6 +3349,7 @@ export const MONACO_CITY: readonly {
     height: 7.4,
     base: 0,
     name: '',
+    landmark: 'casino',
   },
   {
     points: [
@@ -3197,6 +3372,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3213,6 +3389,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: 'Villa Les Aigles',
+    landmark: '',
   },
   {
     points: [
@@ -3230,6 +3407,7 @@ export const MONACO_CITY: readonly {
     height: 58.6,
     base: 0,
     name: 'Ermanno Palace',
+    landmark: '',
   },
   {
     points: [
@@ -3242,6 +3420,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3269,12 +3448,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: "Salle d'Exposition",
+    landmark: '',
   },
   {
     points: [vec2(-112.8, 464.7), vec2(-116.1, 469.6), vec2(-112.8, 471.8), vec2(-109.5, 466.9)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3288,6 +3469,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3306,6 +3488,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Centre de Rencontre International',
+    landmark: '',
   },
   {
     points: [
@@ -3322,6 +3505,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3335,6 +3519,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Halles du marché de la Condamine',
+    landmark: '',
   },
   {
     points: [
@@ -3360,6 +3545,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3372,18 +3558,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-264.7, 278.5), vec2(-160.2, 269.3), vec2(-158.9, 283.3), vec2(-263.4, 292.5)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-29, -1.5), vec2(-32.2, 48.1), vec2(-18.5, 48.5), vec2(-14.3, -0.6)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3396,18 +3585,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Sûreté Publique de Monaco',
+    landmark: '',
   },
   {
     points: [vec2(289, -288.6), vec2(275.3, -283), vec2(270.7, -293.9), vec2(284.4, -299.5)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(793.3, -781.5), vec2(783.3, -763), vec2(801.1, -752), vec2(811.8, -771.4)],
     height: 18,
     base: 0,
     name: 'Les Acacias',
+    landmark: '',
   },
   {
     points: [
@@ -3421,12 +3613,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'La Frégate',
+    landmark: '',
   },
   {
     points: [vec2(-86.1, 64.8), vec2(-85.4, 81.4), vec2(-100.7, 80.4), vec2(-100.3, 64.8)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3442,12 +3636,14 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-197.9, 254.5), vec2(-196.8, 264.6), vec2(-218.5, 267.4), vec2(-219.8, 256.9)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3460,12 +3656,14 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-179.8, 244.7), vec2(-179.2, 252.7), vec2(-194, 254.1), vec2(-194.7, 245.8)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3478,6 +3676,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3490,54 +3689,63 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-77.7, 265.4), vec2(-70.3, 265.5), vec2(-71, 249), vec2(-76.7, 248.8)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-83.6, 248.6), vec2(-84.4, 264.6), vec2(-77.7, 265.4), vec2(-76.7, 248.8)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-98.8, 248.1), vec2(-83.6, 248.6), vec2(-84.4, 264.6), vec2(-100, 264.1)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-110.1, 247.5), vec2(-98.8, 248.1), vec2(-100, 264.1), vec2(-111.4, 263.1)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-121.3, 262.2), vec2(-120, 247.3), vec2(-110.1, 247.5), vec2(-111.4, 263.1)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-130.5, 250.7), vec2(-131.1, 261.9), vec2(-121.3, 262.2), vec2(-120.7, 251.2)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-148.8, 250.5), vec2(-149.3, 261.5), vec2(-131.1, 261.9), vec2(-130.5, 250.7)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-165, 251.8), vec2(-164.7, 261.1), vec2(-149.3, 261.5), vec2(-148.8, 250.5)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3551,6 +3759,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3563,6 +3772,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3575,6 +3785,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3590,6 +3801,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3609,6 +3821,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'État-Major du Corps des sapeurs-pompiers de Monaco',
+    landmark: '',
   },
   {
     points: [
@@ -3621,6 +3834,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Ecole de la Condamine',
+    landmark: '',
   },
   {
     points: [
@@ -3636,12 +3850,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-98, 114.8), vec2(-99.5, 136.6), vec2(-80.3, 138), vec2(-78.8, 116.1)],
     height: 18,
     base: 0,
     name: 'villa Medecin',
+    landmark: '',
   },
   {
     points: [
@@ -3654,6 +3870,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3669,12 +3886,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-118.4, 167.9), vec2(-113.7, 168.1), vec2(-113.5, 162.7), vec2(-118.2, 162.5)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3691,6 +3910,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Quai Kennedy',
+    landmark: '',
   },
   {
     points: [
@@ -3710,6 +3930,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Le Castellara',
+    landmark: '',
   },
   {
     points: [
@@ -3722,6 +3943,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Le Portobello',
+    landmark: '',
   },
   {
     points: [
@@ -3734,12 +3956,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(60.6, -385), vec2(67.6, -386.9), vec2(72, -370.9), vec2(65.1, -369)],
     height: 10.6,
     base: 0,
     name: 'Villa-Eugenie',
+    landmark: '',
   },
   {
     points: [
@@ -3755,6 +3979,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: 'Villa Pax',
+    landmark: '',
   },
   {
     points: [
@@ -3767,6 +3992,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3781,24 +4007,28 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(454.6, -511.1), vec2(464.8, -504.7), vec2(475.2, -519), vec2(464.5, -526)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(270.3, -339.1), vec2(273.3, -329.9), vec2(288.5, -335.8), vec2(285.7, -343.6)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(237.3, 259.8), vec2(237.9, 266.7), vec2(246.9, 266), vec2(246.3, 259.1)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3818,12 +4048,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Synagogue de Monaco',
+    landmark: '',
   },
   {
     points: [vec2(659.4, -474.3), vec2(666.6, -466.5), vec2(658.6, -459.2), vec2(651.3, -466.9)],
     height: 4.2,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3848,18 +4080,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-106.3, 48.2), vec2(-106.4, 58), vec2(-85.1, 58.2), vec2(-85, 48.4)],
     height: 16,
     base: 0,
     name: 'Paroisse Orthodoxe Russe Des Saints Martyrs Royaux à Monaco',
+    landmark: '',
   },
   {
     points: [vec2(-52.3, 36.9), vec2(-53.2, -4.9), vec2(-68.1, -5), vec2(-67.1, 37.2)],
     height: 26.6,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3872,6 +4107,7 @@ export const MONACO_CITY: readonly {
     height: 52.2,
     base: 0,
     name: 'Palais Héraclès',
+    landmark: '',
   },
   {
     points: [
@@ -3898,12 +4134,14 @@ export const MONACO_CITY: readonly {
     height: 44,
     base: 0,
     name: 'G',
+    landmark: '',
   },
   {
     points: [vec2(1035.4, -585.5), vec2(1079.3, -654.1), vec2(1096.8, -643), vec2(1052.9, -574.4)],
     height: 7.4,
     base: 0,
     name: 'Les Townhouses',
+    landmark: '',
   },
   {
     points: [
@@ -3919,6 +4157,7 @@ export const MONACO_CITY: readonly {
     height: 62,
     base: 0,
     name: 'Le Renzo 1',
+    landmark: '',
   },
   {
     points: [
@@ -3937,6 +4176,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3955,6 +4195,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3970,6 +4211,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -3987,6 +4229,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4001,6 +4244,7 @@ export const MONACO_CITY: readonly {
     height: 7.4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4013,18 +4257,21 @@ export const MONACO_CITY: readonly {
     height: 20.2,
     base: 0,
     name: 'Villa Sevigne',
+    landmark: '',
   },
   {
     points: [vec2(941.1, -654.6), vec2(963.2, -647.7), vec2(981.1, -700.4), vec2(957.4, -707.2)],
     height: 18,
     base: 0,
     name: 'Emilie Palace',
+    landmark: '',
   },
   {
     points: [vec2(-41.7, -107.6), vec2(-21.5, -122.9), vec2(-11.5, -112), vec2(-28.1, -98.7)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4038,6 +4285,7 @@ export const MONACO_CITY: readonly {
     height: 7.4,
     base: 0,
     name: 'Villa Minerve',
+    landmark: '',
   },
   {
     points: [
@@ -4059,6 +4307,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4072,6 +4321,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: 'Résidence A Quietüdine',
+    landmark: '',
   },
   {
     points: [
@@ -4085,6 +4335,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4098,18 +4349,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(46.9, 560.6), vec2(53.4, 561.1), vec2(52.6, 569.1), vec2(45.1, 568.1)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-164.7, 261.1), vec2(-170.8, 261), vec2(-171.4, 252.3), vec2(-165, 251.8)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4125,6 +4379,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4144,6 +4399,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Belle Epoque',
+    landmark: '',
   },
   {
     points: [
@@ -4158,12 +4414,14 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: 'Villa Fausta',
+    landmark: '',
   },
   {
     points: [vec2(1019.3, -716.7), vec2(1022.6, -713.7), vec2(1020, -710.9), vec2(1016.7, -713.9)],
     height: 4.2,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4176,6 +4434,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Albatros',
+    landmark: '',
   },
   {
     points: [
@@ -4188,6 +4447,7 @@ export const MONACO_CITY: readonly {
     height: 20.2,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4201,6 +4461,7 @@ export const MONACO_CITY: readonly {
     height: 17,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4218,6 +4479,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4232,36 +4494,42 @@ export const MONACO_CITY: readonly {
     height: 4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-67.1, 37.2), vec2(-66.4, 60), vec2(-52.6, 59.8), vec2(-52.3, 36.9)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-84.5, -101.3), vec2(-104.2, -88), vec2(-99.3, -80.8), vec2(-79.6, -94.1)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-106.1, 7.1), vec2(-106, 37.8), vec2(-87.4, 37.8), vec2(-87.5, 7)],
     height: 20.2,
     base: 0,
     name: 'Social Funds of Monaco',
+    landmark: '',
   },
   {
     points: [vec2(-149.3, -57), vec2(-153.1, -61.4), vec2(-139.6, -72.9), vec2(-135.8, -68.5)],
     height: 4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-35.4, 61.6), vec2(-18.6, 63.3), vec2(-17.8, 58.6), vec2(-35, 57.7)],
     height: 4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4275,6 +4543,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4287,6 +4556,7 @@ export const MONACO_CITY: readonly {
     height: 4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4300,6 +4570,7 @@ export const MONACO_CITY: readonly {
     height: 4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4312,6 +4583,7 @@ export const MONACO_CITY: readonly {
     height: 4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4328,12 +4600,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(429, -122.4), vec2(429.3, -129.9), vec2(433.1, -129.8), vec2(432.9, -122.2)],
     height: 4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4359,6 +4633,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4374,6 +4649,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4389,18 +4665,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(561.7, -370), vec2(563.5, -368.3), vec2(565.3, -370.2), vec2(563.5, -371.9)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(587.7, -325.2), vec2(602.4, -338.5), vec2(591.3, -350), vec2(577.5, -336.6)],
     height: 4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4423,6 +4702,7 @@ export const MONACO_CITY: readonly {
     height: 13.8,
     base: 0,
     name: "Les Jardin d'Eau",
+    landmark: '',
   },
   {
     points: [
@@ -4434,6 +4714,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Le Périscope',
+    landmark: '',
   },
   {
     points: [
@@ -4445,6 +4726,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4460,6 +4742,7 @@ export const MONACO_CITY: readonly {
     height: 62,
     base: 0,
     name: 'Le Renzo 2',
+    landmark: '',
   },
   {
     points: [
@@ -4487,18 +4770,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(996.9, -633.7), vec2(1000.9, -631.4), vec2(1002, -633.2), vec2(998, -635.5)],
     height: 4,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(1006.7, -651.3), vec2(1010, -650.2), vec2(1009.3, -654.2), vec2(1007.5, -654.5)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4511,18 +4797,21 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(-118, 274.9), vec2(-102.5, 275.5), vec2(-106.2, 299.3), vec2(-119.9, 295.4)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [vec2(970.8, -557.1), vec2(975.2, -554), vec2(978.2, -558.2), vec2(973.7, -561.3)],
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4560,6 +4849,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Palais princier de Monaco',
+    landmark: '',
   },
   {
     points: [
@@ -4573,6 +4863,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Pensionnat des Dames de Saint-Maur',
+    landmark: '',
   },
   {
     points: [
@@ -4598,6 +4889,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 0,
     name: 'Lycée Albert-1er',
+    landmark: '',
   },
   {
     points: [
@@ -4633,6 +4925,7 @@ export const MONACO_CITY: readonly {
     height: 10.6,
     base: 8,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4666,6 +4959,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Foyer Sainte-Dévote',
+    landmark: '',
   },
   {
     points: [
@@ -4690,12 +4984,14 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: 'Yacht Club de Monaco',
+    landmark: '',
   },
   {
     points: [vec2(-115.6, 353.9), vec2(-67.4, 362.9), vec2(-63.5, 341.9), vec2(-111.7, 332.9)],
     height: 13.8,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4712,6 +5008,7 @@ export const MONACO_CITY: readonly {
     height: 18,
     base: 0,
     name: '',
+    landmark: '',
   },
   {
     points: [
@@ -4742,6 +5039,7 @@ export const MONACO_CITY: readonly {
     height: 31,
     base: 0,
     name: 'F',
+    landmark: '',
   },
   {
     points: [
@@ -4772,6 +5070,7 @@ export const MONACO_CITY: readonly {
     height: 32,
     base: 0,
     name: 'E',
+    landmark: '',
   },
   {
     points: [
@@ -4802,6 +5101,7 @@ export const MONACO_CITY: readonly {
     height: 33,
     base: 0,
     name: 'D',
+    landmark: '',
   },
   {
     points: [
@@ -4832,6 +5132,7 @@ export const MONACO_CITY: readonly {
     height: 33,
     base: 0,
     name: 'C',
+    landmark: '',
   },
   {
     points: [
@@ -4862,6 +5163,7 @@ export const MONACO_CITY: readonly {
     height: 54,
     base: 0,
     name: 'B',
+    landmark: '',
   },
   {
     points: [
@@ -4892,6 +5194,7 @@ export const MONACO_CITY: readonly {
     height: 40,
     base: 0,
     name: 'A',
+    landmark: '',
   },
 ];
 

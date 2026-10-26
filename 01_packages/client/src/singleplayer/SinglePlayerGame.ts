@@ -7,6 +7,7 @@ import {
   buildTrack,
   CAR_PARAMS,
   COLLISION_PARAMS,
+  SLIPSTREAM_PARAMS,
   createGame,
   findCar,
   NEUTRAL_INPUT,
@@ -34,7 +35,7 @@ import { DebugOverlay } from '../view/hud/DebugOverlay';
 import { Hud } from '../view/hud/Hud';
 import { LIVERIES } from '../view/pixelTexture';
 import { SceneView } from '../view/SceneView';
-import { GameLoop } from './GameLoop';
+import { GameLoop } from '../core/GameLoop';
 
 /** Id of the car driven by this machine's keyboard. */
 const PLAYER_ID = 'player';
@@ -50,7 +51,7 @@ const DUMMY_ID = 'dummy';
 const DUMMY_DISTANCE = 25;
 
 /** Wires Model, View and Controller together and drives them with the game loop. */
-export class Game {
+export class SinglePlayerGame {
   private readonly track: Track;
   private state: GameState;
   /** State before the last tick, kept so the View can interpolate between the two. */
@@ -65,6 +66,7 @@ export class Game {
   private readonly carParams: CarParams = { ...CAR_PARAMS };
   private readonly surfaceParams = copySurfaceParams();
   private readonly collisionParams = { ...COLLISION_PARAMS };
+  private readonly slipstreamParams = { ...SLIPSTREAM_PARAMS };
   private readonly cameraParams = { ...CAMERA_PARAMS };
   private readonly botParams = copyBotParams();
   /** Cars that drive a different car than the player's: the bot's, with its level's performance. */
@@ -93,6 +95,7 @@ export class Game {
       carParamsById: this.carParamsById,
       surfaceParams: this.surfaceParams,
       collisionParams: this.collisionParams,
+      slipstreamParams: this.slipstreamParams,
     };
     this.view = new SceneView(
       this.track,
@@ -114,6 +117,7 @@ export class Game {
           this.carParams,
           this.surfaceParams,
           this.collisionParams,
+          this.slipstreamParams,
           this.cameraParams,
           this.botParams,
         );
@@ -176,6 +180,7 @@ export class Game {
   }
 
   private render(alpha: number, frameSeconds: number): void {
+    this.view.setLookBack(this.controller.isHeld('lookBack'));
     this.view.render(this.prevState, this.state, alpha, frameSeconds);
     this.hud.update(this.state, PLAYER_ID, performance.now());
     const player = findCar(this.state, PLAYER_ID);

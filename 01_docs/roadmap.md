@@ -4,7 +4,7 @@
 
 - Monorepo, tooling, docs, pixel-textured cube rendering in the browser.
 
-## Phase 1 — Single-player (current)
+## Phase 1 — Single-player ✅
 
 Goal: a drivable, fun car (arcade grip handling) with chase + first-person cameras, an F1-style
 timing HUD and live tuning; then a bot opponent and real-inspired tracks. All game logic lives in
@@ -38,15 +38,59 @@ Done (details in the linked docs; superseded designs in [decisions.md](decisions
      - **Baseline v3** (final): `maxSpeed` 80 → 95, owner's choice; tracks and bots unchanged.
      - 9d ✅ **Monaco** — circuit (width × 1.2: overtaking as hard as in reality); 9d.2a ✅ the town
        and the sea (buildings with real heights, Port Hercule, pools, palms, tunnel, catch fences);
-       9d.2b next: yachts, Casino, Sainte-Dévote, hills.
+       9d.2b ✅ the icons: yachts in Port Hercule, the Casino, Sainte-Dévote, the hills.
+10. **Race-craft: look back + slipstream** — one sub-step each, owner review after each:
+    - 10a ✅ **Look back (Z)** — hold Z to look behind the car, release to return. View only: a held
+      `lookBack` key in `controller/bindings.ts` that never reaches the simulation; `CameraRig`
+      turns the active camera 180° (chase: camera in front of the car looking back; first person:
+      eye looking backwards, cockpit hidden), instant flip, speed FOV unchanged. Works in both
+      camera modes; tests in `CameraRig.test.ts`.
+    - 10b ✅ **Slipstream** — close behind a car at speed, less
+      air drag (−45%) and a small tow push: top speed 283 → 320 km/h at full tow. Stronger the
+      closer (full at 6 m, none past 40 m) and the faster the leader (none below 90 km/h, full from
+      216 km/h). In `shared` (`sim/slipstream.ts`, `SLIPSTREAM_PARAMS`, F2 → Slipstream), for every
+      car, so the bot gets a tow too. Shown by a SLIP bar + % in the HUD and light wind lines on the
+      screen edges, both from the same value (`CarState.slipstream`) — [physics.md](physics.md#slipstream).
+      Baseline v3 untouched: a car alone drives as before, real-circuit pole times still hold.
 
 Out of scope for Phase 1: audio, menus beyond the track menu, gamepad, networking.
 
-## Phase 2 — Multiplayer (next)
+## Phase 2 — Multiplayer (current)
 
-- `01_packages/server`: Node.js + WebSocket, authoritative simulation using `shared`.
-- Client-side prediction + reconciliation, interpolation of remote cars.
-- Test over Tailscale.
+Design and rules: [multiplayer.md](multiplayer.md). Same workflow: one sub-step → owner review → commit.
+
+### 2.1 — Mode menu, lobby with nicknames, two players on the Test Ring
+
+Goal: the start screen offers **Singleplayer / Multiplayer**. Singleplayer is today's game (track
+menu, bot), fully separate from the network. Multiplayer asks for a **nickname** (unique among the
+players online), then drops the player on the **Test Ring**; everyone who joins lands on the same
+track and drives freely. Done when two players on two machines (Tailscale) drive together.
+
+- 2.1a ✅ **Mode menu + separation** — `ModeMenu` (same look and keys as the track menu):
+  Singleplayer → track menu → the current game, moved to `client/src/singleplayer/` unchanged;
+  Multiplayer → a placeholder screen. `client/src/multiplayer/` created, each mode loaded by dynamic
+  import only when chosen, and an ESLint rule that forbids imports between the two folders.
+- 2.1b ✅ **Protocol + nickname rules** — `shared/src/net/`: typed JSON messages with a protocol
+  version, and the pure nickname check (3–16 characters, letters, digits, space, `_`, `-`;
+  unique case-insensitively), tested.
+- 2.1c ✅ **Server lobby** — `01_packages/server` (Node + `ws`, TypeScript run directly):
+  nicknames reserved while connected and freed on disconnect, rejections (taken / invalid / full /
+  old version); `npm run server`; Vite proxies `/ws` to it so the page and the socket share one origin.
+- 2.1d ✅ **Client lobby** — nickname screen: type, connect, enter or see the reason inline (taken,
+  invalid, full, server unreachable); the last nickname is remembered on that browser.
+- 2.1e ✅ **Server room** — the Test Ring simulated by the server at 60 Hz with each player's latest
+  input; a joining car spawns on a free grid slot, a leaving one is removed; snapshots at 30 Hz.
+  Cap: 8 players. No bots.
+- 2.1f **Online game** — the client sends its input every tick and draws the snapshots smoothly
+  (no prediction yet: input delay = one round trip); camera on its own car, HUD with its own laps,
+  a livery per player and nickname tags over the other cars. Esc → back to the mode menu.
+- 2.1g **Two players over Tailscale** — owner test on two machines; latency feel measured and
+  written down in [multiplayer.md](multiplayer.md).
+
+### 2.2 and after
+
+- Client-side prediction + reconciliation (own car responds instantly), smoother remote cars.
+- Rooms on other tracks, bots in rooms.
 
 ## Later
 

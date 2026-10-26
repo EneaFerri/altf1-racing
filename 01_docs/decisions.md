@@ -298,3 +298,58 @@
   La Rascasse. The garages are generated (temporary boxes on the quay), never OSM's apartments.
 - **Ground split into 50 m cells** (all tracks): a single huge quad hid Monaco's asphalt (depth
   precision); a latent bug that the other tracks hadn't shown yet.
+
+## 2026-10-23 — Monaco's icons (step 9d.2b)
+
+- **Landmarks by OSM name or POI**: OSM maps the Casino as a POI on an unnamed building, so a POI
+  inside a footprint marks it; each landmark kind has its own small model on the real footprint.
+- **Yachts generated, not from data**: OSM has the pontoons, not the boats; they're moored
+  stern-to (as in Port Hercule) by a pure, tested rule, seeded so every load is the same.
+- **Hills on the land side only**: Kruncar's mountain ring, on an arc away from the sea.
+
+## 2026-10-26 — Look back and slipstream (step 10)
+
+- **Look back is a view key** (Z, held, read every frame): it never enters `InputCommand`, so it
+  costs nothing on the network later. The chase camera keeps smoothing behind the car while the
+  view is flipped, so releasing Z never swings the camera round.
+- **Slipstream = less drag + a small tow push.** The owner knew drag already existed but wanted the
+  effect clearly felt: with thrust fading to 0 near `maxSpeed`, a drag cut alone gives only
+  283 → ~305 km/h, so 1 m/s² of push on throttle brings it to the owner's 283 → 320 km/h (−45% drag).
+- **Wake strength from the leader's speed**: the wake is made by the car ahead, so "proportional to
+  speed" and "none below a minimum speed" are properties of the wake itself.
+- **The factor lives in `CarState`**: it is computed in the deterministic sim, so the HUD % and the
+  wind lines show exactly the same value, and the server will send it with the state.
+- **Visuals chosen by the owner**: light wind lines on the screen edges (opacity ∝ tow, max 0.5 after the owner asked for more visible ones) and
+  a SLIP bar + % in the HUD; no wake drawn behind the cars, no FOV kick.
+
+## 2026-10-26 — Phase 2.1 plan: mode menu, nickname lobby, shared Test Ring
+
+- **Split into sub-steps 2.1a–g** (rule 3): menu and separation first, then protocol, server
+  lobby, client lobby, server room, online game, two-machine test.
+- **Singleplayer and multiplayer fully separate** (owner's rule): own folders, dynamic imports
+  per mode, an ESLint boundary between them, mode switches only through a reload.
+- **Nicknames unique among connected players**, case-insensitive, freed on disconnect; no
+  accounts yet. Same pure check on client (feedback) and server (authority).
+- **One origin via Vite's `/ws` proxy**: no second port or URL to configure on other machines.
+- **No client prediction in 2.1**: the simplest correct netcode first (server-authoritative,
+  interpolated snapshots); prediction + reconciliation is 2.2, once two players can meet.
+- **Server runs TypeScript directly** (Node type stripping + the existing extensionless-import
+  loader, shared with the OpenF1 tool): no build step and no extra runtime dependency.
+
+## 2026-10-26 — Multiplayer server, lobby and room (steps 2.1c–e)
+
+- **`GameServer` has no sockets and no timers**: `main.ts` adapts `ws` and real time to it, so the
+  whole lobby/room/message logic is tested with fake connections, and the server could later move
+  to another transport untouched.
+- **Ids never reused** (`p1`, `p2`, …): a late message from a player who left can't hit a newcomer.
+  **Livery = lowest free index**, so colours stay few and stable.
+- **`reset` latched until the next tick**: inputs and ticks don't line up one-to-one over a
+  network, and a one-tick R press must neither vanish nor repeat.
+- **Hello timeout (10 s) + ping heartbeat (5 s)**: sockets that never join, or laptops that drop
+  off Tailscale without closing, can't keep a nickname or a car forever.
+- **`welcome` carries the track name**: the client builds the room's track itself in 2.1f, and
+  rooms on other tracks need no protocol change.
+- **The loader moved to `01_tools/resolveTs.ts`**: the OpenF1 tool and the server both run
+  TypeScript with plain Node; one copy for both.
+- **Network-free screens**: `NicknameScreen` and `LobbyScreen` live in `view/menu` and only get
+  callbacks and rows, so `view` stays free of either game mode (the ESLint boundary).

@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { formatDelta, formatLapTime, sectorColor } from './format';
+import { formatDelta, formatLapTime, sectorColor, slipstreamPercent } from './format';
+
+describe('slipstreamPercent', () => {
+  it('rounds the tow to a whole percentage, clamped to 0..100', () => {
+    expect(slipstreamPercent(0)).toBe(0);
+    expect(slipstreamPercent(0.424)).toBe(42);
+    expect(slipstreamPercent(1)).toBe(100);
+    expect(slipstreamPercent(1.2)).toBe(100);
+  });
+});
 
 describe('formatLapTime', () => {
   it('formats ticks (60 Hz) as m:ss.mmm, without minutes under one minute', () => {

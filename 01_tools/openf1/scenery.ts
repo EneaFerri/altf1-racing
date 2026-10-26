@@ -4,14 +4,14 @@
  * piers, pools, trees and the tunnel (Monaco). Downloads them (`--fetch`) into `data/<id>.scenery.json`
  * (committed), then writes the game's plain-data layout
  * `01_packages/client/src/view/themes/<id>Layout.ts` (generated: never edit by hand).
- * Usage: node --import ./01_tools/openf1/resolveTs.ts 01_tools/openf1/scenery.ts <id> [--fetch]
+ * Usage: node --import ./01_tools/resolveTs.ts 01_tools/openf1/scenery.ts <id> [--fetch]
  * Method and placement rules: 01_docs/themes.md.
  */
 import { existsSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildTrack, locateOnTrack, vec2, type Track } from '../../01_packages/shared/src/index.ts';
-import { circuitById } from './circuits.ts';
+import { circuitById, type Landmark } from './circuits.ts';
 import { generate, toGame, widthAt } from './generate.ts';
 import type { Point } from './geometry.ts';
 import {
@@ -75,6 +75,8 @@ const CITY_REACH = 200;
 const CITY_GAP = 1.5;
 /** Town: footprints simplified to this tolerance (m). */
 const SIMPLIFY = 0.5;
+/** Town: a landmark's POI outside every footprint goes to the nearest building within this (m). */
+const LANDMARK_REACH = 40;
 /** Tunnel: height of its roof's top, where the buildings over it stand (m). */
 const TUNNEL_TOP = 8;
 /** Town: the sea is drawn this far around the track (m, game) and kept this far beyond the wall. */
@@ -118,7 +120,9 @@ async function fetchScenery(): Promise<void> {
   way["man_made"="pier"](${b});
   way["leisure"="swimming_pool"](${b});
   node["natural"="tree"](${b});
-  way(r.circuit)["tunnel"];`;
+  way(r.circuit)["tunnel"];${(circuit.landmarks ?? [])
+    .map((l) => `\n  node["name"=${JSON.stringify(l.name)}](${b});`)
+    .join('')}`;
       })()
     : '';
   const query = `[out:json][timeout:180];
@@ -165,7 +169,11 @@ out geom;`;
     if (e.type === 'node') {
       if (e.lat !== undefined && e.lon !== undefined) {
         const points = geometry([{ lat: e.lat, lon: e.lon }]);
-        if (points.some(near)) features.push({ kind: 'tree', name, points });
+        if (circuit.landmarks?.some((l) => l.name === name)) {
+          features.push({ kind: 'landmark', name, points });
+        } else if (tags.natural === 'tree' && points.some(near)) {
+          features.push({ kind: 'tree', name, points });
+        }
       }
       continue;
     }
@@ -473,6 +481,7 @@ function writeLayout(): void {
         ),
         (PIT_LANE_WIDTH * circuit.scale) / 2 + GARAGE_DEPTH * circuit.scale + 2,
         tunnelSpan(raw.features.filter((f) => f.kind === 'tunnel').flatMap(real), relative),
+        circuit.landmarks ?? [],
       )
     : null;
 
@@ -541,7 +550,12 @@ function writeLayout(): void {
       `${woods.length} woods, oval in ${oval.length} pieces` +
       (town
         ? `; town: ${town.city.length} buildings (${town.city.filter((b) => b.base > 0).length} ` +
-          `over the tunnel), ${town.sea.length} sea and ${town.islands.length} island polygons, ` +
+          `over the tunnel; landmarks: ${
+            town.city
+              .filter((b) => b.landmark)
+              .map((b) => b.landmark)
+              .join(', ') || 'none'
+          }), ${town.sea.length} sea and ${town.islands.length} island polygons, ` +
           `${town.piers.length} piers, ${town.pools.length} pools, ${town.palms.length} palms, ` +
           `tunnel ${town.tunnel ? `${town.tunnel.from}–${town.tunnel.to}` : 'none'}`
         : ''),
@@ -664,7 +678,13 @@ function tunnelSpan(
 }
 
 interface Town {
-  readonly city: { points: Point[]; height: number; base: number; name: string }[];
+  readonly city: {
+    points: Point[];
+    height: number;
+    base: number;
+    name: string;
+    landmark: string;
+  }[];
   readonly sea: Point[][];
   readonly islands: Point[][];
   readonly piers: { points: Point[]; area: boolean }[];
@@ -687,6 +707,7 @@ function townLayers(
   occupied: readonly Point[][],
   laneReach: number,
   tunnel: { from: number; to: number } | null,
+  landmarks: readonly Landmark[],
 ): Town {
   const world = (f: SceneryFeature): Point[] => f.points.map((p) => toWorld(p));
   const loc = ([x, z]: Point) => locateOnTrack(track, vec2(x, z));
@@ -712,10 +733,19 @@ function townLayers(
         insidePolygon(p, f) || f.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < laneReach / 2),
     );
 
+  // A landmark: the building of that name, or the one holding its POI.
+  const pois = raw.features
+    .filter((f) => f.kind === 'landmark')
+    .map((f) => ({ name: f.name, at: world(f)[0]! }));
+  const landmarkOf = (f: SceneryFeature, ring: readonly Point[]): string =>
+    landmarks.find(
+      (l) => l.name === f.name || pois.some((p) => p.name === l.name && insidePolygon(p.at, ring)),
+    )?.kind ?? '';
   const city: Town['city'] = [];
   for (const f of raw.features.filter((g) => g.kind === 'townBuilding')) {
     const ring = simplify(world(f).slice(0, -1), SIMPLIFY);
     if (ring.length < 3) continue;
+    const landmark = landmarkOf(f, ring);
     const locs = ring.map(loc);
     if (locs.every((l) => Math.abs(l.lateral) > CITY_REACH)) continue;
     if (ring.some(onOccupied)) continue;
@@ -732,13 +762,33 @@ function townLayers(
           height: f.height ?? TOWN_HEIGHT,
           base: TUNNEL_TOP,
           name: f.name,
+          landmark,
         });
       }
       continue;
     }
     const pushed = ring.map((p) => pushOut(p, CITY_GAP));
     if (pushed.some((p) => clearance(track, p) < CITY_GAP - 0.5)) continue; // between two stretches
-    city.push({ points: pushed, height: f.height ?? TOWN_HEIGHT, base: 0, name: f.name });
+    city.push({ points: pushed, height: f.height ?? TOWN_HEIGHT, base: 0, name: f.name, landmark });
+  }
+
+  // A POI outside every footprint (they're simplified and pushed): the nearest building.
+  for (const l of landmarks) {
+    if (city.some((b) => b.landmark === l.kind)) continue;
+    const poi = pois.find((p) => p.name === l.name);
+    if (!poi) continue;
+    const centre = (ps: readonly Point[]): Point => [
+      ps.reduce((sum, q) => sum + q[0], 0) / ps.length,
+      ps.reduce((sum, q) => sum + q[1], 0) / ps.length,
+    ];
+    const near = city
+      .filter((b) => !b.landmark)
+      .map((b) => ({
+        b,
+        d: Math.hypot(centre(b.points)[0] - poi.at[0], centre(b.points)[1] - poi.at[1]),
+      }))
+      .sort((x, y) => x.d - y.d)[0];
+    if (near && near.d < LANDMARK_REACH) near.b.landmark = l.kind;
   }
 
   const bounds = trackBounds(track, SEA_REACH);
@@ -794,10 +844,13 @@ function townLines(constName: string, town: Town, pt: (p: readonly number[]) => 
     `  readonly height: number;`,
     `  readonly base: number;`,
     `  readonly name: string;`,
+    `  /** Drawn with its own model: 'casino', 'chapel' (empty: a plain building). */`,
+    `  readonly landmark: string;`,
     `}[] = [`,
     ...town.city.map(
       (b) =>
-        `  { points: ${poly(b.points)}, height: ${round(b.height)}, base: ${b.base}, name: ${JSON.stringify(b.name)} },`,
+        `  { points: ${poly(b.points)}, height: ${round(b.height)}, base: ${b.base}, ` +
+        `name: ${JSON.stringify(b.name)}, landmark: ${JSON.stringify(b.landmark)} },`,
     ),
     `];`,
     ``,

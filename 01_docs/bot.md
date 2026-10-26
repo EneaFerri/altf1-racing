@@ -16,7 +16,7 @@ with the same code.
 
 ## How it drives
 
-The bot only produces an `InputCommand` per tick, exactly like the keyboard, and `Game` passes it to
+The bot only produces an `InputCommand` per tick, exactly like the keyboard, and `SinglePlayerGame` passes it to
 `stepGame` next to the player's. Nothing in the simulation knows a car is a bot. The only difference is
 its car: `botCarParams` multiplies `engineAccel` and `maxSpeed` by the level's `performance`, passed to
 the simulation through `SimContext.carParamsById` (any car can drive its own `CarParams`).

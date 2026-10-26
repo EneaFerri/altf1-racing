@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { CAR_PARAMS } from '../config/car';
 import { COLLISION_PARAMS } from '../config/collision';
+import { SLIPSTREAM_PARAMS } from '../config/slipstream';
 import { SURFACE_PARAMS } from '../config/surfaces';
 import { distance, dot, forward, headingOf, scale, add } from '../math/vec2';
 import { buildTrack } from '../track/buildTrack';
 import { TEST_TRACK } from '../track/layouts/testTrack';
-import { locateOnTrack } from '../track/query';
+import { gridSlot, locateOnTrack } from '../track/query';
 import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
 import {
   createGame,
@@ -13,6 +14,7 @@ import {
   findLap,
   placeCar,
   removeCar,
+  spawnOnGrid,
   stepGame,
   type GameState,
   type InputMap,
@@ -25,6 +27,7 @@ const ctx: SimContext = {
   carParams: CAR_PARAMS,
   surfaceParams: SURFACE_PARAMS,
   collisionParams: COLLISION_PARAMS,
+  slipstreamParams: SLIPSTREAM_PARAMS,
 };
 const THROTTLE: InputCommand = { ...NEUTRAL_INPUT, throttle: 1 };
 
@@ -108,6 +111,51 @@ describe('stepGame', () => {
       expect(Math.abs(location.lateral)).toBeLessThan(location.halfWidth + track.runoffWidth);
     }
     expect(hits).toBeGreaterThan(0);
+  });
+
+  it('tows a car close behind a fast one (slipstream), never the one in front', () => {
+    const start = createGame(track, ['follower', 'leader']);
+    const leader = findCar(start, 'leader')!;
+    const dir = forward(leader.heading);
+    const fast = { velocity: scale(dir, 70) };
+    const inLine: GameState = {
+      ...start,
+      cars: [
+        { ...leader, ...fast, id: 'follower', position: add(leader.position, scale(dir, -10)) },
+        { ...leader, ...fast },
+      ],
+    };
+    const alone: GameState = { ...inLine, cars: [inLine.cars[0]!], laps: [inLine.laps[0]!] };
+    const towed = stepGame(inLine, { follower: THROTTLE, leader: THROTTLE }, ctx);
+    const untowed = stepGame(alone, { follower: THROTTLE }, ctx);
+    const follower = findCar(towed, 'follower')!;
+    expect(follower.slipstream).toBeGreaterThan(0.8);
+    expect(findCar(towed, 'leader')!.slipstream).toBe(0);
+    expect(dot(follower.velocity, dir)).toBeGreaterThan(
+      dot(findCar(untowed, 'follower')!.velocity, dir),
+    );
+  });
+
+  it('spawnOnGrid puts each new car on the first free grid slot, at rest, on an out-lap', () => {
+    const empty: GameState = { tick: 0, cars: [], impacts: [], laps: [] };
+    const one = spawnOnGrid(empty, track, 'p2');
+    expect(findCar(one, 'p2')!.position).toEqual(gridSlot(track, 0).position);
+    const two = spawnOnGrid(one, track, 'p1');
+    expect(findCar(two, 'p1')!.position).toEqual(gridSlot(track, 1).position);
+    expect(two.cars.map((c) => c.id)).toEqual(['p1', 'p2']);
+    expect(two.laps.map((l) => l.carId)).toEqual(['p1', 'p2']);
+    expect(findLap(two, 'p1')!.lapStartTick).toBeNull();
+    expect(findCar(two, 'p1')!.velocity).toEqual({ x: 0, z: 0 });
+  });
+
+  it('spawnOnGrid reuses a slot once its car has driven away, and replaces an existing id', () => {
+    const empty: GameState = { tick: 0, cars: [], impacts: [], laps: [] };
+    const gone = run(spawnOnGrid(empty, track, 'p1'), { p1: THROTTLE }, 120);
+    const next = spawnOnGrid(gone, track, 'p2');
+    expect(findCar(next, 'p2')!.position).toEqual(gridSlot(track, 0).position);
+    const again = spawnOnGrid(next, track, 'p1');
+    expect(again.cars).toHaveLength(2);
+    expect(findCar(again, 'p1')!.position).toEqual(gridSlot(track, 1).position);
   });
 
   it('placeCar parks a car on the centreline ahead of another, at rest', () => {

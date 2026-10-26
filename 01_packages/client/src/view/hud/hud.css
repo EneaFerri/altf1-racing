@@ -10,6 +10,8 @@
   --hud-red: #e10600;
   /* Same blue as the bot's livery (LIVERIES.blue in view/pixelTexture.ts). */
   --hud-bot: #1f5fe0;
+  /* Slipstream: light cyan, like the air of the wind lines. */
+  --hud-slip: #8fe3ff;
 
   position: fixed;
   top: 10px;
@@ -125,6 +127,42 @@
   color: var(--hud-dim);
   font-size: 10px;
   font-weight: 600;
+}
+
+.hud-slip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--hud-dim);
+}
+
+.hud-slip-bar {
+  display: block;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+
+.hud-slip-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--hud-slip);
+}
+
+.hud-slip-value {
+  min-width: 2.6em;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.hud-slip-on .hud-slip-value {
+  color: var(--hud-slip);
 }
 
 .hud-bot {

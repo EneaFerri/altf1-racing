@@ -20,6 +20,11 @@ export function formatDelta(ticks: number): string {
   return `${ticks < 0 ? '−' : '+'}${seconds.toFixed(3)}`;
 }
 
+/** Slipstream factor 0..1 as a whole percentage: the number the HUD shows. */
+export function slipstreamPercent(factor: number): number {
+  return Math.round(Math.min(1, Math.max(0, factor)) * 100);
+}
+
 /**
  * purple = best ever for this sector (or the first time), green = faster than the same sector of
  * the best lap, yellow = slower. `best` and `bestLapSector` are the values before this sector.

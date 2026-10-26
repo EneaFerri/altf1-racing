@@ -2,7 +2,7 @@
  * Writes a circuit's game layout (`01_packages/shared/src/track/layouts/<id>.ts`) from its profile
  * and its adaptation in circuits.ts, plus a preview seen from above (`preview/<id>.png`,
  * git-ignored) to compare with the owner's reference PNG.
- * Usage: node --import ./01_tools/openf1/resolveTs.ts 01_tools/openf1/layout.ts <id>
+ * Usage: node --import ./01_tools/resolveTs.ts 01_tools/openf1/layout.ts <id>
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

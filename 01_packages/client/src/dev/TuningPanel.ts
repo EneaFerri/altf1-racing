@@ -3,12 +3,14 @@ import {
   BOT_PARAMS,
   CAR_PARAMS,
   COLLISION_PARAMS,
+  SLIPSTREAM_PARAMS,
   SURFACE_PARAMS,
   tuningLabel,
   type BotLevel,
   type BotParams,
   type CarParams,
   type CollisionParams,
+  type SlipstreamParams,
   type Surface,
   type SurfaceParams,
 } from '@altf1/shared';
@@ -53,6 +55,17 @@ const COLLISION_RANGES: Record<keyof CollisionParams, Range> = {
   carSpinMinImpact: [0, 15, 0.5],
   maxImpactSpin: [0, 4, 0.05],
   solverIterations: [1, 8, 1],
+};
+
+const SLIPSTREAM_RANGES: Record<keyof SlipstreamParams, Range> = {
+  range: [5, 100, 1],
+  fullGap: [3, 20, 0.5],
+  halfWidth: [0.5, 8, 0.1],
+  maxHeadingDiff: [0, 1.5, 0.05],
+  minSpeed: [0, 60, 1],
+  fullSpeed: [10, 95, 1],
+  dragCut: [0, 1, 0.05],
+  towAccel: [0, 6, 0.1],
 };
 
 const CAMERA_GROUPS: Record<string, Partial<Record<keyof CameraParams, Range>>> = {
@@ -104,6 +117,7 @@ export class TuningPanel {
     private readonly carParams: CarParams,
     private readonly surfaceParams: Record<Surface, SurfaceParams>,
     private readonly collisionParams: CollisionParams,
+    private readonly slipstreamParams: SlipstreamParams,
     private readonly cameraParams: CameraParams,
     private readonly botParams: Record<BotLevel, BotParams>,
   ) {
@@ -120,6 +134,14 @@ export class TuningPanel {
       Range,
     ][]) {
       collisions.add(collisionParams, key, min, max, step);
+    }
+
+    const slipstream = this.gui.addFolder('Slipstream').close();
+    for (const [key, [min, max, step]] of Object.entries(SLIPSTREAM_RANGES) as [
+      keyof SlipstreamParams,
+      Range,
+    ][]) {
+      slipstream.add(slipstreamParams, key, min, max, step);
     }
 
     const camera = this.gui.addFolder('Camera').close();
@@ -168,6 +190,7 @@ export class TuningPanel {
   private reset(): void {
     Object.assign(this.carParams, CAR_PARAMS);
     Object.assign(this.collisionParams, COLLISION_PARAMS);
+    Object.assign(this.slipstreamParams, SLIPSTREAM_PARAMS);
     Object.assign(this.cameraParams, CAMERA_PARAMS);
     for (const [surface, params] of Object.entries(SURFACE_PARAMS)) {
       Object.assign(this.surfaceParams[surface as Surface], params);
@@ -185,6 +208,9 @@ export class TuningPanel {
       ([key, value]) => `  ${key}: ${round(value as number)},`,
     );
     const collisionLines = Object.entries(this.collisionParams).map(
+      ([key, value]) => `  ${key}: ${round(value as number)},`,
+    );
+    const slipstreamLines = Object.entries(this.slipstreamParams).map(
       ([key, value]) => `  ${key}: ${round(value as number)},`,
     );
     const cameraLines = Object.entries(this.cameraParams).map(
@@ -206,6 +232,9 @@ export class TuningPanel {
       '',
       '// config/collision.ts',
       `export const COLLISION_PARAMS: CollisionParams = {\n${collisionLines.join('\n')}\n};`,
+      '',
+      '// config/slipstream.ts',
+      `export const SLIPSTREAM_PARAMS: SlipstreamParams = {\n${slipstreamLines.join('\n')}\n};`,
       '',
       '// config/surfaces.ts',
       `export const SURFACE_PARAMS: Record<Surface, SurfaceParams> = {\n${surfaceLines.join('\n')}\n};`,

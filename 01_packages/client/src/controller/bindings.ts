@@ -13,6 +13,14 @@ export const DRIVE_KEYS = {
   steerRight: ['KeyD'],
 } as const satisfies Record<string, readonly string[]>;
 
+/** Keys held down to change the view. Read every frame; they never reach the simulation. */
+export const VIEW_KEYS = {
+  /** Look behind the car while held. */
+  lookBack: ['KeyZ'],
+} as const satisfies Record<string, readonly string[]>;
+
+export type ViewKey = keyof typeof VIEW_KEYS;
+
 /** Keys pressed once and delivered to the simulation for exactly one tick. */
 export const TICK_TRIGGER_KEYS = {
   reset: ['KeyR'],

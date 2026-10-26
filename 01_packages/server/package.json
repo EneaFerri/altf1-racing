@@ -1,0 +1,18 @@
+{
+  "name": "@altf1/server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node --import ../../01_tools/resolveTs.ts src/main.ts",
+    "dev": "node --watch --import ../../01_tools/resolveTs.ts src/main.ts",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@altf1/shared": "*",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
+  }
+}

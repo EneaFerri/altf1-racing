@@ -4,13 +4,22 @@ import {
   DRIVE_KEYS,
   inputFromKeys,
   TICK_TRIGGER_KEYS,
+  VIEW_KEYS,
   type ActionName,
   type TickTrigger,
+  type ViewKey,
 } from './bindings';
 
-const DRIVE_CODES = new Set<string>(Object.values(DRIVE_KEYS).flat());
+/** Keys tracked while held: drive keys (sampled per tick) and view keys (read per frame). */
+const HELD_CODES = new Set<string>([
+  ...Object.values(DRIVE_KEYS).flat(),
+  ...Object.values(VIEW_KEYS).flat(),
+]);
 
-/** Turns keyboard events into InputCommands (sampled per tick) and one-shot action callbacks. */
+/**
+ * Turns keyboard events into InputCommands (sampled per tick), held view keys (read per frame)
+ * and one-shot action callbacks.
+ */
 export class KeyboardController {
   private readonly held = new Set<string>();
   /** Triggers pressed since the last sample; consumed by the next tick. */
@@ -31,6 +40,11 @@ export class KeyboardController {
     return input;
   }
 
+  /** Whether a view key is held right now. */
+  isHeld(key: ViewKey): boolean {
+    return VIEW_KEYS[key].some((code) => this.held.has(code));
+  }
+
   onAction(action: ActionName, handler: () => void): void {
     this.actionHandlers.set(action, handler);
   }
@@ -38,7 +52,7 @@ export class KeyboardController {
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     // Typing a value into a field (e.g. the tuning panel) must not drive the car.
     if (isTextField(event.target)) return;
-    if (DRIVE_CODES.has(event.code)) {
+    if (HELD_CODES.has(event.code)) {
       event.preventDefault(); // e.g. Space would scroll the page
       this.held.add(event.code);
       return;

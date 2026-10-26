@@ -1,5 +1,16 @@
-import { TRACKS } from '@altf1/shared';
-import { Game } from './core/Game';
-import { TrackMenu } from './view/menu/TrackMenu';
+import { ModeMenu } from './view/menu/ModeMenu';
 
-void new TrackMenu(TRACKS).choose().then((track) => new Game(track).start());
+/**
+ * Bootstrap only: the start screen, then the chosen mode, loaded on demand so the other mode's
+ * code is never fetched (singleplayer and multiplayer stay apart, see 01_docs/multiplayer.md).
+ */
+async function main(): Promise<void> {
+  const mode = await new ModeMenu().choose();
+  if (mode === 'singleplayer') {
+    await (await import('./singleplayer/start')).startSinglePlayer();
+  } else {
+    await (await import('./multiplayer/start')).startMultiplayer();
+  }
+}
+
+void main();

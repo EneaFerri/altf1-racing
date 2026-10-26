@@ -1,12 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    // Run directly by Node (type stripping, resolveTs.ts for shared's extensionless imports):
+    // Run directly by Node (type stripping, ../resolveTs.ts for shared's extensionless imports):
     // explicit .ts imports here, Node's own modules.
     "erasableSyntaxOnly": true,
     "allowImportingTsExtensions": true,
     "lib": ["ES2023"],
     "types": ["node"]
   },
-  "include": ["*.ts"]
+  "include": ["*.ts", "../resolveTs.ts"]
 }

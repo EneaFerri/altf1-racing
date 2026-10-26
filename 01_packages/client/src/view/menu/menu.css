@@ -1,4 +1,4 @@
-/* Start screen: track selection. Same look as the timing strip (view/hud/hud.css). */
+/* Menus (start screen, track menu, multiplayer lobby). Same look as the timing strip (view/hud/hud.css). */
 
 .menu {
   --menu-bg: rgba(12, 12, 16, 0.72);
@@ -84,4 +84,52 @@
   color: var(--menu-dim);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+
+/* Multiplayer: nickname field and the live list of players online. */
+
+.menu-field {
+  padding: 10px 12px;
+  border: 0;
+  border-left: 3px solid var(--menu-red);
+  border-radius: 2px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--menu-text);
+  font: inherit;
+  font-weight: 800;
+}
+
+.menu-field:disabled {
+  opacity: 0.6;
+}
+
+.menu-field::placeholder {
+  color: var(--menu-dim);
+  font-weight: 600;
+}
+
+.menu-field-hint {
+  margin: 2px 0 0;
+  color: var(--menu-dim);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.menu-error {
+  color: #ff5a4f;
+}
+
+.menu-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.menu-static {
+  cursor: default;
+}
+
+.menu [hidden] {
+  display: none;
 }

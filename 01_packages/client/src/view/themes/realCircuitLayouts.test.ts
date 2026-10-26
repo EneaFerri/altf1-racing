@@ -13,6 +13,7 @@ import {
   footprintBox,
   fromTrack,
   insidePolygon,
+  mooredBoats,
   scatter,
 } from '../scenery/placement';
 import {
@@ -220,5 +221,26 @@ describe('Monaco town (generated from OpenStreetMap)', () => {
     for (const p of MONACO_PALMS) expect(clearance(track, p)).toBeGreaterThanOrEqual(3.9);
     expect(MONACO_PIERS.length).toBeGreaterThan(10);
     expect(MONACO_PALMS.length).toBeGreaterThan(50);
+  });
+
+  it('has its landmarks on their real footprints: the Casino and the Chapelle Sainte-Dévote', () => {
+    expect(MONACO_CITY.filter((b) => b.landmark === 'casino')).toHaveLength(1);
+    expect(MONACO_CITY.filter((b) => b.landmark === 'chapel')).toHaveLength(1);
+  });
+
+  it('moors hundreds of yachts on the water, off the track, none overlapping', () => {
+    const boats = mooredBoats(MONACO_PIERS, MONACO_SEA, (p) => clearance(track, p) > 3, 17);
+    expect(boats.length).toBeGreaterThan(150);
+    for (const b of boats) {
+      expect(MONACO_SEA.some((ring) => insidePolygon(b.at, ring))).toBe(true);
+      expect(clearance(track, b.at)).toBeGreaterThan(3);
+    }
+    // Centres at least half a beam apart (the overlap check works).
+    for (let i = 0; i < boats.length; i++) {
+      for (let j = i + 1; j < boats.length; j++) {
+        const d = Math.hypot(boats[i]!.at.x - boats[j]!.at.x, boats[i]!.at.z - boats[j]!.at.z);
+        expect(d).toBeGreaterThan(1.5);
+      }
+    }
   });
 });

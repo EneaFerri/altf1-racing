@@ -65,6 +65,11 @@ export class SceneView {
     this.cameraRig.toggle();
   }
 
+  /** Looks behind the followed car while `on` (either camera). */
+  setLookBack(on: boolean): void {
+    this.cameraRig.lookBack = on;
+  }
+
   /** Draws the world `alpha` of the way from `prev` to `curr`. */
   render(prev: GameState, curr: GameState, alpha: number, frameSeconds: number): void {
     for (const car of curr.cars) {
@@ -73,7 +78,7 @@ export class SceneView {
       const view = this.carView(car.id);
       view.update(pose, frameSeconds);
       if (car.id === this.followId) {
-        this.cameraRig.update(pose, frameSeconds);
+        this.cameraRig.update(pose, frameSeconds, car.slipstream);
         view.setFirstPerson(this.cameraRig.mode === 'pov');
       }
     }

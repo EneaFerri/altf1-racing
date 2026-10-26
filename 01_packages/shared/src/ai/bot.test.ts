@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BOT_LEVELS, BOT_PARAMS, type BotLevel } from '../config/bot';
 import { CAR_PARAMS } from '../config/car';
 import { COLLISION_PARAMS } from '../config/collision';
+import { SLIPSTREAM_PARAMS } from '../config/slipstream';
 import { TICK_RATE } from '../config/sim';
 import { SURFACE_PARAMS } from '../config/surfaces';
 import {
@@ -26,6 +27,7 @@ const contextFor = (track: Track): SimContext => ({
   carParams: CAR_PARAMS,
   surfaceParams: SURFACE_PARAMS,
   collisionParams: COLLISION_PARAMS,
+  slipstreamParams: SLIPSTREAM_PARAMS,
 });
 
 interface Run {

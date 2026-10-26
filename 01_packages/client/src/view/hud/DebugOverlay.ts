@@ -11,6 +11,7 @@ import {
   type Surface,
   type InputCommand,
 } from '@altf1/shared';
+import { slipstreamPercent } from './format';
 
 const REFRESH_MS = 500;
 
@@ -87,12 +88,13 @@ export class DebugOverlay {
       `steer     ${car.steer.toFixed(2)} (smoothed)`,
       `pressure  ${(car.brakePressure * 100).toFixed(0)}%`,
       `slip      ${((slipAngle(car) * 180) / Math.PI).toFixed(0)}°`,
+      `tow       ${slipstreamPercent(car.slipstream)}% (slipstream)`,
       `spin      ${car.spin.toFixed(2)} rad/s`,
       `wheels    ${car.wheelSurfaces.map((s) => SURFACE_LABEL[s]).join(' ')}  (FL FR RL RR)`,
       `impact    ${this.impactText(state.tick)}`,
       `tuning    ${tuningLabel()}`,
       '',
-      `R reset · V camera · B bot · F3 overlay${import.meta.env.DEV ? ' · F2 tuning · F4 dummy' : ''}`,
+      `R reset · V camera · Z look back · B bot · F3 overlay${import.meta.env.DEV ? ' · F2 tuning · F4 dummy' : ''}`,
     ].join('\n');
   }
 

@@ -8,7 +8,13 @@ import {
   type GameState,
   type LapState,
 } from '@altf1/shared';
-import { formatDelta, formatLapTime, sectorColor, type SectorColor } from './format';
+import {
+  formatDelta,
+  formatLapTime,
+  sectorColor,
+  slipstreamPercent,
+  type SectorColor,
+} from './format';
 import './hud.css';
 
 /** How long the sector / lap chip stays under the strip (ms). */
@@ -21,7 +27,8 @@ interface Reference {
 }
 
 /**
- * F1-style timing strip, top centre: lap, running time, sector bars, last and best lap, speed.
+ * F1-style timing strip, top centre: lap, running time, sector bars, last and best lap, speed,
+ * slipstream (SLIP bar + %, the same value as the wind lines).
  * A chip under it shows each sector's gap to the best lap for a few seconds. Reads state only.
  */
 export class Hud {
@@ -35,6 +42,9 @@ export class Hud {
   private readonly last = element('span', 'hud-value');
   private readonly best = element('span', 'hud-value');
   private readonly speed = element('span', 'hud-speed');
+  private readonly slip = element('span', 'hud-slip');
+  private readonly slipFill = element('i', 'hud-slip-fill');
+  private readonly slipValue = element('span', 'hud-slip-value');
   private readonly botLevel = element('span', 'hud-bot-level');
   private readonly chip = element('div', 'hud-chip');
 
@@ -50,6 +60,9 @@ export class Hud {
     const strip = element('div', 'hud-strip');
     const sectors = element('span', 'hud-sectors');
     sectors.append(...this.bars);
+    const slipBar = element('i', 'hud-slip-bar');
+    slipBar.append(this.slipFill);
+    this.slip.append(element('span', 'hud-label', 'SLIP'), slipBar, this.slipValue);
     strip.append(
       this.lap,
       this.time,
@@ -60,6 +73,7 @@ export class Hud {
       element('span', 'hud-label', 'BEST'),
       this.best,
       this.speed,
+      this.slip,
       botLabel(this.botLevel),
     );
     this.root.append(strip, this.chip);
@@ -88,6 +102,10 @@ export class Hud {
     this.last.classList.toggle('hud-struck', timing.lastLap?.valid === false);
     setText(this.best, timing.bestLap ? formatLapTime(timing.bestLap.ticks) : '--:--.---');
     setText(this.speed, `${Math.round(length(car.velocity) * 3.6)}`);
+    const slip = slipstreamPercent(car.slipstream);
+    setText(this.slipValue, `${slip}%`);
+    this.slipFill.style.width = `${slip}%`;
+    this.slip.classList.toggle('hud-slip-on', slip > 0);
     this.chip.hidden = nowMs > this.chipUntil;
     if (this.clearBarsAt !== null && nowMs > this.clearBarsAt) {
       for (const bar of this.bars) bar.className = 'hud-bar';

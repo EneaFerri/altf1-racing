@@ -10,11 +10,12 @@ export class FirstPersonCamera {
     private readonly params: CameraParams,
   ) {}
 
-  update(pose: CarPose): void {
+  /** `yawOffset` turns the head from the same eye position (π = looking back). */
+  update(pose: CarPose, yawOffset: number): void {
     const p = this.params;
     const eye = toWorld({ x: pose.x, z: pose.z }, pose.heading, p.eyeAhead, 0);
     this.camera.position.set(eye.x, p.eyeHeight, eye.z);
     // Yaw first, then pitch: the camera looks down -Z like the car, so rotation.y = heading.
-    this.camera.rotation.set(p.pitch, pose.heading, 0, 'YXZ');
+    this.camera.rotation.set(p.pitch, pose.heading + yawOffset, 0, 'YXZ');
   }
 }

@@ -268,3 +268,121 @@ export function cornerApexes(
   }
   return corners.map(({ index, direction }) => ({ index, direction }));
 }
+
+/** A boat moored stern-to: its middle, the unit direction its bow points, its length (m). */
+export interface Mooring {
+  readonly at: Vec2;
+  readonly bow: Vec2;
+  readonly length: number;
+}
+
+/** Boats: length range (m), beam per length, the gap between two, the stern's gap off a pier (m). */
+const BOAT_LENGTH: readonly [number, number] = [14, 46];
+const BOAT_BEAM = 0.22;
+const BOAT_GAP = 1.2;
+const STERN_OFF = 2;
+const AREA_STERN_OFF = 0.5;
+const PIER_CLEAR = 1;
+
+/**
+ * Boats moored stern-to along pontoons (Monaco's way): both sides of every pier line, the outer
+ * side of every edge of a pier area; one every beam + gap, seeded lengths. A boat is kept only if
+ * its four corners are on `water` and off every pier area, its bow corners at least PIER_CLEAR from
+ * every pier, and `clear` (e.g. off the track); never overlapping another.
+ */
+export function mooredBoats(
+  piers: readonly { readonly points: readonly Vec2[]; readonly area: boolean }[],
+  water: readonly (readonly Vec2[])[],
+  clear: (p: Vec2) => boolean,
+  seed: number,
+): Mooring[] {
+  const random = seededRandom(seed);
+  // Every pier as its edges (an area's ring closed).
+  const edges = piers.map((pier) => {
+    const ps = pier.area ? [...pier.points, pier.points[0]!] : [...pier.points];
+    return ps.slice(1).map((b, i): [Vec2, Vec2] => [ps[i]!, b]);
+  });
+  const areas = piers.filter((p) => p.area).map((p) => p.points);
+  const toPier = (p: Vec2): number =>
+    Math.min(...edges.flat().map(([a, b]) => segmentDistance(p, a, b)));
+  const boats: Mooring[] = [];
+  piers.forEach((pier, k) => {
+    // A walkway's line is its middle; an area's edge is its side.
+    const sternOff = pier.area ? AREA_STERN_OFF : STERN_OFF;
+    for (const [a, b] of edges[k]!) {
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      if (len < 1) continue;
+      const along = vec2((b.x - a.x) / len, (b.z - a.z) / len);
+      const middle = vec2((a.x + b.x) / 2, (a.z + b.z) / 2);
+      // An area moors on the outside of each edge only.
+      const sides = [1, -1].filter(
+        (side) =>
+          !pier.area ||
+          !insidePolygon(
+            vec2(middle.x - along.z * side * 2, middle.z + along.x * side * 2),
+            pier.points,
+          ),
+      );
+      for (const side of sides) {
+        const bow = vec2(-along.z * side, along.x * side);
+        let t = BOAT_GAP;
+        while (t < len) {
+          const length = BOAT_LENGTH[0] + random() * (BOAT_LENGTH[1] - BOAT_LENGTH[0]);
+          const beam = length * BOAT_BEAM;
+          const s = t + beam / 2;
+          t += beam + BOAT_GAP;
+          if (s > len) break;
+          const mid = length / 2 + sternOff;
+          const at = vec2(a.x + along.x * s + bow.x * mid, a.z + along.z * s + bow.z * mid);
+          const corners = boatCorners({ at, bow, length });
+          const onWater = corners.every(
+            (c) =>
+              water.some((ring) => insidePolygon(c, ring)) &&
+              !areas.some((ring) => insidePolygon(c, ring)),
+          );
+          if (!onWater || !corners.every(clear)) continue;
+          if (corners.slice(2).some((c) => toPier(c) < PIER_CLEAR)) continue;
+          const boat = { at, bow, length };
+          // Boats of two facing pontoons meet in the middle: no overlaps.
+          const overlaps = (x: Mooring, y: Mooring): boolean =>
+            [y.at, ...boatCorners(y)].some((c) => onBoat(c, x));
+          if (boats.some((o) => overlaps(o, boat) || overlaps(boat, o))) continue;
+          boats.push(boat);
+        }
+      }
+    }
+  });
+  return boats;
+}
+
+/** A boat's corners: stern pair, then bow pair. */
+function boatCorners({ at, bow, length }: Mooring): Vec2[] {
+  const beam = length * BOAT_BEAM;
+  return [-1, 1].flatMap((f) =>
+    [-1, 1].map((g) =>
+      vec2(
+        at.x + (bow.x * f * length) / 2 - (bow.z * g * beam) / 2,
+        at.z + (bow.z * f * length) / 2 + (bow.x * g * beam) / 2,
+      ),
+    ),
+  );
+}
+
+/** True when `p` is on the boat's rectangle. */
+function onBoat(p: Vec2, { at, bow, length }: Mooring): boolean {
+  const dx = p.x - at.x;
+  const dz = p.z - at.z;
+  return (
+    Math.abs(dx * bow.x + dz * bow.z) < length / 2 &&
+    Math.abs(-dx * bow.z + dz * bow.x) < (length * BOAT_BEAM) / 2
+  );
+}
+
+/** Distance from `p` to the segment a–b. */
+function segmentDistance(p: Vec2, a: Vec2, b: Vec2): number {
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const len2 = dx * dx + dz * dz || 1;
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / len2));
+  return Math.hypot(p.x - (a.x + dx * t), p.z - (a.z + dz * t));
+}

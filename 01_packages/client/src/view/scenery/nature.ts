@@ -15,18 +15,30 @@ const WATER_TILE = 6;
 const BANK_WIDTH = 3;
 
 /**
- * A ring of big grey peaks around `center`, from `radius` outwards. Drawn without fog so they frame
- * the sky like Krunker's backdrop.
+ * A ring (or an `arc`) of big low-poly peaks around `center`, from `radius` outwards, grey unless
+ * `colors` are given. Drawn without fog so they frame the sky like Krunker's backdrop.
  */
-export function createMountains(center: Vec2, radius: number, seed: number): THREE.Group {
+export function createMountains(
+  center: Vec2,
+  radius: number,
+  seed: number,
+  {
+    colors = ['#8d8d93', '#9a9aa0', '#828288', '#a5a5ab'],
+    arc = [0, Math.PI * 2],
+  }: {
+    readonly colors?: readonly string[];
+    /** Only between these angles (rad, from +x towards +z): e.g. not over the sea. */
+    readonly arc?: readonly [number, number];
+  } = {},
+): THREE.Group {
   const group = new THREE.Group();
   const random = seededRandom(seed);
-  const greys = ['#8d8d93', '#9a9aa0', '#828288', '#a5a5ab'].map(
+  const greys = colors.map(
     (color) => new THREE.MeshLambertMaterial({ color, flatShading: true, fog: false }),
   );
   const count = 34;
   for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2 + random() * 0.15;
+    const angle = arc[0] + (i / count) * (arc[1] - arc[0]) + random() * 0.15;
     const distance = radius + random() * radius * 0.5;
     const height = 160 + random() * 260;
     const peak = new THREE.Mesh(

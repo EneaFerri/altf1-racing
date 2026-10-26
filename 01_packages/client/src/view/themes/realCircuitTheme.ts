@@ -1,10 +1,14 @@
 import type * as THREE from 'three';
 import type { Track, TrackSide, Vec2 } from '@altf1/shared';
 import { createGrandstand, createPitBuilding, face } from '../scenery/buildings';
+import { createCasino, createChapel } from '../scenery/landmarks';
+import { createMountains } from '../scenery/nature';
 import {
   alongTrack,
   footprintBox,
+  clearance,
   insidePolygon,
+  mooredBoats,
   polygonBounds,
   polylineFootprint,
   scatter,
@@ -23,6 +27,7 @@ import {
   type TownBuilding,
 } from '../scenery/town';
 import { createTunnel, type TunnelSpan } from '../scenery/tunnel';
+import { createYachts } from '../scenery/yachts';
 import type { TrackTheme, WallStyle } from './theme';
 
 /** Concrete walls reach this far past a grandstand or the pit lane, either end (m). */
@@ -34,6 +39,10 @@ const MAX_WOOD_TREES = 2400;
 const MAX_TREES_PER_WOOD = 400;
 const PARK_TREES = 500;
 const TREE_MARGIN = 8;
+/** Town: boats at least this far beyond the walls (m); the hills behind it (radius m, arc rad). */
+const BOAT_CLEARANCE = 3;
+const HILLS_RADIUS = 1100;
+const HILLS_ARC = 2.4;
 
 /** A real circuit's surroundings, as `01_tools/openf1/scenery.ts` generates them (`<id>Layout.ts`). */
 export interface RealCircuitScenery {
@@ -45,7 +54,8 @@ export interface RealCircuitScenery {
   readonly ovalWidth: number;
   /** A town circuit (Monaco): every building, the sea, piers, pools, palms and the tunnel. */
   readonly town?: {
-    readonly city: readonly TownBuilding[];
+    /** `landmark`: drawn with its own model ('casino', 'chapel'), else a plain building. */
+    readonly city: readonly (TownBuilding & { readonly landmark: string })[];
     readonly sea: readonly (readonly Vec2[])[];
     readonly islands: readonly (readonly Vec2[])[];
     readonly piers: readonly { readonly points: readonly Vec2[]; readonly area: boolean }[];
@@ -122,6 +132,27 @@ function wallsByPlace(
   };
 }
 
+/**
+ * Green-grey hills behind a town (Monaco's slopes of the Alpes-Maritimes): an arc of peaks on the
+ * side away from the sea, never over it.
+ */
+function createHills(track: Track, sea: readonly (readonly Vec2[])[]): THREE.Object3D {
+  const bounds = trackBounds(track);
+  const centre = { x: (bounds.minX + bounds.maxX) / 2, z: (bounds.minZ + bounds.maxZ) / 2 };
+  const water = sea.flat();
+  const toSea = water.length
+    ? Math.atan2(
+        water.reduce((sum, p) => sum + p.z, 0) / water.length - centre.z,
+        water.reduce((sum, p) => sum + p.x, 0) / water.length - centre.x,
+      )
+    : 0;
+  const land = toSea + Math.PI;
+  return createMountains(centre, HILLS_RADIUS, 23, {
+    colors: ['#7d8a6a', '#8a957a', '#73805f', '#949c84'],
+    arc: [land - HILLS_ARC / 2, land + HILLS_ARC / 2],
+  });
+}
+
 /** Places an object built facing +Z with its front centre on a footprint's front. */
 function placeOn(object: THREE.Object3D, box: Footprint): THREE.Object3D {
   object.position.set(box.front.x, 0, box.front.z);
@@ -172,8 +203,24 @@ function buildScenery(
 
   const { town } = scenery;
   if (town) {
+    const landmarks = { casino: createCasino, chapel: createChapel } as const;
+    for (const b of town.city) {
+      const build = landmarks[b.landmark as keyof typeof landmarks];
+      if (build) objects.push(build(track, b));
+    }
+    const boats = mooredBoats(
+      town.piers,
+      town.sea,
+      (p) => clearance(track, p) > BOAT_CLEARANCE,
+      17,
+    );
     objects.push(
-      createCity(town.city, 11),
+      createCity(
+        town.city.filter((b) => !(b.landmark in landmarks)),
+        11,
+      ),
+      createYachts(boats, 19),
+      createHills(track, town.sea),
       createSea(town.sea, town.islands),
       createPiers(town.piers),
       createPools(town.pools),

@@ -7,13 +7,13 @@ types), no build step; run from the repo root, `<id>` = `monza`, `barcelona` or 
 ```
 node 01_tools/openf1/fetch.ts <id>       # download: OpenF1 pole lap + OSM centreline → data/
 node 01_tools/openf1/profile.ts <id>     # data/<id>.json: centreline, speed, corners, sectors
-node --import ./01_tools/openf1/resolveTs.ts 01_tools/openf1/layout.ts <id>     # layout + preview
-node --import ./01_tools/openf1/resolveTs.ts 01_tools/openf1/calibrate.ts <id> [scale]
-node --import ./01_tools/openf1/resolveTs.ts 01_tools/openf1/scenery.ts <id> [--fetch]  # OSM scenery
+node --import ./01_tools/resolveTs.ts 01_tools/openf1/layout.ts <id>     # layout + preview
+node --import ./01_tools/resolveTs.ts 01_tools/openf1/calibrate.ts <id> [scale]
+node --import ./01_tools/resolveTs.ts 01_tools/openf1/scenery.ts <id> [--fetch]  # OSM scenery
 ```
 
 `layout`, `calibrate` and `scenery` use the game's own code in `01_packages/shared`, whose imports have no
-extension: `resolveTs.ts` lets Node resolve them.
+extension: `01_tools/resolveTs.ts` (shared with the multiplayer server) lets Node resolve them.
 
 | File           | Role                                                                               |
 | -------------- | ---------------------------------------------------------------------------------- |

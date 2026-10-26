@@ -47,7 +47,8 @@ export interface SceneryFeature {
     | 'pier'
     | 'pool'
     | 'tree'
-    | 'tunnel';
+    | 'tunnel'
+    | 'landmark';
   readonly name: string;
   /** [lat, lon]; closed polygons repeat their first point; a tree is one point. */
   readonly points: readonly (readonly [number, number])[];

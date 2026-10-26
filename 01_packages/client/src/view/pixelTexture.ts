@@ -593,3 +593,22 @@ export function createPoolTexture(size = 16): THREE.Texture {
     true,
   );
 }
+
+/** Belle Époque facade (the Casino): cream stone, a tall round-arched window, pilasters, a cornice. */
+export function createBelleEpoqueTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#efe0bf', '#ead9b4', '#f2e5c6'], 103);
+      ctx.fillStyle = '#f8efd9';
+      ctx.fillRect(0, 0, 2, size);
+      ctx.fillRect(0, 1, size, 1);
+      ctx.fillStyle = '#2c3640';
+      ctx.fillRect(5, 5, 6, 9);
+      ctx.fillRect(6, 4, 4, 1);
+      ctx.fillStyle = '#c9b48a';
+      ctx.fillRect(0, 15, size, 1);
+    },
+    true,
+  );
+}

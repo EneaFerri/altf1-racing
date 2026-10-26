@@ -75,12 +75,41 @@ export function createCity(buildings: readonly TownBuilding[], seed: number): TH
   return group;
 }
 
+/** One building: walls from `bottom` to `top` along its ring, and a flat roof. */
+export function extrude(
+  ring: readonly Vec2[],
+  bottom: number,
+  top: number,
+  walls: THREE.Material,
+  roof: THREE.Material,
+): THREE.Group {
+  const wall = new Builder(walls);
+  wall.walls(ring, bottom, top);
+  const cap = new Builder(roof);
+  cap.polygon(ring, top, null);
+  const group = new THREE.Group();
+  for (const builder of [wall, cap]) {
+    const mesh = builder.mesh();
+    if (mesh) group.add(mesh);
+  }
+  return group;
+}
+
 /** The sea (polygons), with land patches in it drawn as paving. */
 export function createSea(
   sea: readonly (readonly Vec2[])[],
   islands: readonly (readonly Vec2[])[],
 ): THREE.Group {
-  const water = new Builder(lit(createSeaTexture()));
+  // Pulled towards the camera in depth: far away its big triangles would still fight the ground.
+  const water = new Builder(
+    new THREE.MeshLambertMaterial({
+      map: createSeaTexture(),
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    }),
+  );
   for (const ring of sea) water.polygon(ring, Y_SEA, SEA_TILE);
   const land = new Builder(lit(createPavingTexture()));
   for (const ring of islands) land.polygon(ring, Y_LAND, PAVING_TILE);

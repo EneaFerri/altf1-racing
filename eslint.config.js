@@ -21,4 +21,39 @@ export default tseslint.config(
       'no-restricted-imports': ['error', { patterns: ['three', 'three/*', '@altf1/client'] }],
     },
   },
+  {
+    // The server runs the shared Model under Node: no rendering, no client code.
+    files: ['01_packages/server/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: ['three', 'three/*', '@altf1/client'] }],
+    },
+  },
+  // Singleplayer and multiplayer never mix (01_docs/multiplayer.md): neither mode imports the
+  // other, and the building blocks they share import neither. Only main.ts loads them.
+  {
+    files: ['01_packages/client/src/singleplayer/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: modeImports('multiplayer') }],
+    },
+  },
+  {
+    files: ['01_packages/client/src/multiplayer/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: modeImports('singleplayer') }],
+    },
+  },
+  {
+    files: ['01_packages/client/src/{core,controller,dev,view}/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [...modeImports('singleplayer'), ...modeImports('multiplayer')] },
+      ],
+    },
+  },
 );
+
+/** Import patterns that reach into the client's `folder` (a game mode). */
+function modeImports(folder) {
+  return [`**/${folder}`, `**/${folder}/**`];
+}

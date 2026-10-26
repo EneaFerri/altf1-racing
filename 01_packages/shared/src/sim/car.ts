@@ -3,6 +3,7 @@ import { moveToward, wrapAngle } from '../math/angle';
 import { add, dot, forward, headingOf, length, right, scale, ZERO, type Vec2 } from '../math/vec2';
 import type { Surface } from '../track/types';
 import type { InputCommand } from '../types/input';
+import { NO_SLIPSTREAM, type SlipstreamEffect } from './slipstream';
 import { NEUTRAL_SURFACE_EFFECT, type SurfaceEffect } from './surface';
 
 /** Below this forward speed (m/s, ~1 km/h) the reverse key drives backwards instead of braking. */
@@ -27,6 +28,8 @@ export interface CarState {
   readonly brakePressure: number;
   /** Surface under each wheel (order of CAR_WHEELS), sampled at the start of the last tick. */
   readonly wheelSurfaces: readonly Surface[];
+  /** How much the car was towed by another car's wake in the last tick (0..1), see sim/slipstream.ts. */
+  readonly slipstream: number;
 }
 
 export interface CarSpawn {
@@ -46,6 +49,7 @@ export function createCar({ id = 'car', position = ZERO, heading = 0 }: CarSpawn
     steer: 0,
     brakePressure: 0,
     wheelSurfaces: ['asphalt', 'asphalt', 'asphalt', 'asphalt'],
+    slipstream: 0,
   };
 }
 
@@ -56,7 +60,7 @@ export function slipAngle(car: CarState): number {
 }
 
 /**
- * Advances one car by `dt` seconds on the given surface. Pure: returns a new state.
+ * Advances one car by `dt` seconds on the given surface, towed by `slip`. Pure: returns a new state.
  * Tyres always grip; see 01_docs/physics.md.
  */
 export function stepCar(
@@ -65,6 +69,7 @@ export function stepCar(
   p: CarParams,
   dt: number,
   surface: SurfaceEffect = NEUTRAL_SURFACE_EFFECT,
+  slip: SlipstreamEffect = NO_SLIPSTREAM,
 ): CarState {
   const steer = smoothSteer(car.steer, input.steer, p, dt);
   const spin = (car.spin + surface.spinKick) * Math.exp(-p.spinDamping * dt);
@@ -80,7 +85,7 @@ export function stepCar(
   // Split velocity into the car's own frame.
   const fwd = forward(car.heading);
   const side = right(car.heading);
-  const vForward = longitudinal(dot(car.velocity, fwd), brakePressure, input, p, dt, surface);
+  const vForward = longitudinal(dot(car.velocity, fwd), brakePressure, input, p, dt, surface, slip);
   const vLateral = dot(car.velocity, side) * Math.exp(-grip * dt);
 
   const speed = Math.abs(vForward);
@@ -131,7 +136,7 @@ function smoothBrake(
   return Math.max(ramped, p.brakeInitialPressure * demand);
 }
 
-/** New forward speed after engine, brakes, reverse, drag and surface. */
+/** New forward speed after engine, slipstream tow, brakes, reverse, drag and surface. */
 function longitudinal(
   vForward: number,
   brakePressure: number,
@@ -139,6 +144,7 @@ function longitudinal(
   p: CarParams,
   dt: number,
   surface: SurfaceEffect,
+  slip: SlipstreamEffect,
 ): number {
   let v = vForward;
   const traction = surface.traction;
@@ -148,6 +154,7 @@ function longitudinal(
       v >= 0
         ? v + p.engineAccel * traction * input.throttle * (1 - v / p.maxSpeed) * dt
         : moveToward(v, 0, p.brakeDecel * traction * input.throttle * dt); // throttle while rolling back = brake
+    if (vForward >= 0) v += slip.towAccel * input.throttle * dt;
   }
 
   // The brake stops the car whichever way it rolls; only the reverse key drives backwards.
@@ -162,5 +169,5 @@ function longitudinal(
   }
 
   v = moveToward(v, 0, surface.drag * dt);
-  return moveToward(v, 0, p.airDrag * v * v * dt);
+  return moveToward(v, 0, p.airDrag * slip.dragScale * v * v * dt);
 }
