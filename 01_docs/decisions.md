@@ -353,3 +353,26 @@
   TypeScript with plain Node; one copy for both.
 - **Network-free screens**: `NicknameScreen` and `LobbyScreen` live in `view/menu` and only get
   callbacks and rows, so `view` stays free of either game mode (the ESLint boundary).
+
+## 2026-10-26 — Online race (step 2.1f)
+
+- **Straight onto the track** (owner): no lobby list after the nickname; the other players are seen
+  on track with their nickname tags. `LobbyScreen` removed.
+- **Snapshots played back 4 ticks (~67 ms) behind the newest**: two snapshot gaps at 30 Hz, so a
+  single late packet never freezes the picture; the cost is ~67 ms of extra input delay until
+  prediction (2.2). A render clock in server ticks, eased towards its target, snaps after big gaps.
+- **No extrapolation**: when snapshots stop, cars hold still rather than guess (the disconnect
+  menu follows if the socket closes).
+- **Livery known before the car**: `players` precedes the first snapshot with a new car on the same
+  ordered socket, so `SceneView` never has to recolour a car.
+
+## 2026-10-26 — A room per circuit (step 2.1f+)
+
+- **Owner's addition**: after the nickname the player picks Monza, Barcelona or Monaco; everyone on
+  the same circuit drives together. The Test Ring is no longer offered online.
+- **Rooms open on the first player and close on the last**: no idle simulations, and an empty
+  circuit always restarts fresh. One `Room` per track, fully apart (state, players, snapshots).
+- **Nicknames stay unique over the whole server**, not per room: one identity per player, and a
+  later "switch circuit" needs no rename.
+- **Protocol v2**: `welcome` lists the rooms (with player counts) instead of a track; `enter` /
+  `entered` pick one. Old clients are rejected with `version`.

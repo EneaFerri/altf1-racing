@@ -54,6 +54,15 @@ const loop = setInterval(() => {
   last = now;
 }, 1000 / TICK_RATE);
 
+sockets.on('error', (error: NodeJS.ErrnoException) => {
+  const reason =
+    error.code === 'EADDRINUSE'
+      ? `port ${PORT} is already in use: is another server running? (PORT=… to use another)`
+      : error.message;
+  console.error(`[server] cannot start: ${reason}`);
+  process.exit(1);
+});
+
 sockets.on('listening', () => {
   console.info(`[server] AltF1 multiplayer on ws://localhost:${PORT}/ws (Ctrl+C to stop)`);
 });

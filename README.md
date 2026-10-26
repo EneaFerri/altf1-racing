@@ -17,5 +17,5 @@ To play online (multiplayer), also start the server in a second terminal:
 npm run server
 ```
 
-Then choose **Multiplayer** on the start screen. Other machines (LAN, Tailscale) open the same Vite
+Then choose **Multiplayer** on the start screen, a nickname and a circuit. Other machines (LAN, Tailscale) open the same Vite
 URL. Details: [01_docs/multiplayer.md](01_docs/multiplayer.md).

@@ -75,6 +75,24 @@ export const LIVERIES = {
   grey: { body: '#8a8a8a', shade: '#6e6e6e' },
 } as const satisfies Record<string, Livery>;
 
+/** Multiplayer liveries, by the server's livery index (lowest free one at join). */
+export const PLAYER_LIVERIES: readonly Livery[] = [
+  LIVERIES.red,
+  LIVERIES.blue,
+  { body: '#1fa84a', shade: '#17823a' }, // green
+  { body: '#f2c200', shade: '#c79f00' }, // yellow
+  { body: '#ff7a00', shade: '#d16300' }, // orange
+  { body: '#8a3ffc', shade: '#6c2ed0' }, // purple
+  { body: '#16c6d9', shade: '#109fae' }, // cyan
+  { body: '#ff4fa3', shade: '#d63d86' }, // pink
+];
+
+/** Livery for a server livery index; wraps around past the last one. */
+export function playerLivery(index: number): Livery {
+  const n = PLAYER_LIVERIES.length;
+  return PLAYER_LIVERIES[((index % n) + n) % n]!;
+}
+
 /** Car livery: body colour with a white racing stripe and subtle pixel shading. */
 export function createLiveryTexture(livery: Livery, size = 16): THREE.Texture {
   return createPixelTexture(size, (ctx) => {

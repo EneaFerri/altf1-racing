@@ -86,7 +86,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Multiplayer: nickname field and the live list of players online. */
+/* Multiplayer: the nickname field. */
 
 .menu-field {
   padding: 10px 12px;
@@ -118,16 +118,6 @@
 
 .menu-error {
   color: #ff5a4f;
-}
-
-.menu-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.menu-static {
-  cursor: default;
 }
 
 .menu [hidden] {

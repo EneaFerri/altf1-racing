@@ -13,6 +13,7 @@ import {
 import { CameraRig } from './cameras/CameraRig';
 import type { CameraParams } from './cameras/params';
 import { CarView, type CarPose } from './CarView';
+import { NameTag } from './NameTag';
 import { LIVERIES, type Livery } from './pixelTexture';
 import { trackBounds } from './scenery/placement';
 import { themeFor, type TrackTheme } from './themes/theme';
@@ -24,18 +25,24 @@ export class SceneView {
   private readonly renderer = createRenderer();
   private readonly scene = new THREE.Scene();
   private readonly cars = new Map<CarId, CarView>();
+  /** Nickname over each opponent's car (multiplayer); never over the followed car. */
+  private readonly tags = new Map<CarId, NameTag>();
+  private names: Readonly<Record<CarId, string>> = {};
+  private readonly liveries: Record<CarId, Livery>;
   private readonly cameraRig: CameraRig;
 
   /**
    * `followId`: the car the camera follows (the local player). `liveries`: colour per car id, others
-   * are grey. `cameraParams` are read live. The look comes from the track's theme (`themeFor`).
+   * are grey (more can be added with `setLivery`). `cameraParams` are read live. The look comes from
+   * the track's theme (`themeFor`).
    */
   constructor(
     track: Track,
     private readonly followId: CarId,
-    private readonly liveries: Readonly<Record<CarId, Livery>>,
+    liveries: Readonly<Record<CarId, Livery>>,
     cameraParams: CameraParams,
   ) {
+    this.liveries = { ...liveries };
     const theme = themeFor(track.name);
     this.cameraRig = new CameraRig(cameraParams);
     this.cameraRig.camera.far = theme.viewDistance;
@@ -65,6 +72,19 @@ export class SceneView {
     this.cameraRig.toggle();
   }
 
+  /** Colour for car `id` from now on; a car takes it when it first appears. */
+  setLivery(id: CarId, livery: Livery): void {
+    this.liveries[id] = livery;
+  }
+
+  /** Nickname tags shown over the other cars (multiplayer); cars without a name get none. */
+  setNameTags(names: Readonly<Record<CarId, string>>): void {
+    this.names = names;
+    for (const [id, tag] of this.tags) {
+      if (this.names[id] === undefined) this.removeTag(id, tag);
+    }
+  }
+
   /** Looks behind the followed car while `on` (either camera). */
   setLookBack(on: boolean): void {
     this.cameraRig.lookBack = on;
@@ -82,14 +102,42 @@ export class SceneView {
         view.setFirstPerson(this.cameraRig.mode === 'pov');
       }
     }
+    // Tags after the camera moved, so they face it and size against its new position.
+    for (const car of curr.cars) {
+      if (car.id === this.followId) continue;
+      const tag = this.tag(car.id);
+      const pose = this.cars.get(car.id)!.object.position;
+      tag?.update(pose.x, pose.z, this.cameraRig.camera);
+    }
     // Cars that left the race (e.g. the bot switched off).
     for (const [id, view] of this.cars) {
       if (curr.cars.some((car) => car.id === id)) continue;
       this.scene.remove(view.object);
       view.dispose();
       this.cars.delete(id);
+      const tag = this.tags.get(id);
+      if (tag) this.removeTag(id, tag);
     }
     this.renderer.render(this.scene, this.cameraRig.camera);
+  }
+
+  /** NameTag for `id`, created when it first has a name; null if it has none. */
+  private tag(id: CarId): NameTag | null {
+    const name = this.names[id];
+    if (name === undefined) return null;
+    let tag = this.tags.get(id);
+    if (!tag) {
+      tag = new NameTag(name);
+      this.tags.set(id, tag);
+      this.scene.add(tag.object);
+    }
+    return tag;
+  }
+
+  private removeTag(id: CarId, tag: NameTag): void {
+    this.scene.remove(tag.object);
+    tag.dispose();
+    this.tags.delete(id);
   }
 
   /** CarView for `id`, created the first time the car appears (opponents can join any time). */

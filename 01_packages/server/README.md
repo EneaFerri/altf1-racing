@@ -1,7 +1,7 @@
 # @altf1/server
 
-The authoritative multiplayer server: a lobby with unique nicknames and one room on the Test Ring,
-simulated with the same `stepGame` from `@altf1/shared` as the game. Node + `ws`, TypeScript run
+The authoritative multiplayer server: a lobby with unique nicknames and one room per circuit
+(Monza, Barcelona, Monaco; live while someone is in it), each simulated with the same `stepGame` from `@altf1/shared` as the game. Node + `ws`, TypeScript run
 directly (no build).
 
 ```

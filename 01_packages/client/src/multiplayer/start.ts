@@ -1,13 +1,9 @@
-import {
-  checkNickname,
-  PROTOCOL_VERSION,
-  type PlayerInfo,
-  type ServerMessage,
-} from '@altf1/shared';
-import { LobbyScreen } from '../view/menu/LobbyScreen';
+import { checkNickname, PROTOCOL_VERSION, type RoomInfo, type ServerMessage } from '@altf1/shared';
+import { ListMenu } from '../view/menu/ListMenu';
 import { NicknameScreen } from '../view/menu/NicknameScreen';
 import { lobbyProblemText, nicknameProblemText } from './lobbyText';
 import { NetClient } from './NetClient';
+import { OnlineGame, trackByName, type Entered } from './OnlineGame';
 import { serverUrl } from './serverUrl';
 
 type Welcome = Extract<ServerMessage, { type: 'welcome' }>;
@@ -19,8 +15,8 @@ interface Session {
 }
 
 /**
- * Multiplayer entry point: nickname → join the server → the lobby with everyone online.
- * The race view arrives in 2.1f. Never touches single-player code (01_docs/multiplayer.md).
+ * Multiplayer entry point: nickname → join the server → pick a circuit → onto its room's track with
+ * everyone who picked it. Never touches single-player code (01_docs/multiplayer.md).
  */
 export async function startMultiplayer(): Promise<void> {
   let session: Session | null = null;
@@ -36,7 +32,13 @@ export async function startMultiplayer(): Promise<void> {
       return null;
     },
   }).choose();
-  showLobby(session!);
+  const { client, welcome } = session!;
+  // From here on (track menu or race) a lost connection shows the DISCONNECTED menu.
+  client.onClose(() => void showDisconnected());
+
+  const track = await chooseRoom(welcome.rooms);
+  const entered = await enter(client, track);
+  new OnlineGame(client, welcome.playerId, entered, trackByName(track)!).start();
 }
 
 /** Connects and says hello: the accepted session, or the text explaining why not. */
@@ -60,25 +62,39 @@ async function join(raw: string): Promise<Session | string> {
   });
 }
 
-/** The players online, kept up to date; Esc leaves (the reload closes the socket). */
-function showLobby({ client, welcome }: Session): void {
-  const screen = new LobbyScreen(
-    `ONLINE · ${welcome.track.toUpperCase()}`,
-    'Race view coming next — Esc: leave',
-  );
-  const update = (players: readonly PlayerInfo[]): void =>
-    screen.setRows(
-      players.map((p) => ({
-        name: p.nickname,
-        detail: p.id === welcome.playerId ? 'you' : 'online',
-        own: p.id === welcome.playerId,
+/** The circuits the server offers (and this game knows), with who is on each: resolves a name. */
+function chooseRoom(rooms: readonly RoomInfo[]): Promise<string> {
+  return new ListMenu({
+    label: 'MULTIPLAYER · TRACK',
+    items: rooms
+      .filter((room) => trackByName(room.track))
+      .map((room) => ({
+        name: room.track,
+        detail: room.players === 0 ? 'empty' : `${room.players} online`,
+        value: room.track,
       })),
-    );
-  update(welcome.players);
-  client.onMessage((message) => {
-    if (message.type === 'players') update(message.players);
-    // Snapshots already stream in; drawing the race is step 2.1f.
+    hint: 'W/S · Enter — Esc: back to the start',
+    escGoesBack: true,
+  }).choose();
+}
+
+/** Asks to enter the room of `track` and waits for the server's answer. */
+function enter(client: NetClient, track: string): Promise<Entered> {
+  return new Promise((resolve) => {
+    client.onMessage((message) => {
+      if (message.type === 'entered') resolve(message);
+    });
+    client.send({ type: 'enter', track });
   });
-  client.onClose(() => screen.showMessage(lobbyProblemText('disconnected')));
-  screen.show();
+}
+
+/** Shown when the server goes away; Enter or Esc goes back to the start screen. */
+async function showDisconnected(): Promise<void> {
+  await new ListMenu({
+    label: 'DISCONNECTED',
+    items: [{ name: 'Back to the start', detail: lobbyProblemText('disconnected'), value: null }],
+    hint: 'Enter / Esc',
+    escGoesBack: true,
+  }).choose();
+  location.reload();
 }

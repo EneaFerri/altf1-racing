@@ -34,7 +34,8 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 - `SceneView` keeps one `CarView` per car id (created when a car first appears and disposed when it
   leaves, so opponents need no extra wiring), interpolates each car's pose, and feeds the followed car
   to the `CameraRig`. Liveries per car id (`LIVERIES` in `pixelTexture.ts`): player red, bot blue,
-  anything else grey.
+  anything else grey; online, `PLAYER_LIVERIES` by the server's index (`setLivery`), plus a
+  nickname tag (`NameTag`) over every other car (`setNameTags`).
 - **Cameras** (`view/cameras/`): `CameraRig` owns the single `PerspectiveCamera` and switches (V)
   between `ChaseCamera` (behind the car, smoothed yaw only) and `FirstPersonCamera` (driver's eye,
   locked to the car). Both get a **speed FOV** (`speedFov`: + `fovSpeedGain` degrees at
@@ -102,9 +103,9 @@ between them, so motion is smooth at any refresh rate even though the Model tick
   - `singleplayer/start.ts` → the **track menu** (`view/menu/TrackMenu.ts`): every entry of
     `TRACKS` (`shared/src/track/layouts/index.ts`) with its length. The chosen `TrackDefinition` goes
     to `new SinglePlayerGame(track)`, which builds the `Track` and everything that depends on it.
-  - `multiplayer/start.ts` → the **nickname screen**, then the **lobby** with everyone online,
-    over a WebSocket to the multiplayer server (`01_packages/server`). Details:
-    [multiplayer.md](multiplayer.md).
+  - `multiplayer/start.ts` → the **nickname screen**, then the **circuit choice** (Monza,
+    Barcelona, Monaco) and the **online race** (`OnlineGame`) in that circuit's room, over a WebSocket to the multiplayer server
+    (`01_packages/server`). Details: [multiplayer.md](multiplayer.md).
 - Every menu is a `ListMenu` (`view/menu/ListMenu.ts` + `menu.css`): mouse, or W/S (↑/↓) + Enter;
   Esc in the track menu goes back to the start screen.
 - The two modes never mix (owner's rule): separate folders, loaded on demand (the production build

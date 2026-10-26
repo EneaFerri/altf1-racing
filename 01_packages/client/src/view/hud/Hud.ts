@@ -47,6 +47,7 @@ export class Hud {
   private readonly slipValue = element('span', 'hud-slip-value');
   private readonly botLevel = element('span', 'hud-bot-level');
   private readonly chip = element('div', 'hud-chip');
+  private readonly bot = botLabel(this.botLevel);
 
   private lapStartTick: number | null = null;
   private seenLaps = 0;
@@ -74,10 +75,15 @@ export class Hud {
       this.best,
       this.speed,
       this.slip,
-      botLabel(this.botLevel),
+      this.bot,
     );
     this.root.append(strip, this.chip);
     document.body.appendChild(this.root);
+  }
+
+  /** Removes the bot item (multiplayer: no bot in the room). */
+  hideBot(): void {
+    this.bot.remove();
   }
 
   /** Shows the bot's level (B cycles it); null = off. The bot's own times are never shown. */

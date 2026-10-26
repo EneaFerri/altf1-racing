@@ -30,6 +30,7 @@ class FakeConnection implements Connection {
 
 const hello = (nickname: string, protocol = PROTOCOL_VERSION): string =>
   encodeMessage({ type: 'hello', protocol, nickname });
+const enter = (track: string): string => encodeMessage({ type: 'enter', track });
 const input = (throttle: number): string =>
   encodeMessage({ type: 'input', input: { ...NEUTRAL_INPUT, throttle } });
 
@@ -39,37 +40,41 @@ function joined(server: GameServer, nickname: string): FakeConnection {
   return conn;
 }
 
-describe('GameServer', () => {
-  it('welcomes a player with its id, the track and everyone online, and tells the others', () => {
+function inRoom(server: GameServer, nickname: string, track: string): FakeConnection {
+  const conn = joined(server, nickname);
+  server.message(conn, enter(track));
+  return conn;
+}
+
+/** One second of real time (four calls: advance never simulates more than 0.25 s at once). */
+function oneSecond(server: GameServer): void {
+  for (let i = 0; i < 4; i++) server.advance(0.25);
+}
+
+describe('GameServer — lobby', () => {
+  it('welcomes a player with its id and the three rooms, with how many are in each', () => {
     const server = new GameServer();
-    const enea = joined(server, 'Enea');
-    expect(enea.received[0]).toEqual({
-      type: 'welcome',
-      playerId: 'p1',
-      track: 'Test Ring',
-      players: [{ id: 'p1', nickname: 'Enea', livery: 0 }],
-    });
-    const kimi = joined(server, 'Kimi');
-    expect(kimi.received[0]).toMatchObject({ type: 'welcome', playerId: 'p2' });
-    expect(enea.last('players')).toEqual({
-      type: 'players',
-      players: [
-        { id: 'p1', nickname: 'Enea', livery: 0 },
-        { id: 'p2', nickname: 'Kimi', livery: 1 },
-      ],
-    });
-    expect(kimi.count('players')).toBe(0); // the welcome already lists everyone
-    expect(server.room.state.cars.map((c) => c.id)).toEqual(['p1', 'p2']);
+    inRoom(server, 'Kimi', 'Monaco');
+    expect(joined(server, 'Enea').received).toEqual([
+      {
+        type: 'welcome',
+        playerId: 'p2',
+        rooms: [
+          { track: 'Monza', players: 0 },
+          { track: 'Barcelona', players: 0 },
+          { track: 'Monaco', players: 1 },
+        ],
+      },
+    ]);
   });
 
-  it('rejects a taken nickname (any case) and closes that connection', () => {
+  it('rejects a taken nickname (any case, in any room) and closes that connection', () => {
     const server = new GameServer();
-    joined(server, 'Enea');
+    inRoom(server, 'Enea', 'Monza');
     const copy = joined(server, 'ENEA');
     expect(copy.received).toEqual([{ type: 'rejected', reason: 'taken' }]);
     expect(copy.closedWith).toBe(REJECT_CLOSE_CODE);
     expect(server.hasJoined(copy)).toBe(false);
-    expect(server.room.state.cars).toHaveLength(1);
   });
 
   it('rejects an old client and an invalid nickname', () => {
@@ -80,65 +85,106 @@ describe('GameServer', () => {
     expect(old.received).toEqual([{ type: 'rejected', reason: 'version' }]);
   });
 
-  it('ignores garbage, inputs before hello and a second hello', () => {
+  it('ignores garbage, messages before hello and a second hello', () => {
     const server = new GameServer();
     const conn = new FakeConnection();
     server.message(conn, 'garbage');
     server.message(conn, input(1));
+    server.message(conn, enter('Monza'));
     expect(conn.received).toEqual([]);
-    expect(server.hasJoined(conn)).toBe(false);
+    expect(server.rooms.size).toBe(0);
     server.message(conn, hello('Enea'));
     server.message(conn, hello('Other'));
     expect(conn.count('welcome')).toBe(1);
     expect(server.lobby.players()).toHaveLength(1);
   });
+});
 
-  it('frees the nickname and removes the car when a player leaves', () => {
+describe('GameServer — rooms', () => {
+  it('opens a room when its first player enters and tells the room who is there', () => {
+    const server = new GameServer();
+    const enea = inRoom(server, 'Enea', 'Monza');
+    expect([...server.rooms.keys()]).toEqual(['Monza']);
+    expect(enea.last('entered')).toEqual({
+      type: 'entered',
+      track: 'Monza',
+      players: [{ id: 'p1', nickname: 'Enea', livery: 0 }],
+    });
+    const kimi = inRoom(server, 'Kimi', 'Monza');
+    expect(kimi.last('entered')).toMatchObject({ players: [{ id: 'p1' }, { id: 'p2' }] });
+    expect(enea.last('players')).toMatchObject({ players: [{ id: 'p1' }, { id: 'p2' }] });
+    expect(kimi.count('players')).toBe(0); // `entered` already lists everyone
+    expect(server.rooms.get('Monza')!.state.cars.map((c) => c.id)).toEqual(['p1', 'p2']);
+  });
+
+  it('keeps the rooms apart: players, cars and snapshots', () => {
+    const server = new GameServer();
+    const enea = inRoom(server, 'Enea', 'Monza');
+    const kimi = inRoom(server, 'Kimi', 'Monaco');
+    expect(enea.count('players')).toBe(0); // Kimi went to another room
+    expect(kimi.last('entered')).toMatchObject({ players: [{ nickname: 'Kimi' }] });
+    oneSecond(server);
+    const seen = (conn: FakeConnection): string[] => {
+      const snapshot = conn.last('snapshot');
+      return snapshot?.type === 'snapshot' ? snapshot.state.cars.map((c) => c.id) : [];
+    };
+    expect(seen(enea)).toEqual(['p1']);
+    expect(seen(kimi)).toEqual(['p2']);
+  });
+
+  it('ignores an unknown track, a second enter and inputs before entering', () => {
     const server = new GameServer();
     const enea = joined(server, 'Enea');
-    const kimi = joined(server, 'Kimi');
+    server.message(enea, input(1));
+    server.message(enea, enter('Test Ring'));
+    expect(enea.count('entered')).toBe(0);
+    expect(server.rooms.size).toBe(0);
+    server.message(enea, enter('Monza'));
+    server.message(enea, enter('Monaco'));
+    expect(enea.count('entered')).toBe(1);
+    expect([...server.rooms.keys()]).toEqual(['Monza']);
+  });
+
+  it('frees the nickname, removes the car and closes the room when its last player leaves', () => {
+    const server = new GameServer();
+    const enea = inRoom(server, 'Enea', 'Monza');
+    const kimi = inRoom(server, 'Kimi', 'Monza');
     server.close(enea);
     expect(kimi.last('players')).toEqual({
       type: 'players',
       players: [{ id: 'p2', nickname: 'Kimi', livery: 1 }],
     });
-    expect(server.room.state.cars.map((c) => c.id)).toEqual(['p2']);
+    expect(server.rooms.get('Monza')!.state.cars.map((c) => c.id)).toEqual(['p2']);
+    server.close(kimi);
+    expect(server.rooms.size).toBe(0);
     expect(joined(server, 'enea').received[0]).toMatchObject({ type: 'welcome', playerId: 'p3' });
     server.close(new FakeConnection()); // a socket that never joined: nothing happens
   });
 
-  it('simulates at 60 Hz and sends a snapshot every other tick to joined players only', () => {
+  it('simulates each live room at 60 Hz with a snapshot every other tick', () => {
     const server = new GameServer();
-    const enea = joined(server, 'Enea');
-    const kimi = joined(server, 'Kimi');
-    const lurker = new FakeConnection();
+    const enea = inRoom(server, 'Enea', 'Barcelona');
+    const waiting = joined(server, 'Kimi'); // joined, no room yet: no snapshots
     server.message(enea, input(1));
-    for (let i = 0; i < 4; i++) server.advance(0.25); // one second of real time
-    expect(server.room.state.tick).toBe(60);
+    oneSecond(server);
+    expect(server.rooms.get('Barcelona')!.state.tick).toBe(60);
     expect(enea.count('snapshot')).toBe(60 / SNAPSHOT_EVERY_TICKS);
-    expect(kimi.count('snapshot')).toBe(60 / SNAPSHOT_EVERY_TICKS);
-    expect(lurker.received).toEqual([]);
-    const snapshot = kimi.last('snapshot');
+    expect(waiting.count('snapshot')).toBe(0);
+    const snapshot = enea.last('snapshot');
     if (snapshot?.type !== 'snapshot') throw new Error('no snapshot');
-    expect(snapshot.state.cars.map((c) => c.id)).toEqual(['p1', 'p2']);
-    const p1 = snapshot.state.cars[0]!;
-    expect(Math.hypot(p1.velocity.x, p1.velocity.z)).toBeGreaterThan(10); // Enea's throttle
+    const car = snapshot.state.cars[0]!;
+    expect(Math.hypot(car.velocity.x, car.velocity.z)).toBeGreaterThan(10); // Enea's throttle
   });
 
   it('keeps fractional time for the next call and never catches up more than 0.25 s', () => {
     const server = new GameServer();
-    joined(server, 'Enea');
+    inRoom(server, 'Enea', 'Monza');
+    const room = server.rooms.get('Monza')!;
     server.advance(FIXED_DT * 0.6);
-    expect(server.room.state.tick).toBe(0);
+    expect(room.state.tick).toBe(0);
     server.advance(FIXED_DT * 0.6);
-    expect(server.room.state.tick).toBe(1);
+    expect(room.state.tick).toBe(1);
     server.advance(10);
-    expect(server.room.state.tick).toBe(1 + 15);
-  });
-
-  it('does not simulate while nobody is connected', () => {
-    const server = new GameServer();
-    server.advance(1);
-    expect(server.room.state.tick).toBe(0);
+    expect(room.state.tick).toBe(1 + 15);
   });
 });

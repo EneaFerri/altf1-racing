@@ -5,8 +5,8 @@ import { Room } from './Room.ts';
 const THROTTLE = { ...NEUTRAL_INPUT, throttle: 1 };
 
 describe('Room', () => {
-  it('runs the Test Ring and spawns each player on its own grid slot', () => {
-    const room = new Room();
+  it('runs its track and spawns each player on its own grid slot', () => {
+    const room = new Room(TEST_TRACK);
     expect(room.definition).toBe(TEST_TRACK);
     room.add('p1');
     room.add('p2');
@@ -16,7 +16,7 @@ describe('Room', () => {
   });
 
   it('removes a leaving player and forgets its input', () => {
-    const room = new Room();
+    const room = new Room(TEST_TRACK);
     room.add('p1');
     room.add('p2');
     room.setInput('p2', THROTTLE);
@@ -29,7 +29,7 @@ describe('Room', () => {
   });
 
   it('drives each car with its player latest input, others stay neutral', () => {
-    const room = new Room();
+    const room = new Room(TEST_TRACK);
     room.add('p1');
     room.add('p2');
     room.setInput('p1', THROTTLE);
@@ -40,7 +40,7 @@ describe('Room', () => {
   });
 
   it('applies a reset exactly once, even if another input arrives before the tick', () => {
-    const room = new Room();
+    const room = new Room(TEST_TRACK);
     room.add('p1');
     room.setInput('p1', THROTTLE);
     for (let i = 0; i < 60; i++) room.tick();
@@ -54,7 +54,7 @@ describe('Room', () => {
   });
 
   it('ignores inputs for unknown players and does not tick while empty', () => {
-    const room = new Room();
+    const room = new Room(TEST_TRACK);
     room.setInput('ghost', THROTTLE);
     room.tick();
     expect(room.state.tick).toBe(0);

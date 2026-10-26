@@ -81,9 +81,14 @@ track and drives freely. Done when two players on two machines (Tailscale) drive
 - 2.1e ✅ **Server room** — the Test Ring simulated by the server at 60 Hz with each player's latest
   input; a joining car spawns on a free grid slot, a leaving one is removed; snapshots at 30 Hz.
   Cap: 8 players. No bots.
-- 2.1f **Online game** — the client sends its input every tick and draws the snapshots smoothly
-  (no prediction yet: input delay = one round trip); camera on its own car, HUD with its own laps,
-  a livery per player and nickname tags over the other cars. Esc → back to the mode menu.
+- 2.1f ✅ **Online game** — once the nickname is accepted, straight onto the Test Ring (no lobby list):
+  the client sends its input every tick and plays the snapshots back ~67 ms behind, interpolated
+  (no prediction yet); camera on its own car, HUD with its own laps, a livery per player and
+  nickname tags over the other cars. Esc → back to the start screen.
+- 2.1f+ ✅ **Choice of circuit** (owner's addition) — after the nickname, a track menu with the three
+  F1 circuits (Monza, Barcelona, Monaco) and how many players are on each; everyone who picks a
+  circuit drives together in its room, live as soon as its first player enters, closed when the last
+  one leaves (protocol v2: `enter` / `entered`). Replaces 2.1e's single Test Ring room.
 - 2.1g **Two players over Tailscale** — owner test on two machines; latency feel measured and
   written down in [multiplayer.md](multiplayer.md).
 

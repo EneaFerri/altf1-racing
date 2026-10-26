@@ -18,6 +18,7 @@ describe('client messages', () => {
   it('survive an encode → parse round trip', () => {
     const messages: ClientMessage[] = [
       { type: 'hello', protocol: PROTOCOL_VERSION, nickname: 'Enea' },
+      { type: 'enter', track: 'Monza' },
       { type: 'input', input: INPUT },
     ];
     for (const message of messages) {
@@ -37,6 +38,9 @@ describe('client messages', () => {
       '{"type":"hello","protocol":"1","nickname":"Enea"}',
       '{"type":"hello","protocol":1,"nickname":7}',
       `{"type":"hello","protocol":1,"nickname":"${'a'.repeat(65)}"}`,
+      '{"type":"enter"}',
+      '{"type":"enter","track":7}',
+      `{"type":"enter","track":"${'a'.repeat(65)}"}`,
       '{"type":"input"}',
       '{"type":"input","input":{"throttle":1,"brake":0,"reverse":0,"steer":0}}',
       '{"type":"input","input":{"throttle":"1","brake":0,"reverse":0,"steer":0,"reset":false}}',
@@ -71,7 +75,8 @@ describe('server messages', () => {
   it('survive an encode → parse round trip', () => {
     const players = [{ id: 'p1', nickname: 'Enea', livery: 0 }];
     const messages: ServerMessage[] = [
-      { type: 'welcome', playerId: 'p1', track: 'Test Ring', players },
+      { type: 'welcome', playerId: 'p1', rooms: [{ track: 'Monza', players: 2 }] },
+      { type: 'entered', track: 'Monza', players },
       { type: 'rejected', reason: 'taken' },
       { type: 'players', players },
       { type: 'snapshot', state: createGame(buildTrack(TEST_TRACK), ['p1', 'p2']) },

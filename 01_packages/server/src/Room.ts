@@ -7,7 +7,6 @@ import {
   spawnOnGrid,
   stepGame,
   SURFACE_PARAMS,
-  TEST_TRACK,
   type CarId,
   type GameState,
   type InputCommand,
@@ -28,7 +27,7 @@ export class Room {
   /** Latest input per player; a car with no entry yet gets NEUTRAL_INPUT from stepGame. */
   private readonly inputs = new Map<CarId, InputCommand>();
 
-  constructor(definition: TrackDefinition = TEST_TRACK) {
+  constructor(definition: TrackDefinition) {
     this.definition = definition;
     this.track = buildTrack(definition);
     this.ctx = {
@@ -38,6 +37,15 @@ export class Room {
       collisionParams: COLLISION_PARAMS,
       slipstreamParams: SLIPSTREAM_PARAMS,
     };
+  }
+
+  get isEmpty(): boolean {
+    return this.current.cars.length === 0;
+  }
+
+  /** Whether `id`'s car is in this room. */
+  has(id: CarId): boolean {
+    return this.current.cars.some((car) => car.id === id);
   }
 
   get state(): GameState {
@@ -59,14 +67,14 @@ export class Room {
    * is never lost when two inputs arrive between ticks, nor repeated when none arrives.
    */
   setInput(id: CarId, input: InputCommand): void {
-    if (!this.current.cars.some((car) => car.id === id)) return;
+    if (!this.has(id)) return;
     const pendingReset = this.inputs.get(id)?.reset ?? false;
     this.inputs.set(id, { ...input, reset: input.reset || pendingReset });
   }
 
   /** One fixed tick of the simulation (nothing to do while nobody is in the room). */
   tick(): void {
-    if (this.current.cars.length === 0) return;
+    if (this.isEmpty) return;
     this.current = stepGame(this.current, Object.fromEntries(this.inputs), this.ctx);
     for (const [id, input] of this.inputs) {
       if (input.reset) this.inputs.set(id, { ...input, reset: false });
