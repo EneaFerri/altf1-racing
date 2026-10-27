@@ -48,18 +48,21 @@ The owner's rule: the two sections never mix. Enforced, not just by convention:
 ## Protocol (2.1b ✅)
 
 JSON over one WebSocket, typed unions in `shared/src/net/protocol.ts`, with a `PROTOCOL_VERSION`
-(a client with another version is rejected with `version`). Version **2** since 2.1f+ (rooms).
+(a client with another version is rejected with `version`). Version **3** since 2.2a (input `seq`,
+acks, ping; v2 = 2.1f+ rooms).
 
 | Direction       | Message    | Content                                                                 |
 | --------------- | ---------- | ----------------------------------------------------------------------- |
 | client → server | `hello`    | `protocol`, `nickname`                                                  |
 | client → server | `enter`    | `track`: go into that circuit's room (once, after the welcome)          |
-| client → server | `input`    | `InputCommand`, once per client tick (only once in a room)              |
+| client → server | `input`    | `seq` + `InputCommand`, once per client tick (only once in a room)      |
+| client → server | `ping`     | `t` (the client's clock), once a second in a room                       |
 | server → client | `welcome`  | own `playerId`, the `rooms` offered (`track`, how many `players` in it) |
 | server → client | `rejected` | `reason`: `taken` / `invalid` / `full` / `version`                      |
 | server → client | `entered`  | the room's `track` and the players in it                                |
 | server → client | `players`  | the players in the room, sent on every join and leave there             |
-| server → client | `snapshot` | the room's whole `GameState` (cars, laps, impacts), 30 times a second   |
+| server → client | `snapshot` | the room's whole `GameState` + `acks` (last `seq` run per car), 30 Hz   |
+| server → client | `pong`     | the `ping`'s `t`, echoed: the client measures the round trip            |
 
 - **The server trusts nothing**: `parseClientMessage` returns `null` for bad JSON, unknown types,
   missing or wrong-typed fields, non-finite numbers, and nicknames or track names longer than 64
@@ -118,9 +121,12 @@ there)`, `[rooms] Monza closed (empty)`.
 - **Spawn**: `spawnOnGrid` (`shared/src/sim/game.ts`, pure, tested) puts the new car at rest on the
   first grid slot with no car within 6 m, on an out-lap. A slot frees up as soon as its car drives
   away.
-- **Inputs**: each player's latest `InputCommand` drives its car every tick (none yet = neutral).
-  `reset` (R) is **latched** until the next tick: a one-tick press is never lost when two inputs
-  arrive between two ticks, and never applied twice.
+- **Inputs** (2.2a): each player has a **queue**; every tick runs exactly one input from it, the
+  one the client simulated for that tick, and records its `seq` as the car's ack (`Room.acks`,
+  sent in every snapshot). A duplicate or older `seq` is ignored. An empty queue repeats the last
+  input (without its `reset`, so R is applied exactly once). Past `MAX_QUEUED_INPUTS` (6 ticks,
+  100 ms) the oldest inputs are dropped (a dropped reset moves to the next input), so a burst after
+  a network hiccup never leaves the car running late. No input yet = neutral.
 - **Rates**: every live room is simulated at 60 Hz and sends a `snapshot` (its whole `GameState`)
   to its players every 2 ticks = **30 Hz** (`SNAPSHOT_EVERY_TICKS`). Players who joined but haven't
   picked a circuit yet get none.
@@ -158,8 +164,10 @@ Start ─ Multiplayer ─▶ NICKNAME ──Enter──▶ connect /ws ──hel
 blocks (`GameLoop`, `KeyboardController`, `SceneView`, `Hud`, `DebugOverlay`). It runs **no
 simulation**: the server is the only one.
 
-- **Inputs**: every tick (60 Hz) the keyboard's `InputCommand` goes to the server as `input`. R is
-  sent as `reset` for one tick; the server latches it, so it is applied exactly once.
+- **Inputs**: every tick (60 Hz) the keyboard's `InputCommand` goes to the server as `input` with
+  the next `seq` (0, 1, 2, …). R is sent as `reset` for one tick; the server runs it exactly once.
+  A `ping` goes out once a second; F3 shows the last round trip (`rtt`) and the `ack lag`: inputs
+  sent that the newest snapshot hadn't run yet (≈ half a round trip + the server's queue).
 - **Snapshots → picture** (`multiplayer/SnapshotBuffer.ts`, pure, tested): the last ~30 snapshots
   are kept; a render clock (in server ticks) runs at real time **4 ticks (~67 ms) behind the newest
   snapshot** — two snapshot gaps, so one late packet never stalls the cars — and the view
@@ -167,7 +175,8 @@ simulation**: the server is the only one.
   as single player). Small clock drift is eased out; a big jump (first snapshot, hidden tab)
   snaps. No extrapolation: if snapshots stop, the cars hold their last position.
 - **Latency until 2.2**: the own car reacts about one round trip + 67 ms after a key press
-  (~90–130 ms over LAN/Tailscale). Client-side prediction (2.2) removes it for the own car.
+  (~90–130 ms over LAN/Tailscale, more with friends far away). Client-side prediction (2.2)
+  removes it for the own car.
 - **Liveries**: `PLAYER_LIVERIES` (`view/pixelTexture.ts`): red, blue, green, yellow, orange,
   purple, cyan, pink, by the server's livery index (`playerLivery`). `SceneView.setLivery` — the
   `players` message always arrives before the first snapshot with a new car (same socket), so a car
@@ -176,13 +185,40 @@ simulation**: the server is the only one.
   a dark pill, crisp pixels), depth-tested so walls hide it; it shrinks with distance up to 35 m,
   then keeps its size on screen so it stays readable. Never over the own car.
 - **HUD**: laps, sectors, speed and SLIP from the snapshots as in single player; the bot item is
-  hidden (`Hud.hideBot`). F3 shows the own car's telemetry and the last input sent.
+  hidden (`Hud.hideBot`). F3 shows the own car's telemetry, the last input sent, `rtt` and `ack lag`.
 - **Keys**: WASD/Space drive, R reset, V camera, Z look back, F3 overlay, Esc back to the start
   screen (the reload closes the socket, which frees the nickname and removes the car). B, F2 and F4
   are single-player only.
 - **Disconnect** (server stopped, network lost): a DISCONNECTED menu over the race; Enter or Esc
   goes back to the start screen.
 - The server keeps a cap of 8 players online for now (`MAX_PLAYERS`, over all rooms).
+
+## Two machines (2.1g ✅)
+
+Owner test with friends, each on their own machine over Tailscale: joining, choosing a circuit and
+driving together all work. The problem: the own car's **lag and delay are too high** — it only
+moves when the server's snapshot comes back (a round trip + the 67 ms playback delay), which
+makes it feel heavy and late. Fixed by 2.2.
+
+## Prediction (2.2)
+
+Sub-steps in [roadmap.md](roadmap.md#22--client-side-prediction-the-own-car-responds-instantly);
+this section is filled in as they land. The design:
+
+- **Inputs are numbered** (2.2a): every client tick sends `input` with a growing `seq`. The server
+  keeps a **queue per player** and runs exactly one input per tick (the one the client simulated
+  for that tick); an empty queue repeats the last input; a queue longer than ~100 ms drops its
+  oldest inputs, so a burst never adds lasting delay. Each `snapshot` carries `acks`: the last
+  `seq` each car ran. `ping`/`pong` measures the round trip, shown in F3.
+- **Own car predicted** (2.2b): the client runs `stepGame` on its own car (and its lap timing) every
+  tick, with the same parameters as the server, so walls, surfaces, reset and lap times respond at
+  once. On every snapshot it takes the server's own car at that snapshot, drops the inputs the
+  server already ran (`seq` ≤ its ack) and replays the others: the result is the corrected
+  prediction. A small difference from what was on screen fades out quickly; a big one (a crash
+  the client didn't see, a reset) snaps.
+- **Other cars** (2.1f's playback, ~67 ms behind) stay interpolated. In 2.2b contacts with them and
+  their tow come only from the server's corrections; 2.2c adds them to the prediction and adapts
+  the playback delay to the network's jitter.
 
 ## Dev setup
 

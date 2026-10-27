@@ -2,6 +2,7 @@ import {
   buildTrack,
   findCar,
   NEUTRAL_INPUT,
+  TICK_RATE,
   TRACKS,
   type InputCommand,
   type PlayerInfo,
@@ -20,6 +21,9 @@ import { SnapshotBuffer } from './SnapshotBuffer';
 
 export type Entered = Extract<ServerMessage, { type: 'entered' }>;
 
+/** A `ping` goes out every this many ticks (once a second). */
+const PING_EVERY_TICKS = TICK_RATE;
+
 /** A track by the name the server uses; null if this game doesn't know it. */
 export function trackByName(name: string): TrackDefinition | null {
   return TRACKS.find((track) => track.name === name) ?? null;
@@ -37,6 +41,12 @@ export class OnlineGame {
   private readonly hud = new Hud();
   private readonly debugOverlay = new DebugOverlay();
   private lastInput: InputCommand = NEUTRAL_INPUT;
+  /** `seq` of the next input sent; one per tick. */
+  private nextSeq = 0;
+  /** Last measured round trip (ms); null before the first pong. */
+  private rttMs: number | null = null;
+  /** Inputs sent that the newest snapshot hadn't run yet (ticks); null before the first ack. */
+  private ackLag: number | null = null;
   private readonly loop = new GameLoop({
     tick: () => this.tick(),
     render: (_alpha, frameSeconds) => this.render(frameSeconds),
@@ -58,8 +68,9 @@ export class OnlineGame {
     // A reload closes the socket (the server frees the nickname) and brings the start screen back.
     this.controller.onAction('backToMenu', () => location.reload());
     client.onMessage((message) => {
-      if (message.type === 'snapshot') this.buffer.push(message.state);
+      if (message.type === 'snapshot') this.onSnapshot(message);
       else if (message.type === 'players') this.setPlayers(message.players);
+      else if (message.type === 'pong') this.rttMs = performance.now() - message.t;
     });
   }
 
@@ -67,10 +78,19 @@ export class OnlineGame {
     this.loop.start();
   }
 
-  /** One fixed tick: this player's input goes to the server (R rides along as `reset`). */
+  /** One fixed tick: this player's numbered input goes to the server (R rides along as `reset`). */
   private tick(): void {
     this.lastInput = this.controller.sample();
-    this.client.send({ type: 'input', input: this.lastInput });
+    if (this.nextSeq % PING_EVERY_TICKS === 0) {
+      this.client.send({ type: 'ping', t: performance.now() });
+    }
+    this.client.send({ type: 'input', seq: this.nextSeq++, input: this.lastInput });
+  }
+
+  private onSnapshot(message: Extract<ServerMessage, { type: 'snapshot' }>): void {
+    this.buffer.push(message.state);
+    const ack = message.acks[this.playerId];
+    if (ack !== undefined) this.ackLag = this.nextSeq - 1 - ack;
   }
 
   private render(frameSeconds: number): void {
@@ -81,7 +101,14 @@ export class OnlineGame {
     this.view.render(sample.prev, sample.curr, sample.alpha, frameSeconds);
     this.hud.update(sample.curr, this.playerId, performance.now());
     const car = findCar(sample.curr, this.playerId);
-    if (car) this.debugOverlay.update(sample.curr, car, this.lastInput);
+    if (car) this.debugOverlay.update(sample.curr, car, this.lastInput, this.networkLines());
+  }
+
+  /** Network numbers for F3: round trip and how far the server's acks trail the inputs sent. */
+  private networkLines(): string[] {
+    const rtt = this.rttMs === null ? '-' : `${this.rttMs.toFixed(0)} ms`;
+    const lag = this.ackLag === null ? '-' : `${this.ackLag} ticks`;
+    return [`rtt       ${rtt}`, `ack lag   ${lag} (inputs not yet run)`];
   }
 
   /** Colours and nickname tags for everyone online (sent on every join and leave). */

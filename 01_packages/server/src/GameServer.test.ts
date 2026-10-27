@@ -31,8 +31,8 @@ class FakeConnection implements Connection {
 const hello = (nickname: string, protocol = PROTOCOL_VERSION): string =>
   encodeMessage({ type: 'hello', protocol, nickname });
 const enter = (track: string): string => encodeMessage({ type: 'enter', track });
-const input = (throttle: number): string =>
-  encodeMessage({ type: 'input', input: { ...NEUTRAL_INPUT, throttle } });
+const input = (throttle: number, seq = 0): string =>
+  encodeMessage({ type: 'input', seq, input: { ...NEUTRAL_INPUT, throttle } });
 
 function joined(server: GameServer, nickname: string): FakeConnection {
   const conn = new FakeConnection();
@@ -174,6 +174,17 @@ describe('GameServer — rooms', () => {
     if (snapshot?.type !== 'snapshot') throw new Error('no snapshot');
     const car = snapshot.state.cars[0]!;
     expect(Math.hypot(car.velocity.x, car.velocity.z)).toBeGreaterThan(10); // Enea's throttle
+    expect(snapshot.acks).toEqual({ [car.id]: 0 }); // the one input sent, run on the first tick
+  });
+
+  it('answers a ping with a pong, only once joined', () => {
+    const server = new GameServer();
+    const stranger = new FakeConnection();
+    server.message(stranger, encodeMessage({ type: 'ping', t: 5 }));
+    expect(stranger.received).toEqual([]);
+    const enea = joined(server, 'Enea');
+    server.message(enea, encodeMessage({ type: 'ping', t: 5 }));
+    expect(enea.last('pong')).toEqual({ type: 'pong', t: 5 });
   });
 
   it('keeps fractional time for the next call and never catches up more than 0.25 s', () => {

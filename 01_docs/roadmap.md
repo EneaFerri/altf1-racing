@@ -89,13 +89,34 @@ track and drives freely. Done when two players on two machines (Tailscale) drive
   F1 circuits (Monza, Barcelona, Monaco) and how many players are on each; everyone who picks a
   circuit drives together in its room, live as soon as its first player enters, closed when the last
   one leaves (protocol v2: `enter` / `entered`). Replaces 2.1e's single Test Ring room.
-- 2.1g **Two players over Tailscale** — owner test on two machines; latency feel measured and
-  written down in [multiplayer.md](multiplayer.md).
+- 2.1g ✅ **Two players over Tailscale** — owner test with friends on several machines: everyone
+  drives together, but the own car's lag and delay are too high (it waits for the server's
+  snapshots) → 2.2. Written down in [multiplayer.md](multiplayer.md#two-machines-21g).
 
-### 2.2 and after
+### 2.2 — Client-side prediction: the own car responds instantly
 
-- Client-side prediction + reconciliation (own car responds instantly), smoother remote cars.
-- Rooms on other tracks, bots in rooms.
+Goal: a key press moves the own car on the same frame, as in single player. The client predicts
+its own car with the same `stepGame` the server runs and reconciles it with every snapshot; the
+other cars stay smooth. Design: [multiplayer.md](multiplayer.md#prediction-22).
+
+- 2.2a ✅ **Input sequence numbers, server input queue, acks, ping** (protocol v3) — every input
+  carries a `seq`; the server runs exactly one queued input per player per tick and tells each
+  snapshot which `seq` it ran last; `ping`/`pong` measures the round trip (F3). Infrastructure
+  only: driving feels the same.
+- 2.2b **Own car predicted and reconciled** — the visible win: instant response, small server
+  corrections smoothed out, big ones snapped.
+- 2.2c **Other cars in the prediction, smoother remote cars** — contacts and tow predicted too;
+  snapshot delay adapts to the network's jitter.
+- 2.2d **Owner test over Tailscale again** — round trip and correction sizes written down.
+
+### 2.3 — Rooms, more tracks, game modes (to be designed)
+
+Online only (owner's choice): single player stays as it is. Contents, to be designed with the
+owner before the step starts:
+
+- **Rooms**: how they are made and joined (today: one fixed room per circuit).
+- **More tracks** online.
+- **Game modes**: free practice (today's), time trial, quick race, full race with qualifying.
 
 ## Later
 

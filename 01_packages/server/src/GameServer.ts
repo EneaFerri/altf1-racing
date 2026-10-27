@@ -71,8 +71,10 @@ export class GameServer {
       if (!member) this.hello(conn, message.protocol, message.nickname);
     } else if (message.type === 'enter') {
       if (member && member.track === null) this.enter(conn, member, message.track);
+    } else if (message.type === 'ping') {
+      if (member) conn.send(encodeMessage({ type: 'pong', t: message.t }));
     } else if (member?.track) {
-      this.rooms.get(member.track)?.setInput(member.id, message.input);
+      this.rooms.get(member.track)?.queueInput(member.id, message.seq, message.input);
     }
   }
 
@@ -94,7 +96,7 @@ export class GameServer {
       for (const [track, room] of this.rooms) {
         room.tick();
         if (room.state.tick % SNAPSHOT_EVERY_TICKS === 0) {
-          this.broadcast(track, { type: 'snapshot', state: room.state });
+          this.broadcast(track, { type: 'snapshot', state: room.state, acks: room.acks });
         }
       }
     }

@@ -19,7 +19,9 @@ describe('client messages', () => {
     const messages: ClientMessage[] = [
       { type: 'hello', protocol: PROTOCOL_VERSION, nickname: 'Enea' },
       { type: 'enter', track: 'Monza' },
-      { type: 'input', input: INPUT },
+      { type: 'input', seq: 0, input: INPUT },
+      { type: 'input', seq: 12345, input: INPUT },
+      { type: 'ping', t: 1234.5 },
     ];
     for (const message of messages) {
       expect(parseClientMessage(encodeMessage(message))).toEqual(message);
@@ -42,10 +44,16 @@ describe('client messages', () => {
       '{"type":"enter","track":7}',
       `{"type":"enter","track":"${'a'.repeat(65)}"}`,
       '{"type":"input"}',
-      '{"type":"input","input":{"throttle":1,"brake":0,"reverse":0,"steer":0}}',
-      '{"type":"input","input":{"throttle":"1","brake":0,"reverse":0,"steer":0,"reset":false}}',
-      '{"type":"input","input":{"throttle":1,"brake":0,"reverse":0,"steer":0,"reset":"no"}}',
-      '{"type":"input","input":{"throttle":1e999,"brake":0,"reverse":0,"steer":0,"reset":false}}',
+      '{"type":"input","seq":1,"input":{"throttle":1,"brake":0,"reverse":0,"steer":0}}',
+      '{"type":"input","seq":1,"input":{"throttle":"1","brake":0,"reverse":0,"steer":0,"reset":false}}',
+      '{"type":"input","seq":1,"input":{"throttle":1,"brake":0,"reverse":0,"steer":0,"reset":"no"}}',
+      '{"type":"input","seq":1,"input":{"throttle":1e999,"brake":0,"reverse":0,"steer":0,"reset":false}}',
+      '{"type":"input","input":{"throttle":1,"brake":0,"reverse":0,"steer":0,"reset":false}}',
+      '{"type":"input","seq":-1,"input":{"throttle":1,"brake":0,"reverse":0,"steer":0,"reset":false}}',
+      '{"type":"input","seq":1.5,"input":{"throttle":1,"brake":0,"reverse":0,"steer":0,"reset":false}}',
+      '{"type":"input","seq":"1","input":{"throttle":1,"brake":0,"reverse":0,"steer":0,"reset":false}}',
+      '{"type":"ping"}',
+      '{"type":"ping","t":"now"}',
     ];
     for (const raw of bad) expect(parseClientMessage(raw)).toBeNull();
   });
@@ -53,10 +61,12 @@ describe('client messages', () => {
   it('clamp input values to their range', () => {
     const raw = encodeMessage({
       type: 'input',
+      seq: 3,
       input: { throttle: 5, brake: -1, reverse: 0.5, steer: -9, reset: true },
     });
     expect(parseClientMessage(raw)).toEqual({
       type: 'input',
+      seq: 3,
       input: { throttle: 1, brake: 0, reverse: 0.5, steer: -1, reset: true },
     });
   });
@@ -64,10 +74,11 @@ describe('client messages', () => {
   it('keep only the known fields', () => {
     const raw = JSON.stringify({
       type: 'input',
+      seq: 0,
       extra: 1,
       input: { ...NEUTRAL_INPUT, teleport: true },
     });
-    expect(parseClientMessage(raw)).toEqual({ type: 'input', input: NEUTRAL_INPUT });
+    expect(parseClientMessage(raw)).toEqual({ type: 'input', seq: 0, input: NEUTRAL_INPUT });
   });
 });
 
@@ -79,7 +90,12 @@ describe('server messages', () => {
       { type: 'entered', track: 'Monza', players },
       { type: 'rejected', reason: 'taken' },
       { type: 'players', players },
-      { type: 'snapshot', state: createGame(buildTrack(TEST_TRACK), ['p1', 'p2']) },
+      {
+        type: 'snapshot',
+        state: createGame(buildTrack(TEST_TRACK), ['p1', 'p2']),
+        acks: { p1: 41 },
+      },
+      { type: 'pong', t: 1234.5 },
     ];
     for (const message of messages) {
       expect(parseServerMessage(encodeMessage(message))).toEqual(message);

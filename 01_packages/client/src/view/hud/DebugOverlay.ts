@@ -55,8 +55,16 @@ export class DebugOverlay {
     this.element.hidden = !this.element.hidden;
   }
 
-  /** Call once per rendered frame with the car to inspect (usually the player's). */
-  update(state: GameState, car: CarState, input: InputCommand): void {
+  /**
+   * Call once per rendered frame with the car to inspect (usually the player's). `extra` lines
+   * (e.g. the online game's network numbers) are shown under the telemetry.
+   */
+  update(
+    state: GameState,
+    car: CarState,
+    input: InputCommand,
+    extra: readonly string[] = [],
+  ): void {
     this.frames++;
     const now = performance.now();
     const elapsedMs = now - this.windowStartMs;
@@ -93,6 +101,7 @@ export class DebugOverlay {
       `wheels    ${car.wheelSurfaces.map((s) => SURFACE_LABEL[s]).join(' ')}  (FL FR RL RR)`,
       `impact    ${this.impactText(state.tick)}`,
       `tuning    ${tuningLabel()}`,
+      ...(extra.length > 0 ? ['', ...extra] : []),
       '',
       `R reset · V camera · Z look back · B bot · F3 overlay${import.meta.env.DEV ? ' · F2 tuning · F4 dummy' : ''}`,
     ].join('\n');

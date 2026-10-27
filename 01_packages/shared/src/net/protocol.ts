@@ -6,7 +6,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -40,7 +40,10 @@ export type ClientMessage =
   | { readonly type: 'hello'; readonly protocol: number; readonly nickname: string }
   /** After the welcome: go into the room of this track. */
   | { readonly type: 'enter'; readonly track: string }
-  | { readonly type: 'input'; readonly input: InputCommand };
+  /** One client tick's input; `seq` grows by one every tick (see 01_docs/multiplayer.md#prediction-22). */
+  | { readonly type: 'input'; readonly seq: number; readonly input: InputCommand }
+  /** Round-trip probe: the server echoes `t` back in a `pong`. */
+  | { readonly type: 'ping'; readonly t: number };
 
 export type ServerMessage =
   /** Nickname accepted: the player's id and the rooms to pick from. */
@@ -50,7 +53,14 @@ export type ServerMessage =
   | { readonly type: 'entered'; readonly track: string; readonly players: readonly PlayerInfo[] }
   /** The players in the sender's room, after every join and leave there. */
   | { readonly type: 'players'; readonly players: readonly PlayerInfo[] }
-  | { readonly type: 'snapshot'; readonly state: GameState };
+  /** The room's state; `acks` = per car, the `seq` of the last input it ran (absent before any). */
+  | {
+      readonly type: 'snapshot';
+      readonly state: GameState;
+      readonly acks: Readonly<Record<CarId, number>>;
+    }
+  /** Echo of a `ping`. */
+  | { readonly type: 'pong'; readonly t: number };
 
 export function encodeMessage(message: ClientMessage | ServerMessage): string {
   return JSON.stringify(message);
@@ -76,8 +86,14 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return { type: 'enter', track };
     }
     case 'input': {
+      const { seq } = data;
+      if (!Number.isSafeInteger(seq) || (seq as number) < 0) return null;
       const input = parseInput(data.input);
-      return input && { type: 'input', input };
+      return input && { type: 'input', seq: seq as number, input };
+    }
+    case 'ping': {
+      const { t } = data;
+      return isFiniteNumber(t) ? { type: 'ping', t } : null;
     }
     default:
       return null;
@@ -88,7 +104,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
 export function parseServerMessage(raw: string): ServerMessage | null {
   const data = parseJson(raw);
   if (!isRecord(data)) return null;
-  const known = ['welcome', 'rejected', 'entered', 'players', 'snapshot'];
+  const known = ['welcome', 'rejected', 'entered', 'players', 'snapshot', 'pong'];
   return known.includes(data.type as string) ? (data as unknown as ServerMessage) : null;
 }
 
