@@ -29,11 +29,17 @@ export const REJECT_CLOSE_CODE = 1008;
 export const ROOM_TRACKS: readonly TrackDefinition[] = [MONZA, BARCELONA, MONACO];
 
 /** The modes the server runs so far; the others show as work in progress (01_docs/roadmap.md). */
-export const READY_MODES: readonly OnlineMode[] = ['practice'];
+export const READY_MODES: readonly OnlineMode[] = ['practice', 'timeTrial'];
 
-/** Key of the room of `mode` on `track` in `GameServer.rooms`, e.g. `practice/Monza`. */
-export function roomKey(mode: OnlineMode, track: string): string {
-  return `${mode}/${track}`;
+/** Modes where every player drives alone: a private room each (time trial). */
+const PRIVATE_MODES: readonly OnlineMode[] = ['timeTrial'];
+
+/**
+ * Key of `player`'s room for `mode` on `track` in `GameServer.rooms`: shared by everyone on that
+ * circuit (`practice/Monza`), or the player's own in a private mode (`timeTrial/Monza/p3`).
+ */
+export function roomKey(mode: OnlineMode, track: string, player: CarId): string {
+  return PRIVATE_MODES.includes(mode) ? `${mode}/${track}/${player}` : `${mode}/${track}`;
 }
 
 /** Longest stretch of real time simulated at once; after a stall we skip time, like the client. */
@@ -41,15 +47,16 @@ const MAX_ADVANCE_SECONDS = 0.25;
 /** Absorbs floating-point error so N calls of exactly FIXED_DT always give N ticks. */
 const EPSILON = 1e-9;
 
-/** A joined player: its id and, once it picked a mode and track, its room's key. */
+/** A joined player: its id and, once it picked a mode and track, where it is. */
 interface Member {
   readonly id: CarId;
-  room: string | null;
+  room: { readonly mode: OnlineMode; readonly track: string; readonly key: string } | null;
 }
 
 /**
  * The multiplayer server's logic: the lobby (nicknames), one room per ready mode and track in
- * `ROOM_TRACKS` (created when its first player enters, closed when its last one leaves) and the messages between
+ * `ROOM_TRACKS`, or one per player in a private mode (created when its first player enters, closed
+ * when its last one leaves) and the messages between
  * them and the clients. No sockets and no timers, so it is fully testable.
  * See 01_docs/multiplayer.md#server.
  */
@@ -83,7 +90,7 @@ export class GameServer {
     } else if (message.type === 'ping') {
       if (member) conn.send(encodeMessage({ type: 'pong', t: message.t }));
     } else if (member?.room) {
-      this.rooms.get(member.room)?.queueInput(member.id, message.seq, message.input);
+      this.rooms.get(member.room.key)?.queueInput(member.id, message.seq, message.input);
     }
   }
 
@@ -94,7 +101,7 @@ export class GameServer {
     const nickname = this.nickname(member.id);
     this.lobby.leave(member.id);
     this.log(`[lobby] ${nickname} left (${this.members.size} online)`);
-    if (member.room) this.leaveRoom(member.id, member.room);
+    if (member.room) this.leaveRoom(member.id, member.room.key);
   }
 
   /** Feeds real time: runs the fixed ticks it covers in every live room, with their snapshots. */
@@ -116,13 +123,17 @@ export class GameServer {
     }
   }
 
-  /** Every offered room (ready modes × tracks) with how many players are in it now. */
+  /**
+   * Every offered room (ready modes × tracks) with how many players are in it now; for a private
+   * mode, how many are driving it on that circuit, each alone.
+   */
   roomList(): RoomInfo[] {
+    const members = [...this.members.values()];
     return READY_MODES.flatMap((mode) =>
       ROOM_TRACKS.map(({ name: track }) => ({
         mode,
         track,
-        players: this.inRoom(roomKey(mode, track)).length,
+        players: members.filter((m) => m.room?.mode === mode && m.room.track === track).length,
       })),
     );
   }
@@ -146,7 +157,7 @@ export class GameServer {
     const definition = ROOM_TRACKS.find((t) => t.name === track);
     // Not offered (unknown track, mode not ready yet): ignored, like any malformed message.
     if (!definition || !READY_MODES.includes(mode)) return;
-    const key = roomKey(mode, track);
+    const key = roomKey(mode, track, member.id);
     let room = this.rooms.get(key);
     if (!room) {
       room = new Room(definition);
@@ -154,7 +165,7 @@ export class GameServer {
       this.log(`[rooms] ${key} is live`);
     }
     room.add(member.id);
-    member.room = key;
+    member.room = { mode, track, key };
     const players = this.inRoom(key);
     this.log(`[rooms] ${this.nickname(member.id)} entered ${key} (${players.length} there)`);
     conn.send(encodeMessage({ type: 'entered', track, players }));
@@ -175,7 +186,9 @@ export class GameServer {
 
   /** The players in the room `key`, in join order. */
   private inRoom(key: string): PlayerInfo[] {
-    const ids = new Set([...this.members.values()].filter((m) => m.room === key).map((m) => m.id));
+    const ids = new Set(
+      [...this.members.values()].filter((m) => m.room?.key === key).map((m) => m.id),
+    );
     return this.lobby.players().filter((p) => ids.has(p.id));
   }
 
@@ -187,7 +200,7 @@ export class GameServer {
   private broadcast(key: string, message: ServerMessage, skip?: Connection): void {
     const text = encodeMessage(message);
     for (const [conn, member] of this.members) {
-      if (member.room === key && conn !== skip) conn.send(text);
+      if (member.room?.key === key && conn !== skip) conn.send(text);
     }
   }
 }

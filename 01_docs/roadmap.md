@@ -143,8 +143,10 @@ leaderboards, bots online.
 - 2.3b ✅ **Mode menu + protocol v5** — nickname → mode menu → track menu → room; rooms keyed by
   mode + circuit (`practice/Monza`). Only Free practice is offered (today's behaviour); Time trial
   and Grand Prix are listed, dimmed, as "Work in progress". The per-mode rules folder
-  (`server/src/modes/`) comes with the second mode (2.3c).
-- 2.3c **Time trial: private session** — one room per player, normal timing, no bot.
+  (`server/src/modes/`) comes with the Grand Prix (2.3e), the first mode with rules of its own.
+- 2.3c ✅ **Time trial: private session** — one room per player (`timeTrial/Monza/p3`), the
+  circuit menu counts everyone driving it; normal timing, no bot. A private room is only a
+  different room key (`PRIVATE_MODES` in `GameServer.ts`).
 - 2.3d **Ghost** — the own car's best valid lap recorded tick by tick and replayed as a see-through
   car (client only, pure recorder in `multiplayer/`).
 - 2.3e **GP: lobby and manager** — free driving while waiting, players list, manager starts the GP

@@ -42,13 +42,18 @@ function joined(server: GameServer, nickname: string): FakeConnection {
   return conn;
 }
 
-function inRoom(server: GameServer, nickname: string, track: string): FakeConnection {
+function inRoom(
+  server: GameServer,
+  nickname: string,
+  track: string,
+  mode: OnlineMode = 'practice',
+): FakeConnection {
   const conn = joined(server, nickname);
-  server.message(conn, enter(track));
+  server.message(conn, enter(track, mode));
   return conn;
 }
 
-const MONZA_PRACTICE = roomKey('practice', 'Monza');
+const MONZA_PRACTICE = roomKey('practice', 'Monza', 'p1');
 
 /** One second of real time (four calls: advance never simulates more than 0.25 s at once). */
 function oneSecond(server: GameServer): void {
@@ -67,6 +72,9 @@ describe('GameServer — lobby', () => {
           { mode: 'practice', track: 'Monza', players: 0 },
           { mode: 'practice', track: 'Barcelona', players: 0 },
           { mode: 'practice', track: 'Monaco', players: 1 },
+          { mode: 'timeTrial', track: 'Monza', players: 0 },
+          { mode: 'timeTrial', track: 'Barcelona', players: 0 },
+          { mode: 'timeTrial', track: 'Monaco', players: 0 },
         ],
       },
     ]);
@@ -141,7 +149,7 @@ describe('GameServer — rooms', () => {
     const enea = joined(server, 'Enea');
     server.message(enea, input(1));
     server.message(enea, enter('Test Ring'));
-    server.message(enea, enter('Monza', 'grandPrix'));
+    server.message(enea, enter('Monza', 'grandPrix')); // not ready yet
     expect(enea.count('entered')).toBe(0);
     expect(server.rooms.size).toBe(0);
     server.message(enea, enter('Monza'));
@@ -166,13 +174,35 @@ describe('GameServer — rooms', () => {
     server.close(new FakeConnection()); // a socket that never joined: nothing happens
   });
 
+  it('gives every time-trial player a private room, counted together per circuit', () => {
+    const server = new GameServer();
+    const enea = inRoom(server, 'Enea', 'Monza', 'timeTrial');
+    const kimi = inRoom(server, 'Kimi', 'Monza', 'timeTrial');
+    inRoom(server, 'Lewis', 'Monza'); // practice: another room again
+    expect([...server.rooms.keys()]).toEqual([
+      roomKey('timeTrial', 'Monza', 'p1'),
+      roomKey('timeTrial', 'Monza', 'p2'),
+      MONZA_PRACTICE,
+    ]);
+    expect(kimi.last('entered')).toMatchObject({ players: [{ nickname: 'Kimi' }] });
+    expect(enea.count('players')).toBe(0); // nobody joins a private room
+    oneSecond(server);
+    const snapshot = kimi.last('snapshot');
+    expect(snapshot?.type === 'snapshot' && snapshot.state.cars.map((c) => c.id)).toEqual(['p2']);
+    expect(joined(server, 'Max').last('welcome')).toMatchObject({
+      rooms: expect.arrayContaining([{ mode: 'timeTrial', track: 'Monza', players: 2 }]),
+    });
+    server.close(enea);
+    expect(server.rooms.has(roomKey('timeTrial', 'Monza', 'p1'))).toBe(false);
+  });
+
   it('simulates each live room at 60 Hz with a snapshot every other tick', () => {
     const server = new GameServer();
     const enea = inRoom(server, 'Enea', 'Barcelona');
     const waiting = joined(server, 'Kimi'); // joined, no room yet: no snapshots
     server.message(enea, input(1));
     oneSecond(server);
-    expect(server.rooms.get(roomKey('practice', 'Barcelona'))!.state.tick).toBe(60);
+    expect(server.rooms.get(roomKey('practice', 'Barcelona', 'p1'))!.state.tick).toBe(60);
     expect(enea.count('snapshot')).toBe(60 / SNAPSHOT_EVERY_TICKS);
     expect(waiting.count('snapshot')).toBe(0);
     const snapshot = enea.last('snapshot');

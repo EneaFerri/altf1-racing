@@ -118,7 +118,10 @@ port is taken (a server already running) it says so and exits.
 - **One room per ready mode and circuit**: `READY_MODES` × `ROOM_TRACKS` (`GameServer.ts`), circuits
   **Monza, Barcelona, Monaco** (2.1f+, owner's choice; 2.1e had a single Test Ring room). Rooms are
   keyed `mode/track` (`roomKey`, e.g. `practice/Monza`); an `enter` for a mode not in
-  `READY_MODES` is ignored. A room is created the moment its first player
+  `READY_MODES` is ignored.
+- **Private rooms** (2.3c): in a mode of `PRIVATE_MODES` (time trial) every player gets a room of
+  their own, keyed `mode/track/player` (`timeTrial/Monza/p3`): same `Room`, same snapshots, nobody
+  else in it. The `welcome` counts, per circuit, everyone driving that mode there. A room is created the moment its first player
   enters (`[rooms] Monza is live`) and closed when its last one leaves, so the next player starts a
   fresh session. Rooms are fully apart: each has its own simulation, players list and snapshots.
 - Up to 8 players online in total for now (`MAX_PLAYERS`), no bots. Default tuning
@@ -248,7 +251,7 @@ choices in [decisions.md](decisions.md#2026-10-28--online-game-modes-step-23-pla
 | Mode (`OnlineMode`)      | What it is                                                       | Status                    |
 | ------------------------ | ---------------------------------------------------------------- | ------------------------- |
 | Free practice `practice` | Everyone in the room laps freely (the 2.1–2.2 room)              | ✅ 2.3b                   |
-| Time trial `timeTrial`   | Alone on the circuit, racing the ghost of the session's best lap | Work in progress (2.3c–d) |
+| Time trial `timeTrial`   | Alone on the circuit, racing the ghost of the session's best lap | ✅ 2.3c, ghost 2.3d       |
 | Grand Prix `grandPrix`   | Manager, qualifying Q1/Q2/Q3, grid, F1 lights, race, podium      | Work in progress (2.3e–i) |
 
 The server decides what is ready (`READY_MODES`): the `welcome` only lists rooms of ready modes,
