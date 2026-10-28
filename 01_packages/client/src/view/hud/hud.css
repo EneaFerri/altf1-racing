@@ -345,3 +345,34 @@
   color: #f5c518;
   font-size: 11px;
 }
+
+/* F1 start lights, top centre under the timing strip (Grand Prix start). */
+
+.start-lights {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #101014;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.start-lamp {
+  display: block;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #2a0606;
+  box-shadow: inset 0 0 0 3px #000;
+}
+
+.start-lamp.start-lamp-on {
+  background: radial-gradient(circle at 40% 35%, #ff6a5c, #e10600 60%, #8a0400);
+  box-shadow:
+    inset 0 0 0 3px #000,
+    0 0 18px #ff2a1a;
+}

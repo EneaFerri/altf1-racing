@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { distance, dot, findCar, forward, NEUTRAL_INPUT, TEST_TRACK } from '@altf1/shared';
+import {
+  buildTrack,
+  distance,
+  dot,
+  findCar,
+  forward,
+  gridSlot,
+  HELD,
+  NEUTRAL_INPUT,
+  TEST_TRACK,
+} from '@altf1/shared';
 import { MAX_QUEUED_INPUTS, Room } from './Room.ts';
 
 const THROTTLE = { ...NEUTRAL_INPUT, throttle: 1 };
@@ -103,5 +113,47 @@ describe('Room', () => {
     room.add('p1');
     room.tick();
     expect(room.state.tick).toBe(1);
+  });
+
+  it('restarts on the grid in a given order, keeping the clock and the players', () => {
+    const room = new Room(TEST_TRACK);
+    for (const id of ['p1', 'p2', 'p3']) room.add(id);
+    for (let i = 0; i < 10; i++) room.tick();
+    room.retire('p2');
+    room.restart(['p3', 'p2']);
+    const track = buildTrack(TEST_TRACK);
+    expect(room.state.tick).toBe(10);
+    expect(room.state.cars.map((c) => c.id)).toEqual(['p2', 'p3']);
+    expect(findCar(room.state, 'p3')!.position).toEqual(gridSlot(track, 0).position);
+    expect(findCar(room.state, 'p2')!.position).toEqual(gridSlot(track, 1).position);
+    expect(room.has('p1')).toBe(false);
+    expect(room.isEmpty).toBe(false);
+  });
+
+  it('keeps acking a retired car’s player, and is empty only with no players', () => {
+    const room = new Room(TEST_TRACK);
+    room.add('p1');
+    room.retire('p1');
+    room.queueInput('p1', 0, THROTTLE);
+    room.tick();
+    expect(room.state.cars).toEqual([]);
+    expect(room.acks).toEqual({ p1: 0 });
+    expect(room.isEmpty).toBe(false);
+    room.remove('p1');
+    expect(room.isEmpty).toBe(true);
+  });
+
+  it('holds every car still while a start hold lasts', () => {
+    const room = new Room(TEST_TRACK);
+    room.add('p1');
+    room.hold = HELD;
+    room.queueInput('p1', 0, THROTTLE);
+    for (let i = 0; i < 30; i++) room.tick();
+    expect(findCar(room.state, 'p1')!.velocity).toEqual({ x: 0, z: 0 });
+    room.hold = { lightsFrom: 0, until: room.state.tick + 10 };
+    for (let i = 0; i < 30; i++) room.tick();
+    expect(
+      dot(findCar(room.state, 'p1')!.velocity, forward(findCar(room.state, 'p1')!.heading)),
+    ).toBeGreaterThan(1);
   });
 });

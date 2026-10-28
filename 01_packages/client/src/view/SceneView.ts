@@ -45,13 +45,13 @@ export class SceneView {
   private ghost: GhostPose | null = null;
 
   /**
-   * `followId`: the car the camera follows (the local player). `liveries`: colour per car id, others
+   * `followId`: the car the camera follows (the local player; `follow` changes it). `liveries`: colour per car id, others
    * are grey (more can be added with `setLivery`). `cameraParams` are read live. The look comes from
    * the track's theme (`themeFor`).
    */
   constructor(
     track: Track,
-    private readonly followId: CarId,
+    private followId: CarId,
     liveries: Readonly<Record<CarId, Livery>>,
     cameraParams: CameraParams,
   ) {
@@ -78,6 +78,11 @@ export class SceneView {
       this.cameraRig.camera,
     );
     bindResize(this.renderer, this.cameraRig.camera);
+  }
+
+  /** Points the camera at car `id` from now on (spectating another car, or back to the own one). */
+  follow(id: CarId): void {
+    this.followId = id;
   }
 
   /** Switches between the chase and the first-person camera. */

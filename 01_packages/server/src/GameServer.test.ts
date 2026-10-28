@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   encodeMessage,
   FIXED_DT,
+  findCar,
   NEUTRAL_INPUT,
   parseServerMessage,
   PROTOCOL_VERSION,
@@ -243,7 +244,7 @@ describe('GameServer — Grand Prix', () => {
   it('makes the first player in the manager and tells everyone in the room', () => {
     const server = new GameServer();
     const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
-    expect(enea.last('grandPrix')).toEqual({ type: 'grandPrix', phase: 'lobby', manager: 'p1' });
+    expect(enea.last('grandPrix')).toMatchObject({ phase: 'lobby', manager: 'p1' });
     const kimi = inRoom(server, 'Kimi', 'Monza', 'grandPrix');
     expect(kimi.last('grandPrix')).toMatchObject({ manager: 'p1' });
     expect(enea.count('grandPrix')).toBe(2);
@@ -279,13 +280,28 @@ describe('GameServer — Grand Prix', () => {
     const kimi = inRoom(server, 'Kimi', 'Monza', 'grandPrix');
     server.message(enea, start);
     server.close(enea);
-    expect(kimi.last('grandPrix')).toEqual({
-      type: 'grandPrix',
-      phase: 'qualifying',
-      manager: 'p2',
-    });
+    expect(kimi.last('grandPrix')).toMatchObject({ phase: 'qualifying', manager: 'p2' });
     server.close(kimi);
     const next = inRoom(server, 'Lewis', 'Monza', 'grandPrix');
-    expect(next.last('grandPrix')).toEqual({ type: 'grandPrix', phase: 'lobby', manager: 'p3' });
+    expect(next.last('grandPrix')).toMatchObject({ phase: 'lobby', manager: 'p3' });
+  });
+
+  it('runs qualifying on the grid, then holds the grid until the manager starts the race', () => {
+    const server = new GameServer();
+    const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
+    const kimi = inRoom(server, 'Kimi', 'Monza', 'grandPrix');
+    const room = server.rooms.get(roomKey('grandPrix', 'Monza', 'p1'))!;
+    server.message(kimi, input(1));
+    oneSecond(server); // lobby: free driving
+    server.message(enea, start);
+    expect(room.state.cars.every((car) => car.velocity.x === 0 && car.velocity.z === 0)).toBe(true);
+    server.message(enea, encodeMessage({ type: 'gp', action: 'endQualifying' }));
+    expect(kimi.last('grandPrix')).toMatchObject({ phase: 'grid', hold: { lightsFrom: null } });
+    server.message(kimi, input(1, 1));
+    oneSecond(server);
+    const held = findCar(room.state, 'p2')!.velocity;
+    expect(Math.hypot(held.x, held.z)).toBe(0); // held on the grid
+    server.message(enea, encodeMessage({ type: 'gp', action: 'startRace', laps: 4 }));
+    expect(kimi.last('grandPrix')).toMatchObject({ phase: 'race', raceLaps: 4 });
   });
 });

@@ -151,9 +151,10 @@ leaderboards, bots online.
   `SceneView.setGhost`).
 - 2.3e ✅ **GP: lobby and manager** — free driving while waiting, players list, manager starts the GP
   (handed over if they leave); later arrivals refused with "GP in progress".
-- 2.3f **GP: qualifying** — everyone back on the grid, out-lap + Q1/Q2/Q3, live timing tower,
-  done → spectate; the manager can end it (no time → back of the grid).
-- 2.3g **GP: grid and F1 lights** — grid from qualifying, the manager picks 4/8/12 laps; cars held
+- 2.3f ✅ **GP: qualifying** — everyone back on the grid, out-lap + Q1/Q2/Q3, live timing tower,
+  done → spectate; the manager can end it (no time → back of the grid). No hold before it (planned
+  at first): it starts with an out-lap, so nobody gains from going first.
+- 2.3g ✅ **GP: grid and F1 lights** — grid from qualifying, the manager picks 4/8/12 laps; cars held
   until lights out by a hold both the server and the prediction apply (`shared/src/race/`).
 - 2.3h **GP: race** — position and lap in the HUD, gaps tower, finish → spectate, DNF; the manager
   can end it.

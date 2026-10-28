@@ -1,5 +1,7 @@
 import {
   buildTrack,
+  createGame,
+  heldInputs,
   NEUTRAL_INPUT,
   onlineSimContext,
   removeCar,
@@ -9,6 +11,7 @@ import {
   type GameState,
   type InputCommand,
   type SimContext,
+  type StartHold,
   type Track,
   type TrackDefinition,
 } from '@altf1/shared';
@@ -38,6 +41,8 @@ export class Room {
   private readonly ctx: SimContext;
   private current: GameState = { tick: 0, cars: [], impacts: [], laps: [] };
   private readonly queues = new Map<CarId, InputQueue>();
+  /** Cars held on the grid until lights out (a Grand Prix start); null = free to drive. */
+  hold: StartHold | null = null;
 
   constructor(definition: TrackDefinition) {
     this.definition = definition;
@@ -45,8 +50,9 @@ export class Room {
     this.ctx = onlineSimContext(this.track);
   }
 
+  /** No players left (cars out of the race still count: their players are watching). */
   get isEmpty(): boolean {
-    return this.current.cars.length === 0;
+    return this.queues.size === 0;
   }
 
   /** Whether `id`'s car is in this room. */
@@ -62,6 +68,19 @@ export class Room {
   add(id: CarId): void {
     this.current = spawnOnGrid(this.current, this.track, id);
     this.queues.set(id, { waiting: [], last: NEUTRAL_INPUT, ack: -1 });
+  }
+
+  /**
+   * Every car back on the grid in `order` (first = pole), at rest, with fresh timing; the cars of
+   * players not in `order` leave the track. The tick count goes on.
+   */
+  restart(order: readonly CarId[]): void {
+    this.current = { ...createGame(this.track, order), tick: this.current.tick };
+  }
+
+  /** Takes the player's car off the track; the player stays (watching, inputs still acked). */
+  retire(id: CarId): void {
+    this.current = removeCar(this.current, id);
   }
 
   remove(id: CarId): void {
@@ -101,7 +120,8 @@ export class Room {
 
   /**
    * One fixed tick of the simulation (nothing to do while nobody is in the room). Each player runs
-   * its next queued input, or repeats its last one (never its reset) if none is waiting.
+   * its next queued input, or repeats its last one (never its reset) if none is waiting; a `hold`
+   * makes them all neutral.
    */
   tick(): void {
     if (this.isEmpty) return;
@@ -116,6 +136,10 @@ export class Room {
       }
       inputs[id] = queue.last;
     }
-    this.current = stepGame(this.current, inputs, this.ctx);
+    this.current = stepGame(
+      this.current,
+      heldInputs(inputs, this.current.tick, this.hold),
+      this.ctx,
+    );
   }
 }

@@ -56,6 +56,8 @@ export class Hud {
   private chipUntil = 0;
   /** After a lap, its sector bars stay up while the chip shows; then they clear for the new lap. */
   private clearBarsAt: number | null = null;
+  /** Name of the lap being driven, by laps completed (e.g. Q1, Q2, Q3 in qualifying). */
+  private lapName = (laps: number): string => `LAP ${laps + 1}`;
 
   constructor() {
     const strip = element('div', 'hud-strip');
@@ -81,6 +83,16 @@ export class Hud {
     document.body.appendChild(this.root);
   }
 
+  /** How the lap being driven is named from now on, by laps completed (`LAP n` by default). */
+  setLapName(name: (laps: number) => string): void {
+    this.lapName = name;
+  }
+
+  /** Shows or hides the whole strip (hidden while the own car is off the track). */
+  setVisible(visible: boolean): void {
+    this.root.style.display = visible ? '' : 'none';
+  }
+
   /** Removes the bot item (multiplayer: no bot in the room). */
   hideBot(): void {
     this.bot.remove();
@@ -101,7 +113,7 @@ export class Hud {
     this.trackEvents(timing, nowMs);
 
     const running = timing.lapStartTick !== null;
-    setText(this.lap, running ? `LAP ${timing.laps + 1}` : 'OUT LAP');
+    setText(this.lap, running ? this.lapName(timing.laps) : 'OUT LAP');
     setText(this.time, running ? formatLapTime(state.tick - timing.lapStartTick!, 1) : '--:--.-');
     this.invalid.hidden = timing.valid;
     setText(this.last, timing.lastLap ? formatLapTime(timing.lastLap.ticks) : '--:--.---');

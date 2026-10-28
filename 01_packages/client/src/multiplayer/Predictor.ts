@@ -2,6 +2,7 @@ import {
   add,
   distance,
   findCar,
+  heldInputs,
   length,
   scale,
   stepGame,
@@ -13,6 +14,7 @@ import {
   type InputMap,
   type ServerMessage,
   type SimContext,
+  type StartHold,
   type Vec2,
 } from '@altf1/shared';
 
@@ -41,7 +43,10 @@ interface Offset {
  * Pure: no network, no clock. See 01_docs/multiplayer.md#prediction-22.
  */
 export class Predictor {
-  /** Predicted state now, and one tick before (for interpolation); null before the first snapshot with this car. */
+  /**
+   * Predicted state now, and one tick before (for interpolation); null before the first snapshot.
+   * This player's car may be missing (off the track in a Grand Prix): the others are still predicted.
+   */
   private world: GameState | null = null;
   private previous: GameState | null = null;
   /** This player's inputs the server hasn't run yet, oldest first. */
@@ -50,6 +55,8 @@ export class Predictor {
   private remoteInputs: Record<CarId, InputCommand> = {};
   private readonly offsets = new Map<CarId, Offset>();
   private correction = 0;
+  /** The room's start hold (Grand Prix), applied like the server does; null = none. */
+  hold: StartHold | null = null;
 
   constructor(
     private readonly playerId: CarId,
@@ -62,7 +69,7 @@ export class Predictor {
     if (this.pending.length > MAX_PENDING) this.pending.shift();
     if (!this.world) return;
     this.previous = this.world;
-    this.world = stepGame(this.world, this.inputs(input), this.ctx);
+    this.world = stepGame(this.world, this.inputs(input, this.world.tick), this.ctx);
   }
 
   /** Restarts from the server's snapshot and replays this player's inputs it hasn't run yet. */
@@ -73,16 +80,11 @@ export class Predictor {
     for (const [id, input] of Object.entries(snapshot.inputs)) {
       if (id !== this.playerId) this.remoteInputs[id] = { ...input, reset: false };
     }
-    if (!findCar(snapshot.state, this.playerId)) {
-      this.world = this.previous = null; // not in the race yet (or any more)
-      this.offsets.clear();
-      return;
-    }
     let previous = snapshot.state;
     let world = snapshot.state;
     for (const { input } of this.pending) {
       previous = world;
-      world = stepGame(world, this.inputs(input), this.ctx);
+      world = stepGame(world, this.inputs(input, world.tick), this.ctx);
     }
     this.keepOnScreen(world);
     this.previous = previous;
@@ -123,8 +125,9 @@ export class Predictor {
     return this.pending.length;
   }
 
-  private inputs(own: InputCommand): InputMap {
-    return { ...this.remoteInputs, [this.playerId]: own };
+  /** Every car's input for the step from `tick`, all neutral while the start hold lasts. */
+  private inputs(own: InputCommand, tick: number): InputMap {
+    return heldInputs({ ...this.remoteInputs, [this.playerId]: own }, tick, this.hold);
   }
 
   /**

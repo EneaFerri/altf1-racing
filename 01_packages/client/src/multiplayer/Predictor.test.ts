@@ -39,13 +39,36 @@ function run(
 const own = (car: GameState | null) => findCar(car!, 'p1')!;
 
 describe('Predictor', () => {
-  it('draws nothing before a snapshot with its car, but keeps the inputs', () => {
+  it('draws nothing before the first snapshot, but keeps the inputs', () => {
     const predictor = new Predictor('p1', ctx);
     predictor.step(0, THROTTLE);
     expect(predictor.current).toBeNull();
-    predictor.reconcile(snapshot(createGame(ctx.track, ['p2'])));
-    expect(predictor.current).toBeNull();
     expect(predictor.ahead).toBe(1);
+  });
+
+  it('still predicts the other cars when its own is off the track', () => {
+    const start = createGame(ctx.track, ['p2']);
+    const predictor = new Predictor('p1', ctx);
+    predictor.reconcile(snapshot(start, {}, { p2: THROTTLE }));
+    for (let seq = 0; seq < 20; seq++) predictor.step(seq, NEUTRAL_INPUT);
+    expect(findCar(predictor.current!, 'p1')).toBeUndefined();
+    expect(findCar(predictor.current!, 'p2')).toEqual(
+      findCar(
+        run(start, 20, () => THROTTLE, THROTTLE),
+        'p2',
+      ),
+    );
+  });
+
+  it('holds every car on the grid like the server, until lights out', () => {
+    const start = createGame(ctx.track, ['p1', 'p2']);
+    const predictor = new Predictor('p1', ctx);
+    predictor.hold = { lightsFrom: 0, until: 10 };
+    predictor.reconcile(snapshot(start, {}, { p2: THROTTLE }));
+    for (let seq = 0; seq < 10; seq++) predictor.step(seq, THROTTLE);
+    expect(own(predictor.current).velocity).toEqual(own(start).velocity);
+    predictor.step(10, THROTTLE);
+    expect(own(predictor.current).velocity).not.toEqual(own(start).velocity);
   });
 
   it('moves its own car on the very tick the key is pressed', () => {

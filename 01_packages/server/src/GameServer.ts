@@ -7,7 +7,7 @@ import {
   parseClientMessage,
   SNAPSHOT_EVERY_TICKS,
   type CarId,
-  type GrandPrixAction,
+  type GrandPrixCommand,
   type OnlineMode,
   type PlayerInfo,
   type RoomInfo,
@@ -94,7 +94,7 @@ export class GameServer {
     } else if (message.type === 'ping') {
       if (member) conn.send(encodeMessage({ type: 'pong', t: message.t }));
     } else if (message.type === 'gp') {
-      if (member?.room) this.grandPrixCommand(member.id, member.room.key, message.action);
+      if (member?.room) this.grandPrixCommand(member.id, member.room.key, message);
     } else if (member?.room) {
       this.rooms.get(member.room.key)?.queueInput(member.id, message.seq, message.input);
     }
@@ -117,6 +117,12 @@ export class GameServer {
       this.accumulator -= FIXED_DT;
       for (const [key, room] of this.rooms) {
         room.tick();
+        const grandPrix = this.grandPrix.get(key);
+        const phase = grandPrix?.info.phase;
+        if (grandPrix?.afterTick()) {
+          if (grandPrix.info.phase !== phase) this.log(`[gp] ${key} → ${grandPrix.info.phase}`);
+          this.broadcast(key, { type: 'grandPrix', ...grandPrix.info });
+        }
         if (room.state.tick % SNAPSHOT_EVERY_TICKS === 0) {
           this.broadcast(key, {
             type: 'snapshot',
@@ -166,8 +172,7 @@ export class GameServer {
     // Not offered (unknown track, mode not ready yet): ignored, like any malformed message.
     if (!definition || !READY_MODES.includes(mode)) return;
     const key = roomKey(mode, track, member.id);
-    const grandPrix = mode === 'grandPrix' ? this.openGrandPrix(key) : null;
-    if (grandPrix && !grandPrix.isOpen) {
+    if (this.grandPrix.get(key)?.isOpen === false) {
       conn.send(encodeMessage({ type: 'refused', reason: 'inProgress' }));
       return;
     }
@@ -175,8 +180,10 @@ export class GameServer {
     if (!room) {
       room = new Room(definition);
       this.rooms.set(key, room);
+      if (mode === 'grandPrix') this.grandPrix.set(key, new GrandPrix(room));
       this.log(`[rooms] ${key} is live`);
     }
+    const grandPrix = this.grandPrix.get(key);
     room.add(member.id);
     member.room = { mode, track, key };
     const players = this.inRoom(key);
@@ -189,21 +196,11 @@ export class GameServer {
     }
   }
 
-  /** The Grand Prix of room `key`, created (in its lobby) if the room has none yet. */
-  private openGrandPrix(key: string): GrandPrix {
-    let grandPrix = this.grandPrix.get(key);
-    if (!grandPrix) {
-      grandPrix = new GrandPrix();
-      this.grandPrix.set(key, grandPrix);
-    }
-    return grandPrix;
-  }
-
   /** A GP command from player `id` in room `key`: applied (and told to the room) if it counts. */
-  private grandPrixCommand(id: CarId, key: string, action: GrandPrixAction): void {
+  private grandPrixCommand(id: CarId, key: string, command: GrandPrixCommand): void {
     const grandPrix = this.grandPrix.get(key);
-    if (!grandPrix?.command(id, action)) return;
-    this.log(`[gp] ${key}: ${action} by ${this.nickname(id)} → ${grandPrix.info.phase}`);
+    if (!grandPrix?.command(id, command)) return;
+    this.log(`[gp] ${key}: ${command.action} by ${this.nickname(id)} → ${grandPrix.info.phase}`);
     this.broadcast(key, { type: 'grandPrix', ...grandPrix.info });
   }
 

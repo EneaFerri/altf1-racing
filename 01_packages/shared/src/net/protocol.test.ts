@@ -24,6 +24,8 @@ describe('client messages', () => {
       { type: 'input', seq: 12345, input: INPUT },
       { type: 'ping', t: 1234.5 },
       { type: 'gp', action: 'start' },
+      { type: 'gp', action: 'endQualifying' },
+      { type: 'gp', action: 'startRace', laps: 8 },
     ];
     for (const message of messages) {
       expect(parseClientMessage(encodeMessage(message))).toEqual(message);
@@ -49,6 +51,8 @@ describe('client messages', () => {
       `{"type":"enter","mode":"practice","track":"${'a'.repeat(65)}"}`,
       '{"type":"gp"}',
       '{"type":"gp","action":"win"}',
+      '{"type":"gp","action":"startRace"}',
+      '{"type":"gp","action":"startRace","laps":5}',
       '{"type":"input"}',
       '{"type":"input","seq":1,"input":{"throttle":1,"brake":0,"reverse":0,"steer":0}}',
       '{"type":"input","seq":1,"input":{"throttle":"1","brake":0,"reverse":0,"steer":0,"reset":false}}',
@@ -100,7 +104,14 @@ describe('server messages', () => {
       { type: 'entered', track: 'Monza', players },
       { type: 'rejected', reason: 'taken' },
       { type: 'refused', reason: 'inProgress' },
-      { type: 'grandPrix', phase: 'lobby', manager: 'p1' },
+      {
+        type: 'grandPrix',
+        phase: 'race',
+        manager: 'p1',
+        qualifying: [{ id: 'p1', best: 5400, setAt: 9000, laps: 3, done: true }],
+        raceLaps: 4,
+        hold: { lightsFrom: 100, until: 412 },
+      },
       { type: 'players', players },
       {
         type: 'snapshot',

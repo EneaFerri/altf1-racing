@@ -1,3 +1,6 @@
+import { GRAND_PRIX, type RaceLaps } from '../config/grandPrix';
+import type { StartHold } from '../race/hold';
+import type { QualifyingEntry } from '../race/qualifying';
 import type { CarId } from '../sim/car';
 import type { GameState } from '../sim/game';
 import type { InputCommand } from '../types/input';
@@ -6,7 +9,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -44,21 +47,32 @@ export interface RoomInfo {
 }
 
 /**
- * Where a Grand Prix is: waiting in the lobby, then qualifying.
- * See 01_docs/multiplayer.md#grand-prix.
+ * Where a Grand Prix is: waiting in the lobby, qualifying, on the grid waiting for the manager,
+ * racing (from the start lights on). See 01_docs/multiplayer.md#grand-prix.
  */
-export type GrandPrixPhase = 'lobby' | 'qualifying';
+export type GrandPrixPhase = 'lobby' | 'qualifying' | 'grid' | 'race';
 
 /** A Grand Prix as its players see it. */
 export interface GrandPrixInfo {
   readonly phase: GrandPrixPhase;
   /** The GP manager: the player who decides when it moves on (the first one in). */
   readonly manager: CarId;
+  /** Qualifying in order (live while it runs, then the starting grid); empty in the lobby. */
+  readonly qualifying: readonly QualifyingEntry[];
+  /** Race distance chosen by the manager; null before the race. */
+  readonly raceLaps: RaceLaps | null;
+  /** Cars held on the grid (and the start lights); null while they may drive. */
+  readonly hold: StartHold | null;
 }
 
-/** What the GP manager can ask for. */
-export const GRAND_PRIX_ACTIONS = ['start'] as const;
-export type GrandPrixAction = (typeof GRAND_PRIX_ACTIONS)[number];
+/** What the GP manager can ask for, each in its phase. */
+export type GrandPrixCommand =
+  /** Lobby → qualifying. */
+  | { readonly action: 'start' }
+  /** Qualifying → grid, without waiting for everyone's laps. */
+  | { readonly action: 'endQualifying' }
+  /** Grid → race over `laps` laps: the start lights begin. */
+  | { readonly action: 'startRace'; readonly laps: RaceLaps };
 
 export type RejectReason = 'taken' | 'invalid' | 'full' | 'version';
 
@@ -71,7 +85,7 @@ export type ClientMessage =
   /** Round-trip probe: the server echoes `t` back in a `pong`. */
   | { readonly type: 'ping'; readonly t: number }
   /** In a Grand Prix: the manager's command (the server ignores anyone else's). */
-  | { readonly type: 'gp'; readonly action: GrandPrixAction };
+  | ({ readonly type: 'gp' } & GrandPrixCommand);
 
 export type ServerMessage =
   /** Nickname accepted: the player's id and the rooms to pick from (modes without any aren't ready). */
@@ -133,10 +147,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isFiniteNumber(t) ? { type: 'ping', t } : null;
     }
     case 'gp': {
-      const { action } = data;
-      return GRAND_PRIX_ACTIONS.includes(action as GrandPrixAction)
-        ? { type: 'gp', action: action as GrandPrixAction }
-        : null;
+      const { action, laps } = data;
+      if (action === 'start' || action === 'endQualifying') return { type: 'gp', action };
+      if (action !== 'startRace' || !GRAND_PRIX.raceLaps.includes(laps as RaceLaps)) return null;
+      return { type: 'gp', action, laps: laps as RaceLaps };
     }
     default:
       return null;
