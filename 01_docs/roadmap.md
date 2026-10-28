@@ -147,8 +147,9 @@ leaderboards, bots online.
 - 2.3c ✅ **Time trial: private session** — one room per player (`timeTrial/Monza/p3`), the
   circuit menu counts everyone driving it; normal timing, no bot. A private room is only a
   different room key (`PRIVATE_MODES` in `GameServer.ts`).
-- 2.3d **Ghost** — the own car's best valid lap recorded tick by tick and replayed as a see-through
-  car (client only, pure recorder in `multiplayer/`).
+- 2.3d ✅ **Ghost** — the own car's best valid lap recorded tick by tick and replayed as a
+  see-through car in its livery, in step with the current lap (client only: `multiplayer/ghost.ts`,
+  `SceneView.setGhost`).
 - 2.3e **GP: lobby and manager** — free driving while waiting, players list, manager starts the GP
   (handed over if they leave); later arrivals refused with "GP in progress".
 - 2.3f **GP: qualifying** — everyone back on the grid, out-lap + Q1/Q2/Q3, live timing tower,

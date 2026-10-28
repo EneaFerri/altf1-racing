@@ -17,6 +17,16 @@ import { NameTag } from './NameTag';
 import { LIVERIES, type Livery } from './pixelTexture';
 import { trackBounds } from './scenery/placement';
 import { themeFor, type TrackTheme } from './themes/theme';
+
+/** How see-through the ghost car is (time trial). */
+const GHOST_OPACITY = 0.35;
+
+/** A ghost car to draw: `alpha` of the way between two of its recorded states. */
+export interface GhostPose {
+  readonly before: CarState;
+  readonly after: CarState;
+  readonly alpha: number;
+}
 import { createTrackView } from './TrackView';
 import { bindResize, createRenderer } from './renderer';
 
@@ -30,6 +40,9 @@ export class SceneView {
   private names: Readonly<Record<CarId, string>> = {};
   private readonly liveries: Record<CarId, Livery>;
   private readonly cameraRig: CameraRig;
+  /** Time trial's ghost, in the followed car's colours; created when first shown. */
+  private ghostView: CarView | null = null;
+  private ghost: GhostPose | null = null;
 
   /**
    * `followId`: the car the camera follows (the local player). `liveries`: colour per car id, others
@@ -85,6 +98,11 @@ export class SceneView {
     }
   }
 
+  /** Where the ghost car is drawn in the next frames; null hides it. Never a tag or a collision. */
+  setGhost(ghost: GhostPose | null): void {
+    this.ghost = ghost;
+  }
+
   /** Looks behind the followed car while `on` (either camera). */
   setLookBack(on: boolean): void {
     this.cameraRig.lookBack = on;
@@ -102,6 +120,7 @@ export class SceneView {
         view.setFirstPerson(this.cameraRig.mode === 'pov');
       }
     }
+    this.renderGhost(frameSeconds);
     // Tags after the camera moved, so they face it and size against its new position.
     for (const car of curr.cars) {
       if (car.id === this.followId) continue;
@@ -119,6 +138,20 @@ export class SceneView {
       if (tag) this.removeTag(id, tag);
     }
     this.renderer.render(this.scene, this.cameraRig.camera);
+  }
+
+  private renderGhost(frameSeconds: number): void {
+    if (!this.ghost) {
+      if (this.ghostView) this.ghostView.object.visible = false;
+      return;
+    }
+    if (!this.ghostView) {
+      this.ghostView = new CarView(this.liveries[this.followId] ?? LIVERIES.grey, GHOST_OPACITY);
+      this.scene.add(this.ghostView.object);
+    }
+    const { before, after, alpha } = this.ghost;
+    this.ghostView.object.visible = true;
+    this.ghostView.update(interpolateCar(before, after, alpha), frameSeconds);
   }
 
   /** NameTag for `id`, created when it first has a name; null if it has none. */

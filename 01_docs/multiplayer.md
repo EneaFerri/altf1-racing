@@ -251,8 +251,26 @@ choices in [decisions.md](decisions.md#2026-10-28--online-game-modes-step-23-pla
 | Mode (`OnlineMode`)      | What it is                                                       | Status                    |
 | ------------------------ | ---------------------------------------------------------------- | ------------------------- |
 | Free practice `practice` | Everyone in the room laps freely (the 2.1–2.2 room)              | ✅ 2.3b                   |
-| Time trial `timeTrial`   | Alone on the circuit, racing the ghost of the session's best lap | ✅ 2.3c, ghost 2.3d       |
+| Time trial `timeTrial`   | Alone on the circuit, racing the ghost of the session's best lap | ✅ 2.3c, ghost ✅ 2.3d    |
 | Grand Prix `grandPrix`   | Manager, qualifying Q1/Q2/Q3, grid, F1 lights, race, podium      | Work in progress (2.3e–i) |
+
+### Time trial ghost (2.3d ✅)
+
+Client only (the server just runs the private room): `multiplayer/ghost.ts` (`Ghost`, pure,
+tested also against a real lap driven by the bot).
+
+- **Recording**: every client tick, after the prediction moved, the own `CarState` is stored at its
+  tick within the current lap (`tick - lapStartTick`). A tick the prediction redid after a snapshot
+  overwrites what followed; a tick it skipped repeats the previous one. Nothing on the out-lap.
+- **The ghost** = the recording of the fastest **valid** lap of the session: kept when a lap ends
+  valid and faster than the ghost (or there is none yet). Slower or voided laps (R) never replace
+  it. So the first timed lap has no ghost; from the second one on the player races it.
+- **Replay**: the ghost runs on the current lap's clock (the same in-between tick the cars are
+  drawn at), interpolated between two recorded ticks. Before the line it isn't shown; once its lap
+  time has run out it disappears until the next lap starts.
+- **Drawn** by `SceneView.setGhost` as a see-through `CarView` (opacity 0.35, no depth write) in the
+  player's livery: no tag, not on the minimap, no collisions (it isn't in the simulation). The
+  sector chip in the HUD already shows the gap to the best lap, i.e. to the ghost.
 
 The server decides what is ready (`READY_MODES`): the `welcome` only lists rooms of ready modes,
 and the client shows every other mode as "Work in progress", so turning a mode on is a server

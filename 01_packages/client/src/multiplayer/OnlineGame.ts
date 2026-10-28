@@ -6,6 +6,7 @@ import {
   TICK_RATE,
   TRACKS,
   type InputCommand,
+  type OnlineMode,
   type PlayerInfo,
   type ServerMessage,
   type TrackDefinition,
@@ -18,6 +19,7 @@ import { Hud } from '../view/hud/Hud';
 import { Minimap } from '../view/hud/Minimap';
 import { playerLivery } from '../view/pixelTexture';
 import { SceneView } from '../view/SceneView';
+import { Ghost } from './ghost';
 import type { NetClient } from './NetClient';
 import { Predictor } from './Predictor';
 
@@ -43,6 +45,8 @@ export class OnlineGame {
   private readonly hud = new Hud();
   private readonly minimap: Minimap;
   private readonly debugOverlay = new DebugOverlay();
+  /** Time trial only: the own best lap, raced as a see-through car. */
+  private readonly ghost: Ghost | null;
   private lastInput: InputCommand = NEUTRAL_INPUT;
   /** `seq` of the next input sent; one per tick. */
   private nextSeq = 0;
@@ -53,14 +57,16 @@ export class OnlineGame {
     render: (alpha, frameSeconds) => this.render(alpha, frameSeconds),
   });
 
-  /** `entered`: the server's answer to entering the room of `track`. */
+  /** `entered`: the server's answer to entering the room of `mode` on `track`. */
   constructor(
     private readonly client: NetClient,
     playerId: string,
     entered: Entered,
+    mode: OnlineMode,
     track: TrackDefinition,
   ) {
     this.playerId = playerId;
+    this.ghost = mode === 'timeTrial' ? new Ghost(playerId) : null;
     const built = buildTrack(track);
     this.predictor = new Predictor(playerId, onlineSimContext(built));
     this.view = new SceneView(built, this.playerId, {}, { ...CAMERA_PARAMS });
@@ -93,6 +99,7 @@ export class OnlineGame {
     }
     this.client.send({ type: 'input', seq: this.nextSeq, input: this.lastInput });
     this.predictor.step(this.nextSeq++, this.lastInput);
+    if (this.ghost && this.predictor.current) this.ghost.record(this.predictor.current);
   }
 
   private render(alpha: number, frameSeconds: number): void {
@@ -101,6 +108,8 @@ export class OnlineGame {
     const prev = this.predictor.before;
     if (!curr || !prev) return; // nothing to draw before the first snapshot with this car
     this.view.setLookBack(this.controller.isHeld('lookBack'));
+    // The ghost runs on the lap's clock, at the same in-between tick as the cars.
+    this.view.setGhost(this.ghost?.frameAt(prev.tick + (curr.tick - prev.tick) * alpha) ?? null);
     this.view.render(prev, curr, alpha, frameSeconds);
     this.hud.update(curr, this.playerId, performance.now());
     this.minimap.update(curr.cars, this.playerId);

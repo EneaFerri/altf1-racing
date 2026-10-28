@@ -36,11 +36,14 @@ export class CarView {
   /** Slim front tub shown only in first person, linking the nose to the steering wheel. */
   private readonly cockpit: THREE.Object3D[] = [];
 
-  constructor(colors: Livery) {
-    const livery = new THREE.MeshLambertMaterial({ map: createLiveryTexture(colors) });
-    const carbon = new THREE.MeshLambertMaterial({ color: '#1c1c1c' });
+  /** `opacity` < 1 draws a see-through car (time trial's ghost) that never hides what's behind it. */
+  constructor(colors: Livery, opacity = 1) {
+    const see = opacity < 1 ? { transparent: true, opacity, depthWrite: false } : {};
+    const livery = new THREE.MeshLambertMaterial({ map: createLiveryTexture(colors), ...see });
+    const carbon = new THREE.MeshLambertMaterial({ color: '#1c1c1c', ...see });
     const tyre = new THREE.MeshLambertMaterial({
       map: createCheckerTexture(8, '#1a1a1a', '#3a3a3a'),
+      ...see,
     });
 
     // [width, height, length, x, y, z, material, visibility]

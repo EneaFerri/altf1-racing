@@ -45,7 +45,7 @@ export async function startMultiplayer(): Promise<void> {
   const mode = await chooseMode(welcome.rooms);
   const track = await chooseRoom(mode, welcome.rooms);
   const entered = await enter(client, mode, track);
-  new OnlineGame(client, welcome.playerId, entered, trackByName(track)!).start();
+  new OnlineGame(client, welcome.playerId, entered, mode, trackByName(track)!).start();
 }
 
 /** Connects and says hello: the accepted session, or the text explaining why not. */
