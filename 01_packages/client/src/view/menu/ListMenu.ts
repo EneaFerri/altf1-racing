@@ -10,6 +10,8 @@ export interface ListMenuItem<T> {
   readonly name: string;
   readonly detail: string;
   readonly value: T;
+  /** Shown dimmed, never selected nor chosen (e.g. a mode still in the works). */
+  readonly disabled?: boolean;
 }
 
 export interface ListMenuOptions<T> {
@@ -22,7 +24,8 @@ export interface ListMenuOptions<T> {
 }
 
 /**
- * Full-screen menu: pick a row with the mouse, or W/S (↑/↓) + Enter. Removes itself once chosen.
+ * Full-screen menu: pick a row with the mouse, or W/S (↑/↓) + Enter; disabled rows are skipped.
+ * Removes itself once chosen.
  * Every menu (mode, track, …) is one of these, so they all look and behave the same.
  */
 export class ListMenu<T> {
@@ -39,6 +42,7 @@ export class ListMenu<T> {
     );
     this.rows = options.items.map((item, index) => {
       const row = element('button', 'menu-row');
+      row.disabled = item.disabled ?? false;
       row.append(
         element('span', 'menu-name', item.name),
         element('span', 'menu-detail', item.detail),
@@ -49,7 +53,12 @@ export class ListMenu<T> {
     });
     panel.append(...this.rows, element('p', 'menu-hint', options.hint));
     this.root.append(panel);
-    this.select(0);
+    this.select(
+      Math.max(
+        0,
+        options.items.findIndex((item) => !item.disabled),
+      ),
+    );
   }
 
   /** Shows the menu and resolves with the chosen item's value. */
@@ -60,11 +69,22 @@ export class ListMenu<T> {
   }
 
   private select(index: number): void {
-    this.selected = (index + this.rows.length) % this.rows.length;
+    if (this.options.items[index]?.disabled) return;
+    this.selected = index;
     this.rows.forEach((row, i) => row.classList.toggle('menu-selected', i === this.selected));
   }
 
+  /** Selects the next row that isn't disabled, `step` = -1 (up) or 1 (down), wrapping around. */
+  private move(step: number): void {
+    const n = this.rows.length;
+    for (let k = 1; k < n; k++) {
+      const index = (((this.selected + step * k) % n) + n) % n;
+      if (!this.options.items[index]!.disabled) return this.select(index);
+    }
+  }
+
   private confirm(index: number): void {
+    if (this.options.items[index]!.disabled) return;
     window.removeEventListener('keydown', this.onKeyDown);
     this.root.remove();
     this.resolve?.(this.options.items[index]!.value);
@@ -72,8 +92,8 @@ export class ListMenu<T> {
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (event.repeat) return;
-    if (UP_KEYS.includes(event.code)) this.select(this.selected - 1);
-    else if (DOWN_KEYS.includes(event.code)) this.select(this.selected + 1);
+    if (UP_KEYS.includes(event.code)) this.move(-1);
+    else if (DOWN_KEYS.includes(event.code)) this.move(1);
     else if (CONFIRM_KEYS.includes(event.code)) this.confirm(this.selected);
     else if (this.options.escGoesBack && BACK_KEYS.includes(event.code)) location.reload();
     else return;

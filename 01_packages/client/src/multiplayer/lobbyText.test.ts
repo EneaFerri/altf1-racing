@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lobbyProblemText, nicknameProblemText, type LobbyProblem } from './lobbyText';
+import { lobbyProblemText, modeItems, nicknameProblemText, type LobbyProblem } from './lobbyText';
 
 describe('lobby texts', () => {
   it('explain every nickname problem with the actual limits', () => {
@@ -21,5 +21,20 @@ describe('lobby texts', () => {
     expect(new Set(texts).size).toBe(problems.length);
     expect(lobbyProblemText('taken')).toContain('already in use');
     expect(lobbyProblemText('full')).toContain('8');
+  });
+});
+
+describe('mode menu', () => {
+  it('lists every mode: offered ones with who is playing, the others as work in progress', () => {
+    const items = modeItems([
+      { mode: 'practice', track: 'Monza', players: 2 },
+      { mode: 'practice', track: 'Monaco', players: 1 },
+    ]);
+    expect(items).toEqual([
+      { name: 'Free practice', detail: '3 online', value: 'practice', disabled: false },
+      { name: 'Time trial', detail: 'Work in progress', value: 'timeTrial', disabled: true },
+      { name: 'Grand Prix', detail: 'Work in progress', value: 'grandPrix', disabled: true },
+    ]);
+    expect(modeItems([{ mode: 'practice', track: 'Monza', players: 0 }])[0]!.detail).toBe('empty');
   });
 });

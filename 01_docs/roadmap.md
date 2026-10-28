@@ -140,8 +140,10 @@ leaderboards, bots online.
 
 - 2.3a ✅ **Starting grid drawn** (view only) — F1-style boxes at each `gridSlot` (the spawn poses),
   20 slots, on the three F1 circuits only (Test Ring and Kruncar are frozen).
-- 2.3b **Mode menu + protocol v5** — nickname → mode menu → track menu → room; rooms keyed by
-  mode + circuit; per-mode rules in `server/src/modes/`. Only Free practice (today's behaviour).
+- 2.3b ✅ **Mode menu + protocol v5** — nickname → mode menu → track menu → room; rooms keyed by
+  mode + circuit (`practice/Monza`). Only Free practice is offered (today's behaviour); Time trial
+  and Grand Prix are listed, dimmed, as "Work in progress". The per-mode rules folder
+  (`server/src/modes/`) comes with the second mode (2.3c).
 - 2.3c **Time trial: private session** — one room per player, normal timing, no bot.
 - 2.3d **Ghost** — the own car's best valid lap recorded tick by tick and replayed as a see-through
   car (client only, pure recorder in `multiplayer/`).

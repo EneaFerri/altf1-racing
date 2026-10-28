@@ -6,7 +6,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -26,8 +26,13 @@ export interface PlayerInfo {
   readonly livery: number;
 }
 
-/** A room the server offers: one per track, live as soon as a player is in it. */
+/** The online game modes, in menu order. See 01_docs/multiplayer.md#modes-23. */
+export const ONLINE_MODES = ['practice', 'timeTrial', 'grandPrix'] as const;
+export type OnlineMode = (typeof ONLINE_MODES)[number];
+
+/** A room the server offers: one per mode and track, live as soon as a player is in it. */
 export interface RoomInfo {
+  readonly mode: OnlineMode;
   /** The track's name (an entry of TRACKS). */
   readonly track: string;
   /** Players in it right now. */
@@ -38,15 +43,15 @@ export type RejectReason = 'taken' | 'invalid' | 'full' | 'version';
 
 export type ClientMessage =
   | { readonly type: 'hello'; readonly protocol: number; readonly nickname: string }
-  /** After the welcome: go into the room of this track. */
-  | { readonly type: 'enter'; readonly track: string }
+  /** After the welcome: go into the room of this mode and track. */
+  | { readonly type: 'enter'; readonly mode: OnlineMode; readonly track: string }
   /** One client tick's input; `seq` grows by one every tick (see 01_docs/multiplayer.md#prediction-22). */
   | { readonly type: 'input'; readonly seq: number; readonly input: InputCommand }
   /** Round-trip probe: the server echoes `t` back in a `pong`. */
   | { readonly type: 'ping'; readonly t: number };
 
 export type ServerMessage =
-  /** Nickname accepted: the player's id and the rooms to pick from. */
+  /** Nickname accepted: the player's id and the rooms to pick from (modes without any aren't ready). */
   | { readonly type: 'welcome'; readonly playerId: CarId; readonly rooms: readonly RoomInfo[] }
   | { readonly type: 'rejected'; readonly reason: RejectReason }
   /** In the room: its track and the players in it (the car appears in the next snapshots). */
@@ -85,9 +90,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return { type: 'hello', protocol, nickname };
     }
     case 'enter': {
-      const { track } = data;
+      const { mode, track } = data;
+      if (!ONLINE_MODES.includes(mode as OnlineMode)) return null;
       if (typeof track !== 'string' || track.length > MAX_RAW_TRACK) return null;
-      return { type: 'enter', track };
+      return { type: 'enter', mode: mode as OnlineMode, track };
     }
     case 'input': {
       const { seq } = data;

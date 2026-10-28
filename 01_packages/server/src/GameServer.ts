@@ -7,6 +7,7 @@ import {
   parseClientMessage,
   SNAPSHOT_EVERY_TICKS,
   type CarId,
+  type OnlineMode,
   type PlayerInfo,
   type RoomInfo,
   type ServerMessage,
@@ -24,29 +25,37 @@ export interface Connection {
 /** Close code for a rejected hello (WebSocket "policy violation"). */
 export const REJECT_CLOSE_CODE = 1008;
 
-/** The circuits offered online: one room each (the real F1 circuits). */
+/** The circuits offered online in every mode (the real F1 circuits). */
 export const ROOM_TRACKS: readonly TrackDefinition[] = [MONZA, BARCELONA, MONACO];
+
+/** The modes the server runs so far; the others show as work in progress (01_docs/roadmap.md). */
+export const READY_MODES: readonly OnlineMode[] = ['practice'];
+
+/** Key of the room of `mode` on `track` in `GameServer.rooms`, e.g. `practice/Monza`. */
+export function roomKey(mode: OnlineMode, track: string): string {
+  return `${mode}/${track}`;
+}
 
 /** Longest stretch of real time simulated at once; after a stall we skip time, like the client. */
 const MAX_ADVANCE_SECONDS = 0.25;
 /** Absorbs floating-point error so N calls of exactly FIXED_DT always give N ticks. */
 const EPSILON = 1e-9;
 
-/** A joined player: its id and, once it picked a track, its room's track name. */
+/** A joined player: its id and, once it picked a mode and track, its room's key. */
 interface Member {
   readonly id: CarId;
-  track: string | null;
+  room: string | null;
 }
 
 /**
- * The multiplayer server's logic: the lobby (nicknames), one room per track in `ROOM_TRACKS`
- * (created when its first player enters, closed when its last one leaves) and the messages between
+ * The multiplayer server's logic: the lobby (nicknames), one room per ready mode and track in
+ * `ROOM_TRACKS` (created when its first player enters, closed when its last one leaves) and the messages between
  * them and the clients. No sockets and no timers, so it is fully testable.
  * See 01_docs/multiplayer.md#server.
  */
 export class GameServer {
   readonly lobby = new Lobby();
-  /** Live rooms by track name. */
+  /** Live rooms by `roomKey`. */
   readonly rooms = new Map<string, Room>();
   /** Joined players' connections; a connection is in here only after an accepted hello. */
   private readonly members = new Map<Connection, Member>();
@@ -70,11 +79,11 @@ export class GameServer {
     if (message.type === 'hello') {
       if (!member) this.hello(conn, message.protocol, message.nickname);
     } else if (message.type === 'enter') {
-      if (member && member.track === null) this.enter(conn, member, message.track);
+      if (member && member.room === null) this.enter(conn, member, message.mode, message.track);
     } else if (message.type === 'ping') {
       if (member) conn.send(encodeMessage({ type: 'pong', t: message.t }));
-    } else if (member?.track) {
-      this.rooms.get(member.track)?.queueInput(member.id, message.seq, message.input);
+    } else if (member?.room) {
+      this.rooms.get(member.room)?.queueInput(member.id, message.seq, message.input);
     }
   }
 
@@ -85,7 +94,7 @@ export class GameServer {
     const nickname = this.nickname(member.id);
     this.lobby.leave(member.id);
     this.log(`[lobby] ${nickname} left (${this.members.size} online)`);
-    if (member.track) this.leaveRoom(member.id, member.track);
+    if (member.room) this.leaveRoom(member.id, member.room);
   }
 
   /** Feeds real time: runs the fixed ticks it covers in every live room, with their snapshots. */
@@ -93,10 +102,10 @@ export class GameServer {
     this.accumulator += Math.min(Math.max(seconds, 0), MAX_ADVANCE_SECONDS);
     while (this.accumulator >= FIXED_DT - EPSILON) {
       this.accumulator -= FIXED_DT;
-      for (const [track, room] of this.rooms) {
+      for (const [key, room] of this.rooms) {
         room.tick();
         if (room.state.tick % SNAPSHOT_EVERY_TICKS === 0) {
-          this.broadcast(track, {
+          this.broadcast(key, {
             type: 'snapshot',
             state: room.state,
             acks: room.acks,
@@ -107,9 +116,15 @@ export class GameServer {
     }
   }
 
-  /** Every offered room with how many players are in it now. */
+  /** Every offered room (ready modes × tracks) with how many players are in it now. */
   roomList(): RoomInfo[] {
-    return ROOM_TRACKS.map(({ name }) => ({ track: name, players: this.inRoom(name).length }));
+    return READY_MODES.flatMap((mode) =>
+      ROOM_TRACKS.map(({ name: track }) => ({
+        mode,
+        track,
+        players: this.inRoom(roomKey(mode, track)).length,
+      })),
+    );
   }
 
   private hello(conn: Connection, protocol: number, nickname: string): void {
@@ -121,46 +136,46 @@ export class GameServer {
       return;
     }
     const { player } = result;
-    this.members.set(conn, { id: player.id, track: null });
+    this.members.set(conn, { id: player.id, room: null });
     this.log(`[lobby] ${player.nickname} joined as ${player.id} (${this.members.size} online)`);
     conn.send(encodeMessage({ type: 'welcome', playerId: player.id, rooms: this.roomList() }));
   }
 
-  /** Puts the player in the room of `track`, opening it if nobody is there yet. */
-  private enter(conn: Connection, member: Member, track: string): void {
+  /** Puts the player in the room of `mode` on `track`, opening it if nobody is there yet. */
+  private enter(conn: Connection, member: Member, mode: OnlineMode, track: string): void {
     const definition = ROOM_TRACKS.find((t) => t.name === track);
-    if (!definition) return; // not offered: ignored, like any malformed message
-    let room = this.rooms.get(track);
+    // Not offered (unknown track, mode not ready yet): ignored, like any malformed message.
+    if (!definition || !READY_MODES.includes(mode)) return;
+    const key = roomKey(mode, track);
+    let room = this.rooms.get(key);
     if (!room) {
       room = new Room(definition);
-      this.rooms.set(track, room);
-      this.log(`[rooms] ${track} is live`);
+      this.rooms.set(key, room);
+      this.log(`[rooms] ${key} is live`);
     }
     room.add(member.id);
-    member.track = track;
-    const players = this.inRoom(track);
-    this.log(`[rooms] ${this.nickname(member.id)} entered ${track} (${players.length} there)`);
+    member.room = key;
+    const players = this.inRoom(key);
+    this.log(`[rooms] ${this.nickname(member.id)} entered ${key} (${players.length} there)`);
     conn.send(encodeMessage({ type: 'entered', track, players }));
-    this.broadcast(track, { type: 'players', players }, conn);
+    this.broadcast(key, { type: 'players', players }, conn);
   }
 
-  private leaveRoom(id: CarId, track: string): void {
-    const room = this.rooms.get(track);
+  private leaveRoom(id: CarId, key: string): void {
+    const room = this.rooms.get(key);
     if (!room) return;
     room.remove(id);
     if (room.isEmpty) {
-      this.rooms.delete(track);
-      this.log(`[rooms] ${track} closed (empty)`);
+      this.rooms.delete(key);
+      this.log(`[rooms] ${key} closed (empty)`);
       return;
     }
-    this.broadcast(track, { type: 'players', players: this.inRoom(track) });
+    this.broadcast(key, { type: 'players', players: this.inRoom(key) });
   }
 
-  /** The players in the room of `track`, in join order. */
-  private inRoom(track: string): PlayerInfo[] {
-    const ids = new Set(
-      [...this.members.values()].filter((m) => m.track === track).map((m) => m.id),
-    );
+  /** The players in the room `key`, in join order. */
+  private inRoom(key: string): PlayerInfo[] {
+    const ids = new Set([...this.members.values()].filter((m) => m.room === key).map((m) => m.id));
     return this.lobby.players().filter((p) => ids.has(p.id));
   }
 
@@ -168,11 +183,11 @@ export class GameServer {
     return this.lobby.players().find((p) => p.id === id)?.nickname ?? id;
   }
 
-  /** Sends `message` to every player in the room of `track` except `skip`. Encoded once for all. */
-  private broadcast(track: string, message: ServerMessage, skip?: Connection): void {
+  /** Sends `message` to every player in the room `key` except `skip`. Encoded once for all. */
+  private broadcast(key: string, message: ServerMessage, skip?: Connection): void {
     const text = encodeMessage(message);
     for (const [conn, member] of this.members) {
-      if (member.track === track && conn !== skip) conn.send(text);
+      if (member.room === key && conn !== skip) conn.send(text);
     }
   }
 }

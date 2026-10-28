@@ -1,22 +1,24 @@
 # Multiplayer (Phase 2)
 
 Phase 2 (sub-steps in [roadmap.md](roadmap.md)): a start screen with **Singleplayer /
-Multiplayer**, a nickname lobby, then a choice of circuit (Monza, Barcelona, Monaco): everyone who
-picks the same circuit drives together on it, the own car predicted by the client (2.2). Each
+Multiplayer**, a nickname lobby, then a choice of mode (2.3) and circuit (Monza, Barcelona,
+Monaco): everyone who picks the same mode and circuit drives together on it, the own car predicted
+by the client (2.2). Each
 section says which sub-step built it.
 
 ## Flow
 
 ```
 Start screen ── Singleplayer ──▶ Track menu (all tracks, bot) ──▶ single-player game
-             └─ Multiplayer ───▶ Nickname ──▶ connect ──▶ Track menu (Monza / Barcelona / Monaco)
-                                                          ──▶ that circuit, with everyone on it
+             └─ Multiplayer ───▶ Nickname ──▶ connect ──▶ Mode menu ──▶ Track menu (Monza /
+                                  Barcelona / Monaco) ──▶ that room's circuit, with everyone in it
 ```
 
 - **Singleplayer** is today's game, unchanged.
-- **Multiplayer**: the player types a nickname; if the server accepts it they pick one of the three
-  F1 circuits (each with how many players are on it) and are put on it, where everyone else who
-  picked it is already driving. Otherwise the reason shows under the nickname field.
+- **Multiplayer**: the player types a nickname; if the server accepts it they pick a mode (see
+  [Modes](#modes-23)) and one of the three F1 circuits (each with how many players are on it) and
+  are put in that room, where everyone else who picked it is already driving. Otherwise the reason
+  shows under the nickname field.
 - **Esc** in either mode reloads the page: back to the start screen (in multiplayer this closes the
   connection, which frees the nickname).
 
@@ -48,21 +50,22 @@ The owner's rule: the two sections never mix. Enforced, not just by convention:
 ## Protocol (2.1b ✅)
 
 JSON over one WebSocket, typed unions in `shared/src/net/protocol.ts`, with a `PROTOCOL_VERSION`
-(a client with another version is rejected with `version`). Version **4** since 2.2c (snapshots
-carry each car's last input; v3 = 2.2a input `seq`, acks, ping; v2 = 2.1f+ rooms).
+(a client with another version is rejected with `version`). Version **5** since 2.3b (rooms and
+`enter` carry the mode; v4 = 2.2c snapshots carry each car's last input; v3 = 2.2a input `seq`,
+acks, ping; v2 = 2.1f+ rooms).
 
-| Direction       | Message    | Content                                                                 |
-| --------------- | ---------- | ----------------------------------------------------------------------- |
-| client → server | `hello`    | `protocol`, `nickname`                                                  |
-| client → server | `enter`    | `track`: go into that circuit's room (once, after the welcome)          |
-| client → server | `input`    | `seq` + `InputCommand`, once per client tick (only once in a room)      |
-| client → server | `ping`     | `t` (the client's clock), once a second in a room                       |
-| server → client | `welcome`  | own `playerId`, the `rooms` offered (`track`, how many `players` in it) |
-| server → client | `rejected` | `reason`: `taken` / `invalid` / `full` / `version`                      |
-| server → client | `entered`  | the room's `track` and the players in it                                |
-| server → client | `players`  | the players in the room, sent on every join and leave there             |
-| server → client | `snapshot` | whole `GameState`; per car `acks` (last `seq` run) + `inputs`; 30 Hz    |
-| server → client | `pong`     | the `ping`'s `t`, echoed: the client measures the round trip            |
+| Direction       | Message    | Content                                                                |
+| --------------- | ---------- | ---------------------------------------------------------------------- |
+| client → server | `hello`    | `protocol`, `nickname`                                                 |
+| client → server | `enter`    | `mode`, `track`: go into that room (once, after the welcome)           |
+| client → server | `input`    | `seq` + `InputCommand`, once per client tick (only once in a room)     |
+| client → server | `ping`     | `t` (the client's clock), once a second in a room                      |
+| server → client | `welcome`  | own `playerId`, the `rooms` offered (`mode`, `track`, `players` in it) |
+| server → client | `rejected` | `reason`: `taken` / `invalid` / `full` / `version`                     |
+| server → client | `entered`  | the room's `track` and the players in it                               |
+| server → client | `players`  | the players in the room, sent on every join and leave there            |
+| server → client | `snapshot` | whole `GameState`; per car `acks` (last `seq` run) + `inputs`; 30 Hz   |
+| server → client | `pong`     | the `ping`'s `t`, echoed: the client measures the round trip           |
 
 - **The server trusts nothing**: `parseClientMessage` returns `null` for bad JSON, unknown types,
   missing or wrong-typed fields, non-finite numbers, and nicknames or track names longer than 64
@@ -70,7 +73,8 @@ carry each car's last input; v3 = 2.2a input `seq`, acks, ping; v2 = 2.1f+ rooms
   clamps inputs (`throttle`/`brake`/`reverse` 0..1, `steer` −1..1) and keeps only the known fields.
   `parseServerMessage` (client side) only checks the JSON and the type: the server is trusted.
 - `PlayerInfo` = `id`, `nickname`, `livery` (an index; the client picks the colours, `shared` has no
-  view data). `RoomInfo` = `track`, `players` (a count). `MAX_PLAYERS` = 8 (online in total, all
+  view data). `RoomInfo` = `mode` (one of `ONLINE_MODES`), `track`, `players` (a count). An `enter`
+  with an unknown mode is malformed (`null`). `MAX_PLAYERS` = 8 (online in total, all
   rooms) is shared too, so the client can explain `full`.
 
 ## Server (2.1c ✅, 2.1e ✅)
@@ -106,13 +110,15 @@ port is taken (a server already running) it says so and exits.
 - **Time**: `setInterval` at 60 Hz measures real elapsed time and feeds `GameServer.advance`, a
   fixed-step accumulator like the client's `GameLoop` (at most 0.25 s simulated at once).
 - **Logs**: one line per join, rejection and leave, and per room opened, entered and closed, e.g.
-  `[lobby] Enea joined as p1 (2 online)`, `[rooms] Monza is live`, `[rooms] Enea entered Monza (1
-there)`, `[rooms] Monza closed (empty)`.
+  `[lobby] Enea joined as p1 (2 online)`, `[rooms] practice/Monza is live`,
+  `[rooms] Enea entered practice/Monza (1 there)`, `[rooms] practice/Monza closed (empty)`.
 
 ## Rooms (2.1e ✅, 2.1f+ ✅)
 
-- **One room per circuit** in `ROOM_TRACKS` (`GameServer.ts`): **Monza, Barcelona, Monaco** (2.1f+,
-  owner's choice; 2.1e had a single Test Ring room). A room is created the moment its first player
+- **One room per ready mode and circuit**: `READY_MODES` × `ROOM_TRACKS` (`GameServer.ts`), circuits
+  **Monza, Barcelona, Monaco** (2.1f+, owner's choice; 2.1e had a single Test Ring room). Rooms are
+  keyed `mode/track` (`roomKey`, e.g. `practice/Monza`); an `enter` for a mode not in
+  `READY_MODES` is ignored. A room is created the moment its first player
   enters (`[rooms] Monza is live`) and closed when its last one leaves, so the next player starts a
   fresh session. Rooms are fully apart: each has its own simulation, players list and snapshots.
 - Up to 8 players online in total for now (`MAX_PLAYERS`), no bots. Default tuning
@@ -134,7 +140,7 @@ there)`, `[rooms] Monza closed (empty)`.
 ## Joining (2.1d ✅, 2.1f+ ✅)
 
 ```
-Start ─ Multiplayer ─▶ NICKNAME ──Enter──▶ connect /ws ──hello──▶ welcome ─▶ TRACK ──enter──▶ entered ─▶ race
+Start ─ Multiplayer ─▶ NICKNAME ──Enter──▶ connect /ws ──hello──▶ welcome ─▶ MODE ─▶ TRACK ──enter──▶ entered ─▶ race
                           ▲                    │                    │
                           └── error under the field: unreachable / rejected ◀─┘
 ```
@@ -150,7 +156,11 @@ Start ─ Multiplayer ─▶ NICKNAME ──Enter──▶ connect /ws ──hel
   `invalid`, `full` "Server full (8 players)", `version` "This game is out of date — reload the
   page" (also when the server's track is unknown to this game), `unreachable` "Server unreachable —
   is it running? (npm run server)", `disconnected`.
-- **Track menu** (2.1f+, a `ListMenu`): `MULTIPLAYER · TRACK` with the rooms from the `welcome`
+- **Mode menu** (2.3b, a `ListMenu`): `MULTIPLAYER · MODE` lists every online mode
+  (`modeItems` in `multiplayer/lobbyText.ts`): the ones with rooms in the `welcome` with how many
+  are playing, the others dimmed as "Work in progress" (disabled `ListMenu` rows are skipped by
+  W/S and can't be chosen).
+- **Track menu** (2.1f+, a `ListMenu`): `<MODE> · TRACK` with that mode's rooms from the `welcome`
   (only tracks this game knows), each with "empty" or "N online" as it was at the welcome; Enter
   sends `enter`, the `entered` answer starts the race; Esc goes back to the start screen.
 - `multiplayer/NetClient.ts`: the socket wrapper (typed messages, 5 s connect timeout);
@@ -228,6 +238,22 @@ Sub-steps in [roadmap.md](roadmap.md#22--client-side-prediction-the-own-car-resp
   input). With one player alone the correction is 0.
 - (2.2c's first plan — keep the other cars on the ~67 ms playback with an adaptive delay — was
   dropped: they would be drawn behind where the own car can touch them.)
+
+## Modes (2.3)
+
+Chosen after the nickname, before the circuit; plan and sub-steps in
+[roadmap.md](roadmap.md#23--online-game-modes-free-practice--time-trial--grand-prix), design
+choices in [decisions.md](decisions.md#2026-10-28--online-game-modes-step-23-plan).
+
+| Mode (`OnlineMode`)      | What it is                                                       | Status                    |
+| ------------------------ | ---------------------------------------------------------------- | ------------------------- |
+| Free practice `practice` | Everyone in the room laps freely (the 2.1–2.2 room)              | ✅ 2.3b                   |
+| Time trial `timeTrial`   | Alone on the circuit, racing the ghost of the session's best lap | Work in progress (2.3c–d) |
+| Grand Prix `grandPrix`   | Manager, qualifying Q1/Q2/Q3, grid, F1 lights, race, podium      | Work in progress (2.3e–i) |
+
+The server decides what is ready (`READY_MODES`): the `welcome` only lists rooms of ready modes,
+and the client shows every other mode as "Work in progress", so turning a mode on is a server
+change only.
 
 ## Dev setup
 

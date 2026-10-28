@@ -18,7 +18,8 @@ describe('client messages', () => {
   it('survive an encode → parse round trip', () => {
     const messages: ClientMessage[] = [
       { type: 'hello', protocol: PROTOCOL_VERSION, nickname: 'Enea' },
-      { type: 'enter', track: 'Monza' },
+      { type: 'enter', mode: 'practice', track: 'Monza' },
+      { type: 'enter', mode: 'grandPrix', track: 'Monaco' },
       { type: 'input', seq: 0, input: INPUT },
       { type: 'input', seq: 12345, input: INPUT },
       { type: 'ping', t: 1234.5 },
@@ -41,8 +42,10 @@ describe('client messages', () => {
       '{"type":"hello","protocol":1,"nickname":7}',
       `{"type":"hello","protocol":1,"nickname":"${'a'.repeat(65)}"}`,
       '{"type":"enter"}',
-      '{"type":"enter","track":7}',
-      `{"type":"enter","track":"${'a'.repeat(65)}"}`,
+      '{"type":"enter","track":"Monza"}',
+      '{"type":"enter","mode":"race","track":"Monza"}',
+      '{"type":"enter","mode":"practice","track":7}',
+      `{"type":"enter","mode":"practice","track":"${'a'.repeat(65)}"}`,
       '{"type":"input"}',
       '{"type":"input","seq":1,"input":{"throttle":1,"brake":0,"reverse":0,"steer":0}}',
       '{"type":"input","seq":1,"input":{"throttle":"1","brake":0,"reverse":0,"steer":0,"reset":false}}',
@@ -86,7 +89,11 @@ describe('server messages', () => {
   it('survive an encode → parse round trip', () => {
     const players = [{ id: 'p1', nickname: 'Enea', livery: 0 }];
     const messages: ServerMessage[] = [
-      { type: 'welcome', playerId: 'p1', rooms: [{ track: 'Monza', players: 2 }] },
+      {
+        type: 'welcome',
+        playerId: 'p1',
+        rooms: [{ mode: 'practice', track: 'Monza', players: 2 }],
+      },
       { type: 'entered', track: 'Monza', players },
       { type: 'rejected', reason: 'taken' },
       { type: 'players', players },
