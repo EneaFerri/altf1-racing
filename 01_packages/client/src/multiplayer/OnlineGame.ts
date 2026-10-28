@@ -5,6 +5,7 @@ import {
   onlineSimContext,
   TICK_RATE,
   TRACKS,
+  type GrandPrixInfo,
   type InputCommand,
   type OnlineMode,
   type PlayerInfo,
@@ -15,11 +16,13 @@ import { KeyboardController } from '../controller/KeyboardController';
 import { GameLoop } from '../core/GameLoop';
 import { CAMERA_PARAMS } from '../view/cameras/params';
 import { DebugOverlay } from '../view/hud/DebugOverlay';
+import { GrandPrixPanel } from '../view/hud/GrandPrixPanel';
 import { Hud } from '../view/hud/Hud';
 import { Minimap } from '../view/hud/Minimap';
 import { playerLivery } from '../view/pixelTexture';
 import { SceneView } from '../view/SceneView';
 import { Ghost } from './ghost';
+import { grandPrixContent } from './grandPrixText';
 import type { NetClient } from './NetClient';
 import { Predictor } from './Predictor';
 
@@ -47,6 +50,10 @@ export class OnlineGame {
   private readonly debugOverlay = new DebugOverlay();
   /** Time trial only: the own best lap, raced as a see-through car. */
   private readonly ghost: Ghost | null;
+  /** Grand Prix only: its panel, and the GP as last told by the server (null until then). */
+  private readonly grandPrixPanel: GrandPrixPanel | null;
+  private grandPrix: GrandPrixInfo | null = null;
+  private players: readonly PlayerInfo[] = [];
   private lastInput: InputCommand = NEUTRAL_INPUT;
   /** `seq` of the next input sent; one per tick. */
   private nextSeq = 0;
@@ -67,6 +74,7 @@ export class OnlineGame {
   ) {
     this.playerId = playerId;
     this.ghost = mode === 'timeTrial' ? new Ghost(playerId) : null;
+    this.grandPrixPanel = mode === 'grandPrix' ? new GrandPrixPanel() : null;
     const built = buildTrack(track);
     this.predictor = new Predictor(playerId, onlineSimContext(built));
     this.view = new SceneView(built, this.playerId, {}, { ...CAMERA_PARAMS });
@@ -75,12 +83,22 @@ export class OnlineGame {
     this.hud.hideBot();
     this.controller.onAction('toggleDebug', () => this.debugOverlay.toggle());
     this.controller.onAction('toggleCamera', () => this.view.toggleCamera());
+    // The server ignores it from anyone but the GP manager, or in the wrong phase.
+    this.controller.onAction('confirm', () => {
+      if (this.grandPrix?.manager === this.playerId && this.grandPrix.phase === 'lobby') {
+        client.send({ type: 'gp', action: 'start' });
+      }
+    });
     // A reload closes the socket (the server frees the nickname) and brings the start screen back.
     this.controller.onAction('backToMenu', () => location.reload());
     client.onMessage((message) => {
       if (message.type === 'snapshot') this.predictor.reconcile(message);
       else if (message.type === 'players') this.setPlayers(message.players);
       else if (message.type === 'pong') this.rttMs = performance.now() - message.t;
+      else if (message.type === 'grandPrix') {
+        this.grandPrix = message;
+        this.showGrandPrix();
+      }
     });
   }
 
@@ -117,6 +135,13 @@ export class OnlineGame {
     if (car) this.debugOverlay.update(curr, car, this.lastInput, this.networkLines());
   }
 
+  /** Redraws the Grand Prix panel (in a Grand Prix, once the server has told its state). */
+  private showGrandPrix(): void {
+    if (this.grandPrix) {
+      this.grandPrixPanel?.show(grandPrixContent(this.grandPrix, this.players, this.playerId));
+    }
+  }
+
   /** Network numbers for F3: round trip, how far ahead the prediction runs, last correction. */
   private networkLines(): string[] {
     const rtt = this.rttMs === null ? '-' : `${this.rttMs.toFixed(0)} ms`;
@@ -129,6 +154,8 @@ export class OnlineGame {
 
   /** Colours, nickname tags and minimap legend for everyone online (sent on every join and leave). */
   private setPlayers(players: readonly PlayerInfo[]): void {
+    this.players = players;
+    this.showGrandPrix();
     for (const p of players) this.view.setLivery(p.id, playerLivery(p.livery));
     this.view.setNameTags(Object.fromEntries(players.map((p) => [p.id, p.nickname])));
     this.minimap.setPlayers(

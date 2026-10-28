@@ -7,12 +7,14 @@ import {
   parseClientMessage,
   SNAPSHOT_EVERY_TICKS,
   type CarId,
+  type GrandPrixAction,
   type OnlineMode,
   type PlayerInfo,
   type RoomInfo,
   type ServerMessage,
   type TrackDefinition,
 } from '@altf1/shared';
+import { GrandPrix } from './GrandPrix.ts';
 import { Lobby } from './Lobby.ts';
 import { Room } from './Room.ts';
 
@@ -29,7 +31,7 @@ export const REJECT_CLOSE_CODE = 1008;
 export const ROOM_TRACKS: readonly TrackDefinition[] = [MONZA, BARCELONA, MONACO];
 
 /** The modes the server runs so far; the others show as work in progress (01_docs/roadmap.md). */
-export const READY_MODES: readonly OnlineMode[] = ['practice', 'timeTrial'];
+export const READY_MODES: readonly OnlineMode[] = ['practice', 'timeTrial', 'grandPrix'];
 
 /** Modes where every player drives alone: a private room each (time trial). */
 const PRIVATE_MODES: readonly OnlineMode[] = ['timeTrial'];
@@ -64,6 +66,8 @@ export class GameServer {
   readonly lobby = new Lobby();
   /** Live rooms by `roomKey`. */
   readonly rooms = new Map<string, Room>();
+  /** The Grand Prix of each live Grand Prix room, by `roomKey`. */
+  private readonly grandPrix = new Map<string, GrandPrix>();
   /** Joined players' connections; a connection is in here only after an accepted hello. */
   private readonly members = new Map<Connection, Member>();
   private accumulator = 0;
@@ -89,6 +93,8 @@ export class GameServer {
       if (member && member.room === null) this.enter(conn, member, message.mode, message.track);
     } else if (message.type === 'ping') {
       if (member) conn.send(encodeMessage({ type: 'pong', t: message.t }));
+    } else if (message.type === 'gp') {
+      if (member?.room) this.grandPrixCommand(member.id, member.room.key, message.action);
     } else if (member?.room) {
       this.rooms.get(member.room.key)?.queueInput(member.id, message.seq, message.input);
     }
@@ -134,6 +140,8 @@ export class GameServer {
         mode,
         track,
         players: members.filter((m) => m.room?.mode === mode && m.room.track === track).length,
+        // A Grand Prix room is shared, so its key needs no player.
+        status: this.grandPrix.get(roomKey(mode, track, ''))?.isOpen === false ? 'running' : 'open',
       })),
     );
   }
@@ -158,6 +166,11 @@ export class GameServer {
     // Not offered (unknown track, mode not ready yet): ignored, like any malformed message.
     if (!definition || !READY_MODES.includes(mode)) return;
     const key = roomKey(mode, track, member.id);
+    const grandPrix = mode === 'grandPrix' ? this.openGrandPrix(key) : null;
+    if (grandPrix && !grandPrix.isOpen) {
+      conn.send(encodeMessage({ type: 'refused', reason: 'inProgress' }));
+      return;
+    }
     let room = this.rooms.get(key);
     if (!room) {
       room = new Room(definition);
@@ -170,18 +183,45 @@ export class GameServer {
     this.log(`[rooms] ${this.nickname(member.id)} entered ${key} (${players.length} there)`);
     conn.send(encodeMessage({ type: 'entered', track, players }));
     this.broadcast(key, { type: 'players', players }, conn);
+    if (grandPrix) {
+      grandPrix.add(member.id);
+      this.broadcast(key, { type: 'grandPrix', ...grandPrix.info });
+    }
+  }
+
+  /** The Grand Prix of room `key`, created (in its lobby) if the room has none yet. */
+  private openGrandPrix(key: string): GrandPrix {
+    let grandPrix = this.grandPrix.get(key);
+    if (!grandPrix) {
+      grandPrix = new GrandPrix();
+      this.grandPrix.set(key, grandPrix);
+    }
+    return grandPrix;
+  }
+
+  /** A GP command from player `id` in room `key`: applied (and told to the room) if it counts. */
+  private grandPrixCommand(id: CarId, key: string, action: GrandPrixAction): void {
+    const grandPrix = this.grandPrix.get(key);
+    if (!grandPrix?.command(id, action)) return;
+    this.log(`[gp] ${key}: ${action} by ${this.nickname(id)} → ${grandPrix.info.phase}`);
+    this.broadcast(key, { type: 'grandPrix', ...grandPrix.info });
   }
 
   private leaveRoom(id: CarId, key: string): void {
     const room = this.rooms.get(key);
     if (!room) return;
     room.remove(id);
+    const grandPrix = this.grandPrix.get(key);
+    grandPrix?.remove(id);
     if (room.isEmpty) {
       this.rooms.delete(key);
+      this.grandPrix.delete(key); // the next player in starts a new Grand Prix
       this.log(`[rooms] ${key} closed (empty)`);
       return;
     }
     this.broadcast(key, { type: 'players', players: this.inRoom(key) });
+    // The manager may have changed.
+    if (grandPrix) this.broadcast(key, { type: 'grandPrix', ...grandPrix.info });
   }
 
   /** The players in the room `key`, in join order. */

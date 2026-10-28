@@ -383,9 +383,11 @@
   Grand Prix; each on Monza, Barcelona or Monaco. Rooms are keyed by mode + circuit.
 - **Time trial alone** (owner): a private room per player, so no tow and no contact from anyone;
   the ghost is the session's best valid lap, recorded and drawn by the client only (view data).
-- **Per-mode rules beside the simulation**: `Room` stays the authoritative simulation; Free
-  practice, Time trial and Grand Prix rules live in `server/src/modes/` behind one interface.
-  The pure race rules (qualifying order, race standings, start hold) go in `shared/src/race/`.
+- **Per-mode rules beside the simulation**: `Room` stays the authoritative simulation. Free
+  practice has no rules of its own and a time trial is only a private room key (2.3c), so the one
+  rules class is `server/src/GrandPrix.ts` (2.3e), flat beside `Lobby.ts` and `Room.ts`: no
+  `modes/` folder or interface for a single implementation. The pure race rules (qualifying
+  order, race standings, start hold) go in `shared/src/race/`.
 - **GP manager** = the first player in; handed over to the longest-present player if they leave.
   Only the manager's GP commands are applied.
 - **Qualifying = 3 timed laps each (Q1/Q2/Q3, no elimination)**: best valid lap counts; a tie goes

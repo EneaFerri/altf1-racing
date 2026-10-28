@@ -7,7 +7,13 @@ import {
 } from '@altf1/shared';
 import { ListMenu } from '../view/menu/ListMenu';
 import { NicknameScreen } from '../view/menu/NicknameScreen';
-import { lobbyProblemText, MODE_NAMES, modeItems, nicknameProblemText } from './lobbyText';
+import {
+  lobbyProblemText,
+  MODE_NAMES,
+  modeItems,
+  nicknameProblemText,
+  trackItems,
+} from './lobbyText';
 import { NetClient } from './NetClient';
 import { OnlineGame, trackByName, type Entered } from './OnlineGame';
 import { serverUrl } from './serverUrl';
@@ -45,6 +51,7 @@ export async function startMultiplayer(): Promise<void> {
   const mode = await chooseMode(welcome.rooms);
   const track = await chooseRoom(mode, welcome.rooms);
   const entered = await enter(client, mode, track);
+  if (!entered) return showRefused();
   new OnlineGame(client, welcome.playerId, entered, mode, trackByName(track)!).start();
 }
 
@@ -83,26 +90,35 @@ function chooseMode(rooms: readonly RoomInfo[]): Promise<OnlineMode> {
 function chooseRoom(mode: OnlineMode, rooms: readonly RoomInfo[]): Promise<string> {
   return new ListMenu({
     label: `${MODE_NAMES[mode].toUpperCase()} · TRACK`,
-    items: rooms
-      .filter((room) => room.mode === mode && trackByName(room.track))
-      .map((room) => ({
-        name: room.track,
-        detail: room.players === 0 ? 'empty' : `${room.players} online`,
-        value: room.track,
-      })),
+    items: trackItems(mode, rooms, (track) => trackByName(track) !== null),
     hint: 'W/S · Enter — Esc: back to the start',
     escGoesBack: true,
   }).choose();
 }
 
-/** Asks to enter the room of `mode` on `track` and waits for the server's answer. */
-function enter(client: NetClient, mode: OnlineMode, track: string): Promise<Entered> {
+/**
+ * Asks to enter the room of `mode` on `track` and waits for the server's answer: null if refused
+ * (its Grand Prix started after the welcome listed it as open).
+ */
+function enter(client: NetClient, mode: OnlineMode, track: string): Promise<Entered | null> {
   return new Promise((resolve) => {
     client.onMessage((message) => {
       if (message.type === 'entered') resolve(message);
+      else if (message.type === 'refused') resolve(null);
     });
     client.send({ type: 'enter', mode, track });
   });
+}
+
+/** Shown when the chosen Grand Prix has just started; Enter or Esc goes back to the start screen. */
+async function showRefused(): Promise<void> {
+  await new ListMenu({
+    label: 'GRAND PRIX',
+    items: [{ name: 'Back to the start', detail: lobbyProblemText('inProgress'), value: null }],
+    hint: 'Enter / Esc',
+    escGoesBack: true,
+  }).choose();
+  location.reload();
 }
 
 /** Shown when the server goes away; Enter or Esc goes back to the start screen. */

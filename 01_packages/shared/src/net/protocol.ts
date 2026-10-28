@@ -6,7 +6,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -30,6 +30,9 @@ export interface PlayerInfo {
 export const ONLINE_MODES = ['practice', 'timeTrial', 'grandPrix'] as const;
 export type OnlineMode = (typeof ONLINE_MODES)[number];
 
+/** Whether a room takes newcomers: a Grand Prix is `running` from its start on. */
+export type RoomStatus = 'open' | 'running';
+
 /** A room the server offers: one per mode and track, live as soon as a player is in it. */
 export interface RoomInfo {
   readonly mode: OnlineMode;
@@ -37,7 +40,25 @@ export interface RoomInfo {
   readonly track: string;
   /** Players in it right now. */
   readonly players: number;
+  readonly status: RoomStatus;
 }
+
+/**
+ * Where a Grand Prix is: waiting in the lobby, then qualifying.
+ * See 01_docs/multiplayer.md#grand-prix.
+ */
+export type GrandPrixPhase = 'lobby' | 'qualifying';
+
+/** A Grand Prix as its players see it. */
+export interface GrandPrixInfo {
+  readonly phase: GrandPrixPhase;
+  /** The GP manager: the player who decides when it moves on (the first one in). */
+  readonly manager: CarId;
+}
+
+/** What the GP manager can ask for. */
+export const GRAND_PRIX_ACTIONS = ['start'] as const;
+export type GrandPrixAction = (typeof GRAND_PRIX_ACTIONS)[number];
 
 export type RejectReason = 'taken' | 'invalid' | 'full' | 'version';
 
@@ -48,12 +69,16 @@ export type ClientMessage =
   /** One client tick's input; `seq` grows by one every tick (see 01_docs/multiplayer.md#prediction-22). */
   | { readonly type: 'input'; readonly seq: number; readonly input: InputCommand }
   /** Round-trip probe: the server echoes `t` back in a `pong`. */
-  | { readonly type: 'ping'; readonly t: number };
+  | { readonly type: 'ping'; readonly t: number }
+  /** In a Grand Prix: the manager's command (the server ignores anyone else's). */
+  | { readonly type: 'gp'; readonly action: GrandPrixAction };
 
 export type ServerMessage =
   /** Nickname accepted: the player's id and the rooms to pick from (modes without any aren't ready). */
   | { readonly type: 'welcome'; readonly playerId: CarId; readonly rooms: readonly RoomInfo[] }
   | { readonly type: 'rejected'; readonly reason: RejectReason }
+  /** `enter` refused: that circuit's Grand Prix has started (the player stays joined). */
+  | { readonly type: 'refused'; readonly reason: 'inProgress' }
   /** In the room: its track and the players in it (the car appears in the next snapshots). */
   | { readonly type: 'entered'; readonly track: string; readonly players: readonly PlayerInfo[] }
   /** The players in the sender's room, after every join and leave there. */
@@ -69,7 +94,9 @@ export type ServerMessage =
       readonly inputs: Readonly<Record<CarId, InputCommand>>;
     }
   /** Echo of a `ping`. */
-  | { readonly type: 'pong'; readonly t: number };
+  | { readonly type: 'pong'; readonly t: number }
+  /** The room's Grand Prix, on entering and whenever its phase or manager changes. */
+  | ({ readonly type: 'grandPrix' } & GrandPrixInfo);
 
 export function encodeMessage(message: ClientMessage | ServerMessage): string {
   return JSON.stringify(message);
@@ -105,6 +132,12 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       const { t } = data;
       return isFiniteNumber(t) ? { type: 'ping', t } : null;
     }
+    case 'gp': {
+      const { action } = data;
+      return GRAND_PRIX_ACTIONS.includes(action as GrandPrixAction)
+        ? { type: 'gp', action: action as GrandPrixAction }
+        : null;
+    }
     default:
       return null;
   }
@@ -114,7 +147,16 @@ export function parseClientMessage(raw: string): ClientMessage | null {
 export function parseServerMessage(raw: string): ServerMessage | null {
   const data = parseJson(raw);
   if (!isRecord(data)) return null;
-  const known = ['welcome', 'rejected', 'entered', 'players', 'snapshot', 'pong'];
+  const known = [
+    'welcome',
+    'rejected',
+    'refused',
+    'entered',
+    'players',
+    'snapshot',
+    'pong',
+    'grandPrix',
+  ];
   return known.includes(data.type as string) ? (data as unknown as ServerMessage) : null;
 }
 

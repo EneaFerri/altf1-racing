@@ -269,3 +269,79 @@
   height: 10px;
   border-radius: 50%;
 }
+
+/* Grand Prix panel, top-left (multiplayer): phase, drivers, what happens next. */
+
+.gp-panel {
+  position: fixed;
+  left: 10px;
+  top: 10px;
+  min-width: 180px;
+  max-width: 240px;
+  padding: 8px 10px;
+  background: rgba(12, 12, 16, 0.72);
+  border-radius: 4px;
+  border-top: 2px solid #e10600;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  user-select: none;
+  font:
+    600 12px/1.4 system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  color: #f4f4f6;
+}
+
+.gp-title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.gp-panel ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gp-panel li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.gp-panel li.gp-own {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.gp-swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.gp-name {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.gp-note {
+  color: #9a9aa6;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gp-hint {
+  margin: 6px 0 0;
+  color: #f5c518;
+  font-size: 11px;
+}

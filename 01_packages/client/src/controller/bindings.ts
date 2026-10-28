@@ -35,6 +35,8 @@ export const ACTION_KEYS = {
   toggleCamera: ['KeyV'],
   /** Bot level: Off → Easy → Medium → Hard → Off. */
   cycleBot: ['KeyB'],
+  /** Grand Prix manager: move the GP on (start it). */
+  confirm: ['Enter', 'NumpadEnter'],
   /** Leave the race and go back to the track menu. */
   backToMenu: ['Escape'],
   /** Dev only: park the dummy car in front of the player. */

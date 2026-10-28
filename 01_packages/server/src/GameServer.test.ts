@@ -68,14 +68,14 @@ describe('GameServer — lobby', () => {
       {
         type: 'welcome',
         playerId: 'p2',
-        rooms: [
-          { mode: 'practice', track: 'Monza', players: 0 },
-          { mode: 'practice', track: 'Barcelona', players: 0 },
-          { mode: 'practice', track: 'Monaco', players: 1 },
-          { mode: 'timeTrial', track: 'Monza', players: 0 },
-          { mode: 'timeTrial', track: 'Barcelona', players: 0 },
-          { mode: 'timeTrial', track: 'Monaco', players: 0 },
-        ],
+        rooms: ['practice', 'timeTrial', 'grandPrix'].flatMap((mode) =>
+          ['Monza', 'Barcelona', 'Monaco'].map((track) => ({
+            mode,
+            track,
+            players: mode === 'practice' && track === 'Monaco' ? 1 : 0,
+            status: 'open',
+          })),
+        ),
       },
     ]);
   });
@@ -144,12 +144,11 @@ describe('GameServer — rooms', () => {
     expect(seen(kimi)).toEqual(['p2']);
   });
 
-  it('ignores an unknown track, a mode not ready, a second enter and inputs before entering', () => {
+  it('ignores an unknown track, a second enter and inputs before entering', () => {
     const server = new GameServer();
     const enea = joined(server, 'Enea');
     server.message(enea, input(1));
     server.message(enea, enter('Test Ring'));
-    server.message(enea, enter('Monza', 'grandPrix')); // not ready yet
     expect(enea.count('entered')).toBe(0);
     expect(server.rooms.size).toBe(0);
     server.message(enea, enter('Monza'));
@@ -190,7 +189,9 @@ describe('GameServer — rooms', () => {
     const snapshot = kimi.last('snapshot');
     expect(snapshot?.type === 'snapshot' && snapshot.state.cars.map((c) => c.id)).toEqual(['p2']);
     expect(joined(server, 'Max').last('welcome')).toMatchObject({
-      rooms: expect.arrayContaining([{ mode: 'timeTrial', track: 'Monza', players: 2 }]),
+      rooms: expect.arrayContaining([
+        { mode: 'timeTrial', track: 'Monza', players: 2, status: 'open' },
+      ]),
     });
     server.close(enea);
     expect(server.rooms.has(roomKey('timeTrial', 'Monza', 'p1'))).toBe(false);
@@ -233,5 +234,58 @@ describe('GameServer — rooms', () => {
     expect(room.state.tick).toBe(1);
     server.advance(10);
     expect(room.state.tick).toBe(1 + 15);
+  });
+});
+
+describe('GameServer — Grand Prix', () => {
+  const start = encodeMessage({ type: 'gp', action: 'start' });
+
+  it('makes the first player in the manager and tells everyone in the room', () => {
+    const server = new GameServer();
+    const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
+    expect(enea.last('grandPrix')).toEqual({ type: 'grandPrix', phase: 'lobby', manager: 'p1' });
+    const kimi = inRoom(server, 'Kimi', 'Monza', 'grandPrix');
+    expect(kimi.last('grandPrix')).toMatchObject({ manager: 'p1' });
+    expect(enea.count('grandPrix')).toBe(2);
+    inRoom(server, 'Max', 'Monza'); // free practice on Monza: another room, no Grand Prix
+    expect(enea.count('grandPrix')).toBe(2);
+  });
+
+  it('starts on the manager’s command only, then refuses newcomers', () => {
+    const server = new GameServer();
+    const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
+    const kimi = inRoom(server, 'Kimi', 'Monza', 'grandPrix');
+    server.message(kimi, start);
+    expect(enea.last('grandPrix')).toMatchObject({ phase: 'lobby' });
+    server.message(enea, start);
+    expect(kimi.last('grandPrix')).toMatchObject({ phase: 'qualifying' });
+    const late = joined(server, 'Lewis');
+    expect(late.last('welcome')).toMatchObject({
+      rooms: expect.arrayContaining([
+        { mode: 'grandPrix', track: 'Monza', players: 2, status: 'running' },
+        { mode: 'grandPrix', track: 'Monaco', players: 0, status: 'open' },
+      ]),
+    });
+    server.message(late, enter('Monza', 'grandPrix'));
+    expect(late.received.at(-1)).toEqual({ type: 'refused', reason: 'inProgress' });
+    expect(server.rooms.get(roomKey('grandPrix', 'Monza', 'p3'))!.has('p3')).toBe(false);
+    server.message(late, enter('Monaco', 'grandPrix')); // still free to go elsewhere
+    expect(late.last('entered')).toMatchObject({ track: 'Monaco' });
+  });
+
+  it('hands the manager role on when the manager leaves, and resets with the room', () => {
+    const server = new GameServer();
+    const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
+    const kimi = inRoom(server, 'Kimi', 'Monza', 'grandPrix');
+    server.message(enea, start);
+    server.close(enea);
+    expect(kimi.last('grandPrix')).toEqual({
+      type: 'grandPrix',
+      phase: 'qualifying',
+      manager: 'p2',
+    });
+    server.close(kimi);
+    const next = inRoom(server, 'Lewis', 'Monza', 'grandPrix');
+    expect(next.last('grandPrix')).toEqual({ type: 'grandPrix', phase: 'lobby', manager: 'p3' });
   });
 });

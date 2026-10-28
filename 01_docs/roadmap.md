@@ -142,15 +142,14 @@ leaderboards, bots online.
   20 slots, on the three F1 circuits only (Test Ring and Kruncar are frozen).
 - 2.3b ✅ **Mode menu + protocol v5** — nickname → mode menu → track menu → room; rooms keyed by
   mode + circuit (`practice/Monza`). Only Free practice is offered (today's behaviour); Time trial
-  and Grand Prix are listed, dimmed, as "Work in progress". The per-mode rules folder
-  (`server/src/modes/`) comes with the Grand Prix (2.3e), the first mode with rules of its own.
+  and Grand Prix are listed, dimmed, as "Work in progress".
 - 2.3c ✅ **Time trial: private session** — one room per player (`timeTrial/Monza/p3`), the
   circuit menu counts everyone driving it; normal timing, no bot. A private room is only a
   different room key (`PRIVATE_MODES` in `GameServer.ts`).
 - 2.3d ✅ **Ghost** — the own car's best valid lap recorded tick by tick and replayed as a
   see-through car in its livery, in step with the current lap (client only: `multiplayer/ghost.ts`,
   `SceneView.setGhost`).
-- 2.3e **GP: lobby and manager** — free driving while waiting, players list, manager starts the GP
+- 2.3e ✅ **GP: lobby and manager** — free driving while waiting, players list, manager starts the GP
   (handed over if they leave); later arrivals refused with "GP in progress".
 - 2.3f **GP: qualifying** — everyone back on the grid, out-lap + Q1/Q2/Q3, live timing tower,
   done → spectate; the manager can end it (no time → back of the grid).

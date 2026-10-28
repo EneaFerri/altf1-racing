@@ -9,8 +9,11 @@ import {
 } from '@altf1/shared';
 import type { ListMenuItem } from '../view/menu/ListMenu';
 
-/** Why the lobby can't go on: the server's reasons plus what can go wrong on the way to it. */
-export type LobbyProblem = RejectReason | 'unreachable' | 'disconnected';
+/**
+ * Why the lobby can't go on: the server's reasons plus what can go wrong on the way to it, and a
+ * circuit whose Grand Prix has started.
+ */
+export type LobbyProblem = RejectReason | 'unreachable' | 'disconnected' | 'inProgress';
 
 /** Hint under the nickname field while typing. */
 export function nicknameProblemText(problem: NicknameProblem): string {
@@ -39,6 +42,8 @@ export function lobbyProblemText(problem: LobbyProblem): string {
       return 'Server unreachable — is it running? (npm run server)';
     case 'disconnected':
       return 'Disconnected from the server';
+    case 'inProgress':
+      return 'A Grand Prix is in progress on this circuit — try another one';
   }
 }
 
@@ -65,4 +70,25 @@ export function modeItems(rooms: readonly RoomInfo[]): ListMenuItem<OnlineMode>[
       disabled: offered.length === 0,
     };
   });
+}
+
+/** The track menu's rows for `mode`: circuits this game knows, with who is on each. */
+export function trackItems(
+  mode: OnlineMode,
+  rooms: readonly RoomInfo[],
+  known: (track: string) => boolean,
+): ListMenuItem<string>[] {
+  return rooms
+    .filter((room) => room.mode === mode && known(room.track))
+    .map((room) => ({
+      name: room.track,
+      detail:
+        room.status === 'running'
+          ? 'GP in progress'
+          : room.players === 0
+            ? 'empty'
+            : `${room.players} online`,
+      value: room.track,
+      disabled: room.status === 'running',
+    }));
 }
