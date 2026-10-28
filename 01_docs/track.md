@@ -68,6 +68,8 @@ Never place them by hand.
   3. asphalt up to the edge;
   4. beyond the edge, the side's run-off (grass/gravel).
 - `gridSlot(track, slot)`: staggered starting grid, 10 m + 8 m per slot behind the line, two columns 4 m either side of the centreline.
+  The real circuits paint `GRID_SLOTS` (20) of them ([themes.md](themes.md#theme-system)); a test
+  checks that every box lies on asphalt at Monza, Barcelona and Monaco.
 
 `math/SegmentGrid.ts` is a generic uniform grid over segments (10 m cells). Queries return sorted
 indices, so results never depend on insertion order (determinism).

@@ -118,14 +118,44 @@ legend colour → name. Details: [architecture.md](architecture.md#view--01_pack
 Same step: grandstands beside bends drawn in pieces that follow the track
 ([themes.md](themes.md)).
 
-### 2.3 — Rooms, more tracks, game modes (to be designed)
+### 2.3 — Online game modes: Free practice · Time trial · Grand Prix
 
-Online only (owner's choice): single player stays as it is. Contents, to be designed with the
-owner before the step starts:
+Online only (owner's choice): single player stays as it is. After the nickname the player picks a
+**mode**, then one of the three F1 circuits (Monza, Barcelona, Monaco):
 
-- **Rooms**: how they are made and joined (today: one fixed room per circuit).
-- **More tracks** online.
-- **Game modes**: free practice (today's), time trial, quick race, full race with qualifying.
+- **Free practice** — today's room: everyone on the circuit laps freely.
+- **Time trial** — alone on the circuit; the first timed lap is normal, from the second on the
+  player races their **ghost** (the session's best valid lap, updated lap by lap).
+- **Grand Prix** — the first player in is the **GP manager** and starts it when ready: qualifying
+  (3 timed laps each, Q1/Q2/Q3, no elimination) → grid from the best times → race of 4/8/12 laps
+  (manager's choice) → podium and classification → the manager closes the GP (the circuit's room
+  is reset). Anyone arriving while a GP runs is told "GP in progress".
+
+Owner's choices: time trial alone (private session); in a GP a car that has finished (qualifying
+or race) leaves the track and its player spectates; the manager can end qualifying or the race
+early (a disconnected player is DNF); standing start with F1 lights. Design:
+[decisions.md](decisions.md#2026-10-28--online-game-modes-step-23-plan).
+Out of scope: joining a running GP as a spectator, several GPs per circuit, time-trial
+leaderboards, bots online.
+
+- 2.3a ✅ **Starting grid drawn** (view only) — F1-style boxes at each `gridSlot` (the spawn poses),
+  20 slots, on the three F1 circuits only (Test Ring and Kruncar are frozen).
+- 2.3b **Mode menu + protocol v5** — nickname → mode menu → track menu → room; rooms keyed by
+  mode + circuit; per-mode rules in `server/src/modes/`. Only Free practice (today's behaviour).
+- 2.3c **Time trial: private session** — one room per player, normal timing, no bot.
+- 2.3d **Ghost** — the own car's best valid lap recorded tick by tick and replayed as a see-through
+  car (client only, pure recorder in `multiplayer/`).
+- 2.3e **GP: lobby and manager** — free driving while waiting, players list, manager starts the GP
+  (handed over if they leave); later arrivals refused with "GP in progress".
+- 2.3f **GP: qualifying** — everyone back on the grid, out-lap + Q1/Q2/Q3, live timing tower,
+  done → spectate; the manager can end it (no time → back of the grid).
+- 2.3g **GP: grid and F1 lights** — grid from qualifying, the manager picks 4/8/12 laps; cars held
+  until lights out by a hold both the server and the prediction apply (`shared/src/race/`).
+- 2.3h **GP: race** — position and lap in the HUD, gaps tower, finish → spectate, DNF; the manager
+  can end it.
+- 2.3i **GP: podium, classification, close** — results screen; the manager closes the GP, everyone
+  goes back to the start.
+- 2.3j **Owner test over Tailscale** of all three modes.
 
 ## Later
 

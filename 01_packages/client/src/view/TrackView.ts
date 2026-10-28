@@ -1,9 +1,14 @@
 import * as THREE from 'three';
 import {
+  gridSlot,
+  GRID_SLOTS,
+  headingOf,
   locateOnTrack,
+  toWorld,
   TRACK_RULES,
   vec2,
   type KerbKind,
+  type Pose,
   type Track,
   type TrackSample,
   type TrackSide,
@@ -29,6 +34,7 @@ const Y_EDGE_LINE = 0.025;
 const Y_KERB = 0.03;
 const Y_START_LINE = 0.035;
 const Y_SECTOR_LINE = 0.035;
+const Y_GRID_BOX = 0.035;
 const Y_HIGH_KERB = 0.12;
 const WALL_HEIGHT = 1;
 /** Wooden fence: two rails on posts, see-through between them. */
@@ -60,6 +66,16 @@ const BOARD_TILE = BOARD_HEIGHT * 2;
 const POST_SIZE = 0.4;
 /** Painted line across the asphalt at sector starts (m, along the track). */
 const SECTOR_LINE_DEPTH = 0.6;
+
+/**
+ * Grid box, in the car's frame from its slot (m): the front line just ahead of the nose (the body
+ * reaches ~2.8 m forward), as wide as the car with a margin, ticks running back along its sides.
+ */
+const GRID_BOX_FRONT = 3.3;
+const GRID_BOX_WIDTH = 3.2;
+const GRID_BOX_TICK = 2;
+/** Width of the painted lines (m). */
+const GRID_LINE = 0.3;
 
 const SIDES: readonly TrackSide[] = ['left', 'right'];
 const sign = (side: TrackSide): number => (side === 'right' ? 1 : -1);
@@ -97,6 +113,7 @@ export function createTrackView(track: Track, theme: TrackTheme): THREE.Group {
     createStartLine(track),
     ...createSectorGantries(track),
   );
+  if (theme.gridBoxes) group.add(createGridBoxes(track));
   return group;
 }
 
@@ -312,6 +329,42 @@ function createStartLine(track: Track): THREE.Mesh {
   line.rotation.z = Math.atan2(-start.normal.z, start.normal.x);
   line.position.set(start.position.x, Y_START_LINE, start.position.z);
   return line;
+}
+
+/**
+ * The starting grid: at every `gridSlot` (where cars spawn) an F1-style box open at the back, a
+ * line across in front of the car's nose and a short tick down each side. One mesh for all slots.
+ */
+function createGridBoxes(track: Track): THREE.Mesh {
+  const positions: number[] = [];
+  // A painted rectangle from `from` to `to` ahead and `left` to `right` across (m, slot's frame).
+  const paint = (pose: Pose, from: number, to: number, left: number, right: number): void => {
+    const heading = headingOf(pose.direction);
+    const corners = [
+      toWorld(pose.position, heading, from, left),
+      toWorld(pose.position, heading, from, right),
+      toWorld(pose.position, heading, to, right),
+      toWorld(pose.position, heading, to, left),
+    ];
+    for (const i of [0, 1, 2, 0, 2, 3]) {
+      positions.push(corners[i]!.x, Y_GRID_BOX, corners[i]!.z);
+    }
+  };
+  for (let slot = 0; slot < GRID_SLOTS; slot++) {
+    const pose = gridSlot(track, slot);
+    const front = GRID_BOX_FRONT;
+    const half = GRID_BOX_WIDTH / 2;
+    paint(pose, front - GRID_LINE, front, -half, half);
+    paint(pose, front - GRID_BOX_TICK, front, -half, -half + GRID_LINE);
+    paint(pose, front - GRID_BOX_TICK, front, half - GRID_LINE, half);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  return new THREE.Mesh(
+    geometry,
+    new THREE.MeshLambertMaterial({ color: '#e8e8e8', side: THREE.DoubleSide }),
+  );
 }
 
 /**

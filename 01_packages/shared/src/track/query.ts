@@ -110,6 +110,9 @@ export interface Pose {
 /** Lateral offset of the two grid columns from the centreline (m). */
 const GRID_COLUMN_OFFSET = 4;
 
+/** Grid slots painted on a real circuit, as on an F1 grid (spawns use the first ones). */
+export const GRID_SLOTS = 20;
+
 /** Starting grid slot `slot` (0 = pole): staggered rows behind the start line. */
 export function gridSlot(track: Track, slot: number): Pose {
   const n = track.samples.length;

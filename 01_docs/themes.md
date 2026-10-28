@@ -20,6 +20,10 @@ the simulation never sees a theme. Code in `01_packages/client/src/view/themes/`
   chain-link fence on top), `armco` (steel guard rail on posts, see-through), `armcoFence` (armco
   with a 3.3 m catch fence on top: the street circuit). The physics wall is the same whatever the
   style.
+- **Starting grid** (`gridBoxes`, step 2.3a): real circuits (`realCircuitTheme`) paint `GRID_SLOTS`
+  (20) F1-style boxes, one at each `gridSlot` where cars spawn: a white line across just in front of
+  the nose and a short tick down each side, open at the back. Test Ring and Kruncar have none
+  (frozen looks).
 - The ground is split into 50 m cells: one huge quad loses depth precision near the camera and
   hid the track's surfaces just above it (seen first at Monaco).
 - Props are built once per track by `theme.scenery(track)`.

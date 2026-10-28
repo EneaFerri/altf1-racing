@@ -376,3 +376,26 @@
   later "switch circuit" needs no rename.
 - **Protocol v2**: `welcome` lists the rooms (with player counts) instead of a track; `enter` /
   `entered` pick one. Old clients are rejected with `version`.
+
+## 2026-10-28 — Online game modes (step 2.3 plan)
+
+- **Three modes, chosen after the nickname** (owner): Free practice (today's room), Time trial,
+  Grand Prix; each on Monza, Barcelona or Monaco. Rooms are keyed by mode + circuit.
+- **Time trial alone** (owner): a private room per player, so no tow and no contact from anyone;
+  the ghost is the session's best valid lap, recorded and drawn by the client only (view data).
+- **Per-mode rules beside the simulation**: `Room` stays the authoritative simulation; Free
+  practice, Time trial and Grand Prix rules live in `server/src/modes/` behind one interface.
+  The pure race rules (qualifying order, race standings, start hold) go in `shared/src/race/`.
+- **GP manager** = the first player in; handed over to the longest-present player if they leave.
+  Only the manager's GP commands are applied.
+- **Qualifying = 3 timed laps each (Q1/Q2/Q3, no elimination)**: best valid lap counts; a tie goes
+  to whoever set it first; no time → back of the grid. Reuses `LapState` unchanged.
+- **Finished cars leave the track and their players spectate** (owner): nobody who is done can get
+  in the way of a car still on a lap.
+- **The manager can end qualifying or the race early** (owner): no timeouts; a disconnected
+  player is DNF.
+- **F1 lights start** (owner): five red lights a second apart, lights out after a random 0.2–1 s
+  drawn by the server. Inputs before lights out are neutral on the server _and_ in the client's
+  prediction (same shared function), so the start is predicted without a correction.
+- **Closing a GP resets the circuit's room** and sends everyone back to the start through a page
+  reload, like every mode change.

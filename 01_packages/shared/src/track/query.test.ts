@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { add, distance, scale, vec2, type Vec2 } from '../math/vec2';
+import { add, distance, headingOf, scale, toWorld, vec2, type Vec2 } from '../math/vec2';
 import { buildTrack } from './buildTrack';
+import { BARCELONA, MONACO, MONZA } from './layouts';
 import { TEST_TRACK } from './layouts/testTrack';
-import { gridSlot, locateOnTrack, surfaceAt } from './query';
+import { GRID_SLOTS, gridSlot, locateOnTrack, surfaceAt } from './query';
 
 const track = buildTrack(TEST_TRACK);
 /** Half-width of the asphalt at sample `i`. */
@@ -87,6 +88,25 @@ describe('gridSlot', () => {
       for (let b = a + 1; b < slots.length; b++) {
         expect(distance(slots[a]!.position, slots[b]!.position)).toBeGreaterThan(4);
       }
+    }
+  });
+
+  it.each([MONZA, BARCELONA, MONACO])('fits the whole painted grid on $name', (definition) => {
+    const circuit = buildTrack(definition);
+    for (let slot = 0; slot < GRID_SLOTS; slot++) {
+      const { position, direction } = gridSlot(circuit, slot);
+      const heading = headingOf(direction);
+      // The slot and the grid box around the car (3.3 m ahead, 1.6 m to each side) are on asphalt.
+      for (const [ahead, side] of [
+        [0, 0],
+        [3.3, -1.6],
+        [3.3, 1.6],
+        [-2.4, -1.6],
+        [-2.4, 1.6],
+      ]) {
+        expect(surfaceAt(circuit, toWorld(position, heading, ahead!, side!))).toBe('asphalt');
+      }
+      expect(locateOnTrack(circuit, position).distance).toBeGreaterThan(circuit.length - 200);
     }
   });
 });

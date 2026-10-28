@@ -79,14 +79,15 @@ export type RealCircuitLook = Omit<TrackTheme, 'wallStyle' | 'scenery'> & {
 };
 
 /**
- * The theme of a real circuit: its OSM scenery (stands, in pieces along bends; pit lane and buildings, old raceways, trees
- * dense in the woods and sparse in the open) and walls by place, drawn with `look`. See
- * 01_docs/themes.md.
+ * The theme of a real circuit: its starting grid painted, its OSM scenery (stands, in pieces along
+ * bends; pit lane and buildings, old raceways, trees dense in the woods and sparse in the open) and
+ * walls by place, drawn with `look`. See 01_docs/themes.md.
  */
 export function realCircuitTheme(scenery: RealCircuitScenery, look: RealCircuitLook): TrackTheme {
   const { trees, parkTrees = PARK_TREES, barrier = 'armco', ...theme } = look;
   return {
     ...theme,
+    gridBoxes: true,
     wallStyle: (track) => wallsByPlace(track, scenery, barrier),
     scenery: (track) => buildScenery(track, scenery, trees, parkTrees),
   };

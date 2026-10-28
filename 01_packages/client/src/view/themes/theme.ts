@@ -36,6 +36,8 @@ export interface TrackTheme {
   readonly kerb: { readonly colors: readonly [string, string]; readonly block: number };
   /** The white edge line sits this far inside the asphalt edge (m): on Kruncar, inside the kerb. */
   readonly edgeLineInset: number;
+  /** Paint the starting grid's boxes (real circuits; the frozen test maps have none). */
+  readonly gridBoxes?: boolean;
   /** Style of wall segment `index` (`track.walls`: the left side's segments, then the right's). */
   readonly wallStyle: (track: Track) => (index: number) => WallStyle;
   /** Props around the circuit (grandstands, trees, ...), built once per track. */

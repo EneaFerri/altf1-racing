@@ -96,5 +96,5 @@ npm run server     # multiplayer server (port 8787, restarts on save); the clien
 
 Phase 1 (single player, five tracks, bot) done. Phase 2 (multiplayer) in progress: 2.1 lobby with
 nicknames and a room per circuit, 2.2 client-side prediction (protocol v4) and the minimap (2.2+)
-are done and tested over Tailscale. Next: 2.3 (rooms, more tracks, online game modes), to be
-designed with the owner. Step by step history: [01_docs/roadmap.md](01_docs/roadmap.md).
+are done and tested over Tailscale. Next: 2.3, online game modes (Free practice, Time trial with
+ghost, Grand Prix with qualifying and race), planned in ten sub-steps 2.3a–j. Step by step history: [01_docs/roadmap.md](01_docs/roadmap.md).
