@@ -17,7 +17,7 @@ import type { Predictor } from './Predictor';
 
 /**
  * This player's side of a Grand Prix: the panel and the start lights, the manager's keys (Enter:
- * start / end qualifying; 1–3: race laps), the start hold handed to the prediction, and which car
+ * start / end qualifying / end the race; 1–3: race laps), the start hold handed to the prediction, and which car
  * to watch while the own one is off the track. See 01_docs/multiplayer.md#grand-prix.
  */
 export class OnlineGrandPrix {
@@ -38,6 +38,7 @@ export class OnlineGrandPrix {
     controller.onAction('confirm', () => {
       if (this.info?.phase === 'lobby') this.command({ action: 'start' });
       else if (this.info?.phase === 'qualifying') this.command({ action: 'endQualifying' });
+      else if (this.info?.phase === 'race') this.command({ action: 'endRace' });
     });
     (['choice1', 'choice2', 'choice3'] as const).forEach((key, i) =>
       controller.onAction(key, () => {
@@ -52,7 +53,7 @@ export class OnlineGrandPrix {
   update(info: GrandPrixInfo): void {
     this.info = info;
     this.predictor.hold = info.hold;
-    this.hud.setLapName(lapName(info));
+    this.hud.setLapName(lapName(info, this.playerId));
     this.show();
   }
 
@@ -67,12 +68,14 @@ export class OnlineGrandPrix {
     this.lights.update(lightsOn(tick, this.info?.hold ?? null));
   }
 
-  /** The car to watch in `state` while the own one is off the track: the best placed still on it. */
+  /**
+   * The car to watch in `state` while the own one is off the track: the best placed still on it
+   * (race order in the race, else qualifying order).
+   */
   spectate(state: GameState): CarId | null {
     const onTrack = (id: CarId): boolean => state.cars.some((car) => car.id === id);
-    return (
-      this.info?.qualifying.map((entry) => entry.id).find(onTrack) ?? state.cars[0]?.id ?? null
-    );
+    const order = this.info?.race.length ? this.info.race : (this.info?.qualifying ?? []);
+    return order.map((entry) => entry.id).find(onTrack) ?? state.cars[0]?.id ?? null;
   }
 
   private command(command: GrandPrixCommand): void {

@@ -17,6 +17,7 @@ export * from './net/protocol';
 export * from './net/simContext';
 export * from './race/hold';
 export * from './race/qualifying';
+export * from './race/standings';
 export * from './sim/car';
 export * from './sim/collision/resolve';
 export * from './sim/collision/types';

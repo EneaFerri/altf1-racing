@@ -9,6 +9,7 @@ import {
   type LapState,
 } from '@altf1/shared';
 import {
+  defaultLapName,
   formatDelta,
   formatLapTime,
   sectorColor,
@@ -56,8 +57,8 @@ export class Hud {
   private chipUntil = 0;
   /** After a lap, its sector bars stay up while the chip shows; then they clear for the new lap. */
   private clearBarsAt: number | null = null;
-  /** Name of the lap being driven, by laps completed (e.g. Q1, Q2, Q3 in qualifying). */
-  private lapName = (laps: number): string => `LAP ${laps + 1}`;
+  /** Name of the lap being driven (e.g. Q1–Q3 in qualifying, `P2/6 · LAP 3/8` in a race). */
+  private lapName = defaultLapName;
 
   constructor() {
     const strip = element('div', 'hud-strip');
@@ -83,8 +84,8 @@ export class Hud {
     document.body.appendChild(this.root);
   }
 
-  /** How the lap being driven is named from now on, by laps completed (`LAP n` by default). */
-  setLapName(name: (laps: number) => string): void {
+  /** How the lap being driven is named from now on (`OUT LAP`, then `LAP n`, by default). */
+  setLapName(name: (timing: LapState) => string): void {
     this.lapName = name;
   }
 
@@ -113,7 +114,7 @@ export class Hud {
     this.trackEvents(timing, nowMs);
 
     const running = timing.lapStartTick !== null;
-    setText(this.lap, running ? this.lapName(timing.laps) : 'OUT LAP');
+    setText(this.lap, this.lapName(timing));
     setText(this.time, running ? formatLapTime(state.tick - timing.lapStartTick!, 1) : '--:--.-');
     this.invalid.hidden = timing.valid;
     setText(this.last, timing.lastLap ? formatLapTime(timing.lastLap.ticks) : '--:--.---');

@@ -1,4 +1,4 @@
-import { TICK_RATE } from '@altf1/shared';
+import { TICK_RATE, type LapState } from '@altf1/shared';
 
 /** Colour of a sector time, F1 style. */
 export type SectorColor = 'purple' | 'green' | 'yellow';
@@ -37,4 +37,9 @@ export function sectorColor(
   if (best === null || ticks < best) return 'purple';
   if (bestLapSector !== null && ticks < bestLapSector) return 'green';
   return 'yellow';
+}
+
+/** `OUT LAP` before the first crossing of the line, then `LAP n`. */
+export function defaultLapName(timing: LapState): string {
+  return timing.lapStartTick === null ? 'OUT LAP' : `LAP ${timing.laps + 1}`;
 }

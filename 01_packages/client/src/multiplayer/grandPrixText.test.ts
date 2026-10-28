@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { GrandPrixInfo, PlayerInfo, QualifyingEntry } from '@altf1/shared';
-import { playerLivery } from '../view/pixelTexture';
+import {
+  createLapState,
+  type GrandPrixInfo,
+  type PlayerInfo,
+  type QualifyingEntry,
+  type RaceStanding,
+} from '@altf1/shared';
+import { LIVERIES, playerLivery } from '../view/pixelTexture';
 import { grandPrixContent, lapName } from './grandPrixText';
 
 const PLAYERS: PlayerInfo[] = [
@@ -12,6 +18,7 @@ const LOBBY: GrandPrixInfo = {
   phase: 'lobby',
   manager: 'p1',
   qualifying: [],
+  race: [],
   raceLaps: null,
   hold: null,
 };
@@ -20,6 +27,26 @@ const LOBBY: GrandPrixInfo = {
 const QUALIFYING: QualifyingEntry[] = [
   { id: 'p2', best: 5400, setAt: 6000, laps: 3, done: true },
   { id: 'p1', best: null, setAt: null, laps: 1, done: false },
+];
+
+const standing = (id: string, name: string, more: Partial<RaceStanding>): RaceStanding => ({
+  id,
+  name,
+  status: 'running',
+  laps: 3,
+  time: null,
+  gap: null,
+  lapsBehind: 0,
+  best: null,
+  ...more,
+});
+
+/** Enea leads on lap 4, Kimi 1.25 s behind, Lewis a lap down, Max (gone) out. */
+const RACE: RaceStanding[] = [
+  standing('p1', 'Enea', {}),
+  standing('p2', 'Kimi', { gap: 75 }),
+  standing('p3', 'Lewis', { laps: 2, gap: 4000, lapsBehind: 1 }),
+  standing('p4', 'Max', { status: 'dnf' }),
 ];
 
 describe('Grand Prix panel', () => {
@@ -56,13 +83,39 @@ describe('Grand Prix panel', () => {
     ]);
     expect(forEnea.hint).toBe('Start the race — 1: 4 laps · 2: 8 laps · 3: 12 laps');
     expect(grandPrixContent(grid, PLAYERS, 'p2').hint).toBe('Waiting for Enea to start the race');
-    const race = grandPrixContent({ ...grid, phase: 'race', raceLaps: 8 }, PLAYERS, 'p2');
-    expect(race).toMatchObject({ title: 'GRAND PRIX · RACE · 8 LAPS', hint: '' });
   });
 
-  it('names the laps Q1–Q3 in qualifying only', () => {
-    expect(lapName({ ...LOBBY, phase: 'qualifying' })(1)).toBe('Q2');
-    expect(lapName(LOBBY)(1)).toBe('LAP 2');
-    expect(lapName(null)(0)).toBe('LAP 1');
+  it('shows the race order with the leader’s lap, gaps, laps down and DNFs', () => {
+    const info: GrandPrixInfo = { ...LOBBY, phase: 'race', raceLaps: 8, race: RACE };
+    const forKimi = grandPrixContent(info, PLAYERS, 'p2');
+    expect(forKimi.title).toBe('GRAND PRIX · RACE · 8 LAPS');
+    expect(forKimi.rows.map((r) => [r.name, r.note])).toEqual([
+      ['1  Enea', 'LAP 4/8'],
+      ['2  Kimi', '+1.250'],
+      ['3  Lewis', '+1 LAP'],
+      ['4  Max', 'DNF'],
+    ]);
+    expect(forKimi.rows[3]!.color).toBe(LIVERIES.grey.body); // left: no livery any more
+    expect(forKimi.hint).toBe('');
+    expect(grandPrixContent(info, PLAYERS, 'p1').hint).toBe('Enter: end the race now');
+  });
+
+  it('shows the winner’s race time and the finishers’ gaps in the results', () => {
+    const finished = RACE.slice(0, 2).map((s) => ({ ...s, status: 'finished' as const }));
+    const results: RaceStanding[] = [{ ...finished[0]!, time: 30000 }, finished[1]!];
+    const info: GrandPrixInfo = { ...LOBBY, phase: 'results', raceLaps: 8, race: results };
+    const content = grandPrixContent(info, PLAYERS, 'p2');
+    expect(content.title).toBe('GRAND PRIX · RESULTS');
+    expect(content.rows.map((r) => r.note)).toEqual(['8:20.000', '+1.250']);
+  });
+
+  it('names the laps: Q1–Q3 in qualifying, position and lap in the race', () => {
+    const lap = { ...createLapState('p2', 0), lapStartTick: 10, laps: 1 };
+    const outLap = createLapState('p2', 0);
+    const qualifying = lapName({ ...LOBBY, phase: 'qualifying' }, 'p2');
+    expect([qualifying(outLap), qualifying(lap)]).toEqual(['OUT LAP', 'Q2']);
+    const race = lapName({ ...LOBBY, phase: 'race', raceLaps: 8, race: RACE }, 'p2');
+    expect([race(outLap), race(lap)]).toEqual(['P2/4 · LAP 1/8', 'P2/4 · LAP 2/8']);
+    expect(lapName(LOBBY, 'p2')(lap)).toBe('LAP 2');
   });
 });

@@ -191,7 +191,7 @@ export class GameServer {
     conn.send(encodeMessage({ type: 'entered', track, players }));
     this.broadcast(key, { type: 'players', players }, conn);
     if (grandPrix) {
-      grandPrix.add(member.id);
+      grandPrix.add(member.id, this.nickname(member.id));
       this.broadcast(key, { type: 'grandPrix', ...grandPrix.info });
     }
   }

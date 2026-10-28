@@ -50,26 +50,26 @@ The owner's rule: the two sections never mix. Enforced, not just by convention:
 ## Protocol (2.1b ✅)
 
 JSON over one WebSocket, typed unions in `shared/src/net/protocol.ts`, with a `PROTOCOL_VERSION`
-(a client with another version is rejected with `version`). Version **7** since 2.3f–g (Grand
-Prix qualifying, grid and start: more `grandPrix` fields and `gp` actions; v6 = 2.3e room
+(a client with another version is rejected with `version`). Version **8** since 2.3h (Grand Prix
+race: `race` standings, `results` phase, `endRace`; v7 = 2.3f–g qualifying, grid and start; v6 = 2.3e room
 `status`, `gp`, `refused`, `grandPrix`; v5 = 2.3b rooms and `enter` carry the mode; v4 = 2.2c
 snapshots carry each car's last input; v3 = 2.2a input `seq`, acks, ping; v2 = 2.1f+ rooms).
 
-| Direction       | Message     | Content                                                                             |
-| --------------- | ----------- | ----------------------------------------------------------------------------------- |
-| client → server | `hello`     | `protocol`, `nickname`                                                              |
-| client → server | `enter`     | `mode`, `track`: go into that room (once, after the welcome)                        |
-| client → server | `input`     | `seq` + `InputCommand`, once per client tick (only once in a room)                  |
-| client → server | `ping`      | `t` (the client's clock), once a second in a room                                   |
-| client → server | `gp`        | `action`: `start` / `endQualifying` / `startRace` + `laps` (4, 8, 12); manager only |
-| server → client | `welcome`   | own `playerId`, the `rooms` offered (`mode`, `track`, `players`, `status`)          |
-| server → client | `rejected`  | `reason`: `taken` / `invalid` / `full` / `version`                                  |
-| server → client | `refused`   | `reason` `inProgress`: that circuit's Grand Prix has started                        |
-| server → client | `entered`   | the room's `track` and the players in it                                            |
-| server → client | `players`   | the players in the room, sent on every join and leave there                         |
-| server → client | `snapshot`  | whole `GameState`; per car `acks` (last `seq` run) + `inputs`; 30 Hz                |
-| server → client | `pong`      | the `ping`'s `t`, echoed: the client measures the round trip                        |
-| server → client | `grandPrix` | `phase`, `manager`, `qualifying`, `raceLaps`, `hold`: on entering and every change  |
+| Direction       | Message     | Content                                                                                         |
+| --------------- | ----------- | ----------------------------------------------------------------------------------------------- |
+| client → server | `hello`     | `protocol`, `nickname`                                                                          |
+| client → server | `enter`     | `mode`, `track`: go into that room (once, after the welcome)                                    |
+| client → server | `input`     | `seq` + `InputCommand`, once per client tick (only once in a room)                              |
+| client → server | `ping`      | `t` (the client's clock), once a second in a room                                               |
+| client → server | `gp`        | `action`: `start` / `endQualifying` / `startRace` + `laps` (4, 8, 12) / `endRace`; manager only |
+| server → client | `welcome`   | own `playerId`, the `rooms` offered (`mode`, `track`, `players`, `status`)                      |
+| server → client | `rejected`  | `reason`: `taken` / `invalid` / `full` / `version`                                              |
+| server → client | `refused`   | `reason` `inProgress`: that circuit's Grand Prix has started                                    |
+| server → client | `entered`   | the room's `track` and the players in it                                                        |
+| server → client | `players`   | the players in the room, sent on every join and leave there                                     |
+| server → client | `snapshot`  | whole `GameState`; per car `acks` (last `seq` run) + `inputs`; 30 Hz                            |
+| server → client | `pong`      | the `ping`'s `t`, echoed: the client measures the round trip                                    |
+| server → client | `grandPrix` | `phase`, `manager`, `qualifying`, `race`, `raceLaps`, `hold`: on entering and every change      |
 
 - **The server trusts nothing**: `parseClientMessage` returns `null` for bad JSON, unknown types,
   missing or wrong-typed fields, non-finite numbers, and nicknames or track names longer than 64
@@ -202,8 +202,9 @@ simulation**: the server is the only one.
 - **HUD**: laps, sectors, speed and SLIP from the predicted state (so the timing reacts at once,
   corrected by the server like the car); the bot item is hidden (`Hud.hideBot`). F3 shows the own
   car's telemetry, the last input sent, `rtt`, `ahead` (ticks predicted past the newest snapshot)
-  and `corrected` (how far the last snapshot moved the own car, m).
-- **Keys**: WASD/Space drive, R reset, V camera, Z look back, F3 overlay, Enter and 1/2/3 the GP
+  and `corrected` (how far the last snapshot moved the own car, m); not in a Grand Prix (owner's
+  choice, 2.3h), where the top-left corner belongs to the GP panel.
+- **Keys**: WASD/Space drive, R reset, V camera, Z look back, F3 overlay (not in a Grand Prix), Enter and 1/2/3 the GP
   manager's commands (Grand Prix), Esc back to the start screen (the reload closes the socket, which frees the nickname and removes the car). B, F2 and F4
   are single-player only.
 - **Disconnect** (server stopped, network lost): a DISCONNECTED menu over the race; Enter or Esc
@@ -254,11 +255,11 @@ Chosen after the nickname, before the circuit; plan and sub-steps in
 [roadmap.md](roadmap.md#23--online-game-modes-free-practice--time-trial--grand-prix), design
 choices in [decisions.md](decisions.md#2026-10-28--online-game-modes-step-23-plan).
 
-| Mode (`OnlineMode`)      | What it is                                                       | Status                                                           |
-| ------------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Free practice `practice` | Everyone in the room laps freely (the 2.1–2.2 room)              | ✅ 2.3b                                                          |
-| Time trial `timeTrial`   | Alone on the circuit, racing the ghost of the session's best lap | ✅ 2.3c, ghost ✅ 2.3d                                           |
-| Grand Prix `grandPrix`   | Manager, qualifying Q1/Q2/Q3, grid, F1 lights, race, podium      | ✅ lobby 2.3e, qualifying 2.3f, grid and start 2.3g; race 2.3h–i |
+| Mode (`OnlineMode`)      | What it is                                                       | Status                                                                      |
+| ------------------------ | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Free practice `practice` | Everyone in the room laps freely (the 2.1–2.2 room)              | ✅ 2.3b                                                                     |
+| Time trial `timeTrial`   | Alone on the circuit, racing the ghost of the session's best lap | ✅ 2.3c, ghost ✅ 2.3d                                                      |
+| Grand Prix `grandPrix`   | Manager, qualifying Q1/Q2/Q3, grid, F1 lights, race, podium      | ✅ lobby 2.3e, qualifying 2.3f, grid and start 2.3g, race 2.3h; podium 2.3i |
 
 ### Time trial ghost (2.3d ✅)
 
@@ -317,7 +318,24 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   server's `Room` **and** in the client's `Predictor`, so the cars leave on exactly the same tick
   everywhere and the start needs no correction. The grid waits with `HELD` (no lights, until
   further notice). `StartLights` (top centre) draws the lit lights at the predicted tick; at
-  lights out they vanish and the cars go. Race standings and the finish come in 2.3h.
+  lights out they vanish and the cars go.
+- **Race** (2.3h ✅): timed like an F1 timing tower, at every **timing line** (the start line and
+  the sector lines, the same ones as the lap timing): after each tick `GrandPrix` records the tick
+  every car passes each line (`timingLinesPassed`, from its `LapState`). `raceStandings`
+  (`shared/src/race/standings.ts`): whoever has passed more lines is ahead, then whoever passed
+  the last one first; DNFs at the back; before anyone reaches the start line, the grid order. The
+  **gap** to the leader is taken at the last line both passed; a car a whole lap or more behind
+  shows `+1 LAP`. So the order and gaps change at the lines, not between them. The lap counter
+  starts at lights out from the grid (`LAP 1/8` already behind the line); resets are allowed.
+- **Finish**: completing the last lap = the flag. The finisher's race time (lights out to the
+  flag) is kept, the car leaves the track and its player spectates (the camera on the best-placed
+  car still racing). A player who disconnects is **DNF**, kept by name (grey) at the back. The race
+  ends when nobody is racing any more, or when the manager presses Enter: whoever is still racing
+  is classified where they are. Phase `results`: the panel shows the final classification.
+- **Race display**: the panel is the race tower (position, name, the leader's `LAP n/N` or race
+  time, the others' gap, `+1 LAP` or `DNF`); the timing strip names the lap `P2/6 · LAP 3/8`; best
+  lap of the race in each `RaceStanding`. The F3 overlay is off in a Grand Prix (its corner is the
+  panel's).
 - **Closed to newcomers once started**: the room's `status` becomes `running`; the track menu
   shows that circuit dimmed as "GP in progress", and an `enter` that raced the start gets
   `refused` → a GRAND PRIX menu ("A Grand Prix is in progress on this circuit — try another one")

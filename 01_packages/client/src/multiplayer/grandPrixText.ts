@@ -1,12 +1,20 @@
-import { GRAND_PRIX, type CarId, type GrandPrixInfo, type PlayerInfo } from '@altf1/shared';
-import { formatLapTime } from '../view/hud/format';
+import {
+  GRAND_PRIX,
+  type CarId,
+  type GrandPrixInfo,
+  type LapState,
+  type PlayerInfo,
+  type RaceStanding,
+} from '@altf1/shared';
+import { defaultLapName, formatDelta, formatLapTime } from '../view/hud/format';
 import type { GrandPrixContent, GrandPrixRow } from '../view/hud/GrandPrixPanel';
-import { playerLivery } from '../view/pixelTexture';
+import { LIVERIES, playerLivery } from '../view/pixelTexture';
 
 /**
  * The Grand Prix panel for player `ownId`, by phase: the drivers (arrival order in the lobby, then
- * the qualifying order, which becomes the starting grid) and what this player can do or is waiting
- * for. The manager's keys: Enter (start, end qualifying), 1/2/3 (race laps).
+ * the qualifying order, which becomes the starting grid, then the race order with the gaps) and
+ * what this player can do or is waiting for. The manager's keys: Enter (start, end qualifying,
+ * end the race), 1/2/3 (race laps).
  */
 export function grandPrixContent(
   info: GrandPrixInfo,
@@ -47,29 +55,72 @@ export function grandPrixContent(
           : done || 'Three timed laps, Q1 to Q3: the best one counts',
       };
     }
-    case 'grid':
-    case 'race': {
+    case 'grid': {
       const choices = GRAND_PRIX.raceLaps.map((laps, i) => `${i + 1}: ${laps} laps`).join(' · ');
       return {
-        title:
-          info.phase === 'grid'
-            ? 'GRAND PRIX · STARTING GRID'
-            : `GRAND PRIX · RACE · ${info.raceLaps} LAPS`,
+        title: 'GRAND PRIX · STARTING GRID',
         rows: info.qualifying.flatMap((entry, i) =>
           row(entry.id, `P${i + 1}  ${byId.get(entry.id)?.nickname ?? ''}`, time(entry.best)),
         ),
-        hint:
-          info.phase === 'race'
-            ? ''
-            : isManager
-              ? `Start the race — ${choices}`
-              : `Waiting for ${manager} to start the race`,
+        hint: isManager
+          ? `Start the race — ${choices}`
+          : `Waiting for ${manager} to start the race`,
+      };
+    }
+    case 'race':
+    case 'results': {
+      const own = info.race.find((standing) => standing.id === ownId);
+      const done = own?.status === 'finished' ? 'Finished — watching the others' : '';
+      // A driver who left is no longer in `players`: drawn grey, by the name the server kept.
+      const rows = info.race.map((standing, i) => {
+        const player = byId.get(standing.id);
+        return {
+          name: `${i + 1}  ${standing.name}`,
+          color: (player ? playerLivery(player.livery) : LIVERIES.grey).body,
+          note: raceNote(standing, i, info.raceLaps!),
+          own: standing.id === ownId,
+        };
+      });
+      if (info.phase === 'results') return { title: 'GRAND PRIX · RESULTS', rows, hint: '' };
+      return {
+        title: `GRAND PRIX · RACE · ${info.raceLaps} LAPS`,
+        rows,
+        hint: isManager ? [done, 'Enter: end the race now'].filter(Boolean).join(' — ') : done,
       };
     }
   }
 }
 
-/** How the HUD names the lap being driven: Q1–Q3 in qualifying, else the usual `LAP n`. */
-export function lapName(info: GrandPrixInfo | null): (laps: number) => string {
-  return info?.phase === 'qualifying' ? (laps) => `Q${laps + 1}` : (laps) => `LAP ${laps + 1}`;
+/**
+ * A race line's note: DNF; the leader's lap (or race time once finished); the others' gap to the
+ * leader, or the laps they are down.
+ */
+function raceNote(standing: RaceStanding, position: number, raceLaps: number): string {
+  if (standing.status === 'dnf') return 'DNF';
+  if (position === 0) {
+    return standing.time !== null
+      ? formatLapTime(standing.time)
+      : `LAP ${Math.min(standing.laps + 1, raceLaps)}/${raceLaps}`;
+  }
+  if (standing.lapsBehind > 0) {
+    return `+${standing.lapsBehind} LAP${standing.lapsBehind > 1 ? 'S' : ''}`;
+  }
+  return standing.gap === null ? '' : formatDelta(standing.gap);
+}
+
+/**
+ * How the HUD names player `ownId`'s lap: Q1–Q3 in qualifying, position and lap in the race
+ * (`P2/6 · LAP 3/8`, lap 1 from the grid on), else the usual `OUT LAP` / `LAP n`.
+ */
+export function lapName(info: GrandPrixInfo, ownId: CarId): (timing: LapState) => string {
+  if (info.phase === 'qualifying') {
+    return (timing) => (timing.lapStartTick === null ? 'OUT LAP' : `Q${timing.laps + 1}`);
+  }
+  if (info.phase === 'race') {
+    const laps = info.raceLaps!;
+    const position = info.race.findIndex((standing) => standing.id === ownId) + 1;
+    return (timing) =>
+      `P${position}/${info.race.length} · LAP ${Math.min(timing.laps + 1, laps)}/${laps}`;
+  }
+  return defaultLapName;
 }

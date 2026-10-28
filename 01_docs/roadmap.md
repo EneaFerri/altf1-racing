@@ -156,8 +156,9 @@ leaderboards, bots online.
   at first): it starts with an out-lap, so nobody gains from going first.
 - 2.3g ✅ **GP: grid and F1 lights** — grid from qualifying, the manager picks 4/8/12 laps; cars held
   until lights out by a hold both the server and the prediction apply (`shared/src/race/`).
-- 2.3h **GP: race** — position and lap in the HUD, gaps tower, finish → spectate, DNF; the manager
-  can end it.
+- 2.3h ✅ **GP: race** — position and lap in the HUD, gaps tower (timed at every timing line),
+  finish → spectate, DNF; the manager can end it. Owner's addition: no F3 telemetry overlay in a
+  Grand Prix (it overlapped the race panel).
 - 2.3i **GP: podium, classification, close** — results screen; the manager closes the GP, everyone
   goes back to the start.
 - 2.3j **Owner test over Tailscale** of all three modes.

@@ -30,12 +30,34 @@ class FakeRoom implements GrandPrixRoom {
       lap.carId === id ? { ...lap, laps, lastLap } : lap;
     this.state = { ...this.state, tick, laps: this.state.laps.map(timing) };
   }
+  /** `id` is on lap `laps` + 1 in `sector` (0-based), at `tick`; null `laps` = still before the line. */
+  line(
+    id: CarId,
+    laps: number | null,
+    sector: number,
+    tick: number,
+    best: number | null = null,
+  ): void {
+    const timing = (lap: LapState): LapState =>
+      lap.carId !== id
+        ? lap
+        : laps === null
+          ? { ...lap, lapStartTick: null }
+          : {
+              ...lap,
+              lapStartTick: 1,
+              laps,
+              sector,
+              bestLap: best === null ? null : { ticks: best, sectors: [], valid: true },
+            };
+    this.state = { ...this.state, tick, laps: this.state.laps.map(timing) };
+  }
 }
 
 function grandPrix(...ids: CarId[]): { gp: GrandPrix; room: FakeRoom } {
   const room = new FakeRoom();
   const gp = new GrandPrix(room, () => 0.5);
-  for (const id of ids) gp.add(id);
+  for (const id of ids) gp.add(id, id.toUpperCase());
   return { gp, room };
 }
 
@@ -46,6 +68,7 @@ describe('GrandPrix — lobby', () => {
       phase: 'lobby',
       manager: 'p3',
       qualifying: [],
+      race: [],
       raceLaps: null,
       hold: null,
     });
@@ -149,5 +172,82 @@ describe('GrandPrix — start', () => {
       hold: { lightsFrom: 1060, until: 1060 + 240 + 36 },
     });
     expect(gp.command('p1', { action: 'startRace', laps: 4 })).toBe(false);
+  });
+});
+
+/** A Grand Prix with `ids` on the grid in that order (qualifying ended at once), racing `laps`. */
+function racing(laps: 4 | 8 | 12, ...ids: CarId[]): { gp: GrandPrix; room: FakeRoom } {
+  const { gp, room } = grandPrix(...ids);
+  gp.command(ids[0]!, { action: 'start' });
+  gp.command(ids[0]!, { action: 'endQualifying' });
+  room.state = { ...room.state, tick: 100 };
+  gp.command(ids[0]!, { action: 'startRace', laps });
+  return { gp, room };
+}
+
+describe('GrandPrix — race', () => {
+  it('starts with everyone on the grid order and no line passed', () => {
+    const { gp } = racing(4, 'p1', 'p2');
+    expect(gp.info.race.map((s) => [s.id, s.name, s.status, s.laps])).toEqual([
+      ['p1', 'P1', 'running', 0],
+      ['p2', 'P2', 'running', 0],
+    ]);
+  });
+
+  it('times every line and reorders: who passed more lines, then who got there first', () => {
+    const { gp, room } = racing(4, 'p1', 'p2');
+    room.line('p2', 0, 0, 500); // p2 crosses the start line first
+    expect(gp.afterTick()).toBe(true);
+    room.line('p1', 0, 0, 503);
+    gp.afterTick();
+    expect(gp.afterTick()).toBe(false); // nothing new
+    expect(gp.info.race.map((s) => [s.id, s.gap])).toEqual([
+      ['p2', null],
+      ['p1', 3],
+    ]);
+  });
+
+  it('takes finishers off the track with their race time, and ends when nobody is racing', () => {
+    const { gp, room } = racing(4, 'p1', 'p2');
+    const until = gp.info.hold!.until;
+    room.line('p1', 4, 0, until + 20000, 4900);
+    gp.afterTick();
+    expect(room.retired).toEqual(['p1']);
+    expect(gp.info.race[0]).toMatchObject({
+      id: 'p1',
+      status: 'finished',
+      time: 20000,
+      best: 4900,
+    });
+    expect(gp.info.phase).toBe('race');
+    room.line('p2', 4, 0, until + 20300);
+    gp.afterTick();
+    expect(gp.info.phase).toBe('results');
+    expect(gp.info.race.map((s) => [s.id, s.gap])).toEqual([
+      ['p1', null],
+      ['p2', 300],
+    ]);
+  });
+
+  it('marks a driver who leaves DNF (kept, at the back, by name)', () => {
+    const { gp, room } = racing(4, 'p1', 'p2', 'p3');
+    room.line('p2', 0, 0, 500);
+    gp.afterTick();
+    gp.remove('p2');
+    expect(gp.info.race.at(-1)).toMatchObject({ id: 'p2', name: 'P2', status: 'dnf' });
+    expect(gp.info.phase).toBe('race');
+  });
+
+  it('lets the manager end the race: whoever is still racing is classified where they are', () => {
+    const { gp, room } = racing(8, 'p1', 'p2');
+    room.line('p2', 1, 1, 9000);
+    gp.afterTick();
+    expect(gp.command('p2', { action: 'endRace' })).toBe(false);
+    expect(gp.command('p1', { action: 'endRace' })).toBe(true);
+    expect(gp.info.phase).toBe('results');
+    expect(gp.info.race.map((s) => [s.id, s.status, s.laps])).toEqual([
+      ['p2', 'running', 1],
+      ['p1', 'running', 0],
+    ]);
   });
 });

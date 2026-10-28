@@ -45,7 +45,8 @@ export class OnlineGame {
   private readonly view: SceneView;
   private readonly hud = new Hud();
   private readonly minimap: Minimap;
-  private readonly debugOverlay = new DebugOverlay();
+  /** F3 telemetry; none in a Grand Prix, where its corner belongs to the race panel. */
+  private readonly debugOverlay: DebugOverlay | null;
   /** Time trial only: the own best lap, raced as a see-through car. */
   private readonly ghost: Ghost | null;
   /** Grand Prix only: panel, lights, the manager's keys, spectating. */
@@ -80,7 +81,8 @@ export class OnlineGame {
     this.minimap = new Minimap(built);
     this.setPlayers(entered.players);
     this.hud.hideBot();
-    this.controller.onAction('toggleDebug', () => this.debugOverlay.toggle());
+    this.debugOverlay = mode === 'grandPrix' ? null : new DebugOverlay();
+    this.controller.onAction('toggleDebug', () => this.debugOverlay?.toggle());
     this.controller.onAction('toggleCamera', () => this.view.toggleCamera());
     // A reload closes the socket (the server frees the nickname) and brings the start screen back.
     this.controller.onAction('backToMenu', () => location.reload());
@@ -126,7 +128,7 @@ export class OnlineGame {
     this.view.render(prev, curr, alpha, frameSeconds);
     this.hud.update(curr, this.playerId, performance.now());
     this.minimap.update(curr.cars, this.playerId);
-    if (car) this.debugOverlay.update(curr, car, this.lastInput, this.networkLines());
+    if (car) this.debugOverlay?.update(curr, car, this.lastInput, this.networkLines());
   }
 
   /** Network numbers for F3: round trip, how far ahead the prediction runs, last correction. */

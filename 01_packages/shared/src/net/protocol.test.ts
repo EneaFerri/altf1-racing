@@ -26,6 +26,7 @@ describe('client messages', () => {
       { type: 'gp', action: 'start' },
       { type: 'gp', action: 'endQualifying' },
       { type: 'gp', action: 'startRace', laps: 8 },
+      { type: 'gp', action: 'endRace' },
     ];
     for (const message of messages) {
       expect(parseClientMessage(encodeMessage(message))).toEqual(message);
@@ -109,6 +110,18 @@ describe('server messages', () => {
         phase: 'race',
         manager: 'p1',
         qualifying: [{ id: 'p1', best: 5400, setAt: 9000, laps: 3, done: true }],
+        race: [
+          {
+            id: 'p1',
+            name: 'Enea',
+            status: 'running',
+            laps: 1,
+            time: null,
+            gap: null,
+            lapsBehind: 0,
+            best: 5500,
+          },
+        ],
         raceLaps: 4,
         hold: { lightsFrom: 100, until: 412 },
       },

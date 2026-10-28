@@ -401,3 +401,21 @@
   prediction (same shared function), so the start is predicted without a correction.
 - **Closing a GP resets the circuit's room** and sends everyone back to the start through a page
   reload, like every mode change.
+
+## 2026-10-28 — Grand Prix qualifying, start and race (steps 2.3f–h)
+
+- **No hold before qualifying** (planned at first): it starts with an out-lap, so nobody gains
+  from leaving first.
+- **A car that is done leaves the simulation, its player stays** (`Room.retire`): inputs are still
+  queued and acked, so the client's prediction keeps running (without the own car) and spectates.
+  A room is empty only when no player is left.
+- **One shared start hold** (`heldInputs`): the server's `Room` and the client's `Predictor` apply
+  the same function to the same `hold` sent in `grandPrix`, so lights out happens on the same tick
+  everywhere. The grid waits with an open-ended hold (`HELD`, JSON-safe instead of Infinity).
+- **Race order and gaps at the timing lines**, like an F1 timing tower: the server records the
+  tick each car passes the start and sector lines; order = lines passed, then who got there first;
+  gap = difference at the last line both passed. Simple, exact and the same for everyone; the
+  price is that an overtake shows at the next line, not at once.
+- **The client's GP logic in its own class** (`OnlineGrandPrix`): panel, lights, manager keys,
+  hold and spectating, so `OnlineGame` stays the same for every mode.
+- **No F3 telemetry overlay in a Grand Prix** (owner): its top-left corner belongs to the GP panel.

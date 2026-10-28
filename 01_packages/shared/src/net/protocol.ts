@@ -1,6 +1,7 @@
 import { GRAND_PRIX, type RaceLaps } from '../config/grandPrix';
 import type { StartHold } from '../race/hold';
 import type { QualifyingEntry } from '../race/qualifying';
+import type { RaceStanding } from '../race/standings';
 import type { CarId } from '../sim/car';
 import type { GameState } from '../sim/game';
 import type { InputCommand } from '../types/input';
@@ -9,7 +10,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -48,9 +49,9 @@ export interface RoomInfo {
 
 /**
  * Where a Grand Prix is: waiting in the lobby, qualifying, on the grid waiting for the manager,
- * racing (from the start lights on). See 01_docs/multiplayer.md#grand-prix.
+ * racing (from the start lights on), over. See 01_docs/multiplayer.md#grand-prix.
  */
-export type GrandPrixPhase = 'lobby' | 'qualifying' | 'grid' | 'race';
+export type GrandPrixPhase = 'lobby' | 'qualifying' | 'grid' | 'race' | 'results';
 
 /** A Grand Prix as its players see it. */
 export interface GrandPrixInfo {
@@ -59,6 +60,8 @@ export interface GrandPrixInfo {
   readonly manager: CarId;
   /** Qualifying in order (live while it runs, then the starting grid); empty in the lobby. */
   readonly qualifying: readonly QualifyingEntry[];
+  /** The race classification, live (updated at every timing line); empty before the race. */
+  readonly race: readonly RaceStanding[];
   /** Race distance chosen by the manager; null before the race. */
   readonly raceLaps: RaceLaps | null;
   /** Cars held on the grid (and the start lights); null while they may drive. */
@@ -72,7 +75,9 @@ export type GrandPrixCommand =
   /** Qualifying → grid, without waiting for everyone's laps. */
   | { readonly action: 'endQualifying' }
   /** Grid → race over `laps` laps: the start lights begin. */
-  | { readonly action: 'startRace'; readonly laps: RaceLaps };
+  | { readonly action: 'startRace'; readonly laps: RaceLaps }
+  /** Race → results, without waiting for everyone to finish. */
+  | { readonly action: 'endRace' };
 
 export type RejectReason = 'taken' | 'invalid' | 'full' | 'version';
 
@@ -148,7 +153,9 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     }
     case 'gp': {
       const { action, laps } = data;
-      if (action === 'start' || action === 'endQualifying') return { type: 'gp', action };
+      if (action === 'start' || action === 'endQualifying' || action === 'endRace') {
+        return { type: 'gp', action };
+      }
       if (action !== 'startRace' || !GRAND_PRIX.raceLaps.includes(laps as RaceLaps)) return null;
       return { type: 'gp', action, laps: laps as RaceLaps };
     }
