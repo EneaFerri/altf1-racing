@@ -52,6 +52,7 @@ describe('Room', () => {
     const p1 = findCar(room.state, 'p1')!;
     expect(dot(p1.velocity, forward(p1.heading))).toBeGreaterThan(10);
     expect(room.acks).toEqual({ p1: 0 });
+    expect(room.lastInputs).toEqual({ p1: THROTTLE });
   });
 
   it('ignores duplicate and stale inputs', () => {

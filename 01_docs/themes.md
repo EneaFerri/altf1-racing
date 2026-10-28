@@ -105,6 +105,12 @@ Builders: `scenery/realCircuit.ts` (`createPitLane`, `createOldRaceway`), `creat
 (`RealCircuitLook`: sky, fog, light, ground, kerbs, tree builder) into a `TrackTheme`, the same for
 every real circuit:
 
+- **Stands drawn clear of the track** (`standPieces`, `fitsBeside` in `scenery/placement.ts`): the
+  model is a straight box (~10.4 m deep, roof 3 m over its front). Where a stand's box, aligned with
+  the track at its middle, would cut into the run-off on a bend (body < 0.5 m beyond the wall, roof
+  > 2.5 m over the run-off), it is drawn instead in ~15 m pieces following the track at the
+  > footprint's nearest gap; pieces that still don't fit are left out. Today: Monaco's three stands,
+  > Barcelona's G, N and T10, Monza's Prima Variante Esterna and Ascari Tre.
 - **Props**: the stands, pit buildings, pit lane and old raceways (if any); trees dense in the real
   woods (≤ 400 per wood, 2400 in all) and sparse in the open (500), kept off all of them.
 - **Walls**: `concrete` by the stands and the pit lane (15 m past each end), `tyres` where the

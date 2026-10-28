@@ -6,7 +6,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -53,11 +53,15 @@ export type ServerMessage =
   | { readonly type: 'entered'; readonly track: string; readonly players: readonly PlayerInfo[] }
   /** The players in the sender's room, after every join and leave there. */
   | { readonly type: 'players'; readonly players: readonly PlayerInfo[] }
-  /** The room's state; `acks` = per car, the `seq` of the last input it ran (absent before any). */
+  /**
+   * The room's state; per car, `acks` = the `seq` of the last input it ran (absent before any) and
+   * `inputs` = that input (absent before any), so clients can predict every car.
+   */
   | {
       readonly type: 'snapshot';
       readonly state: GameState;
       readonly acks: Readonly<Record<CarId, number>>;
+      readonly inputs: Readonly<Record<CarId, InputCommand>>;
     }
   /** Echo of a `ping`. */
   | { readonly type: 'pong'; readonly t: number };

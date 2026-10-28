@@ -94,6 +94,7 @@ describe('server messages', () => {
         type: 'snapshot',
         state: createGame(buildTrack(TEST_TRACK), ['p1', 'p2']),
         acks: { p1: 41 },
+        inputs: { p1: INPUT },
       },
       { type: 'pong', t: 1234.5 },
     ];

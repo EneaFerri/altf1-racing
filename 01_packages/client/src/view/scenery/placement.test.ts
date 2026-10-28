@@ -11,9 +11,13 @@ import {
   besideTrack,
   clearance,
   cornerApexes,
+  fitsBeside,
+  footprintBox,
   polylineFootprint,
   scatter,
+  standPieces,
   trackBounds,
+  type TrackSpot,
 } from './placement';
 
 const track = buildTrack(KRUNCAR);
@@ -35,6 +39,24 @@ describe('placement', () => {
     expect(
       scatter(track, 80, trackBounds(track, 100), { seed: 1, margin: 5, spacing: 12 }),
     ).toEqual(scatter(track, 80, trackBounds(track, 100), { seed: 1, margin: 5, spacing: 12 }));
+  });
+
+  it('draws a long stand beside a bend in pieces that follow the track, each clear of it', () => {
+    const reach = { back: 10, roof: 3 };
+    // Half the lap at 3 m beyond the right wall: as one straight box it cuts across the track.
+    const spots: TrackSpot[] = [
+      [0.1, 3],
+      [0.6, 3],
+      [0.6, 13],
+      [0.1, 13],
+    ];
+    expect(fitsBeside(track, footprintBox(track, spots), reach)).toBe(false);
+    const pieces = standPieces(track, spots, reach, 15);
+    expect(pieces.length).toBeGreaterThan(0);
+    for (const piece of pieces) {
+      expect(piece.length).toBeLessThan(30);
+      expect(fitsBeside(track, piece, reach)).toBe(true);
+    }
   });
 
   it('puts trackside spots just beyond the wall, facing the track', () => {

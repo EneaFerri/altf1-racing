@@ -1,13 +1,10 @@
 import {
   buildTrack,
-  CAR_PARAMS,
-  COLLISION_PARAMS,
   NEUTRAL_INPUT,
+  onlineSimContext,
   removeCar,
-  SLIPSTREAM_PARAMS,
   spawnOnGrid,
   stepGame,
-  SURFACE_PARAMS,
   type CarId,
   type GameState,
   type InputCommand,
@@ -45,13 +42,7 @@ export class Room {
   constructor(definition: TrackDefinition) {
     this.definition = definition;
     this.track = buildTrack(definition);
-    this.ctx = {
-      track: this.track,
-      carParams: CAR_PARAMS,
-      surfaceParams: SURFACE_PARAMS,
-      collisionParams: COLLISION_PARAMS,
-      slipstreamParams: SLIPSTREAM_PARAMS,
-    };
+    this.ctx = onlineSimContext(this.track);
   }
 
   get isEmpty(): boolean {
@@ -99,6 +90,13 @@ export class Room {
     const acks: Record<CarId, number> = {};
     for (const [id, queue] of this.queues) if (queue.ack >= 0) acks[id] = queue.ack;
     return acks;
+  }
+
+  /** Per player, the input its car ran in the last tick (players with none run yet are absent). */
+  get lastInputs(): Record<CarId, InputCommand> {
+    const inputs: Record<CarId, InputCommand> = {};
+    for (const [id, queue] of this.queues) if (queue.ack >= 0) inputs[id] = queue.last;
+    return inputs;
   }
 
   /**

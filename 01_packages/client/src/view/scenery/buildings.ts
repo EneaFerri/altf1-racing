@@ -22,6 +22,9 @@ export function face(object: THREE.Object3D, towards: { x: number; z: number }):
   object.rotation.y = Math.atan2(towards.x, towards.z);
 }
 
+/** How far a grandstand reaches from its front: seats and back wall behind, roof in front (m). */
+export const GRANDSTAND_REACH = { back: ROWS * ROW_DEPTH + 0.6, roof: 3 } as const;
+
 /** Grandstand `length` m long: stepped rows of seats with a pixel crowd, under a striped roof. */
 export function createGrandstand(length: number): THREE.Group {
   const group = new THREE.Group();

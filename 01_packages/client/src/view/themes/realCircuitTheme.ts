@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 import type { Track, TrackSide, Vec2 } from '@altf1/shared';
-import { createGrandstand, createPitBuilding, face } from '../scenery/buildings';
+import { createGrandstand, createPitBuilding, face, GRANDSTAND_REACH } from '../scenery/buildings';
 import { createCasino, createChapel } from '../scenery/landmarks';
 import { createMountains } from '../scenery/nature';
 import {
@@ -12,6 +12,7 @@ import {
   polygonBounds,
   polylineFootprint,
   scatter,
+  standPieces,
   trackBounds,
   type Circle,
   type Footprint,
@@ -32,6 +33,8 @@ import type { TrackTheme, WallStyle } from './theme';
 
 /** Concrete walls reach this far past a grandstand or the pit lane, either end (m). */
 const CONCRETE_MARGIN = 15;
+/** A stand that doesn't fit beside a bend in one piece is drawn in pieces this long (m). */
+export const STAND_PIECE = 15;
 /** Trees: spacing in the woods and in the open park, and how many at most. */
 const WOOD_SPACING = 9;
 const PARK_SPACING = 24;
@@ -76,7 +79,7 @@ export type RealCircuitLook = Omit<TrackTheme, 'wallStyle' | 'scenery'> & {
 };
 
 /**
- * The theme of a real circuit: its OSM scenery (stands, pit lane and buildings, old raceways, trees
+ * The theme of a real circuit: its OSM scenery (stands, in pieces along bends; pit lane and buildings, old raceways, trees
  * dense in the woods and sparse in the open) and walls by place, drawn with `look`. See
  * 01_docs/themes.md.
  */
@@ -179,9 +182,10 @@ function buildScenery(
   const keepClear: Circle[] = [];
 
   for (const stand of scenery.stands) {
-    const box = footprintBox(track, stand.footprint);
-    objects.push(placeOn(createGrandstand(box.length), box));
-    keepClear.push(cover(box));
+    for (const box of standPieces(track, stand.footprint, GRANDSTAND_REACH, STAND_PIECE)) {
+      objects.push(placeOn(createGrandstand(box.length), box));
+      keepClear.push(cover(box));
+    }
   }
   for (const building of scenery.pitBuildings) {
     const box = footprintBox(track, building);

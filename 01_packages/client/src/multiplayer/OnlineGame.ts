@@ -2,6 +2,7 @@ import {
   buildTrack,
   findCar,
   NEUTRAL_INPUT,
+  onlineSimContext,
   TICK_RATE,
   TRACKS,
   type InputCommand,
@@ -17,7 +18,7 @@ import { Hud } from '../view/hud/Hud';
 import { playerLivery } from '../view/pixelTexture';
 import { SceneView } from '../view/SceneView';
 import type { NetClient } from './NetClient';
-import { SnapshotBuffer } from './SnapshotBuffer';
+import { Predictor } from './Predictor';
 
 export type Entered = Extract<ServerMessage, { type: 'entered' }>;
 
@@ -30,13 +31,13 @@ export function trackByName(name: string): TrackDefinition | null {
 }
 
 /**
- * The online race: sends this player's input every tick and draws the server's snapshots.
- * No local simulation yet (prediction is step 2.2). See 01_docs/multiplayer.md#online-race.
+ * The online race: sends this player's input every tick and draws the room as predicted from the
+ * server's snapshots, so the own car responds at once. See 01_docs/multiplayer.md#online-race.
  */
 export class OnlineGame {
   private readonly playerId: string;
   private readonly controller = new KeyboardController();
-  private readonly buffer = new SnapshotBuffer();
+  private readonly predictor: Predictor;
   private readonly view: SceneView;
   private readonly hud = new Hud();
   private readonly debugOverlay = new DebugOverlay();
@@ -45,11 +46,9 @@ export class OnlineGame {
   private nextSeq = 0;
   /** Last measured round trip (ms); null before the first pong. */
   private rttMs: number | null = null;
-  /** Inputs sent that the newest snapshot hadn't run yet (ticks); null before the first ack. */
-  private ackLag: number | null = null;
   private readonly loop = new GameLoop({
     tick: () => this.tick(),
-    render: (_alpha, frameSeconds) => this.render(frameSeconds),
+    render: (alpha, frameSeconds) => this.render(alpha, frameSeconds),
   });
 
   /** `entered`: the server's answer to entering the room of `track`. */
@@ -60,7 +59,9 @@ export class OnlineGame {
     track: TrackDefinition,
   ) {
     this.playerId = playerId;
-    this.view = new SceneView(buildTrack(track), this.playerId, {}, { ...CAMERA_PARAMS });
+    const built = buildTrack(track);
+    this.predictor = new Predictor(playerId, onlineSimContext(built));
+    this.view = new SceneView(built, this.playerId, {}, { ...CAMERA_PARAMS });
     this.setPlayers(entered.players);
     this.hud.hideBot();
     this.controller.onAction('toggleDebug', () => this.debugOverlay.toggle());
@@ -68,7 +69,7 @@ export class OnlineGame {
     // A reload closes the socket (the server frees the nickname) and brings the start screen back.
     this.controller.onAction('backToMenu', () => location.reload());
     client.onMessage((message) => {
-      if (message.type === 'snapshot') this.onSnapshot(message);
+      if (message.type === 'snapshot') this.predictor.reconcile(message);
       else if (message.type === 'players') this.setPlayers(message.players);
       else if (message.type === 'pong') this.rttMs = performance.now() - message.t;
     });
@@ -78,37 +79,39 @@ export class OnlineGame {
     this.loop.start();
   }
 
-  /** One fixed tick: this player's numbered input goes to the server (R rides along as `reset`). */
+  /**
+   * One fixed tick: this player's numbered input goes to the server (R rides along as `reset`) and
+   * moves the predicted world.
+   */
   private tick(): void {
     this.lastInput = this.controller.sample();
     if (this.nextSeq % PING_EVERY_TICKS === 0) {
       this.client.send({ type: 'ping', t: performance.now() });
     }
-    this.client.send({ type: 'input', seq: this.nextSeq++, input: this.lastInput });
+    this.client.send({ type: 'input', seq: this.nextSeq, input: this.lastInput });
+    this.predictor.step(this.nextSeq++, this.lastInput);
   }
 
-  private onSnapshot(message: Extract<ServerMessage, { type: 'snapshot' }>): void {
-    this.buffer.push(message.state);
-    const ack = message.acks[this.playerId];
-    if (ack !== undefined) this.ackLag = this.nextSeq - 1 - ack;
-  }
-
-  private render(frameSeconds: number): void {
-    this.buffer.advance(frameSeconds);
-    const sample = this.buffer.sample();
-    if (!sample) return; // nothing to draw before the first snapshot
+  private render(alpha: number, frameSeconds: number): void {
+    this.predictor.decay(frameSeconds);
+    const curr = this.predictor.current;
+    const prev = this.predictor.before;
+    if (!curr || !prev) return; // nothing to draw before the first snapshot with this car
     this.view.setLookBack(this.controller.isHeld('lookBack'));
-    this.view.render(sample.prev, sample.curr, sample.alpha, frameSeconds);
-    this.hud.update(sample.curr, this.playerId, performance.now());
-    const car = findCar(sample.curr, this.playerId);
-    if (car) this.debugOverlay.update(sample.curr, car, this.lastInput, this.networkLines());
+    this.view.render(prev, curr, alpha, frameSeconds);
+    this.hud.update(curr, this.playerId, performance.now());
+    const car = findCar(curr, this.playerId);
+    if (car) this.debugOverlay.update(curr, car, this.lastInput, this.networkLines());
   }
 
-  /** Network numbers for F3: round trip and how far the server's acks trail the inputs sent. */
+  /** Network numbers for F3: round trip, how far ahead the prediction runs, last correction. */
   private networkLines(): string[] {
     const rtt = this.rttMs === null ? '-' : `${this.rttMs.toFixed(0)} ms`;
-    const lag = this.ackLag === null ? '-' : `${this.ackLag} ticks`;
-    return [`rtt       ${rtt}`, `ack lag   ${lag} (inputs not yet run)`];
+    return [
+      `rtt       ${rtt}`,
+      `ahead     ${this.predictor.ahead} ticks (inputs the server hasn't run)`,
+      `corrected ${this.predictor.lastCorrection.toFixed(2)} m (last snapshot)`,
+    ];
   }
 
   /** Colours and nickname tags for everyone online (sent on every join and leave). */

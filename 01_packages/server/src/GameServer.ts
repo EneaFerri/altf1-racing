@@ -96,7 +96,12 @@ export class GameServer {
       for (const [track, room] of this.rooms) {
         room.tick();
         if (room.state.tick % SNAPSHOT_EVERY_TICKS === 0) {
-          this.broadcast(track, { type: 'snapshot', state: room.state, acks: room.acks });
+          this.broadcast(track, {
+            type: 'snapshot',
+            state: room.state,
+            acks: room.acks,
+            inputs: room.lastInputs,
+          });
         }
       }
     }

@@ -88,6 +88,82 @@ export function footprintBox(track: Track, spots: readonly TrackSpot[]): Footpri
   };
 }
 
+/**
+ * A building beside the track: its body this far beyond the walls, its roof (high up) at most this
+ * far over the run-off (m).
+ */
+const BODY_CLEARANCE = 0.5;
+const ROOF_OVERHANG = 2.5;
+
+/** How far a drawn building reaches from its footprint's front: `back` behind, `roof` in front (m). */
+export interface Reach {
+  readonly back: number;
+  readonly roof: number;
+}
+
+/**
+ * True when a building drawn on `box` (roof 1 m longer each end) stays off the track: its body at
+ * least `BODY_CLEARANCE` beyond the walls, its roof (high up) at most `ROOF_OVERHANG` over the run-off.
+ */
+export function fitsBeside(track: Track, box: Footprint, reach: Reach): boolean {
+  const t = box.towardsTrack;
+  const along = vec2(-t.z, t.x);
+  const half = box.length / 2 + 1;
+  // Every ~2 m along it, every ~metre across, edges included.
+  const steps = Math.max(2, Math.ceil(half / 2));
+  const rows = Math.ceil(reach.back + reach.roof);
+  for (let i = -steps; i <= steps; i++) {
+    const a = (half * i) / steps;
+    for (let j = 0; j <= rows; j++) {
+      const d = -reach.back + ((reach.back + reach.roof) * j) / rows;
+      const p = vec2(box.front.x + along.x * a + t.x * d, box.front.z + along.z * a + t.z * d);
+      // Only the roof reaches past the ends and the front.
+      const body = d <= 0 && Math.abs(a) <= box.length / 2;
+      if (clearance(track, p) < (body ? BODY_CLEARANCE : -ROOF_OVERHANG)) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Where to draw a stand on `spots`: its own box when that fits beside the track; else (a long stand
+ * on a bend, whose straight box would cut into the track) pieces about `pieceLength` m long that
+ * follow the track at the footprint's nearest gap, leaving out those that don't fit.
+ */
+export function standPieces(
+  track: Track,
+  spots: readonly TrackSpot[],
+  reach: Reach,
+  pieceLength: number,
+): Footprint[] {
+  const whole = footprintBox(track, spots);
+  if (fitsBeside(track, whole, reach)) return [whole];
+  const ats = spots.map(([at]) => at);
+  let from = Math.min(...ats);
+  let to = Math.max(...ats);
+  if (to - from > 0.5) {
+    // Over the line: from its end of the lap round to its start.
+    from = Math.min(...ats.filter((a) => a >= 0.5));
+    to = 1 + Math.max(...ats.filter((a) => a < 0.5));
+  }
+  const nearest = spots.reduce((a, b) => (Math.abs(b[1]) < Math.abs(a[1]) ? b : a))[1];
+  const far = nearest + Math.sign(nearest) * reach.back;
+  const count = Math.max(1, Math.round(((to - from) * track.length) / pieceLength));
+  const pieces: Footprint[] = [];
+  for (let k = 0; k < count; k++) {
+    const a = (from + ((to - from) * k) / count) % 1;
+    const b = (from + ((to - from) * (k + 1)) / count) % 1;
+    const piece = footprintBox(track, [
+      [a, nearest],
+      [b, nearest],
+      [b, far],
+      [a, far],
+    ]);
+    if (fitsBeside(track, piece, reach)) pieces.push(piece);
+  }
+  return pieces;
+}
+
 /** True when `p` is inside the polygon (even-odd rule). */
 export function insidePolygon(p: Vec2, polygon: readonly Vec2[]): boolean {
   let inside = false;

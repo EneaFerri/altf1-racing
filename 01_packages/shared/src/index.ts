@@ -13,6 +13,7 @@ export * from './math/geometry';
 export * from './math/vec2';
 export * from './net/nickname';
 export * from './net/protocol';
+export * from './net/simContext';
 export * from './sim/car';
 export * from './sim/collision/resolve';
 export * from './sim/collision/types';

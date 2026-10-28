@@ -10,12 +10,15 @@ import {
 import {
   alongTrack,
   clearance,
+  fitsBeside,
   footprintBox,
   fromTrack,
   insidePolygon,
   mooredBoats,
   scatter,
+  standPieces,
 } from '../scenery/placement';
+import { GRANDSTAND_REACH } from '../scenery/buildings';
 import {
   BARCELONA_OVAL,
   BARCELONA_OVAL_WIDTH,
@@ -47,7 +50,7 @@ import {
   MONZA_STANDS,
   MONZA_WOODS,
 } from './monzaLayout';
-import type { RealCircuitScenery } from './realCircuitTheme';
+import { STAND_PIECE, type RealCircuitScenery } from './realCircuitTheme';
 
 /** Every real circuit's generated scenery, with what it must contain. */
 const CIRCUITS: readonly {
@@ -116,6 +119,14 @@ describe.each(CIRCUITS.map((c) => [c.definition.name, c] as const))(
           expect(clearance(track, p)).toBeGreaterThan(2);
           expect(toPitLane(p)).toBeGreaterThan(scenery.pitLane.width / 2);
         }
+      }
+    });
+
+    it('draws every grandstand clear of the track, the main one included', () => {
+      for (const stand of scenery.stands) {
+        const pieces = standPieces(track, stand.footprint, GRANDSTAND_REACH, STAND_PIECE);
+        if (stand.name === mainStand) expect(pieces.length).toBeGreaterThan(0);
+        for (const box of pieces) expect(fitsBeside(track, box, GRANDSTAND_REACH)).toBe(true);
       }
     });
 

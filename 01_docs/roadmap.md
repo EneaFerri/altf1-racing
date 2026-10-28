@@ -91,7 +91,7 @@ track and drives freely. Done when two players on two machines (Tailscale) drive
   one leaves (protocol v2: `enter` / `entered`). Replaces 2.1e's single Test Ring room.
 - 2.1g ✅ **Two players over Tailscale** — owner test with friends on several machines: everyone
   drives together, but the own car's lag and delay are too high (it waits for the server's
-  snapshots) → 2.2. Written down in [multiplayer.md](multiplayer.md#two-machines-21g).
+  snapshots) → 2.2. Written down in [multiplayer.md](multiplayer.md#two-machines-21g-).
 
 ### 2.2 — Client-side prediction: the own car responds instantly
 
@@ -103,10 +103,12 @@ other cars stay smooth. Design: [multiplayer.md](multiplayer.md#prediction-22).
   carries a `seq`; the server runs exactly one queued input per player per tick and tells each
   snapshot which `seq` it ran last; `ping`/`pong` measures the round trip (F3). Infrastructure
   only: driving feels the same.
-- 2.2b **Own car predicted and reconciled** — the visible win: instant response, small server
-  corrections smoothed out, big ones snapped.
-- 2.2c **Other cars in the prediction, smoother remote cars** — contacts and tow predicted too;
-  snapshot delay adapts to the network's jitter.
+- 2.2b **✅Own car predicted and reconciled** — the visible win: instant response, small server
+  corrections smoothed out, big ones snapped (`multiplayer/Predictor.ts`; the snapshot playback
+  `SnapshotBuffer` removed).
+- 2.2c **✅Other cars in the prediction** (protocol v4) — snapshots carry each car's last input;
+  the other cars are predicted with it, so contacts and tow with them are predicted too and they
+  are drawn where the own car can touch them, corrections gliding in.
 - 2.2d **Owner test over Tailscale again** — round trip and correction sizes written down.
 
 ### 2.3 — Rooms, more tracks, game modes (to be designed)
