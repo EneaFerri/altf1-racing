@@ -33,6 +33,7 @@ import { KeyboardController } from '../controller/KeyboardController';
 import { CAMERA_PARAMS } from '../view/cameras/params';
 import { DebugOverlay } from '../view/hud/DebugOverlay';
 import { Hud } from '../view/hud/Hud';
+import { Minimap } from '../view/hud/Minimap';
 import { LIVERIES } from '../view/pixelTexture';
 import { SceneView } from '../view/SceneView';
 import { GameLoop } from '../core/GameLoop';
@@ -76,6 +77,7 @@ export class SinglePlayerGame {
   private readonly controller = new KeyboardController();
   private readonly view: SceneView;
   private readonly hud = new Hud();
+  private readonly minimap: Minimap;
   private readonly debugOverlay = new DebugOverlay();
   private readonly loop = new GameLoop({
     tick: () => this.tick(),
@@ -103,6 +105,12 @@ export class SinglePlayerGame {
       { [PLAYER_ID]: LIVERIES.red, [BOT_ID]: LIVERIES.blue },
       this.cameraParams,
     );
+    this.minimap = new Minimap(this.track);
+    this.minimap.setPlayers({
+      [PLAYER_ID]: { name: 'You', color: LIVERIES.red.body },
+      [BOT_ID]: { name: 'Bot', color: LIVERIES.blue.body },
+      [DUMMY_ID]: { name: 'Dummy', color: LIVERIES.grey.body },
+    });
     this.controller.onAction('toggleDebug', () => this.debugOverlay.toggle());
     this.controller.onAction('toggleCamera', () => this.view.toggleCamera());
     this.controller.onAction('cycleBot', () => this.cycleBot());
@@ -183,6 +191,7 @@ export class SinglePlayerGame {
     this.view.setLookBack(this.controller.isHeld('lookBack'));
     this.view.render(this.prevState, this.state, alpha, frameSeconds);
     this.hud.update(this.state, PLAYER_ID, performance.now());
+    this.minimap.update(this.state.cars, PLAYER_ID);
     const player = findCar(this.state, PLAYER_ID);
     if (player) this.debugOverlay.update(this.state, player, this.lastInput);
   }

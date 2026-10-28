@@ -68,6 +68,11 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 - **HUD** (`view/hud/Hud.ts` + `hud.css`): F1-style timing strip at the top centre (lap, running time,
   sector bars, last/best, speed, SLIP bar + % of slipstream, bot level) with a sector-gap chip; always on. The F3 debug overlay stays top left.
   Details: [laps.md](laps.md#hud-top-centre).
+- **Minimap** (`view/hud/Minimap.ts`, both modes): bottom-left, the whole track from above (main
+  loop, branches, start line; drawn once), a dot per car in its livery colour (own car bigger,
+  white ring, on top) and a legend colour → name of the cars on track (You / Bot / Dummy; online
+  the nicknames). `minimapFit.ts` (pure, tested): world → canvas with one scale for both axes,
+  centred, −z up and +x right like the view from above.
 - `frameSeconds` is used only for visual smoothing (camera, wheel spin), never for gameplay.
 - Pixel look: tiny textures with `NearestFilter`, no antialiasing, full-resolution render. A low-res
   render pass (whole scene pixelated) is not implemented; it remains a possible later option.
@@ -111,7 +116,7 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 - The two modes never mix (owner's rule): separate folders, loaded on demand (the production build
   emits a chunk per mode), and an ESLint boundary forbids imports between them and from the shared
   building blocks (`core`, `controller`, `dev`, `view`) into either. Details:
-  [multiplayer.md](multiplayer.md#separation-of-the-two-modes-21a).
+  [multiplayer.md](multiplayer.md#separation-of-the-two-modes-21a-).
 - **Esc** in a race (`backToMenu` action) reloads the page, which brings the start screen back.
 
 ## Game loop — `01_packages/client/src/core`

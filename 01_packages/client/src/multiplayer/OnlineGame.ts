@@ -15,6 +15,7 @@ import { GameLoop } from '../core/GameLoop';
 import { CAMERA_PARAMS } from '../view/cameras/params';
 import { DebugOverlay } from '../view/hud/DebugOverlay';
 import { Hud } from '../view/hud/Hud';
+import { Minimap } from '../view/hud/Minimap';
 import { playerLivery } from '../view/pixelTexture';
 import { SceneView } from '../view/SceneView';
 import type { NetClient } from './NetClient';
@@ -40,6 +41,7 @@ export class OnlineGame {
   private readonly predictor: Predictor;
   private readonly view: SceneView;
   private readonly hud = new Hud();
+  private readonly minimap: Minimap;
   private readonly debugOverlay = new DebugOverlay();
   private lastInput: InputCommand = NEUTRAL_INPUT;
   /** `seq` of the next input sent; one per tick. */
@@ -62,6 +64,7 @@ export class OnlineGame {
     const built = buildTrack(track);
     this.predictor = new Predictor(playerId, onlineSimContext(built));
     this.view = new SceneView(built, this.playerId, {}, { ...CAMERA_PARAMS });
+    this.minimap = new Minimap(built);
     this.setPlayers(entered.players);
     this.hud.hideBot();
     this.controller.onAction('toggleDebug', () => this.debugOverlay.toggle());
@@ -100,6 +103,7 @@ export class OnlineGame {
     this.view.setLookBack(this.controller.isHeld('lookBack'));
     this.view.render(prev, curr, alpha, frameSeconds);
     this.hud.update(curr, this.playerId, performance.now());
+    this.minimap.update(curr.cars, this.playerId);
     const car = findCar(curr, this.playerId);
     if (car) this.debugOverlay.update(curr, car, this.lastInput, this.networkLines());
   }
@@ -114,9 +118,14 @@ export class OnlineGame {
     ];
   }
 
-  /** Colours and nickname tags for everyone online (sent on every join and leave). */
+  /** Colours, nickname tags and minimap legend for everyone online (sent on every join and leave). */
   private setPlayers(players: readonly PlayerInfo[]): void {
     for (const p of players) this.view.setLivery(p.id, playerLivery(p.livery));
     this.view.setNameTags(Object.fromEntries(players.map((p) => [p.id, p.nickname])));
+    this.minimap.setPlayers(
+      Object.fromEntries(
+        players.map((p) => [p.id, { name: p.nickname, color: playerLivery(p.livery).body }]),
+      ),
+    );
   }
 }

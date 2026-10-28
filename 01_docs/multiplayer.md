@@ -1,9 +1,9 @@
 # Multiplayer (Phase 2)
 
-Phase 2.1 (sub-steps in [roadmap.md](roadmap.md)): a start screen with **Singleplayer /
+Phase 2 (sub-steps in [roadmap.md](roadmap.md)): a start screen with **Singleplayer /
 Multiplayer**, a nickname lobby, then a choice of circuit (Monza, Barcelona, Monaco): everyone who
-picks the same circuit drives together on it. Each section says which sub-step builds it; this file
-is updated as they land.
+picks the same circuit drives together on it, the own car predicted by the client (2.2). Each
+section says which sub-step built it.
 
 ## Flow
 

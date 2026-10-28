@@ -103,13 +103,20 @@ other cars stay smooth. Design: [multiplayer.md](multiplayer.md#prediction-22).
   carries a `seq`; the server runs exactly one queued input per player per tick and tells each
   snapshot which `seq` it ran last; `ping`/`pong` measures the round trip (F3). Infrastructure
   only: driving feels the same.
-- 2.2b **✅Own car predicted and reconciled** — the visible win: instant response, small server
+- 2.2b ✅ **Own car predicted and reconciled** — the visible win: instant response, small server
   corrections smoothed out, big ones snapped (`multiplayer/Predictor.ts`; the snapshot playback
   `SnapshotBuffer` removed).
-- 2.2c **✅Other cars in the prediction** (protocol v4) — snapshots carry each car's last input;
+- 2.2c ✅ **Other cars in the prediction** (protocol v4) — snapshots carry each car's last input;
   the other cars are predicted with it, so contacts and tow with them are predicted too and they
   are drawn where the own car can touch them, corrections gliding in.
-- 2.2d **Owner test over Tailscale again** — round trip and correction sizes written down.
+- 2.2d ✅ **Owner test over Tailscale again** — done (owner, 2026-10-28).
+
+### 2.2+ — Minimap ✅
+
+Bottom-left in both modes: the whole track from above, a dot per car in its livery colour, a
+legend colour → name. Details: [architecture.md](architecture.md#view--01_packagesclientsrcview).
+Same step: grandstands beside bends drawn in pieces that follow the track
+([themes.md](themes.md)).
 
 ### 2.3 — Rooms, more tracks, game modes (to be designed)
 
