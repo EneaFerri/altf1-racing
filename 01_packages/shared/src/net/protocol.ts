@@ -10,7 +10,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 9;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -56,8 +56,16 @@ export type GrandPrixPhase = 'lobby' | 'qualifying' | 'grid' | 'race' | 'results
 /** A Grand Prix as its players see it. */
 export interface GrandPrixInfo {
   readonly phase: GrandPrixPhase;
-  /** The GP manager: the player who decides when it moves on (the first one in). */
-  readonly manager: CarId;
+  /**
+   * The GP manager: the player who decides when it moves on (the first driver in); null only when
+   * every driver of a new lobby left while others are still on the results card.
+   */
+  readonly manager: CarId | null;
+  /**
+   * The players in this Grand Prix, in arrival order. After a play again the room may also hold
+   * players still on the results card, who are not in it.
+   */
+  readonly drivers: readonly CarId[];
   /** Qualifying in order (live while it runs, then the starting grid); empty in the lobby. */
   readonly qualifying: readonly QualifyingEntry[];
   /** The race classification, live (updated at every timing line); empty before the race. */
@@ -68,7 +76,7 @@ export interface GrandPrixInfo {
   readonly hold: StartHold | null;
 }
 
-/** What the GP manager can ask for, each in its phase. */
+/** What the GP manager can ask for, each in its phase; `playAgain` is open to every player. */
 export type GrandPrixCommand =
   /** Lobby → qualifying. */
   | { readonly action: 'start' }
@@ -77,7 +85,12 @@ export type GrandPrixCommand =
   /** Grid → race over `laps` laps: the start lights begin. */
   | { readonly action: 'startRace'; readonly laps: RaceLaps }
   /** Race → results, without waiting for everyone to finish. */
-  | { readonly action: 'endRace' };
+  | { readonly action: 'endRace' }
+  /**
+   * Any player, from the results card: in the results, a new lobby on the same circuit (the sender
+   * is its manager); in that lobby, join it.
+   */
+  | { readonly action: 'playAgain' };
 
 export type RejectReason = 'taken' | 'invalid' | 'full' | 'version';
 
@@ -153,7 +166,12 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     }
     case 'gp': {
       const { action, laps } = data;
-      if (action === 'start' || action === 'endQualifying' || action === 'endRace') {
+      if (
+        action === 'start' ||
+        action === 'endQualifying' ||
+        action === 'endRace' ||
+        action === 'playAgain'
+      ) {
         return { type: 'gp', action };
       }
       if (action !== 'startRace' || !GRAND_PRIX.raceLaps.includes(laps as RaceLaps)) return null;

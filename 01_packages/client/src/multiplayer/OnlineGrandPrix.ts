@@ -10,19 +10,25 @@ import {
 import type { KeyboardController } from '../controller/KeyboardController';
 import { GrandPrixPanel } from '../view/hud/GrandPrixPanel';
 import type { Hud } from '../view/hud/Hud';
+import { ResultsScreen } from '../view/hud/ResultsScreen';
 import { StartLights } from '../view/hud/StartLights';
 import { grandPrixContent, lapName } from './grandPrixText';
 import type { NetClient } from './NetClient';
 import type { Predictor } from './Predictor';
+import { classificationRows, playAgainItem, podiumContent, type RaceResult } from './resultsText';
 
 /**
  * This player's side of a Grand Prix: the panel and the start lights, the manager's keys (Enter:
- * start / end qualifying / end the race; 1–3: race laps), the start hold handed to the prediction, and which car
- * to watch while the own one is off the track. See 01_docs/multiplayer.md#grand-prix.
+ * start / end qualifying / end the race; 1–3: race laps), the start hold handed to the prediction,
+ * which car to watch while the own one is off the track, and the results screen (podium, then
+ * classification with Play again / Exit). See 01_docs/multiplayer.md#grand-prix.
  */
 export class OnlineGrandPrix {
   private readonly panel = new GrandPrixPanel();
   private readonly lights = new StartLights();
+  private readonly results = new ResultsScreen();
+  /** The podium or the classification card is up: the GP keys do nothing meanwhile. */
+  private onResults = false;
   /** The Grand Prix as last told by the server; null until then. */
   private info: GrandPrixInfo | null = null;
   private players: readonly PlayerInfo[] = [];
@@ -36,13 +42,14 @@ export class OnlineGrandPrix {
   ) {
     // The server ignores a command from anyone but the manager, or in the wrong phase.
     controller.onAction('confirm', () => {
+      if (this.onResults) return;
       if (this.info?.phase === 'lobby') this.command({ action: 'start' });
       else if (this.info?.phase === 'qualifying') this.command({ action: 'endQualifying' });
       else if (this.info?.phase === 'race') this.command({ action: 'endRace' });
     });
     (['choice1', 'choice2', 'choice3'] as const).forEach((key, i) =>
       controller.onAction(key, () => {
-        if (this.info?.phase === 'grid') {
+        if (this.info?.phase === 'grid' && !this.onResults) {
           this.command({ action: 'startRace', laps: GRAND_PRIX.raceLaps[i]! });
         }
       }),
@@ -51,9 +58,15 @@ export class OnlineGrandPrix {
 
   /** The server's news about the Grand Prix. */
   update(info: GrandPrixInfo): void {
+    const raceOver =
+      info.phase === 'results' &&
+      this.info?.phase !== 'results' &&
+      info.drivers.includes(this.playerId);
     this.info = info;
     this.predictor.hold = info.hold;
     this.hud.setLapName(lapName(info, this.playerId));
+    if (raceOver) void this.showResults(info);
+    else if (this.onResults) this.results.setPlayAgain(playAgainItem(info));
     this.show();
   }
 
@@ -76,6 +89,26 @@ export class OnlineGrandPrix {
     const onTrack = (id: CarId): boolean => state.cars.some((car) => car.id === id);
     const order = this.info?.race.length ? this.info.race : (this.info?.qualifying ?? []);
     return order.map((entry) => entry.id).find(onTrack) ?? state.cars[0]?.id ?? null;
+  }
+
+  /**
+   * The podium, then the classification of the race just over (frozen as it was); Play again
+   * asks the server for the new lobby, Exit goes back to the start screen.
+   */
+  private async showResults(info: GrandPrixInfo): Promise<void> {
+    this.onResults = true;
+    this.panel.setVisible(false);
+    const result: RaceResult = { race: info.race, raceLaps: info.raceLaps!, players: this.players };
+    await this.results.podium(podiumContent(result));
+    const choice = await this.results.classification(
+      `GRAND PRIX · CLASSIFICATION · ${result.raceLaps} LAPS`,
+      classificationRows(result, this.playerId),
+      playAgainItem(this.info!),
+    );
+    if (choice === 'exit') return location.reload();
+    this.client.send({ type: 'gp', action: 'playAgain' });
+    this.onResults = false;
+    this.panel.setVisible(true);
   }
 
   private command(command: GrandPrixCommand): void {

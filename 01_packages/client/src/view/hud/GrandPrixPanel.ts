@@ -26,6 +26,11 @@ export class GrandPrixPanel {
     document.body.appendChild(this.root);
   }
 
+  /** Hidden while the results screen is up. */
+  setVisible(visible: boolean): void {
+    this.root.style.display = visible ? '' : 'none';
+  }
+
   show({ title, rows, hint }: GrandPrixContent): void {
     const list = document.createElement('ol');
     list.append(

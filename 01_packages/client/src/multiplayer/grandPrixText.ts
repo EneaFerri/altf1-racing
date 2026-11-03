@@ -28,17 +28,29 @@ export function grandPrixContent(
     return [{ name, color: playerLivery(player.livery).body, note, own: id === ownId }];
   };
   const isManager = info.manager === ownId;
-  const manager = byId.get(info.manager)?.nickname ?? 'the manager';
+  const manager = (info.manager !== null && byId.get(info.manager)?.nickname) || 'the manager';
+  // Pressed play again too late: the new GP started without this player.
+  if (info.phase !== 'lobby' && info.phase !== 'results' && !info.drivers.includes(ownId)) {
+    return {
+      title: 'GRAND PRIX · IN PROGRESS',
+      rows: [],
+      hint: 'The new GP started without you — Esc: back to the start',
+    };
+  }
   const time = (best: number | null): string => (best === null ? 'no time' : formatLapTime(best));
 
   switch (info.phase) {
     case 'lobby':
       return {
         title: 'GRAND PRIX · WAITING',
-        rows: players.flatMap((p) => row(p.id, p.nickname, p.id === info.manager ? 'manager' : '')),
+        rows: info.drivers.flatMap((id) =>
+          row(id, byId.get(id)?.nickname ?? '', id === info.manager ? 'manager' : ''),
+        ),
         hint: isManager
           ? 'You are the GP manager — Enter: start the GP'
-          : `Waiting for ${manager} to start the GP`,
+          : info.manager === null
+            ? 'Waiting for a driver: the next one in is the manager'
+            : `Waiting for ${manager} to start the GP`,
       };
     case 'qualifying': {
       const own = info.qualifying.find((entry) => entry.id === ownId);
@@ -95,7 +107,7 @@ export function grandPrixContent(
  * A race line's note: DNF; the leader's lap (or race time once finished); the others' gap to the
  * leader, or the laps they are down.
  */
-function raceNote(standing: RaceStanding, position: number, raceLaps: number): string {
+export function raceNote(standing: RaceStanding, position: number, raceLaps: number): string {
   if (standing.status === 'dnf') return 'DNF';
   if (position === 0) {
     return standing.time !== null

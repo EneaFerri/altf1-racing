@@ -64,10 +64,15 @@ export class Room {
     return this.current;
   }
 
-  /** Puts the player's car on the first free grid slot. */
+  /** A new player: their car on the first free grid slot. */
   add(id: CarId): void {
-    this.current = spawnOnGrid(this.current, this.track, id);
+    this.spawn(id);
     this.queues.set(id, { waiting: [], last: NEUTRAL_INPUT, ack: -1 });
+  }
+
+  /** Puts the car of `id` (a player already in the room) on the first free grid slot, at rest. */
+  spawn(id: CarId): void {
+    this.current = spawnOnGrid(this.current, this.track, id);
   }
 
   /**

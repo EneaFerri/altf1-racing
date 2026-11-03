@@ -143,6 +143,19 @@ describe('Room', () => {
     expect(room.isEmpty).toBe(true);
   });
 
+  it('spawns a retired player’s car back on a free grid slot, keeping their inputs', () => {
+    const room = new Room(TEST_TRACK);
+    room.add('p1');
+    room.add('p2');
+    room.retire('p2');
+    room.queueInput('p2', 0, NEUTRAL_INPUT);
+    room.spawn('p2');
+    room.tick();
+    const track = buildTrack(TEST_TRACK);
+    expect(findCar(room.state, 'p2')!.position).toEqual(gridSlot(track, 1).position);
+    expect(room.acks).toEqual({ p2: 0 });
+  });
+
   it('holds every car still while a start hold lasts', () => {
     const room = new Room(TEST_TRACK);
     room.add('p1');

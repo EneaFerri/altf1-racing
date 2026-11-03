@@ -16,20 +16,21 @@ import {
 import type { Room } from './Room.ts';
 
 /** What the Grand Prix needs from its room's simulation. */
-export type GrandPrixRoom = Pick<Room, 'state' | 'restart' | 'retire' | 'hold'>;
+export type GrandPrixRoom = Pick<Room, 'state' | 'restart' | 'retire' | 'spawn' | 'hold'>;
 
 /**
  * The rules of one circuit's Grand Prix, driving its room through the phases: lobby (free driving)
  * → qualifying (back on the grid, 3 timed laps each, then off the track) → grid (in qualifying
- * order, held) → race (start lights, timing at every line, finishers off the track) → results.
+ * order, held) → race (start lights, timing at every line, finishers off the track) → results →
+ * (play again) a new lobby on the same circuit, for whoever asks for it.
  * The first player in is the manager; if they leave, the one who has been there longest takes
- * over. Only the manager's commands count.
+ * over. Only the manager's commands count, apart from play again.
  * Pure apart from `random` (lights out). See 01_docs/multiplayer.md#grand-prix.
  */
 export class GrandPrix {
   private phase: GrandPrixPhase = 'lobby';
   /** Players in the Grand Prix, in arrival order: the first is the manager. */
-  private readonly drivers: CarId[] = [];
+  private drivers: CarId[] = [];
   private readonly names = new Map<CarId, string>();
   /** Qualifying by driver, from the start of qualifying on. */
   private readonly results = new Map<CarId, QualifyingEntry>();
@@ -53,7 +54,8 @@ export class GrandPrix {
   get info(): GrandPrixInfo {
     return {
       phase: this.phase,
-      manager: this.drivers[0]!,
+      manager: this.drivers[0] ?? null,
+      drivers: [...this.drivers],
       qualifying: this.order(),
       race: raceStandings([...this.racers.values()], this.room.hold?.until ?? 0),
       raceLaps: this.raceLaps,
@@ -71,7 +73,7 @@ export class GrandPrix {
     const index = this.drivers.indexOf(id);
     if (index >= 0) this.drivers.splice(index, 1);
     this.results.delete(id);
-    if (this.drivers.length === 0) return; // the room closes with its last player
+    if (this.drivers.length === 0) return; // nobody left to move the GP on
     if (this.phase === 'qualifying' && this.allDone()) this.toGrid();
     const racer = this.racers.get(id);
     if (this.phase === 'race' && racer?.status === 'running') {
@@ -82,6 +84,7 @@ export class GrandPrix {
 
   /** Applies `command` if `id` is the manager and it fits the phase; whether anything changed. */
   command(id: CarId, command: GrandPrixCommand): boolean {
+    if (command.action === 'playAgain') return this.playAgain(id);
     if (id !== this.drivers[0]) return false;
     if (command.action === 'start' && this.phase === 'lobby') {
       this.phase = 'qualifying';
@@ -145,6 +148,28 @@ export class GrandPrix {
     }
     if (changed && this.allDone()) this.toGrid();
     return changed;
+  }
+
+  /**
+   * Player `id` (in the room) wants another GP: in the results, the GP starts over as a lobby
+   * with `id` alone (the manager; the other cars leave the track while their players are on the
+   * results card); in that lobby, `id` joins it with a car on the grid. Whether anything changed.
+   */
+  private playAgain(id: CarId): boolean {
+    if (this.phase === 'results') {
+      this.phase = 'lobby';
+      this.drivers = [id];
+      this.results.clear();
+      this.racers.clear();
+      this.raceLaps = null;
+      this.room.hold = null;
+      this.room.restart([id]);
+      return true;
+    }
+    if (this.phase !== 'lobby' || this.drivers.includes(id)) return false;
+    this.drivers.push(id);
+    this.room.spawn(id);
+    return true;
   }
 
   private raceTick(): boolean {

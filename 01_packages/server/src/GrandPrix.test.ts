@@ -15,6 +15,7 @@ class FakeRoom implements GrandPrixRoom {
   hold: StartHold | null = null;
   restarts: CarId[][] = [];
   retired: CarId[] = [];
+  spawned: CarId[] = [];
   restart(order: readonly CarId[]): void {
     this.restarts.push([...order]);
     this.state = { ...this.state, laps: order.map((id) => createLapState(id, 0)) };
@@ -22,6 +23,10 @@ class FakeRoom implements GrandPrixRoom {
   retire(id: CarId): void {
     this.retired.push(id);
     this.state = { ...this.state, laps: this.state.laps.filter((lap) => lap.carId !== id) };
+  }
+  spawn(id: CarId): void {
+    this.spawned.push(id);
+    this.state = { ...this.state, laps: [...this.state.laps, createLapState(id, 0)] };
   }
   /** `id` has completed `laps` timed laps, the last one `ticks` long (`valid` or not), at `tick`. */
   lap(id: CarId, laps: number, ticks: number, tick: number, valid = true): void {
@@ -67,6 +72,7 @@ describe('GrandPrix — lobby', () => {
     expect(gp.info).toEqual({
       phase: 'lobby',
       manager: 'p3',
+      drivers: ['p3', 'p1'],
       qualifying: [],
       race: [],
       raceLaps: null,
@@ -249,5 +255,58 @@ describe('GrandPrix — race', () => {
       ['p2', 'running', 1],
       ['p1', 'running', 0],
     ]);
+  });
+});
+
+describe('GrandPrix — play again', () => {
+  function finished(...ids: CarId[]): { gp: GrandPrix; room: FakeRoom } {
+    const { gp, room } = racing(4, ...ids);
+    gp.command(ids[0]!, { action: 'endRace' });
+    return { gp, room };
+  }
+
+  it('is ignored before the results', () => {
+    const { gp } = racing(4, 'p1', 'p2');
+    expect(gp.command('p2', { action: 'playAgain' })).toBe(false);
+    expect(gp.info.phase).toBe('race');
+  });
+
+  it('starts a new lobby with whoever asks first as its only driver and manager', () => {
+    const { gp, room } = finished('p1', 'p2', 'p3');
+    room.hold = { lightsFrom: 1, until: 2 };
+    expect(gp.isOpen).toBe(false);
+    expect(gp.command('p2', { action: 'playAgain' })).toBe(true);
+    expect(gp.info).toEqual({
+      phase: 'lobby',
+      manager: 'p2',
+      drivers: ['p2'],
+      qualifying: [],
+      race: [],
+      raceLaps: null,
+      hold: null,
+    });
+    expect(room.restarts.at(-1)).toEqual(['p2']);
+    expect(gp.isOpen).toBe(true);
+  });
+
+  it('lets the others join that lobby with a car, once each, until it starts', () => {
+    const { gp, room } = finished('p1', 'p2', 'p3');
+    gp.command('p2', { action: 'playAgain' });
+    expect(gp.command('p2', { action: 'playAgain' })).toBe(false);
+    expect(gp.command('p3', { action: 'playAgain' })).toBe(true);
+    expect(gp.info.drivers).toEqual(['p2', 'p3']);
+    expect(room.spawned).toEqual(['p3']);
+    gp.command('p2', { action: 'start' });
+    expect(gp.command('p1', { action: 'playAgain' })).toBe(false);
+    expect(room.restarts.at(-1)).toEqual(['p2', 'p3']);
+  });
+
+  it('has no manager when the new lobby empties, until someone else asks', () => {
+    const { gp } = finished('p1', 'p2');
+    gp.command('p1', { action: 'playAgain' });
+    gp.remove('p1');
+    expect(gp.info.manager).toBeNull();
+    gp.command('p2', { action: 'playAgain' });
+    expect(gp.info.manager).toBe('p2');
   });
 });

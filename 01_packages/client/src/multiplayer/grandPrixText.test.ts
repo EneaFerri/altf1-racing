@@ -17,6 +17,7 @@ const PLAYERS: PlayerInfo[] = [
 const LOBBY: GrandPrixInfo = {
   phase: 'lobby',
   manager: 'p1',
+  drivers: ['p1', 'p2'],
   qualifying: [],
   race: [],
   raceLaps: null,
@@ -60,6 +61,25 @@ describe('Grand Prix panel', () => {
       hint: 'You are the GP manager — Enter: start the GP',
     });
     expect(grandPrixContent(LOBBY, PLAYERS, 'p2').hint).toBe('Waiting for Enea to start the GP');
+  });
+
+  it('lists only the drivers of a new lobby, and says when it has no manager', () => {
+    const playAgain: GrandPrixInfo = { ...LOBBY, manager: 'p2', drivers: ['p2'] };
+    expect(grandPrixContent(playAgain, PLAYERS, 'p2').rows.map((r) => r.name)).toEqual(['Kimi']);
+    const empty: GrandPrixInfo = { ...LOBBY, manager: null, drivers: [] };
+    expect(grandPrixContent(empty, PLAYERS, 'p1')).toMatchObject({
+      rows: [],
+      hint: 'Waiting for a driver: the next one in is the manager',
+    });
+  });
+
+  it('tells a player left out of a new GP that started that they can only leave', () => {
+    const info: GrandPrixInfo = { ...LOBBY, phase: 'qualifying', drivers: ['p2'] };
+    expect(grandPrixContent(info, PLAYERS, 'p1')).toEqual({
+      title: 'GRAND PRIX · IN PROGRESS',
+      rows: [],
+      hint: 'The new GP started without you — Esc: back to the start',
+    });
   });
 
   it('shows qualifying as a timing tower: best time and which lap each driver is on', () => {

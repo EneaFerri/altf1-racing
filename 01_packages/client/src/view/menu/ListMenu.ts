@@ -18,6 +18,8 @@ export interface ListMenuOptions<T> {
   /** Small caps label above the rows, e.g. `TRACK`. */
   readonly label: string;
   readonly items: readonly ListMenuItem<T>[];
+  /** Shown between the label and the rows (e.g. the Grand Prix classification). */
+  readonly content?: HTMLElement;
   readonly hint: string;
   /** Esc reloads the page, i.e. goes back to the start screen. Off for the start screen itself. */
   readonly escGoesBack?: boolean;
@@ -30,6 +32,7 @@ export interface ListMenuOptions<T> {
  */
 export class ListMenu<T> {
   private readonly root = element('div', 'menu');
+  private readonly items: ListMenuItem<T>[];
   private readonly rows: HTMLButtonElement[];
   private selected = 0;
   private resolve: ((value: T) => void) | null = null;
@@ -40,13 +43,11 @@ export class ListMenu<T> {
       element('h1', 'menu-title', 'AltF1 Racing'),
       element('p', 'menu-label', options.label),
     );
-    this.rows = options.items.map((item, index) => {
+    if (options.content) panel.append(options.content);
+    this.items = [...options.items];
+    this.rows = this.items.map((item, index) => {
       const row = element('button', 'menu-row');
-      row.disabled = item.disabled ?? false;
-      row.append(
-        element('span', 'menu-name', item.name),
-        element('span', 'menu-detail', item.detail),
-      );
+      fillRow(row, item);
       row.addEventListener('mouseenter', () => this.select(index));
       row.addEventListener('click', () => this.confirm(index));
       return row;
@@ -56,7 +57,7 @@ export class ListMenu<T> {
     this.select(
       Math.max(
         0,
-        options.items.findIndex((item) => !item.disabled),
+        this.items.findIndex((item) => !item.disabled),
       ),
     );
   }
@@ -68,8 +69,15 @@ export class ListMenu<T> {
     return new Promise((resolve) => (this.resolve = resolve));
   }
 
+  /** Replaces row `index` while the menu is up; a row being disabled loses the selection. */
+  setItem(index: number, item: ListMenuItem<T>): void {
+    this.items[index] = item;
+    fillRow(this.rows[index]!, item);
+    if (item.disabled && this.selected === index) this.move(1);
+  }
+
   private select(index: number): void {
-    if (this.options.items[index]?.disabled) return;
+    if (this.items[index]?.disabled) return;
     this.selected = index;
     this.rows.forEach((row, i) => row.classList.toggle('menu-selected', i === this.selected));
   }
@@ -79,15 +87,15 @@ export class ListMenu<T> {
     const n = this.rows.length;
     for (let k = 1; k < n; k++) {
       const index = (((this.selected + step * k) % n) + n) % n;
-      if (!this.options.items[index]!.disabled) return this.select(index);
+      if (!this.items[index]!.disabled) return this.select(index);
     }
   }
 
   private confirm(index: number): void {
-    if (this.options.items[index]!.disabled) return;
+    if (this.items[index]!.disabled) return;
     window.removeEventListener('keydown', this.onKeyDown);
     this.root.remove();
-    this.resolve?.(this.options.items[index]!.value);
+    this.resolve?.(this.items[index]!.value);
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
@@ -99,4 +107,12 @@ export class ListMenu<T> {
     else return;
     event.preventDefault();
   };
+}
+
+function fillRow<T>(row: HTMLButtonElement, item: ListMenuItem<T>): void {
+  row.disabled = item.disabled ?? false;
+  row.replaceChildren(
+    element('span', 'menu-name', item.name),
+    element('span', 'menu-detail', item.detail),
+  );
 }

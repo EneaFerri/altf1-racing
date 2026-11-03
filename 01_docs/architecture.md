@@ -112,7 +112,8 @@ between them, so motion is smooth at any refresh rate even though the Model tick
     Barcelona, Monaco) and the **online race** (`OnlineGame`) in that circuit's room, over a WebSocket to the multiplayer server
     (`01_packages/server`). Details: [multiplayer.md](multiplayer.md).
 - Every menu is a `ListMenu` (`view/menu/ListMenu.ts` + `menu.css`): mouse, or W/S (↑/↓) + Enter;
-  Esc in the track menu goes back to the start screen.
+  Esc in the track menu goes back to the start screen. Optional `content` above the rows and
+  `setItem` for a live row (the Grand Prix classification card).
 - The two modes never mix (owner's rule): separate folders, loaded on demand (the production build
   emits a chunk per mode), and an ESLint boundary forbids imports between them and from the shared
   building blocks (`core`, `controller`, `dev`, `view`) into either. Details:
