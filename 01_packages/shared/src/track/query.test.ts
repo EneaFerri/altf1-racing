@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { add, distance, headingOf, scale, toWorld, vec2, type Vec2 } from '../math/vec2';
 import { buildTrack } from './buildTrack';
-import { BARCELONA, MONACO, MONZA } from './layouts';
+import { GP_TRACKS } from './layouts';
 import { TEST_TRACK } from './layouts/testTrack';
 import { GRID_SLOTS, gridSlot, locateOnTrack, surfaceAt } from './query';
 
@@ -91,7 +91,7 @@ describe('gridSlot', () => {
     }
   });
 
-  it.each([MONZA, BARCELONA, MONACO])('fits the whole painted grid on $name', (definition) => {
+  it.each(GP_TRACKS)('fits the whole painted grid on $name', (definition) => {
     const circuit = buildTrack(definition);
     for (let slot = 0; slot < GRID_SLOTS; slot++) {
       const { position, direction } = gridSlot(circuit, slot);

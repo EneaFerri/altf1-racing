@@ -4,7 +4,8 @@ import { createBelleEpoqueTexture, createFacadeTexture } from '../pixelTexture';
 import { clearance } from './placement';
 import { extrude, type TownBuilding } from './town';
 
-// Landmarks of a town circuit, each on its real OSM footprint (Monaco: see 01_docs/themes.md).
+// Landmarks around a real circuit, each on its real OSM footprint (Monaco's Casino and chapel,
+// Mexico City's domes: see 01_docs/themes.md).
 
 const COPPER = '#6f9a8a';
 const TERRACOTTA = '#b4593b';
@@ -93,4 +94,31 @@ function centroid(points: readonly Vec2[]): Vec2 {
 /** The `count` footprint corners closest to the track (the building's front). */
 function nearestToTrack(track: Track, points: readonly Vec2[], count: number): Vec2[] {
   return [...points].sort((a, b) => clearance(track, a) - clearance(track, b)).slice(0, count);
+}
+
+/** A domed arena (Mexico City's Palacio de los Deportes, the velodrome): low walls, a copper dome. */
+export function createDome(building: TownBuilding): THREE.Group {
+  const { points, base } = building;
+  const top = base + Math.min(building.height, 8);
+  const group = extrude(
+    points,
+    base,
+    top,
+    lit(createFacadeTexture('#d9d4c8', '#7a7468')),
+    flat(COPPER),
+  );
+  const c = centroid(points);
+  // An elliptic dome over the footprint, its two axes those of the footprint's extent.
+  const along = points.map((p) => p.x - c.x);
+  const across = points.map((p) => p.z - c.z);
+  const rx = (Math.max(...along) - Math.min(...along)) / 2;
+  const rz = (Math.max(...across) - Math.min(...across)) / 2;
+  const dome = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+    flat(COPPER),
+  );
+  dome.scale.set(rx * 0.95, Math.min(rx, rz) * 0.45, rz * 0.95);
+  dome.position.set(c.x, top, c.z);
+  group.add(dome);
+  return group;
 }

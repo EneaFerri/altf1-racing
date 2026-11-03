@@ -400,7 +400,7 @@
   drawn by the server. Inputs before lights out are neutral on the server _and_ in the client's
   prediction (same shared function), so the start is predicted without a correction.
 - **Closing a GP resets the circuit's room** and sends everyone back to the start through a page
-  reload, like every mode change.
+  reload, like every mode change. _Superseded in 2.3i: each player plays again or exits (below)._
 
 ## 2026-10-28 — Grand Prix qualifying, start and race (steps 2.3f–h)
 
@@ -419,3 +419,45 @@
 - **The client's GP logic in its own class** (`OnlineGrandPrix`): panel, lights, manager keys,
   hold and spectating, so `OnlineGame` stays the same for every mode.
 - **No F3 telemetry overlay in a Grand Prix** (owner): its top-left corner belongs to the GP panel.
+
+## 2026-11-01 — Grand Prix results and play again (step 2.3i)
+
+- **Each player chooses, no manager close** (owner, replaces "the manager closes the GP"): after
+  the podium and the classification every player picks **Play again** or **Exit**. The first Play
+  again turns the circuit's GP into a new lobby (that player is its manager, newcomers welcome);
+  the others join it with their own Play again until it starts. Nobody waits for an idle player.
+- **Same room, no reload for Play again**: the server resets the `GrandPrix` and the cars, the
+  client stays in its `OnlineGame`; `grandPrix` gains `drivers` because the room may now hold
+  players who are not in the GP (still on the card). Exit stays a reload to the start screen, like
+  every mode change.
+- **Podium 20 s, Enter skips** (owner): swaying pixel drivers in the livery colours, the winner with
+  the cup. Drawn as DOM over the scene (a canvas sprite scaled with `image-rendering: pixelated`),
+  not in 3D: no camera work, same look as the menus.
+- **The card is a `ListMenu`** (with a `content` slot and `setItem`) so it behaves like every menu.
+
+## 2026-11-03 — More circuits (Phase 2.4): one list, every mode
+
+- One circuit per step; each is offered in single player and in every online mode. The real F1
+  circuits are one list, `GP_TRACKS` (shared `track/layouts/index.ts`), next to `TRACKS`: the
+  server's rooms (formerly its own `ROOM_TRACKS`) and the tests follow it, so a new circuit is one
+  line there.
+- Mexico City (2.4a): real widths × 1.4 (owner's choice, not 1.6). With no published widths, they
+  are measured on OSM's asphalt areas: traced from aerial imagery like the centreline, better than
+  guesses. Run-off 6 m, the most its tight corners leave room for.
+- A stadium the track runs through (Foro Sol) is an optional circuit feature (`stadium`: its OSM
+  way, as its name changed), drawn as a bowl of stands along its outline: not a town landmark,
+  which only town circuits have.
+
+## 2026-11-03 — Mexico City after the owner's first test (2.4a)
+
+- "You must brake for the 90° corners": width hardly changes how fast they go (× 1.0 to × 1.4,
+  measured), the apex does. Our car turns far tighter than an F1, so a real round apex is nearly
+  flat out on a wide line. The 90° corners are rebuilt sharp (`sharpCorners`: straight legs, the
+  tightest arc the walls allow), run-off 4 m to let them be tight; the width stays × 1.4 (owner).
+  A per-corner rule, not a car change: the car stays frozen.
+- Stands "placed at random" were OSM's sports park ones (pitches, a ballpark, a gym). Rules, not
+  hand edits of generated data: a stadium's own stands face its field (drawn as its bowl), a
+  reach from the track per circuit, an explicit list of non-stands, and the GP's temporary
+  grandstands placed by hand where they really are.
+- The park around is drawn from OSM (buildings with heights, domes, lakes) like Monaco's town,
+  but as its own layer (`surroundings`): no sea, garages or tunnel rules.

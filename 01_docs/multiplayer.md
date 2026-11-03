@@ -16,7 +16,7 @@ Start screen ── Singleplayer ──▶ Track menu (all tracks, bot) ──�
 
 - **Singleplayer** is today's game, unchanged.
 - **Multiplayer**: the player types a nickname; if the server accepts it they pick a mode (see
-  [Modes](#modes-23)) and one of the three F1 circuits (each with how many players are on it) and
+  [Modes](#modes-23)) and one of the F1 circuits (`GP_TRACKS`, each with how many players are on it) and
   are put in that room, where everyone else who picked it is already driving. Otherwise the reason
   shows under the nickname field.
 - **Esc** in either mode reloads the page: back to the start screen (in multiplayer this closes the
@@ -50,26 +50,27 @@ The owner's rule: the two sections never mix. Enforced, not just by convention:
 ## Protocol (2.1b ✅)
 
 JSON over one WebSocket, typed unions in `shared/src/net/protocol.ts`, with a `PROTOCOL_VERSION`
-(a client with another version is rejected with `version`). Version **8** since 2.3h (Grand Prix
+(a client with another version is rejected with `version`). Version **9** since 2.3i (`playAgain`,
+`grandPrix` carries `drivers`, `manager` may be null; v8 = 2.3h Grand Prix
 race: `race` standings, `results` phase, `endRace`; v7 = 2.3f–g qualifying, grid and start; v6 = 2.3e room
 `status`, `gp`, `refused`, `grandPrix`; v5 = 2.3b rooms and `enter` carry the mode; v4 = 2.2c
 snapshots carry each car's last input; v3 = 2.2a input `seq`, acks, ping; v2 = 2.1f+ rooms).
 
-| Direction       | Message     | Content                                                                                         |
-| --------------- | ----------- | ----------------------------------------------------------------------------------------------- |
-| client → server | `hello`     | `protocol`, `nickname`                                                                          |
-| client → server | `enter`     | `mode`, `track`: go into that room (once, after the welcome)                                    |
-| client → server | `input`     | `seq` + `InputCommand`, once per client tick (only once in a room)                              |
-| client → server | `ping`      | `t` (the client's clock), once a second in a room                                               |
-| client → server | `gp`        | `action`: `start` / `endQualifying` / `startRace` + `laps` (4, 8, 12) / `endRace`; manager only |
-| server → client | `welcome`   | own `playerId`, the `rooms` offered (`mode`, `track`, `players`, `status`)                      |
-| server → client | `rejected`  | `reason`: `taken` / `invalid` / `full` / `version`                                              |
-| server → client | `refused`   | `reason` `inProgress`: that circuit's Grand Prix has started                                    |
-| server → client | `entered`   | the room's `track` and the players in it                                                        |
-| server → client | `players`   | the players in the room, sent on every join and leave there                                     |
-| server → client | `snapshot`  | whole `GameState`; per car `acks` (last `seq` run) + `inputs`; 30 Hz                            |
-| server → client | `pong`      | the `ping`'s `t`, echoed: the client measures the round trip                                    |
-| server → client | `grandPrix` | `phase`, `manager`, `qualifying`, `race`, `raceLaps`, `hold`: on entering and every change      |
+| Direction       | Message     | Content                                                                                                                |
+| --------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------- |
+| client → server | `hello`     | `protocol`, `nickname`                                                                                                 |
+| client → server | `enter`     | `mode`, `track`: go into that room (once, after the welcome)                                                           |
+| client → server | `input`     | `seq` + `InputCommand`, once per client tick (only once in a room)                                                     |
+| client → server | `ping`      | `t` (the client's clock), once a second in a room                                                                      |
+| client → server | `gp`        | `action`: `start` / `endQualifying` / `startRace` + `laps` (4, 8, 12) / `endRace` (manager only); `playAgain` (anyone) |
+| server → client | `welcome`   | own `playerId`, the `rooms` offered (`mode`, `track`, `players`, `status`)                                             |
+| server → client | `rejected`  | `reason`: `taken` / `invalid` / `full` / `version`                                                                     |
+| server → client | `refused`   | `reason` `inProgress`: that circuit's Grand Prix has started                                                           |
+| server → client | `entered`   | the room's `track` and the players in it                                                                               |
+| server → client | `players`   | the players in the room, sent on every join and leave there                                                            |
+| server → client | `snapshot`  | whole `GameState`; per car `acks` (last `seq` run) + `inputs`; 30 Hz                                                   |
+| server → client | `pong`      | the `ping`'s `t`, echoed: the client measures the round trip                                                           |
+| server → client | `grandPrix` | `phase`, `manager`, `drivers`, `qualifying`, `race`, `raceLaps`, `hold`: on entering and every change                  |
 
 - **The server trusts nothing**: `parseClientMessage` returns `null` for bad JSON, unknown types,
   missing or wrong-typed fields, non-finite numbers, and nicknames or track names longer than 64
@@ -120,8 +121,9 @@ port is taken (a server already running) it says so and exits.
 
 ## Rooms (2.1e ✅, 2.1f+ ✅)
 
-- **One room per ready mode and circuit**: `READY_MODES` × `ROOM_TRACKS` (`GameServer.ts`), circuits
-  **Monza, Barcelona, Monaco** (2.1f+, owner's choice; 2.1e had a single Test Ring room). Rooms are
+- **One room per ready mode and circuit**: `READY_MODES` × `GP_TRACKS` (`GameServer.ts`), the
+  real F1 circuits listed once in shared `track/layouts/index.ts` (2.1f+: Monza, Barcelona, Monaco,
+  owner's choice; 2.1e had a single Test Ring room; 2.4 adds one circuit per step). Rooms are
   keyed `mode/track` (`roomKey`, e.g. `practice/Monza`); an `enter` for a mode not in
   `READY_MODES` is ignored.
 - **Private rooms** (2.3c): in a mode of `PRIVATE_MODES` (time trial) every player gets a room of
@@ -331,7 +333,25 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   flag) is kept, the car leaves the track and its player spectates (the camera on the best-placed
   car still racing). A player who disconnects is **DNF**, kept by name (grey) at the back. The race
   ends when nobody is racing any more, or when the manager presses Enter: whoever is still racing
-  is classified where they are. Phase `results`: the panel shows the final classification.
+  is classified where they are.
+- **Results** (2.3i ✅, owner's design): phase `results`. Each driver's client freezes the
+  classification and covers the screen (`view/hud/ResultsScreen.ts` + `results.css`, texts from
+  `multiplayer/resultsText.ts`): first the **podium** for 20 s (Enter skips) — three steps (2–1–3),
+  on each a pixel driver in the car's livery (`view/hud/pixelFigure.ts`) swaying, with nickname and
+  race time or gap, the winner jumping with the cup raised; DNFs never on it, empty steps if fewer
+  than three are classified. Then the **classification card**, a `ListMenu` with the table as its
+  `content`: position, name, gap to the winner (the winner's race time, `+1 LAP`, `DNF`), each
+  driver's fastest lap (the race's fastest in purple), own row highlighted; rows **Play again**
+  and **Exit** (Exit and Esc = back to the start screen, a reload).
+- **Play again**: any player may send `gp playAgain`. In `results` the GP starts over as a
+  **lobby** on the same circuit with that player alone as its driver and manager (`drivers`); the
+  other cars leave the track while their players are still on the card, and the room is open to
+  newcomers again. In that lobby, `playAgain` from a player in the room joins it (`Room.spawn` puts
+  their car back on the grid). The lobby panel lists `drivers`, not everyone in the room. The card's
+  Play again row follows the GP live (`ListMenu.setItem`): "Opens a new lobby here", "Join the new
+  lobby · n in", then disabled "The new GP has started" once the new manager starts it; a player
+  who pressed it just too late gets a panel saying only Esc is left. If every driver of a new lobby
+  leaves while others are still on the card, `manager` is null until the next player joins.
 - **Race display**: the panel is the race tower (position, name, the leader's `LAP n/N` or race
   time, the others' gap, `+1 LAP` or `DNF`); the timing strip names the lap `P2/6 · LAP 3/8`; best
   lap of the race in each `RaceStanding`. The F3 overlay is off in a Grand Prix (its corner is the
@@ -341,7 +361,7 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   `refused` → a GRAND PRIX menu ("A Grand Prix is in progress on this circuit — try another one")
   → back to the start. Joining as a spectator is out of scope.
 - **Reset**: when the last player leaves, the room and its Grand Prix are dropped; the next player
-  in opens a new one, in the lobby.
+  in opens a new one, in the lobby. After a race, Play again starts a new one in the same room.
 
 The server decides what is ready (`READY_MODES`): the `welcome` only lists rooms of ready modes,
 and the client shows every other mode as "Work in progress", so turning a mode on is a server

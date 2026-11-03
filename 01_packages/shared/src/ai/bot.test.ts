@@ -16,7 +16,7 @@ import {
 } from '../sim/game';
 import { buildTrack } from '../track/buildTrack';
 import { locateOnTrack } from '../track/query';
-import { BARCELONA, KRUNCAR, MONACO, MONZA, TEST_TRACK, TRACKS } from '../track/layouts';
+import { BARCELONA, KRUNCAR, MEXICO, MONACO, MONZA, TEST_TRACK, TRACKS } from '../track/layouts';
 import type { Track } from '../track/types';
 import { botInput, NEW_BOT_MEMORY } from './driver';
 import { botCarParams, buildBotPlan } from './plan';
@@ -86,6 +86,7 @@ const kruncar = runsByTrack.find((t) => t.name === KRUNCAR.name)!.runs;
 const monza = runsByTrack.find((t) => t.name === MONZA.name)!.runs;
 const barcelona = runsByTrack.find((t) => t.name === BARCELONA.name)!.runs;
 const monaco = runsByTrack.find((t) => t.name === MONACO.name)!.runs;
+const mexico = runsByTrack.find((t) => t.name === MEXICO.name)!.runs;
 
 /**
  * Real 2025 pole laps (OpenF1, see 01_docs/circuits.md): the Hard bot's targets. `sectorTolerance`:
@@ -113,6 +114,14 @@ const REAL_POLES = [
     lap: 69.954,
     sectors: [18.216, 33.254, 18.484],
     sectorTolerance: 0.07,
+  },
+  {
+    // S1 is the 1.2 km main straight, at up to 360 km/h in reality (our car: ~283).
+    name: MEXICO.name,
+    runs: mexico,
+    lap: 75.586,
+    sectors: [26.916, 29.114, 19.556],
+    sectorTolerance: 0.1,
   },
 ];
 

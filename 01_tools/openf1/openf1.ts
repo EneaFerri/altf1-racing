@@ -48,11 +48,16 @@ export interface SceneryFeature {
     | 'pool'
     | 'tree'
     | 'tunnel'
-    | 'landmark';
+    | 'landmark'
+    // Circuits with stadiums (`CircuitConfig.stadiums`):
+    | 'stadium'
+    // Circuits with surroundings (`CircuitConfig.surroundings`): lakes and ponds.
+    | 'water';
   readonly name: string;
   /** [lat, lon]; closed polygons repeat their first point; a tree is one point. */
   readonly points: readonly (readonly [number, number])[];
-  /** Town buildings: height (m), from OSM `height`, `building:levels` or the building's type. */
+  /** Town buildings and, with surroundings, buildings: height (m), from OSM `height`,
+   * `building:levels` or the building's type. */
   readonly height?: number;
 }
 

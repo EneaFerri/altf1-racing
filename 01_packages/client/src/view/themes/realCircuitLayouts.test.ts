@@ -3,12 +3,14 @@ import {
   BARCELONA,
   buildTrack,
   locateOnTrack,
+  MEXICO,
   MONACO,
   MONZA,
   type TrackDefinition,
 } from '@altf1/shared';
 import {
   alongTrack,
+  bowlPieces,
   clearance,
   fitsBeside,
   footprintBox,
@@ -19,6 +21,7 @@ import {
   standPieces,
 } from '../scenery/placement';
 import { GRANDSTAND_REACH } from '../scenery/buildings';
+import { BOWL_PIECE, BOWL_REACH } from '../scenery/stadium';
 import {
   BARCELONA_OVAL,
   BARCELONA_OVAL_WIDTH,
@@ -27,6 +30,16 @@ import {
   BARCELONA_STANDS,
   BARCELONA_WOODS,
 } from './barcelonaLayout';
+import {
+  MEXICO_OVAL,
+  MEXICO_OVAL_WIDTH,
+  MEXICO_PIT_BUILDINGS,
+  MEXICO_PIT_LANE,
+  MEXICO_STADIUMS,
+  MEXICO_STANDS,
+  MEXICO_SURROUNDINGS,
+  MEXICO_WOODS,
+} from './mexicoLayout';
 import {
   MONACO_CITY,
   MONACO_ISLANDS,
@@ -98,6 +111,22 @@ const CIRCUITS: readonly {
     // Placed by hand (temporary stands are not in OSM).
     minStands: 2,
     mainStand: 'Tribune T (Piscine, Rascasse)',
+  },
+  {
+    definition: MEXICO,
+    scenery: {
+      stands: MEXICO_STANDS,
+      pitLane: MEXICO_PIT_LANE,
+      pitBuildings: MEXICO_PIT_BUILDINGS,
+      woods: MEXICO_WOODS,
+      oval: MEXICO_OVAL,
+      ovalWidth: MEXICO_OVAL_WIDTH,
+      stadiums: MEXICO_STADIUMS,
+      surroundings: MEXICO_SURROUNDINGS,
+    },
+    // The main straight's (OSM) and the GP's temporary ones at the corners (by hand).
+    minStands: 8,
+    mainStand: 'Grada Curva 1',
   },
 ];
 
@@ -252,6 +281,42 @@ describe('Monaco town (generated from OpenStreetMap)', () => {
         const d = Math.hypot(boats[i]!.at.x - boats[j]!.at.x, boats[i]!.at.z - boats[j]!.at.z);
         expect(d).toBeGreaterThan(1.5);
       }
+    }
+  });
+});
+
+describe('Mexico City scenery', () => {
+  const track = buildTrack(MEXICO);
+
+  it('draws the Foro Sol around the stadium section and the ballpark, their bowls clear of the track', () => {
+    const [foroSol, ballpark] = MEXICO_STADIUMS;
+    // Turns 12–16 run inside the Foro Sol's outline; the ballpark is all off the track.
+    const inside = track.samples.filter((s) => insidePolygon(s.position, foroSol!));
+    expect(inside.length * (track.length / track.samples.length)).toBeGreaterThan(300);
+    expect(track.samples.some((s) => insidePolygon(s.position, ballpark!))).toBe(false);
+    for (const outline of MEXICO_STADIUMS) {
+      const pieces = bowlPieces(outline, BOWL_PIECE, BOWL_REACH.back);
+      const drawn = pieces.filter((box) => fitsBeside(track, box, BOWL_REACH));
+      expect(drawn.length).toBeGreaterThan(pieces.length / 2);
+    }
+  });
+
+  it('keeps every stand of the sports park off the circuit: none inside a stadium', () => {
+    for (const stand of MEXICO_STANDS) {
+      const p = fromTrack(track, stand.footprint[0]!);
+      expect(MEXICO_STADIUMS.some((ring) => insidePolygon(p, ring))).toBe(false);
+      // At most 60 m beyond the wall (the real reach) plus the game's wider asphalt.
+      for (const spot of stand.footprint) expect(Math.abs(spot[1])).toBeLessThan(70);
+    }
+  });
+
+  it('has the park around: hundreds of buildings and its domes, lakes, all clear of the track', () => {
+    const { buildings, lakes } = MEXICO_SURROUNDINGS;
+    expect(buildings.length).toBeGreaterThan(500);
+    expect(buildings.filter((b) => b.dome).length).toBe(2);
+    expect(lakes.length).toBeGreaterThan(0);
+    for (const ring of [...buildings.map((b) => b.points), ...lakes]) {
+      for (const p of ring) expect(clearance(track, p)).toBeGreaterThan(3.9);
     }
   });
 });

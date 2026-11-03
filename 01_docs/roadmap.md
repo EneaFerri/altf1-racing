@@ -128,8 +128,8 @@ Online only (owner's choice): single player stays as it is. After the nickname t
   player races their **ghost** (the session's best valid lap, updated lap by lap).
 - **Grand Prix** — the first player in is the **GP manager** and starts it when ready: qualifying
   (3 timed laps each, Q1/Q2/Q3, no elimination) → grid from the best times → race of 4/8/12 laps
-  (manager's choice) → podium and classification → the manager closes the GP (the circuit's room
-  is reset). Anyone arriving while a GP runs is told "GP in progress".
+  (manager's choice) → podium and classification → each player plays again (a new lobby on the
+  same circuit) or exits. Anyone arriving while a GP runs is told "GP in progress".
 
 Owner's choices: time trial alone (private session); in a GP a car that has finished (qualifying
 or race) leaves the track and its player spectates; the manager can end qualifying or the race
@@ -159,10 +159,33 @@ leaderboards, bots online.
 - 2.3h ✅ **GP: race** — position and lap in the HUD, gaps tower (timed at every timing line),
   finish → spectate, DNF; the manager can end it. Owner's addition: no F3 telemetry overlay in a
   Grand Prix (it overlapped the race panel).
-- 2.3i **GP: podium, classification, close** — results screen; the manager closes the GP, everyone
-  goes back to the start.
-- 2.3j **Owner test over Tailscale** of all three modes.
+- 2.3i ✅ **GP: podium, classification, play again** (protocol v9) — podium for 20 s (Enter skips):
+  swaying pixel drivers in their livery colours on three steps, the winner with the cup; then the
+  classification card (gap to the winner, fastest lap each, the race's fastest in purple) with
+  Play again / Exit. Owner's change to the plan: no manager close — the first Play again opens a
+  new lobby on the circuit (its manager), the others join it; Exit goes back to the start.
+- 2.3j ✅ **Owner test over Tailscale** of all three modes (owner, 2026-11-03).
+
+### 2.4 — More circuits
+
+Goal: more real F1 circuits, **one per step**, each playable in **every mode**: single player
+(track menu, bot) and multiplayer (Free practice, Time trial, Grand Prix). Built like Monza,
+Barcelona and Monaco with the OpenF1 + OSM tool ([circuits.md](circuits.md)) and the same rules:
+shape from OSM, real widths × a width factor (the owner's choice per circuit), only normal kerbs,
+the Hard bot laps in the real 2025 pole time with the frozen car (baseline v3). Every step follows
+the checklist in [circuits.md](circuits.md#adding-a-circuit); the online circuits are one list,
+`GP_TRACKS` (shared), so a circuit added there appears in every mode.
+
+- 2.4a ✅ **Mexico City** (Autódromo Hermanos Rodríguez) — OSM relation 16251935, 2025 pole 1:15.586
+  (OpenF1 session 9873); real widths × 1.4 (owner's choice); oriented by the owner's
+  `Mexico carbon.png`; OSM scenery plus the Foro Sol stadium (turns 12–16). Same step: `GP_TRACKS`,
+  the one list of the online circuits. Widths measured on OSM's asphalt areas (none published);
+  Hard bot 75.48 s, clean on every level; garages beside the pit lane where OSM maps none. Owner's
+  first test: the 90° corners made sharp (you must brake), the stands made coherent (stadium bowls,
+  the GP's grandstands at the corners), the surroundings drawn (park buildings, domes, lakes,
+  volcanoes). Waiting for the owner's review.
+- 2.4b+ — next circuit: the owner's choice.
 
 ## Later
 
-- Desktop packaging (Tauri/Electron), further tracks beyond the step 9 set, assets, audio.
+- Desktop packaging (Tauri/Electron), assets, audio.

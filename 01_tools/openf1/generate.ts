@@ -59,6 +59,10 @@ export function generate(
 
   // Game limits: corners wide enough for the walls not to fold, distant sections kept apart.
   const minRadius = half.map((h) => h + circuit.runoffWidth + MARGIN);
+  for (const corner of circuit.sharpCorners ?? []) {
+    const apex = Math.round(corner.at / profile.spacing);
+    points = sharpen(points, apex, Math.round(corner.span / profile.spacing), minRadius[apex]! + 1);
+  }
   const apart = Math.round(NEIGHBOURS / spacing);
   let radiusRounds = 0;
   let separationRounds = 0;
@@ -169,6 +173,64 @@ function radiusAt(points: readonly Point[], i: number): number {
   const ca = Math.hypot(a[0] - c[0], a[1] - c[1]);
   const area2 = Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]));
   return area2 < 1e-9 ? Infinity : (ab * bc * ca) / (2 * area2);
+}
+
+/**
+ * Rebuilds the corner at station `apex` (a `SharpCorner`): from `span` stations before it to `span`
+ * after, the entry leg straight on to the exit leg, joined by an arc of `radius`, the stations
+ * spread evenly over the new path.
+ */
+function sharpen(points: readonly Point[], apex: number, span: number, radius: number): Point[] {
+  const n = points.length;
+  const i0 = (apex - span + n) % n;
+  const p0 = points[i0]!;
+  const p1 = points[(apex + span) % n]!;
+  const d0 = tangentAt(points, i0);
+  const d1 = tangentAt(points, (apex + span) % n);
+  // Where the legs meet: p0 + t·d0 = p1 − s·d1.
+  const cross = d0[0] * d1[1] - d0[1] * d1[0];
+  const t = ((p1[0] - p0[0]) * d1[1] - (p1[1] - p0[1]) * d1[0]) / cross;
+  const s = (d0[0] * (p1[1] - p0[1]) - d0[1] * (p1[0] - p0[0])) / cross;
+  const turn = Math.acos(Math.max(-1, Math.min(1, d0[0] * d1[0] + d0[1] * d1[1])));
+  const leg = radius * Math.tan(turn / 2);
+  if (!(t > leg && s > leg)) {
+    const m = (v: number): string => v.toFixed(1);
+    throw new Error(
+      `sharp corner at station ${apex}: its legs (${m(t)}, ${m(s)} m) are shorter than the arc ` +
+        `needs (${m(leg)} m): widen its span`,
+    );
+  }
+  const vertex: Point = [p0[0] + d0[0] * t, p0[1] + d0[1] * t];
+  const a: Point = [vertex[0] - d0[0] * leg, vertex[1] - d0[1] * leg];
+  // The arc's centre, inside the turn; the arc ends `leg` past the vertex on the exit leg.
+  const side = Math.sign(cross);
+  const centre: Point = [a[0] - d0[1] * side * radius, a[1] + d0[0] * side * radius];
+  const start = Math.atan2(a[1] - centre[1], a[0] - centre[0]);
+  const path: Point[] = [p0, a];
+  for (let k = 1; k <= 16; k++) {
+    const angle = start + side * turn * (k / 16);
+    path.push([centre[0] + Math.cos(angle) * radius, centre[1] + Math.sin(angle) * radius]);
+  }
+  path.push(p1);
+  // The path's stations, evenly spread along it.
+  const lengths = [0];
+  for (let k = 1; k < path.length; k++) {
+    lengths.push(
+      lengths[k - 1]! + Math.hypot(path[k]![0] - path[k - 1]![0], path[k]![1] - path[k - 1]![1]),
+    );
+  }
+  const total = lengths[lengths.length - 1]!;
+  const out = [...points];
+  for (let k = 1; k < 2 * span; k++) {
+    const at = (total * k) / (2 * span);
+    const j = lengths.findIndex((l) => l >= at);
+    const f = (at - lengths[j - 1]!) / (lengths[j]! - lengths[j - 1]! || 1);
+    out[(i0 + k) % n] = [
+      path[j - 1]![0] + (path[j]![0] - path[j - 1]![0]) * f,
+      path[j - 1]![1] + (path[j]![1] - path[j - 1]![1]) * f,
+    ];
+  }
+  return out;
 }
 
 /**

@@ -9,6 +9,7 @@ import {
 } from '../themes/kruncarLayout';
 import {
   besideTrack,
+  bowlPieces,
   clearance,
   cornerApexes,
   fitsBeside,
@@ -23,6 +24,25 @@ import {
 const track = buildTrack(KRUNCAR);
 
 describe('placement', () => {
+  it('lines a stadium outline with stands facing in, either way round, short edges left out', () => {
+    // A 60 × 30 m field and a 2 m notch edge at one corner.
+    const square = [vec2(0, 0), vec2(60, 0), vec2(60, 30), vec2(2, 30), vec2(0, 30), vec2(0, 0)];
+    for (const outline of [square, [...square].reverse()]) {
+      const pieces = bowlPieces(outline, 15, 5);
+      // The 60 m and 58 m edges in 4 pieces, the 30 m ones in 2; the 2 m one dropped.
+      expect(pieces).toHaveLength(4 + 2 + 4 + 2);
+      for (const piece of pieces) {
+        // The front is 5 m inside, facing the middle.
+        const towardsMiddle =
+          (30 - piece.front.x) * piece.towardsTrack.x + (15 - piece.front.z) * piece.towardsTrack.z;
+        expect(towardsMiddle).toBeGreaterThan(0);
+        expect(piece.front.x).toBeGreaterThanOrEqual(5 - 1e-9);
+        expect(piece.front.z).toBeLessThanOrEqual(25 + 1e-9);
+        expect(piece.length).toBeLessThanOrEqual(15);
+      }
+    }
+  });
+
   it('scatters points only outside the walls, apart from each other and from avoided circles', () => {
     const avoid = [{ x: 105, z: -205, r: 40 }];
     const points = scatter(track, 80, trackBounds(track, 100), {

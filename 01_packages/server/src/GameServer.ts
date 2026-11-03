@@ -1,9 +1,7 @@
 import {
-  BARCELONA,
   encodeMessage,
   FIXED_DT,
-  MONACO,
-  MONZA,
+  GP_TRACKS,
   parseClientMessage,
   SNAPSHOT_EVERY_TICKS,
   type CarId,
@@ -12,7 +10,6 @@ import {
   type PlayerInfo,
   type RoomInfo,
   type ServerMessage,
-  type TrackDefinition,
 } from '@altf1/shared';
 import { GrandPrix } from './GrandPrix.ts';
 import { Lobby } from './Lobby.ts';
@@ -26,9 +23,6 @@ export interface Connection {
 
 /** Close code for a rejected hello (WebSocket "policy violation"). */
 export const REJECT_CLOSE_CODE = 1008;
-
-/** The circuits offered online in every mode (the real F1 circuits). */
-export const ROOM_TRACKS: readonly TrackDefinition[] = [MONZA, BARCELONA, MONACO];
 
 /** The modes the server runs so far; the others show as work in progress (01_docs/roadmap.md). */
 export const READY_MODES: readonly OnlineMode[] = ['practice', 'timeTrial', 'grandPrix'];
@@ -57,7 +51,7 @@ interface Member {
 
 /**
  * The multiplayer server's logic: the lobby (nicknames), one room per ready mode and track in
- * `ROOM_TRACKS`, or one per player in a private mode (created when its first player enters, closed
+ * `GP_TRACKS`, or one per player in a private mode (created when its first player enters, closed
  * when its last one leaves) and the messages between
  * them and the clients. No sockets and no timers, so it is fully testable.
  * See 01_docs/multiplayer.md#server.
@@ -142,7 +136,7 @@ export class GameServer {
   roomList(): RoomInfo[] {
     const members = [...this.members.values()];
     return READY_MODES.flatMap((mode) =>
-      ROOM_TRACKS.map(({ name: track }) => ({
+      GP_TRACKS.map(({ name: track }) => ({
         mode,
         track,
         players: members.filter((m) => m.room?.mode === mode && m.room.track === track).length,
@@ -168,7 +162,7 @@ export class GameServer {
 
   /** Puts the player in the room of `mode` on `track`, opening it if nobody is there yet. */
   private enter(conn: Connection, member: Member, mode: OnlineMode, track: string): void {
-    const definition = ROOM_TRACKS.find((t) => t.name === track);
+    const definition = GP_TRACKS.find((t) => t.name === track);
     // Not offered (unknown track, mode not ready yet): ignored, like any malformed message.
     if (!definition || !READY_MODES.includes(mode)) return;
     const key = roomKey(mode, track, member.id);

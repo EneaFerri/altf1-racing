@@ -56,6 +56,36 @@ export function createMountains(
   return group;
 }
 
+/**
+ * Snow-capped volcanoes on the horizon (Mexico City's Popocatépetl and Iztaccíhuatl), each at a
+ * `bearing` (rad, from +x towards +z) and `distance` from `center`: a grey-blue cone under a white
+ * cap, drawn without fog like the mountains.
+ */
+export function createVolcanoes(
+  center: Vec2,
+  peaks: readonly {
+    readonly bearing: number;
+    readonly distance: number;
+    readonly height: number;
+    readonly width: number;
+  }[],
+): THREE.Group {
+  const group = new THREE.Group();
+  const rock = new THREE.MeshLambertMaterial({ color: '#7b8196', flatShading: true, fog: false });
+  const snow = new THREE.MeshLambertMaterial({ color: '#f4f6fa', flatShading: true, fog: false });
+  for (const { bearing, distance, height, width } of peaks) {
+    const x = center.x + Math.cos(bearing) * distance;
+    const z = center.z + Math.sin(bearing) * distance;
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(width, height, 9), rock);
+    cone.position.set(x, height / 2 - 10, z);
+    // The cap: the top third, a little wider so it covers the rock.
+    const cap = new THREE.Mesh(new THREE.ConeGeometry((width / 3) * 1.04, height / 3, 9), snow);
+    cap.position.set(x, height - height / 6 - 10 + 0.5, z);
+    group.add(cone, cap);
+  }
+  return group;
+}
+
 /** Low-poly trees (trunk + two flat dark-green canopies), one instanced mesh per part. */
 export function createTrees(spots: readonly Vec2[], seed: number): THREE.Group {
   const random = seededRandom(seed);

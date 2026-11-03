@@ -1,10 +1,12 @@
 import type * as THREE from 'three';
 import type { Track, TrackSide, Vec2 } from '@altf1/shared';
 import { createGrandstand, createPitBuilding, face, GRANDSTAND_REACH } from '../scenery/buildings';
-import { createCasino, createChapel } from '../scenery/landmarks';
+import { createCasino, createChapel, createDome } from '../scenery/landmarks';
 import { createMountains } from '../scenery/nature';
 import {
   alongTrack,
+  bowlPieces,
+  fitsBeside,
   footprintBox,
   clearance,
   insidePolygon,
@@ -27,6 +29,7 @@ import {
   createSea,
   type TownBuilding,
 } from '../scenery/town';
+import { BOWL_PIECE, BOWL_REACH, createStadium } from '../scenery/stadium';
 import { createTunnel, type TunnelSpan } from '../scenery/tunnel';
 import { createYachts } from '../scenery/yachts';
 import type { TrackTheme, WallStyle } from './theme';
@@ -55,6 +58,14 @@ export interface RealCircuitScenery {
   readonly woods: readonly (readonly Vec2[])[];
   readonly oval: readonly RacewayPiece[];
   readonly ovalWidth: number;
+  /** Stadiums beside or around the track (Mexico City's Foro Sol and ballpark): bowls of stands. */
+  readonly stadiums?: readonly (readonly Vec2[])[];
+  /** A park circuit's surroundings (Mexico City): buildings (some domed), lakes, and north. */
+  readonly surroundings?: {
+    readonly buildings: readonly (TownBuilding & { readonly dome: boolean })[];
+    readonly lakes: readonly (readonly Vec2[])[];
+    readonly north: Vec2;
+  };
   /** A town circuit (Monaco): every building, the sea, piers, pools, palms and the tunnel. */
   readonly town?: {
     /** `landmark`: drawn with its own model ('casino', 'chapel'), else a plain building. */
@@ -76,6 +87,8 @@ export type RealCircuitLook = Omit<TrackTheme, 'wallStyle' | 'scenery'> & {
   readonly trees: (spots: readonly Vec2[], seed: number) => THREE.Object3D;
   readonly parkTrees?: number;
   readonly barrier?: WallStyle;
+  /** Far scenery placed by compass (with surroundings): the track's centre and north. */
+  readonly backdrop?: (centre: Vec2, north: Vec2) => THREE.Object3D;
 };
 
 /**
@@ -84,12 +97,12 @@ export type RealCircuitLook = Omit<TrackTheme, 'wallStyle' | 'scenery'> & {
  * walls by place, drawn with `look`. See 01_docs/themes.md.
  */
 export function realCircuitTheme(scenery: RealCircuitScenery, look: RealCircuitLook): TrackTheme {
-  const { trees, parkTrees = PARK_TREES, barrier = 'armco', ...theme } = look;
+  const { trees, parkTrees = PARK_TREES, barrier = 'armco', backdrop, ...theme } = look;
   return {
     ...theme,
     gridBoxes: true,
     wallStyle: (track) => wallsByPlace(track, scenery, barrier),
-    scenery: (track) => buildScenery(track, scenery, trees, parkTrees),
+    scenery: (track) => buildScenery(track, scenery, trees, parkTrees, backdrop),
   };
 }
 
@@ -178,6 +191,7 @@ function buildScenery(
   scenery: RealCircuitScenery,
   trees: RealCircuitLook['trees'],
   parkTrees: number,
+  backdrop: RealCircuitLook['backdrop'],
 ): THREE.Object3D[] {
   const objects: THREE.Object3D[] = [];
   const keepClear: Circle[] = [];
@@ -203,6 +217,37 @@ function buildScenery(
     objects.push(createOldRaceway(track, scenery.oval, scenery.ovalWidth));
     for (const piece of scenery.oval) {
       keepClear.push(...polylineFootprint(piece.points, scenery.ovalWidth / 2 + 4, 8));
+    }
+  }
+
+  // Where a stand, the pits or the track already are, a bowl is left out.
+  const inside = (c: Circle, box: Footprint): boolean =>
+    Math.hypot(
+      box.front.x - box.towardsTrack.x * (box.depth / 2) - c.x,
+      box.front.z - box.towardsTrack.z * (box.depth / 2) - c.z,
+    ) < c.r;
+  for (const outline of scenery.stadiums ?? []) {
+    const pieces = bowlPieces(outline, BOWL_PIECE, BOWL_REACH.back).filter(
+      (box) => fitsBeside(track, box, BOWL_REACH) && !keepClear.some((c) => inside(c, box)),
+    );
+    objects.push(createStadium(pieces));
+    keepClear.push(...pieces.map(cover));
+  }
+
+  const { surroundings } = scenery;
+  if (surroundings) {
+    objects.push(
+      createCity(
+        surroundings.buildings.filter((b) => !b.dome),
+        23,
+      ),
+      ...surroundings.buildings.filter((b) => b.dome).map(createDome),
+      createSea(surroundings.lakes, []),
+    );
+    if (backdrop) {
+      const bounds = trackBounds(track);
+      const centre = { x: (bounds.minX + bounds.maxX) / 2, z: (bounds.minZ + bounds.maxZ) / 2 };
+      objects.push(backdrop(centre, surroundings.north));
     }
   }
 
@@ -233,8 +278,14 @@ function buildScenery(
     );
     if (town.tunnel) objects.push(createTunnel(track, town.tunnel));
   }
-  // A town's trees grow in its gardens, never inside its buildings.
-  const free = (p: Vec2): boolean => !town?.city.some((b) => insidePolygon(p, b.points));
+  // Trees grow in the gardens and the park, never inside a building, a lake or a stadium.
+  const blocked = [
+    ...(town?.city.map((b) => b.points) ?? []),
+    ...(surroundings?.buildings.map((b) => b.points) ?? []),
+    ...(surroundings?.lakes ?? []),
+    ...(scenery.stadiums ?? []),
+  ];
+  const free = (p: Vec2): boolean => !blocked.some((ring) => insidePolygon(p, ring));
 
   // Dense in the woods, sparse elsewhere.
   const options = { margin: TREE_MARGIN, avoid: keepClear };

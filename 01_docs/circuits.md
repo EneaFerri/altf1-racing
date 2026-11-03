@@ -1,6 +1,6 @@
 # Real circuits
 
-Monza (step 9b), Barcelona (9c) and Monaco (9d) are the real circuits, built from open data by the
+Monza (step 9b), Barcelona (9c), Monaco (9d) and Mexico City (2.4a) are the real circuits, built from open data by the
 tool in `01_tools/openf1/` (how to run it: its [README](../01_tools/openf1/README.md)). Owner's
 rules: **shape** faithful to the real track (the PNGs in `03_F1Circuits/` are the visual
 reference), **real widths** (Monza wide, Monaco narrow, varying along the lap), and **lap times
@@ -9,12 +9,12 @@ close to reality**: the **Hard bot laps in the real 2025 pole time**, with the f
 
 ## Sources
 
-| What                               | Source                                                                     |
-| ---------------------------------- | -------------------------------------------------------------------------- |
-| Pole lap and sector times          | [OpenF1](https://openf1.org) `laps`, 2025 qualifying                       |
-| Where the sectors start, lap speed | OpenF1 `location` (x/y in decimetres, ~3.7 Hz) and `car_data` (~4 Hz)      |
-| Road shape (centreline)            | OpenStreetMap `type=circuit` relation (© OpenStreetMap contributors, ODbL) |
-| Widths                             | Published figures (below): neither OpenF1 nor OSM has them                 |
+| What                               | Source                                                                       |
+| ---------------------------------- | ---------------------------------------------------------------------------- |
+| Pole lap and sector times          | [OpenF1](https://openf1.org) `laps`, 2025 qualifying                         |
+| Where the sectors start, lap speed | OpenF1 `location` (x/y in decimetres, ~3.7 Hz) and `car_data` (~4 Hz)        |
+| Road shape (centreline)            | OpenStreetMap `type=circuit` relation (© OpenStreetMap contributors, ODbL)   |
+| Widths                             | Published figures (below); where none exist, measured on OSM's asphalt areas |
 
 Two findings shaped the method:
 
@@ -70,17 +70,20 @@ and speed from OpenF1**.
 
 `scale` is the only lever left with the car frozen: our car tops out at ~283 km/h (F1: ~350) but
 corners much harder, so fast circuits shrink and slow ones grow. Widths are not scaled: they
-follow reality × `WIDTH_FACTOR`, so the circuits keep their character. **Monaco** uses × 1.2
+follow reality × `WIDTH_FACTOR`, so the circuits keep their character. **Mexico City** uses × 1.4
+(owner's choice). **Monaco** uses × 1.2
 (owner's choice): our car is 2.2 m wide, an F1 2 m, so the road holds as many cars side by side as
 the real one (4.4–6.5): overtaking stays as hard as in reality.
 
-| Circuit   | Real length | Scale | Game length | Real width (m) | Game width (m) | Run-off |
-| --------- | ----------- | ----- | ----------- | -------------- | -------------- | ------- |
-| Monza     | 5766 m      | 0.948 | 5.45 km     | 10–12          | 16–19.2        | 10 m    |
-| Barcelona | 4643 m      | 1.011 | 4.69 km     | 12–14          | 19.2–22.4      | 10 m    |
-| Monaco    | 3281 m      | 1.133 | 3.72 km     | 8–12           | 9.6–14.4       | 3 m     |
+| Circuit     | Real length | Scale  | Game length | Real width (m) | Game width (m) | Run-off |
+| ----------- | ----------- | ------ | ----------- | -------------- | -------------- | ------- |
+| Monza       | 5766 m      | 0.948  | 5.45 km     | 10–12          | 16–19.2        | 10 m    |
+| Barcelona   | 4643 m      | 1.011  | 4.69 km     | 12–14          | 19.2–22.4      | 10 m    |
+| Monaco      | 3281 m      | 1.133  | 3.72 km     | 8–12           | 9.6–14.4       | 3 m     |
+| Mexico City | 4289 m      | 0.9858 | 4.25 km     | 10.8–15        | 15.1–21        | 4 m     |
 
-Real lengths are the OSM centreline's (official: Monza 5793 m, Barcelona 4657 m, Monaco 3337 m).
+Real lengths are the OSM centreline's (official: Monza 5793 m, Barcelona 4657 m, Monaco 3337 m,
+Mexico City 4304 m).
 
 ### Widths (published, then per section)
 
@@ -175,6 +178,74 @@ The tricky corners stay tricky (owner's request): Hard bot, top speed before →
 | Portier             | 88              | 165 → 100 |
 | Nouvelle Chicane    | 69              | 273 → 109 |
 | La Rascasse         | 65              | 225 → 90  |
+
+### Mexico City (`layouts/mexico.ts`, step 2.4a)
+
+Autódromo Hermanos Rodríguez. Shape from OSM relation 16251935 ("Mexican Grand Prix"; not
+10715575, the Formula E layout); target: the 2025 pole, 1:15.586 (car #4, OpenF1 session 9873).
+Oriented by the owner's `Mexico carbon.png` (`lineDirection` 20: up-right along the main straight),
+clockwise. Real widths × 1.4 (owner's choice). Run-off 4 m: with Monza's 10 m the walls fold in
+the tight corners (real radii 14–20 m: turns 4–6 and the stadium), and the sharp corners (below)
+are as tight as it lets them be. The game's limits moved 32 stations (> 1 m), around the sharp
+corners.
+
+**Sharp corners** (owner's request after the first test, "you must brake for the 90° corners"):
+our car turns far tighter than an F1 (up to 2.7 rad/s; the slide scrubs speed by itself), so a
+real 90° corner with a round 17–24 m apex could be taken lifting, on a wide line. Turns 1, 4, 5, 6,
+12, 13 and 16 are rebuilt (`sharpCorners` in `circuits.ts`, `sharpen` in `generate.ts`) as their
+two legs, straight on from `span` m either side of the apex, joined by the tightest arc the walls
+allow (half-width + run-off + 3 m). The shape stays the real one; only the apexes are sharper.
+Hard bot, top speed before → minimum (km/h):
+
+| Corner      | Real F1 minimum | Before (round) | Sharp     |
+| ----------- | --------------- | -------------- | --------- |
+| Turn 1      | 108             | 289 → 129      | 289 → 85  |
+| Turn 4      | 90              | 276 → 98       | 274 → 83  |
+| Turn 5      | 74              | 276 → 97       | 274 → 84  |
+| Turn 6      | 86              | 170 → 106      | 173 → 76  |
+| Turn 12     | 137             | 276 → 111      | 273 → 104 |
+| Turn 13     | 68              | 194 → 93       | 190 → 82  |
+| Turns 16–17 | 105             | 181 → 98       | 176 → 86  |
+
+Slower corners need a shorter track for the pole time: the scale went from 1.0325 to 0.9858.
+
+**Widths, measured**: no figure is published (searched: FIA, organisers, circuit guides). OSM traces
+the asphalt as `area:highway=raceway` polygons from aerial imagery. Across the centreline at every
+station, the width between their edges, as the median of each ~100 m. Spots where the asphalt
+widens into run-off at a corner are left out. Result: 14.7–15 m on the main straight, 11–12.6 m
+from turn 1 to the stadium, 10.8 m on the straight to turn 4 (the narrowest), 14.6 m out of the
+Peraltada (`widths` in `circuits.ts`, each marked with that source).
+
+| Lap (s)   | Lap   | S1    | S2    | S3    | Walls | Off |
+| --------- | ----- | ----- | ----- | ----- | ----- | --- |
+| Real pole | 75.59 | 26.92 | 29.11 | 19.56 |       |     |
+| Hard      | 75.48 | 28.90 | 27.77 | 18.82 | 0     | 0   |
+| Medium    | 76.62 | 29.42 | 28.18 | 19.02 | 0     | 0   |
+| Easy      | 91.23 | 33.58 | 34.27 | 23.38 | 0     | 0   |
+
+S1 is 7.4% slow: the 1.2 km main straight at up to 360 km/h in reality (thin air at 2240 m; our
+car: ~283). S2 (−4.6%) and S3 (−3.8%) win it back in the corners. Tests: Hard within 1.5% of the pole,
+every sector within 10% (as Barcelona).
+
+## Adding a circuit
+
+One circuit per step (Phase 2.4, [roadmap.md](roadmap.md)). Every circuit is offered in every mode:
+
+1. The owner's PNG in `03_F1Circuits/` (shape and orientation).
+2. An entry in `CIRCUITS` (`01_tools/openf1/circuits.ts`): OpenF1 qualifying session
+   (`sessions?year=2025&country_name=…`), the OSM `type=circuit` relation of the GP layout, widths
+   (published, else measured as Mexico City's), the width factor the owner chose, run-off,
+   `lineDirection` from the PNG; sharp corners, stadiums, hand-placed grandstands, surroundings or
+   town layers if it needs them.
+3. `fetch` → `profile` → `layout` → `calibrate` (scale back into `circuits.ts`) → `layout` →
+   `scenery --fetch` (README); check `preview/<id>.png` against the PNG.
+4. Shared: export the layout in `track/layouts/index.ts` and add it to `TRACKS` (single player)
+   and `GP_TRACKS` (online: Free practice, Time trial, Grand Prix; the server's rooms follow).
+5. Client: `themes/<id>.ts` (`realCircuitTheme`), mapped in `themes/theme.ts`.
+6. Tests: the pole in `REAL_POLES` (`ai/bot.test.ts`), the scenery case in
+   `themes/realCircuitLayouts.test.ts`; every-level bot laps, the grid fit and the room list follow
+   `TRACKS`/`GP_TRACKS` on their own.
+7. Docs: this file (table, section), [themes.md](themes.md), the tool's README, `CLAUDE.md`.
 
 ## Re-tuning a circuit
 

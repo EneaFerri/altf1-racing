@@ -86,7 +86,8 @@ woods (`landuse=forest`, `natural=wood`) and old raceways (`highway=raceway`) in
   beyond the pit lane on its side): the wider game track can swallow the real room between two
   stretches (e.g. a pit building at Barcelona).
 - **Filters**: grandstands shorter than 12 m (kiosks, camera towers) or further than 250 m from the
-  real asphalt are left out.
+  real asphalt (a circuit's `standReach`: Mexico City 60 m, its sports park has many) are left
+  out, and those a circuit lists in `notStands` (Mexico City: a gym tagged as one).
 - **Pit lane** (12 m real, × scale): decorative behind a 1 m pit wall (drivable later). Its ways
   (entry, lane, exit) are joined into one line in the driving direction; each point is located
   near the previous one's station (within 60 m plus the step), so the lane follows one stretch even
@@ -94,10 +95,26 @@ woods (`landuse=forest`, `natural=wood`) and old raceways (`highway=raceway`) in
   longest run (along the lap) that really is beyond the wall, points and the way between them, is
   kept: where the real lane cuts a corner the wider game track can leave it no room (Monaco's,
   from La Rascasse by the Piscine). Pit buildings are those within 80 m of it, moved out beyond
-  its outer edge with the stands beside it.
+  its outer edge with the stands beside it; where OSM maps none (Mexico City: only the whole
+  paddock) and on town circuits, a row of garages beside the lane instead.
+- **Overpass** is often busy: the fetch retries with growing waits (5 s, 10 s, …).
 - **Hand-placed grandstands** (`CircuitConfig.stands`: real distance, length, depth, side) where
   OSM has none (temporary stands): the same rules, an error if there's no room.
 - **Woods**: absolute polygons in game coordinates, filled with seeded trees.
+- **Stadiums** (`CircuitConfig.stadiums`: their OSM ways; Mexico City's Foro Sol and the
+  Alfredo Harp Helú ballpark): the OSM grandstands inside a stadium face its field, not the track,
+  so they are not trackside stands; a stadium with three or more of them is outlined by their
+  convex hull (the ballpark), else by its OSM outline (the Foro Sol). Absolute in game
+  coordinates. The client lines each with a **bowl** of tall stands (`bowlPieces` in
+  `scenery/placement.ts`, `scenery/stadium.ts`: 18 rows, ~22 m deep, in pieces ≤ 15 m, back on the
+  outline, facing in), left out where a piece would not fit beside the track (it runs through the
+  Foro Sol) or where a stand or the pits are; no trees inside.
+- **Surroundings** (`CircuitConfig.surroundings`, a park circuit: Mexico City): every building
+  within `reach` (500 m) of the centreline, ways and multipolygons, with its OSM height (else
+  8 m), and the lakes (`natural=water`), all ≥ 4 m beyond the walls and off the stands, pits and
+  stadiums; buildings named in `domes` (Palacio de los Deportes, the velodrome) get a copper dome
+  (`createDome` in `scenery/landmarks.ts`), the others `createCity`'s blocks, the lakes
+  `createSea`'s water. `north` places the look's `backdrop` by compass.
 - **Old oval** (Monza's _sopraelevata_): kept as scenery. Dropped where it runs along the GP track,
   raised on a bridge (8 m deck, 70 m ramps, piers) where it crosses it, banked in its curves
   (≤ 0.45 rad), cut where its deck would touch the GP walls on the ground.
@@ -201,6 +218,20 @@ La Rascasse: the owner wanted few), the pit lane along the start straight with i
 in OSM's woods, no trees in the open. 9d.2b: yachts moored stern-to in Port Hercule, the Casino
 and the Chapelle Sainte-Dévote on their footprints, green-grey hills behind the town.
 
+## Mexico City theme (`themes/mexico.ts`, step 2.4a)
+
+The Magdalena Mixiuhca sports park at 2240 m: hazy blue sky, fog 380–1900 m, green park grass
+dense with broadleaf trees (1500 in the open), red/white kerbs. From `themes/mexicoLayout.ts`
+(generated): the 3 real grandstands of the main straight and 7 temporary ones placed by hand on
+the outside of turns 1, 3, 4, 5–6, the esses, 12 and the Peraltada (the owner found OSM's sports
+park stands "placed at random": they belonged to pitches and the ballpark); the pit lane on the
+inside of the main straight with a row of garages (OSM maps only the whole paddock); 17 woods;
+the **Foro Sol's bowl** around turns 12–16 and the **ballpark's** in the infield by turn 1; the
+park's ~1800 buildings and the neighbourhoods around, the copper domes of the Palacio de los
+Deportes and the velodrome, its lakes. On the horizon (`backdrop`, by compass from `north`):
+**Popocatépetl** and **Iztaccíhuatl**, snow-capped (`createVolcanoes`), to the south-east, low
+hazy ridges round the rest of the valley.
+
 ## Placement rules (`scenery/placement.ts`, pure, tested)
 
 - `clearance(track, p)`: metres outside the walls (negative = drivable area). Every prop keeps a
@@ -212,6 +243,7 @@ and the Chapelle Sainte-Dévote on their footprints, green-grey hills behind the
 - `TrackSpot`, `fromTrack`, `alongTrack`: track-relative points and paths → ground points;
   `footprintBox`: the track-aligned box of a footprint (front centre, facing, length, depth).
 - `insidePolygon`, `polygonBounds`: for woods.
+- `bowlPieces`: a stadium outline split into stand pieces facing in (either winding).
 - `besideTrack`: a spot a given gap beyond the wall on one side, `along` metres from a control point,
   with the direction towards the track (used to face stands and lights).
 - `cornerApexes`: one apex per corner (runs of same-way curvature above a threshold).

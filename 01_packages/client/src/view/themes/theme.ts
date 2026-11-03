@@ -3,6 +3,7 @@ import type { Track } from '@altf1/shared';
 import { BARCELONA_THEME } from './barcelona';
 import { CLASSIC_THEME } from './classic';
 import { KRUNCAR_THEME } from './kruncar';
+import { MEXICO_THEME } from './mexico';
 import { MONACO_THEME } from './monaco';
 import { MONZA_THEME } from './monza';
 
@@ -49,6 +50,7 @@ const THEMES: Readonly<Record<string, TrackTheme>> = {
   Monza: MONZA_THEME,
   Barcelona: BARCELONA_THEME,
   Monaco: MONACO_THEME,
+  'Mexico City': MEXICO_THEME,
 };
 
 /** The theme drawn for a track: its own when it has one, else the classic look. */

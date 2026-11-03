@@ -2,7 +2,7 @@
 
 Builds the game layouts of real circuits from open data. Method, sources and results:
 [01_docs/circuits.md](../../01_docs/circuits.md). Plain Node (≥ 23.6, strips the TypeScript
-types), no build step; run from the repo root, `<id>` = `monza`, `barcelona` or `monaco`.
+types), no build step; run from the repo root, `<id>` = `monza`, `barcelona`, `monaco` or `mexico`.
 
 ```
 node 01_tools/openf1/fetch.ts <id>       # download: OpenF1 pole lap + OSM centreline → data/
@@ -15,13 +15,13 @@ node --import ./01_tools/resolveTs.ts 01_tools/openf1/scenery.ts <id> [--fetch] 
 `layout`, `calibrate` and `scenery` use the game's own code in `01_packages/shared`, whose imports have no
 extension: `01_tools/resolveTs.ts` (shared with the multiplayer server) lets Node resolve them.
 
-| File           | Role                                                                               |
-| -------------- | ---------------------------------------------------------------------------------- |
-| `circuits.ts`  | Every circuit: sources, real widths, adaptation (scale, width factor, run-off)     |
-| `fetch.ts`     | Downloads `data/<id>.openf1.json` and `data/<id>.osm.json` (committed)             |
-| `profile.ts`   | Turns them into `data/<id>.json` (committed), incl. `osmFrame` (OSM → frame)       |
-| `generate.ts`  | Profile + adaptation → `TrackDefinition` (used by layout and calibrate)            |
-| `layout.ts`    | Writes `01_packages/shared/src/track/layouts/<id>.ts` and `preview/<id>.png`       |
-| `calibrate.ts` | Finds the scale at which the Hard bot laps in the real pole time                   |
-| `scenery.ts`   | OSM scenery (+ town layers if `town`) → `data/<id>.scenery.json` → `<id>Layout.ts` |
-| `openf1.ts`    | Data shapes and paths · `geometry.ts` polyline helpers · `png.ts` previews         |
+| File           | Role                                                                              |
+| -------------- | --------------------------------------------------------------------------------- |
+| `circuits.ts`  | Every circuit: sources, real widths, adaptation (scale, width factor, run-off)    |
+| `fetch.ts`     | Downloads `data/<id>.openf1.json` and `data/<id>.osm.json` (committed)            |
+| `profile.ts`   | Turns them into `data/<id>.json` (committed), incl. `osmFrame` (OSM → frame)      |
+| `generate.ts`  | Profile + adaptation → `TrackDefinition` (used by layout and calibrate)           |
+| `layout.ts`    | Writes `01_packages/shared/src/track/layouts/<id>.ts` and `preview/<id>.png`      |
+| `calibrate.ts` | Finds the scale at which the Hard bot laps in the real pole time                  |
+| `scenery.ts`   | OSM scenery (+ town layers, stadium) → `data/<id>.scenery.json` → `<id>Layout.ts` |
+| `openf1.ts`    | Data shapes and paths · `geometry.ts` polyline helpers · `png.ts` previews        |

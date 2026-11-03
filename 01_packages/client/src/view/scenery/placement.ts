@@ -164,6 +164,51 @@ export function standPieces(
   return pieces;
 }
 
+/**
+ * A stadium's bowl along its closed `outline`: stands about `pieceLength` m long (each edge split
+ * evenly, shorter leftovers than 4 m dropped) with their back on the outline and their front
+ * `depth` m inside it, facing in (`towardsTrack`: towards the field the track runs through).
+ */
+export function bowlPieces(
+  outline: readonly Vec2[],
+  pieceLength: number,
+  depth: number,
+): Footprint[] {
+  const ring =
+    outline[0]!.x === outline[outline.length - 1]!.x &&
+    outline[0]!.z === outline[outline.length - 1]!.z
+      ? outline.slice(0, -1)
+      : outline;
+  // Shoelace: > 0 when the outline turns from +X towards +Z, the inside on each edge's left.
+  const area = ring.reduce((sum, a, i) => {
+    const b = ring[(i + 1) % ring.length]!;
+    return sum + a.x * b.z - b.x * a.z;
+  }, 0);
+  const inwards = area > 0 ? 1 : -1;
+  const pieces: Footprint[] = [];
+  ring.forEach((a, i) => {
+    const b = ring[(i + 1) % ring.length]!;
+    const length = Math.hypot(b.x - a.x, b.z - a.z);
+    if (length < 4) return;
+    const u = vec2((b.x - a.x) / length, (b.z - a.z) / length);
+    const towardsTrack = vec2(-u.z * inwards, u.x * inwards);
+    const count = Math.max(1, Math.round(length / pieceLength));
+    for (let k = 0; k < count; k++) {
+      const mid = ((k + 0.5) * length) / count;
+      pieces.push({
+        front: vec2(
+          a.x + u.x * mid + towardsTrack.x * depth,
+          a.z + u.z * mid + towardsTrack.z * depth,
+        ),
+        towardsTrack,
+        length: length / count,
+        depth,
+      });
+    }
+  });
+  return pieces;
+}
+
 /** True when `p` is inside the polygon (even-odd rule). */
 export function insidePolygon(p: Vec2, polygon: readonly Vec2[]): boolean {
   let inside = false;

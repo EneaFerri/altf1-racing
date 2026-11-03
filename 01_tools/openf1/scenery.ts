@@ -1,7 +1,8 @@
 /**
  * A circuit's scenery from OpenStreetMap: grandstands, pit lane and pit buildings, woods and old
  * raceways (e.g. Monza's oval); on a town circuit also every building with its height, the sea,
- * piers, pools, trees and the tunnel (Monaco). Downloads them (`--fetch`) into `data/<id>.scenery.json`
+ * piers, pools, trees and the tunnel (Monaco); stadiums, and a park's buildings and lakes
+ * (Mexico City). Downloads them (`--fetch`) into `data/<id>.scenery.json`
  * (committed), then writes the game's plain-data layout
  * `01_packages/client/src/view/themes/<id>Layout.ts` (generated: never edit by hand).
  * Usage: node --import ./01_tools/resolveTs.ts 01_tools/openf1/scenery.ts <id> [--fetch]
@@ -46,6 +47,10 @@ const TYPE_HEIGHT: Readonly<Record<string, number>> = {
   cathedral: 25,
 };
 const TOWN_HEIGHT = 18;
+/** Surroundings: a park building's height when OSM has none (m): sports halls, stands, sheds. */
+const PARK_HEIGHT = 8;
+/** Surroundings: buildings and lakes at least this far beyond the wall (m). */
+const PARK_GAP = 4;
 
 /** Grandstands and buildings further than this beyond the real asphalt are left out (m, real). */
 const MAX_REACH = 250;
@@ -132,19 +137,17 @@ relation(${circuit.osmRelation})->.circuit;
   way["building"](${bbox});
   way["landuse"="forest"](${bbox});
   way["natural"="wood"](${bbox});
-  way["highway"="raceway"](${bbox});${town}
+  way["highway"="raceway"](${bbox});${(circuit.stadiums ?? [])
+    .map((st) => `\n  way(${st.osmWay});`)
+    .join('')}${
+    circuit.surroundings
+      ? `\n  way["natural"="water"](${bbox});\n  relation["natural"="water"](${bbox});` +
+        `\n  relation["building"](${bbox});`
+      : ''
+  }${town}
 );
 out geom;`;
-  const response = await fetch(OVERPASS, {
-    method: 'POST',
-    // Overpass refuses requests without a user agent.
-    headers: {
-      'User-Agent': 'AltF1-Racing track tool',
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: `data=${encodeURIComponent(query)}`,
-  });
-  if (!response.ok) throw new Error(`Overpass: HTTP ${response.status}`);
+  const response = await overpass(query);
   interface Element {
     readonly type: string;
     readonly id: number;
@@ -159,7 +162,7 @@ out geom;`;
     }[];
   }
   const { elements } = (await response.json()) as { elements: Element[] };
-  const near = nearCircuit(track);
+  const near = nearCircuit(track, circuit.surroundings?.reach ?? BUILDING_REACH);
   const geometry = (g: readonly { lat: number; lon: number }[]): [number, number][] =>
     g.map((p) => [Math.round(p.lat * 1e7) / 1e7, Math.round(p.lon * 1e7) / 1e7]);
   const features: SceneryFeature[] = [];
@@ -178,14 +181,26 @@ out geom;`;
       continue;
     }
     if (e.type === 'relation') {
-      if (tags.building) {
+      if (tags.natural === 'water' && circuit.surroundings) {
+        const outer = (e.members ?? [])
+          .filter((m) => m.type === 'way' && m.role === 'outer' && m.geometry)
+          .map((m) => geometry(m.geometry!));
+        const ring = joinRing(outer);
+        if (ring && ring.some(near)) features.push({ kind: 'water', name, points: ring });
+        continue;
+      }
+      if (tags.building && (circuit.town || circuit.surroundings)) {
         // A multipolygon building: its outer ring, joined from its outer ways.
         const outer = (e.members ?? [])
           .filter((m) => m.type === 'way' && m.role === 'outer' && m.geometry)
           .map((m) => geometry(m.geometry!));
         const ring = joinRing(outer);
         if (ring && ring.some(near)) {
-          features.push({ kind: 'townBuilding', name, points: ring, height: heightOf(tags) });
+          features.push(
+            circuit.town
+              ? { kind: 'townBuilding', name, points: ring, height: heightOf(tags) }
+              : { kind: 'building', name, points: ring, height: heightOf(tags, PARK_HEIGHT) },
+          );
         }
         continue;
       }
@@ -198,13 +213,19 @@ out geom;`;
     }
     if (!e.geometry) continue;
     const points = geometry(e.geometry);
-    if (circuit.town && tags.tunnel && tags.highway) {
+    const stadium = circuit.stadiums?.find((st) => st.osmWay === e.id);
+    if (stadium) features.push({ kind: 'stadium', name: stadium.name, points });
+    else if (tags.natural === 'water' && circuit.surroundings) {
+      if (points.some(near)) features.push({ kind: 'water', name, points });
+    } else if (circuit.town && tags.tunnel && tags.highway) {
       features.push({ kind: 'tunnel', name, points });
     } else if (tags.building === 'grandstand') features.push({ kind: 'grandstand', name, points });
     else if (tags.building) {
       if (!points.some(near)) continue;
       if (circuit.town) {
         features.push({ kind: 'townBuilding', name, points, height: heightOf(tags) });
+      } else if (circuit.surroundings) {
+        features.push({ kind: 'building', name, points, height: heightOf(tags, PARK_HEIGHT) });
       } else features.push({ kind: 'building', name, points });
     } else if (tags.natural === 'coastline') features.push({ kind: 'coastline', name, points });
     else if (tags.man_made === 'pier') features.push({ kind: 'pier', name, points });
@@ -225,6 +246,8 @@ out geom;`;
   console.log(
     `${circuit.name}: ${count('grandstand')} grandstands, ${count('building')} buildings, ` +
       `${count('pitLane')} pit lane ways, ${count('wood')} woods, ${count('raceway')} raceway ways` +
+      (circuit.stadiums ? `, ${count('stadium')} stadium outlines` : '') +
+      (circuit.surroundings ? `, ${count('water')} lakes` : '') +
       (circuit.town
         ? `; town: ${count('townBuilding')} buildings, ${count('coastline')} coastline ways, ` +
           `${count('pier')} piers, ${count('pool')} pools, ${count('tree')} trees, ` +
@@ -233,13 +256,34 @@ out geom;`;
   );
 }
 
-/** A town building's height (m): OSM `height`, else its levels, else a guess from its type. */
-function heightOf(tags: Record<string, string>): number {
+/** Posts an Overpass query; retried with growing waits while the server is busy (429, 502–504). */
+async function overpass(query: string): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch(OVERPASS, {
+      method: 'POST',
+      // Overpass refuses requests without a user agent.
+      headers: {
+        'User-Agent': 'AltF1-Racing track tool',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `data=${encodeURIComponent(query)}`,
+    });
+    if (response.ok) return response;
+    if (![429, 502, 503, 504].includes(response.status) || attempt === 6) {
+      throw new Error(`Overpass: HTTP ${response.status}`);
+    }
+    console.log(`  Overpass busy (HTTP ${response.status}), retrying…`);
+    await new Promise((resolve) => setTimeout(resolve, 5000 * 2 ** attempt));
+  }
+}
+
+/** A building's height (m): OSM `height`, else its levels, else a guess from its type. */
+function heightOf(tags: Record<string, string>, fallback = TOWN_HEIGHT): number {
   const height = parseFloat(tags.height ?? '');
   if (height > 0) return height;
   const levels = parseFloat(tags['building:levels'] ?? '');
   if (levels > 0) return levels * LEVEL_HEIGHT + 1;
-  return TYPE_HEIGHT[tags.building ?? ''] ?? TOWN_HEIGHT;
+  return TYPE_HEIGHT[tags.building ?? ''] ?? fallback;
 }
 
 /** Joins ways sharing end nodes into one closed ring (null if they don't close). */
@@ -259,14 +303,15 @@ function joinRing(ways: readonly [number, number][][]): [number, number][] | nul
   return ring;
 }
 
-/** True for [lat, lon] points within BUILDING_REACH of the circuit's centreline. */
-function nearCircuit(track: RawOsmCircuit): (p: readonly [number, number]) => boolean {
+/** True for [lat, lon] points within `reach` (m) of the circuit's centreline. */
+function nearCircuit(
+  track: RawOsmCircuit,
+  reach: number,
+): (p: readonly [number, number]) => boolean {
   const nodes = track.ways.flat();
   const metresPerLon = 111320 * Math.cos((nodes[0]![0] * Math.PI) / 180);
   return ([lat, lon]) =>
-    nodes.some(
-      ([la, lo]) => Math.hypot((lat - la) * 110574, (lon - lo) * metresPerLon) < BUILDING_REACH,
-    );
+    nodes.some(([la, lo]) => Math.hypot((lat - la) * 110574, (lon - lo) * metresPerLon) < reach);
 }
 
 /** A track-relative point: lap fraction and metres beyond the game's wall (+ right, − left). */
@@ -407,29 +452,63 @@ function writeLayout(): void {
   };
   const nearLane = (p: Point): boolean =>
     laneReal.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < PIT_REACH);
-  const pitBuildings = circuit.town
-    ? garageRow(
-        pitLane,
-        profile.length,
-        laneHalf + 1,
-        laneSide * GARAGE_DEPTH * circuit.scale,
-        (box) => box.every((spot) => clearOfWalls(spot, MIN_GAP)),
-      )
+  // The garages: a row of boxes along the lane on a town circuit, or where OSM maps none beside it
+  // (Mexico City: only the whole paddock); else the real pit buildings.
+  const garages = (): Spot[][] =>
+    garageRow(
+      pitLane,
+      profile.length,
+      laneHalf + 1,
+      laneSide * GARAGE_DEPTH * circuit.scale,
+      (box) => box.every((spot) => clearOfWalls(spot, MIN_GAP)),
+    );
+  const osmPitBuildings = circuit.town
+    ? []
     : raw.features
         .filter((f) => f.kind === 'building')
         .map(real)
         .filter((ps) => ps.every(nearLane) && length(ps) / 2 >= MIN_STAND)
         .map((ps) => place(ps, laneOuter + 2))
         .filter((spots): spots is Spot[] => spots !== null && Math.sign(spots[0]![1]) === laneSide);
+  const pitBuildings = osmPitBuildings.length > 0 ? osmPitBuildings : garages();
 
-  // Grandstands: real footprints beside the track; on the pit side, beyond the pit lane.
+  // Stadiums: their outlines, real and in game coordinates (the bowl is placed by the client).
+  // In the order of circuits.ts.
+  const stadiumFeatures = (circuit.stadiums ?? []).map((st) => {
+    const f = raw.features.find((g) => g.kind === 'stadium' && g.name === st.name);
+    if (!f) throw new Error(`${st.name}: not in the data, run with --fetch`);
+    return f;
+  });
+  const centre = (ps: readonly Point[]): Point => [
+    ps.reduce((sum, p) => sum + p[0], 0) / ps.length,
+    ps.reduce((sum, p) => sum + p[1], 0) / ps.length,
+  ];
+  const stadiumsReal = stadiumFeatures.map(real);
+  // A stadium's own grandstands, when it has enough of them, outline its bowl.
+  const stadiums = stadiumsReal.map((ring) => {
+    const own = raw.features
+      .filter((f) => f.kind === 'grandstand')
+      .map(real)
+      .filter((ps) => insidePolygon(centre(ps), ring));
+    const outline = own.length >= 3 ? convexHull(own.flat()) : ring;
+    return outline.map((p) => toWorld(p));
+  });
+  const inStadium = (ps: readonly Point[]): boolean =>
+    stadiumsReal.some((ring) => insidePolygon(centre(ps), ring));
+
+  // Grandstands: real footprints beside the track; on the pit side, beyond the pit lane. Those of a
+  // stadium face its field: its bowl draws them.
   const besideLane = (ps: readonly Point[]): boolean =>
     ps.map((p) => relative(p)).some((r) => Math.sign(r.lateral) === laneSide && inLaneSpan(r.at));
   const stands = raw.features
     .filter((f) => f.kind === 'grandstand')
     .map((f) => ({ name: f.name || 'Tribuna', points: real(f) }))
     .filter((f) => length(f.points) / 2 >= MIN_STAND)
-    .filter((f) => Math.min(...f.points.map((p) => relative(p).edgeGap)) < MAX_REACH)
+    .filter(
+      (f) =>
+        Math.min(...f.points.map((p) => relative(p).edgeGap)) < (circuit.standReach ?? MAX_REACH),
+    )
+    .filter((f) => !inStadium(f.points) && !(circuit.notStands ?? []).includes(f.name))
     .map((f) => ({
       name: f.name,
       footprint: place(f.points, besideLane(f.points) ? laneOuter + 2 : MIN_GAP),
@@ -462,6 +541,30 @@ function writeLayout(): void {
   const woods = raw.features
     .filter((f) => f.kind === 'wood' && f.points.length >= 4)
     .map((f) => f.points.map((p) => toWorld(toProfile(p))));
+
+  const surroundings = circuit.surroundings
+    ? parkLayers(
+        raw,
+        track,
+        (p) => toWorld(toProfile(p)),
+        [
+          ...[...stands.map((st) => st.footprint), ...pitBuildings, pitLane].map((f) =>
+            f.map((spot) => fromSpot(track, spot)),
+          ),
+          ...stadiums,
+        ],
+        (PIT_LANE_WIDTH * circuit.scale) / 2 + GARAGE_DEPTH * circuit.scale + 2,
+        circuit.surroundings.reach * circuit.scale,
+        circuit.surroundings.domes,
+      )
+    : null;
+  // North in game coordinates (the backdrop is placed by bearing).
+  const [lat, lon] = raw.features[0]!.points[0]!;
+  const origin = toWorld(toProfile([lat, lon]));
+  const up = toWorld(toProfile([lat + 0.001, lon]));
+  const north = [up[0] - origin[0], up[1] - origin[1]].map(
+    (v) => v / Math.hypot(up[0] - origin[0], up[1] - origin[1]),
+  );
 
   const oval = ovalPieces(
     raw.features
@@ -537,6 +640,42 @@ function writeLayout(): void {
     ),
     `];`,
     ``,
+    ...(circuit.stadiums
+      ? [
+          `/** Stadiums (${stadiumFeatures.map((f) => f.name).join(', ')}): their outlines (OSM). */`,
+          `export const ${circuit.constName}_STADIUMS: readonly (readonly Vec2[])[] = [`,
+          ...stadiums.map((ring) => `  [${ring.map(pt).join(', ')}],`),
+          `];`,
+          ``,
+        ]
+      : []),
+    ...(surroundings
+      ? [
+          `/** The park around: buildings (OSM, with heights; \`dome\`: drawn with one), lakes, north. */`,
+          `export const ${circuit.constName}_SURROUNDINGS: {`,
+          `  readonly buildings: readonly {`,
+          `    readonly points: readonly Vec2[];`,
+          `    readonly height: number;`,
+          `    readonly base: number;`,
+          `    readonly dome: boolean;`,
+          `  }[];`,
+          `  readonly lakes: readonly (readonly Vec2[])[];`,
+          `  readonly north: Vec2;`,
+          `} = {`,
+          `  buildings: [`,
+          ...surroundings.buildings.map(
+            (b) =>
+              `    { points: [${b.points.map(pt).join(', ')}], height: ${round(b.height)}, base: 0, dome: ${b.dome} },`,
+          ),
+          `  ],`,
+          `  lakes: [`,
+          ...surroundings.lakes.map((ring) => `    [${ring.map(pt).join(', ')}],`),
+          `  ],`,
+          `  north: vec2(${round(north[0]!, 3)}, ${round(north[1]!, 3)}),`,
+          `};`,
+          ``,
+        ]
+      : []),
     ...(town ? townLines(circuit.constName, town, pt) : []),
   ];
   const file = join(
@@ -548,6 +687,12 @@ function writeLayout(): void {
     `${circuit.name} layout: ${stands.length} stands, pit lane ${pitLane.length} points ` +
       `(${laneSide > 0 ? 'right' : 'left'}), ${pitBuildings.length} pit buildings, ` +
       `${woods.length} woods, oval in ${oval.length} pieces` +
+      (circuit.stadiums ? `, ${stadiums.length} stadiums` : '') +
+      (surroundings
+        ? `; park: ${surroundings.buildings.length} buildings ` +
+          `(${surroundings.buildings.filter((b) => b.dome).length} domes), ` +
+          `${surroundings.lakes.length} lakes`
+        : '') +
       (town
         ? `; town: ${town.city.length} buildings (${town.city.filter((b) => b.base > 0).length} ` +
           `over the tunnel; landmarks: ${
@@ -609,7 +754,7 @@ function clearance(track: Track, [x, z]: Point): number {
 }
 
 /**
- * Town circuits: the pit garages as a row of boxes `depth` deep (signed: towards the pit side),
+ * The pit garages (town circuits, or none in OSM) as a row of boxes `depth` deep (signed: towards the pit side),
  * `beyond` the pit lane's centreline where it runs, over its middle (the ends are entry and exit);
  * shallower where another stretch of the track is close behind, left out where none `fits`.
  */
@@ -832,6 +977,68 @@ function townLayers(
     palms,
     tunnel,
   };
+}
+
+/**
+ * A park circuit's surroundings, absolute in game coordinates: its buildings within `reach` of the
+ * centreline (simplified, with their heights; those named in `domes` get one) and its lakes, all at
+ * least PARK_GAP beyond the walls and off the `occupied` footprints (stands, pits, stadiums).
+ */
+function parkLayers(
+  raw: RawScenery,
+  track: Track,
+  toWorld: (p: readonly [number, number]) => Point,
+  occupied: readonly Point[][],
+  laneReach: number,
+  reach: number,
+  domes: readonly string[],
+): {
+  buildings: { points: Point[]; height: number; dome: boolean }[];
+  lakes: Point[][];
+} {
+  const world = (f: SceneryFeature): Point[] => f.points.map((p) => toWorld(p));
+  const clear = (ps: readonly Point[]): boolean => ps.every((p) => clearance(track, p) >= PARK_GAP);
+  const onOccupied = (p: Point): boolean =>
+    occupied.some(
+      (f) =>
+        insidePolygon(p, f) || f.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < laneReach / 2),
+    );
+  const buildings = raw.features
+    .filter((f) => f.kind === 'building')
+    .map((f) => ({ f, ring: simplify(world(f).slice(0, -1), SIMPLIFY) }))
+    .filter(({ ring }) => ring.length >= 3)
+    .filter(({ ring }) =>
+      ring.some((p) => Math.abs(locateOnTrack(track, vec2(p[0], p[1])).lateral) < reach),
+    )
+    .filter(({ ring }) => clear(ring) && !ring.some(onOccupied))
+    .map(({ f, ring }) => ({
+      points: ring,
+      height: f.height ?? PARK_HEIGHT,
+      dome: domes.includes(f.name),
+    }));
+  const lakes = raw.features
+    .filter((f) => f.kind === 'water' && f.points.length > 3)
+    .map((f) => simplify(world(f).slice(0, -1), SIMPLIFY))
+    .filter((ring) => ring.length >= 3 && clear(ring));
+  return { buildings, lakes };
+}
+
+/** Convex hull of points (monotone chain), closed (first point repeated). */
+function convexHull(points: readonly Point[]): Point[] {
+  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o: Point, a: Point, b: Point): number =>
+    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const half = (ps: readonly Point[]): Point[] => {
+    const out: Point[] = [];
+    for (const p of ps) {
+      while (out.length >= 2 && cross(out[out.length - 2]!, out[out.length - 1]!, p) <= 0)
+        out.pop();
+      out.push(p);
+    }
+    return out.slice(0, -1);
+  };
+  const hull = [...half(sorted), ...half([...sorted].reverse())];
+  return [...hull, hull[0]!];
 }
 
 /** The town's generated exports (see `townLayers`). */

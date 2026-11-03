@@ -3,6 +3,7 @@ import {
   encodeMessage,
   FIXED_DT,
   findCar,
+  GP_TRACKS,
   NEUTRAL_INPUT,
   parseServerMessage,
   PROTOCOL_VERSION,
@@ -70,7 +71,7 @@ describe('GameServer — lobby', () => {
         type: 'welcome',
         playerId: 'p2',
         rooms: ['practice', 'timeTrial', 'grandPrix'].flatMap((mode) =>
-          ['Monza', 'Barcelona', 'Monaco'].map((track) => ({
+          GP_TRACKS.map(({ name: track }) => ({
             mode,
             track,
             players: mode === 'practice' && track === 'Monaco' ? 1 : 0,
@@ -303,5 +304,33 @@ describe('GameServer — Grand Prix', () => {
     expect(Math.hypot(held.x, held.z)).toBe(0); // held on the grid
     server.message(enea, encodeMessage({ type: 'gp', action: 'startRace', laps: 4 }));
     expect(kimi.last('grandPrix')).toMatchObject({ phase: 'race', raceLaps: 4 });
+  });
+
+  it('opens a new lobby on play again: newcomers welcome, players still on the card not in it', () => {
+    const server = new GameServer();
+    const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
+    const kimi = inRoom(server, 'Kimi', 'Monza', 'grandPrix');
+    const room = server.rooms.get(roomKey('grandPrix', 'Monza', 'p1'))!;
+    const gp = (action: 'endQualifying' | 'endRace' | 'playAgain'): string =>
+      encodeMessage({ type: 'gp', action });
+    server.message(enea, start);
+    server.message(enea, gp('endQualifying'));
+    server.message(enea, encodeMessage({ type: 'gp', action: 'startRace', laps: 4 }));
+    server.message(enea, gp('endRace'));
+    expect(kimi.last('grandPrix')).toMatchObject({ phase: 'results' });
+    server.message(joined(server, 'Max'), enter('Monza', 'grandPrix'));
+    expect(server.rooms.get(roomKey('grandPrix', 'Monza', 'p1'))!.has('p3')).toBe(false);
+    server.message(kimi, gp('playAgain'));
+    expect(enea.last('grandPrix')).toMatchObject({
+      phase: 'lobby',
+      manager: 'p2',
+      drivers: ['p2'],
+    });
+    expect(room.state.cars.map((car) => car.id)).toEqual(['p2']);
+    const lewis = inRoom(server, 'Lewis', 'Monza', 'grandPrix');
+    expect(lewis.last('grandPrix')).toMatchObject({ drivers: ['p2', 'p4'] });
+    server.message(enea, gp('playAgain'));
+    expect(lewis.last('grandPrix')).toMatchObject({ drivers: ['p2', 'p4', 'p1'] });
+    expect(room.state.cars.map((car) => car.id)).toEqual(['p1', 'p2', 'p4']);
   });
 });
