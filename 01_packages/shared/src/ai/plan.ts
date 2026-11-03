@@ -1,5 +1,6 @@
 import { BOT_DRIVER, type BotParams } from '../config/bot';
 import type { CarParams } from '../config/car';
+import { SLOPE_PARAMS, type SlopeParams } from '../config/slope';
 import { wrapAngle } from '../math/angle';
 import { add, distance, dot, headingOf, scale, sub, type Vec2 } from '../math/vec2';
 import type { Track } from '../track/types';
@@ -34,14 +35,23 @@ export function botCarParams(car: CarParams, bot: BotParams): CarParams {
  *    the usable half-width (see `relaxLine`);
  * 2. the speed through each point is what the car can turn at there (from `CarParams`, so retuning
  *    the car keeps bots valid), scaled by `cornerSpeed` and capped by `topSpeed`;
- * 3. a backward pass makes the bot brake in time (`brakeUse` of `brakeDecel`) for what comes next.
+ * 3. a backward pass makes the bot brake in time (`brakeUse` of `brakeDecel`, less downhill and
+ *    more uphill on an elevated track: `slope`) for what comes next.
  * `player` is the player's car; the bot's own car (`botCarParams`) is derived from it.
  */
-export function buildBotPlan(track: Track, player: CarParams, bot: BotParams): BotPlan {
-  return planRoad(bot.shortcuts ? (track.routes[0] ?? track) : track, player, bot);
+export function buildBotPlan(
+  track: Track,
+  player: CarParams,
+  bot: BotParams,
+  slope: SlopeParams = SLOPE_PARAMS,
+): BotPlan {
+  return planRoad(bot.shortcuts ? (track.routes[0] ?? track) : track, player, bot, slope);
 }
 
-function planRoad(track: Track, player: CarParams, bot: BotParams): BotPlan {
+/** Braking never counts on less than this share of the planned deceleration (steep descents). */
+const MIN_BRAKING = 0.25;
+
+function planRoad(track: Track, player: CarParams, bot: BotParams, slope: SlopeParams): BotPlan {
   const car = botCarParams(player, bot);
   const n = track.samples.length;
   const at = <T>(list: readonly T[], i: number): T => list[((i % n) + n) % n]!;
@@ -55,11 +65,21 @@ function planRoad(track: Track, player: CarParams, bot: BotParams): BotPlan {
 
   // Braking: going backwards round the loop (twice, so the start line wraps), no point may need
   // more deceleration than planned to reach the next one's speed.
-  const decel = bot.brakeUse * car.brakeDecel;
+  const planned = bot.brakeUse * car.brakeDecel;
+  // Gravity along the slope helps braking uphill and works against it downhill.
+  const decelAt = (i: number): number =>
+    track.elevated
+      ? Math.max(
+          MIN_BRAKING * planned,
+          planned + slope.gravity * slope.factor * track.samples[i]!.grade,
+        )
+      : planned;
   for (let pass = 0; pass < 2 * n; pass++) {
     const i = n - 1 - (pass % n);
     const next = (i + 1) % n;
-    const reachable = Math.sqrt(speed[next]! ** 2 + 2 * decel * distance(line[i]!, line[next]!));
+    const reachable = Math.sqrt(
+      speed[next]! ** 2 + 2 * decelAt(i) * distance(line[i]!, line[next]!),
+    );
     if (reachable < speed[i]!) speed[i] = reachable;
   }
   return { road: track, lateral, line, speed };

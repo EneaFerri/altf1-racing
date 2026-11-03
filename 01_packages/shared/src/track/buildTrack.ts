@@ -167,11 +167,20 @@ function compileLoop(def: TrackDefinition, route: number): Loop {
       distance,
       curvature: -turn / (spacing(i - 1) + spacing(i)),
       halfWidth: widthAt(def, params[i]!) / 2,
+      height: heightAt(def, params[i]!),
+      grade: 0,
     };
     distance += spacing(i);
     return sample;
   });
   const length = distance;
+  // Grade: the height's change over the samples either side.
+  if (def.points.some((p) => p.height !== undefined)) {
+    samples.forEach((s, i) => {
+      const rise = at(samples, i + 1).height - at(samples, i - 1).height;
+      samples[i] = { ...s, grade: rise / (spacing(i - 1) + spacing(i)) };
+    });
+  }
 
   // Side of the corner's inside for each sample (curvature > 0 = right turn = inside is right).
   const inside = (i: number): TrackSide => (samples[i]!.curvature > 0 ? 'right' : 'left');
@@ -228,6 +237,7 @@ function compileLoop(def: TrackDefinition, route: number): Loop {
   const track: Track = {
     name: def.name,
     maxHalfWidth: Math.max(...samples.map((s) => s.halfWidth)),
+    elevated: def.points.some((p) => p.height !== undefined),
     runoffWidth: def.runoffWidth,
     kerbInset: def.kerbBand?.inset ?? rules.kerbInset,
     kerbOutset: def.kerbBand?.outset ?? rules.kerbOutset,
@@ -270,6 +280,25 @@ function widthAt(def: TrackDefinition, param: number): number {
   const a = def.points[i % n]!.width;
   const b = def.points[(i + 1) % n]!.width;
   return a + ((b - a) * (1 - Math.cos(Math.PI * f))) / 2;
+}
+
+/**
+ * Height at spline parameter `param`: a Catmull-Rom curve through the points' heights (0 where they
+ * have none), so the grade changes smoothly too.
+ */
+function heightAt(def: TrackDefinition, param: number): number {
+  const n = def.points.length;
+  const i = Math.floor(param);
+  const t = param - i;
+  const h = (k: number): number => def.points[(((i + k) % n) + n) % n]!.height ?? 0;
+  const [p0, p1, p2, p3] = [h(-1), h(0), h(1), h(2)];
+  return (
+    0.5 *
+    (2 * p1 +
+      (p2 - p0) * t +
+      (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t +
+      (3 * p1 - p0 - 3 * p2 + p3) * t * t * t)
+  );
 }
 
 /** Wall polyline offset from the centreline (local width + run-off), each segment facing the track. */

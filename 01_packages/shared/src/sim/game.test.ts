@@ -226,3 +226,43 @@ describe('stepGame', () => {
     expect(simulate()).toEqual(simulate());
   });
 });
+
+describe('stepGame — slopes (Phase 3)', () => {
+  const inputs: InputMap = { a: THROTTLE, b: { ...THROTTLE, steer: 0.3 } };
+  const race = (on: SimContext): GameState =>
+    run(createGame(on.track, ['a', 'b']), inputs, 10 * 60, on);
+
+  it('gives exactly the same race on a flat track whatever the slope settings', () => {
+    const flat = race(ctx);
+    expect(race({ ...ctx, slopeParams: { gravity: 9.81, factor: 1 } })).toEqual(flat);
+  });
+
+  it('gives exactly the same race on heights all at 0 as on the flat track', () => {
+    const level = buildTrack({
+      ...TEST_TRACK,
+      points: TEST_TRACK.points.map((p) => ({ ...p, height: 0 })),
+    });
+    expect(level.elevated).toBe(true);
+    expect(race({ ...ctx, track: level })).toEqual(race(ctx));
+  });
+
+  it('slows a car climbing a hill and speeds it down one', () => {
+    const n = TEST_TRACK.points.length;
+    // Up 15 m over the first quarter of the lap (where the grid is), then down again.
+    const hilly = buildTrack({
+      ...TEST_TRACK,
+      points: TEST_TRACK.points.map((p, i) => ({
+        ...p,
+        height: 15 * Math.sin((2 * Math.PI * i) / n),
+      })),
+    });
+    const speedAfter = (on: SimContext): number => {
+      const car = findCar(run(createGame(on.track, ['a']), { a: THROTTLE }, 3 * 60, on), 'a')!;
+      return Math.hypot(car.velocity.x, car.velocity.z);
+    };
+    const onHill = { ...ctx, track: hilly };
+    expect(speedAfter({ ...onHill, slopeParams: { gravity: 9.81, factor: 1 } })).toBeLessThan(
+      speedAfter({ ...onHill, slopeParams: { gravity: 9.81, factor: 0 } }),
+    );
+  });
+});

@@ -2,8 +2,9 @@ import type { CarParams } from '../config/car';
 import type { CollisionParams } from '../config/collision';
 import { FIXED_DT } from '../config/sim';
 import type { SlipstreamParams } from '../config/slipstream';
+import { SLOPE_PARAMS, type SlopeParams } from '../config/slope';
 import type { SurfaceParams } from '../config/surfaces';
-import { distance, headingOf } from '../math/vec2';
+import { distance, dot, forward, headingOf } from '../math/vec2';
 import { gridSlot, locateOnTrack } from '../track/query';
 import type { Surface, Track } from '../track/types';
 import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
@@ -35,6 +36,8 @@ export interface SimContext {
   readonly surfaceParams: Readonly<Record<Surface, SurfaceParams>>;
   readonly collisionParams: CollisionParams;
   readonly slipstreamParams: SlipstreamParams;
+  /** Slopes on an elevated track (Monaco v2); left out: SLOPE_PARAMS. */
+  readonly slopeParams?: SlopeParams;
 }
 
 /** A grid slot counts as free when no car is closer than this to it (m). */
@@ -74,7 +77,7 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
     const slipstream = slipstreamFactor(car, state.cars, ctx.slipstreamParams);
     const slip = slipstreamEffect(slipstream, ctx.slipstreamParams);
     return {
-      ...stepCar(car, input, params, FIXED_DT, effect, slip),
+      ...stepCar(car, input, params, FIXED_DT, effect, slip, slopeAccel(car, ctx)),
       wheelSurfaces: surfaces,
       slipstream,
     };
@@ -91,6 +94,17 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
     ),
   );
   return { tick, cars, impacts, laps };
+}
+
+/**
+ * Gravity along the slope under `car`, along its heading (m/s², + = forward): − g · factor · grade
+ * · cos(heading vs. driving direction). 0 on a flat track, which is never even located.
+ */
+function slopeAccel(car: CarState, ctx: SimContext): number {
+  if (!ctx.track.elevated) return 0;
+  const { gravity, factor } = ctx.slopeParams ?? SLOPE_PARAMS;
+  const loc = locateOnTrack(ctx.track, car.position);
+  return -gravity * factor * loc.grade * dot(forward(car.heading), loc.tangent);
 }
 
 export function findCar(state: GameState, id: CarId): CarState | undefined {

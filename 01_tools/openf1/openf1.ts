@@ -18,8 +18,11 @@ export interface RawLap {
 export interface RawPoleLap {
   readonly session: number;
   readonly lap: RawLap;
-  /** [epoch ms, x, y], x/y in decimetres (OpenF1 units). */
-  readonly location: readonly (readonly [number, number, number])[];
+  /**
+   * [epoch ms, x, y, z], decimetres (OpenF1 units). z (height, its own zero) kept since Phase 3:
+   * older files have none.
+   */
+  readonly location: readonly (readonly [number, number, number, number?])[];
   /** [epoch ms, km/h]. */
   readonly speed: readonly (readonly [number, number])[];
 }
@@ -112,6 +115,11 @@ export interface CircuitProfile {
   readonly stations: readonly (readonly [number, number])[];
   /** Pole lap speed at each station (km/h). */
   readonly speed: readonly number[];
+  /**
+   * The pole lap's height at each station (m, OpenF1's own zero: align it with `alignHeights`),
+   * smoothed; only when the raw data has z (Phase 3, 01_docs/elevation.md).
+   */
+  readonly heights?: readonly number[];
   /** Slowest points of the lap (corners): distance from the line (m) and speed (km/h). */
   readonly corners: readonly { readonly at: number; readonly speed: number }[];
   /** How OSM coordinates map into this profile's frame. */
@@ -123,6 +131,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export const rawPath = (id: string): string => join(HERE, 'data', `${id}.openf1.json`);
 export const osmPath = (id: string): string => join(HERE, 'data', `${id}.osm.json`);
 export const sceneryPath = (id: string): string => join(HERE, 'data', `${id}.scenery.json`);
+export const terrainPath = (id: string): string => join(HERE, 'data', `${id}.terrain.json`);
 export const profilePath = (id: string): string => join(HERE, 'data', `${id}.json`);
 export const layoutPath = (id: string): string =>
   join(HERE, '../../01_packages/shared/src/track/layouts', `${id}.ts`);

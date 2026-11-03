@@ -12,6 +12,11 @@ export interface TrackPoint {
   readonly at: Vec2;
   /** Full asphalt width (m), at least the track's minimum width (minShortcutWidth on a branch). */
   readonly width: number;
+  /**
+   * Height of the road here (m). Left out on flat tracks: every track but Monaco v2 (Phase 3,
+   * 01_docs/elevation.md). Interpolated smoothly between points.
+   */
+  readonly height?: number;
 }
 
 /**
@@ -66,6 +71,10 @@ export interface TrackSample {
   readonly curvature: number;
   /** Half of the asphalt width here (m). */
   readonly halfWidth: number;
+  /** Height of the road (m; 0 on a flat track). */
+  readonly height: number;
+  /** Slope along the driving direction (rise / run: + = uphill; 0 on a flat track). */
+  readonly grade: number;
 }
 
 /** What lies on one side of the track, per sample. */
@@ -100,6 +109,8 @@ export interface Track {
   readonly name: string;
   /** Widest half-width anywhere on the track (m), for search radii. */
   readonly maxHalfWidth: number;
+  /** True when its points have heights (Monaco v2): only then does the slope act. */
+  readonly elevated: boolean;
   readonly runoffWidth: number;
   /** Kerb band across the edge (m): from `kerbInset` inside it to `kerbOutset` outside it. */
   readonly kerbInset: number;

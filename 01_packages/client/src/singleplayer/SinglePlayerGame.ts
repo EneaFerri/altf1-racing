@@ -8,6 +8,7 @@ import {
   CAR_PARAMS,
   COLLISION_PARAMS,
   SLIPSTREAM_PARAMS,
+  SLOPE_PARAMS,
   createGame,
   findCar,
   NEUTRAL_INPUT,
@@ -68,6 +69,7 @@ export class SinglePlayerGame {
   private readonly surfaceParams = copySurfaceParams();
   private readonly collisionParams = { ...COLLISION_PARAMS };
   private readonly slipstreamParams = { ...SLIPSTREAM_PARAMS };
+  private readonly slopeParams = { ...SLOPE_PARAMS };
   private readonly cameraParams = { ...CAMERA_PARAMS };
   private readonly botParams = copyBotParams();
   /** Cars that drive a different car than the player's: the bot's, with its level's performance. */
@@ -98,6 +100,7 @@ export class SinglePlayerGame {
       surfaceParams: this.surfaceParams,
       collisionParams: this.collisionParams,
       slipstreamParams: this.slipstreamParams,
+      slopeParams: this.slopeParams,
     };
     this.view = new SceneView(
       this.track,
@@ -126,6 +129,7 @@ export class SinglePlayerGame {
           this.surfaceParams,
           this.collisionParams,
           this.slipstreamParams,
+          this.slopeParams,
           this.cameraParams,
           this.botParams,
         );
@@ -178,10 +182,13 @@ export class SinglePlayerGame {
   }
 
   private currentBotPlan(level: BotLevel): BotPlan {
-    const key = JSON.stringify([level, this.botParams[level], this.carParams]);
+    const key = JSON.stringify([level, this.botParams[level], this.carParams, this.slopeParams]);
     if (this.botPlan?.key !== key) {
       const params = this.botParams[level];
-      this.botPlan = { key, plan: buildBotPlan(this.track, this.carParams, params) };
+      this.botPlan = {
+        key,
+        plan: buildBotPlan(this.track, this.carParams, params, this.slopeParams),
+      };
       this.carParamsById[BOT_ID] = botCarParams(this.carParams, params);
     }
     return this.botPlan.plan;

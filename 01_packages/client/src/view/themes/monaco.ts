@@ -15,7 +15,11 @@ import {
   MONACO_TUNNEL,
   MONACO_WOODS,
 } from './monacoLayout';
-import { realCircuitTheme } from './realCircuitTheme';
+import {
+  realCircuitTheme,
+  type RealCircuitLook,
+  type RealCircuitScenery,
+} from './realCircuitTheme';
 
 /**
  * Monaco, a street circuit: the town from OpenStreetMap (every building with its real height, in
@@ -23,35 +27,37 @@ import { realCircuitTheme } from './realCircuitTheme';
  * the tunnel under the Fairmont; guard rails with tall catch fences, three grandstands placed by
  * hand (B, K, T). Positions in the generated monacoLayout.ts. See 01_docs/themes.md.
  */
-export const MONACO_THEME = realCircuitTheme(
-  {
-    stands: MONACO_STANDS,
-    pitLane: MONACO_PIT_LANE,
-    pitBuildings: MONACO_PIT_BUILDINGS,
-    woods: MONACO_WOODS,
-    oval: MONACO_OVAL,
-    ovalWidth: MONACO_OVAL_WIDTH,
-    town: {
-      city: MONACO_CITY,
-      sea: MONACO_SEA,
-      islands: MONACO_ISLANDS,
-      piers: MONACO_PIERS,
-      pools: MONACO_POOLS,
-      palms: MONACO_PALMS,
-      tunnel: MONACO_TUNNEL,
-    },
+export const MONACO_SCENERY: RealCircuitScenery = {
+  stands: MONACO_STANDS,
+  pitLane: MONACO_PIT_LANE,
+  pitBuildings: MONACO_PIT_BUILDINGS,
+  woods: MONACO_WOODS,
+  oval: MONACO_OVAL,
+  ovalWidth: MONACO_OVAL_WIDTH,
+  town: {
+    city: MONACO_CITY,
+    sea: MONACO_SEA,
+    islands: MONACO_ISLANDS,
+    piers: MONACO_PIERS,
+    pools: MONACO_POOLS,
+    palms: MONACO_PALMS,
+    tunnel: MONACO_TUNNEL,
   },
-  {
-    sky: '#9fd3f7',
-    fog: { near: 500, far: 2400 },
-    viewDistance: 2800,
-    light: { sky: '#fffaf0', ground: '#8a7f6a', intensity: 2.4, sun: 1.3 },
-    ground: { texture: createPavingTexture, tile: 6, margin: 900 },
-    asphalt: createAsphaltTexture,
-    kerb: { colors: ['#e10600', '#f4f4f4'], block: 1.5 },
-    edgeLineInset: 0,
-    trees: createPines,
-    parkTrees: 0,
-    barrier: 'armcoFence',
-  },
-);
+};
+
+/** Monaco's look: Riviera sky and light, stone paving, pines, guard rails with catch fences. */
+export const MONACO_LOOK: RealCircuitLook = {
+  sky: '#9fd3f7',
+  fog: { near: 500, far: 2400 },
+  viewDistance: 2800,
+  light: { sky: '#fffaf0', ground: '#8a7f6a', intensity: 2.4, sun: 1.3 },
+  ground: { texture: createPavingTexture, tile: 6, margin: 900 },
+  asphalt: createAsphaltTexture,
+  kerb: { colors: ['#e10600', '#f4f4f4'], block: 1.5 },
+  edgeLineInset: 0,
+  trees: createPines,
+  parkTrees: 0,
+  barrier: 'armcoFence',
+};
+
+export const MONACO_THEME = realCircuitTheme(MONACO_SCENERY, MONACO_LOOK);

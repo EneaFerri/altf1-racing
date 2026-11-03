@@ -1,10 +1,11 @@
 import type * as THREE from 'three';
-import type { Track } from '@altf1/shared';
+import type { Track, Vec2 } from '@altf1/shared';
 import { BARCELONA_THEME } from './barcelona';
 import { CLASSIC_THEME } from './classic';
 import { KRUNCAR_THEME } from './kruncar';
 import { MEXICO_THEME } from './mexico';
 import { MONACO_THEME } from './monaco';
+import { MONACO_V2_THEME } from './monacoV2';
 import { MONZA_THEME } from './monza';
 
 /** How a stretch of wall is drawn (the physics wall is the same everywhere). */
@@ -31,6 +32,11 @@ export interface TrackTheme {
     readonly texture: () => THREE.Texture;
     readonly tile: number;
     readonly margin: number;
+    /**
+     * Elevated ground only: tinted `color` from `from` to `to` m up and above (Monaco v2: the green
+     * slopes above the town).
+     */
+    readonly highland?: { readonly from: number; readonly to: number; readonly color: string };
   };
   readonly asphalt: () => THREE.Texture;
   /** Low-kerb colours and the length of one colour block (m). */
@@ -41,8 +47,16 @@ export interface TrackTheme {
   readonly gridBoxes?: boolean;
   /** Style of wall segment `index` (`track.walls`: the left side's segments, then the right's). */
   readonly wallStyle: (track: Track) => (index: number) => WallStyle;
-  /** Props around the circuit (grandstands, trees, ...), built once per track. */
-  readonly scenery: (track: Track) => THREE.Object3D[];
+  /**
+   * Props around the circuit (grandstands, trees, ...), built once per track, standing on `ground`
+   * (the ground's height as drawn: 0 everywhere on a flat track).
+   */
+  readonly scenery: (track: Track, ground: (p: Vec2) => number) => THREE.Object3D[];
+  /**
+   * The ground's height around an elevated track (Monaco v2: the real land); left out: the road's
+   * heights around it. Settled under the road by SceneView.
+   */
+  readonly groundHeight?: (track: Track) => (p: Vec2) => number;
 }
 
 const THEMES: Readonly<Record<string, TrackTheme>> = {
@@ -50,6 +64,7 @@ const THEMES: Readonly<Record<string, TrackTheme>> = {
   Monza: MONZA_THEME,
   Barcelona: BARCELONA_THEME,
   Monaco: MONACO_THEME,
+  'Monaco v2': MONACO_V2_THEME,
   'Mexico City': MEXICO_THEME,
 };
 

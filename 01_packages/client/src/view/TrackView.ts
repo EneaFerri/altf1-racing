@@ -4,6 +4,7 @@ import {
   GRID_SLOTS,
   headingOf,
   locateOnTrack,
+  roadOf,
   toWorld,
   TRACK_RULES,
   vec2,
@@ -28,6 +29,8 @@ import { ribbon, type Band } from './ribbon';
 import type { TrackTheme, WallStyle } from './themes/theme';
 
 // Heights above the grass, stacked to avoid z-fighting between overlapping layers.
+/** Elevated tracks only: the run-off's grass (on a flat one the ground itself shows there). */
+const Y_RUNOFF = 0.005;
 const Y_GRAVEL = 0.01;
 const Y_ASPHALT = 0.02;
 const Y_EDGE_LINE = 0.025;
@@ -98,6 +101,7 @@ export function createTrackView(track: Track, theme: TrackTheme): THREE.Group {
     lowKerb: textured(createKerbTexture(...theme.kerb.colors)),
     highKerb: textured(createKerbTexture('#f5c400', '#151515')),
     gravel: textured(createGravelTexture()),
+    runoff: textured(theme.ground.texture()),
   };
   group.add(...createRoad(track, track, -1, () => true, theme, materials));
   track.routes.forEach((road, route) => {
@@ -123,6 +127,7 @@ interface RoadMaterials {
   readonly lowKerb: THREE.Material;
   readonly highKerb: THREE.Material;
   readonly gravel: THREE.Material;
+  readonly runoff: THREE.Material;
 }
 
 /**
@@ -168,6 +173,19 @@ function createRoad(
     ];
     const lineAt = (s: TrackSample): number => s.halfWidth - theme.edgeLineInset;
 
+    if (track.elevated) {
+      // The ground lies under the road there (GROUND_DROP): the run-off gets its own grass.
+      meshes.push(
+        ribbon(
+          road,
+          (s) => [k * s.halfWidth, k * (s.halfWidth + road.runoffWidth + 0.3)],
+          Y_RUNOFF,
+          materials.runoff,
+          theme.ground.tile,
+          { include, metresAcross: theme.ground.tile },
+        ),
+      );
+    }
     meshes.push(
       ribbon(
         road,
@@ -281,28 +299,32 @@ function wallStrip(
   let along = 0;
   for (const i of indices) {
     const wall = track.walls[i]!;
+    // Each end at its sample's road height (0 on a flat track).
+    const road = roadOf(track, wall.route).samples;
+    const hA = road[wall.sample]!.height;
+    const hB = road[(wall.sample + 1) % road.length]!.height;
     const length = Math.hypot(wall.b.x - wall.a.x, wall.b.z - wall.a.z);
     const u0 = along / repeat;
     const u1 = (along + length) / repeat;
     along += length;
     positions.push(
       wall.a.x,
-      bottom,
+      hA + bottom,
       wall.a.z,
       wall.b.x,
-      bottom,
+      hB + bottom,
       wall.b.z,
       wall.a.x,
-      top,
+      hA + top,
       wall.a.z,
       wall.a.x,
-      top,
+      hA + top,
       wall.a.z,
       wall.b.x,
-      bottom,
+      hB + bottom,
       wall.b.z,
       wall.b.x,
-      top,
+      hB + top,
       wall.b.z,
     );
     uvs.push(u0, 0, u1, 0, u0, vTop, u0, vTop, u1, 0, u1, vTop);
@@ -327,7 +349,11 @@ function createStartLine(track: Track): THREE.Mesh {
   line.rotation.x = -Math.PI / 2;
   // After lying flat the plane's width runs along X; turn it so it spans the track.
   line.rotation.z = Math.atan2(-start.normal.z, start.normal.x);
-  line.position.set(start.position.x, Y_START_LINE, start.position.z);
+  line.position.set(
+    start.position.x,
+    start.height + slopeLift(start, 2) + Y_START_LINE,
+    start.position.z,
+  );
   return line;
 }
 
@@ -347,7 +373,7 @@ function createGridBoxes(track: Track): THREE.Mesh {
       toWorld(pose.position, heading, to, left),
     ];
     for (const i of [0, 1, 2, 0, 2, 3]) {
-      positions.push(corners[i]!.x, Y_GRID_BOX, corners[i]!.z);
+      positions.push(corners[i]!.x, roadHeight(track, corners[i]!) + Y_GRID_BOX, corners[i]!.z);
     }
   };
   for (let slot = 0; slot < GRID_SLOTS; slot++) {
@@ -382,7 +408,7 @@ function createSectorGantries(track: Track): THREE.Object3D[] {
     const reach = sample.halfWidth + track.runoffWidth + POST_SIZE;
 
     const gantry = new THREE.Group();
-    gantry.position.set(sample.position.x, 0, sample.position.z);
+    gantry.position.set(sample.position.x, sample.height, sample.position.z);
     gantry.rotation.y = across; // local X now runs across the track
 
     const texture = createSectorBoardTexture(`S${sector + 1}`);
@@ -407,11 +433,21 @@ function createSectorGantries(track: Track): THREE.Object3D[] {
         line,
       );
       paint.rotation.x = -Math.PI / 2;
-      paint.position.y = Y_SECTOR_LINE;
+      paint.position.y = slopeLift(sample, SECTOR_LINE_DEPTH) + Y_SECTOR_LINE;
       gantry.add(paint);
     }
     return gantry;
   });
+}
+
+/** The road's height under `p` (0 on a flat track, which is never located). */
+function roadHeight(track: Track, p: { x: number; z: number }): number {
+  return track.elevated ? locateOnTrack(track, vec2(p.x, p.z)).height : 0;
+}
+
+/** How much a flat paint `depth` m long (along the track) must rise to clear the slope at `sample`. */
+function slopeLift(sample: TrackSample, depth: number): number {
+  return (Math.abs(sample.grade) * depth) / 2;
 }
 
 /** Centreline sample closest to `distance` along the track. */

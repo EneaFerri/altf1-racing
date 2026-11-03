@@ -190,3 +190,47 @@ describe('stepCar — smoothness', () => {
     expect(Math.abs(run(turning, THROTTLE, 1.5).yawRate)).toBeLessThan(0.02);
   });
 });
+
+describe('stepCar — slope (Phase 3)', () => {
+  const rolling = (): CarState => ({
+    ...createCar({ id: 'a', position: { x: 0, z: 0 }, heading: 0 }),
+    velocity: scale(forward(0), 30),
+  });
+  const coast = (slopeAccel: number): number => {
+    let car = rolling();
+    for (let i = 0; i < 2 * TICK_RATE; i++) {
+      car = stepCar(
+        car,
+        NEUTRAL_INPUT,
+        CAR_PARAMS,
+        FIXED_DT,
+        NEUTRAL_SURFACE_EFFECT,
+        undefined,
+        slopeAccel,
+      );
+    }
+    return forwardSpeed(car);
+  };
+
+  it('changes nothing with no slope', () => {
+    expect(coast(0)).toBe(forwardSpeed(run(rolling(), NEUTRAL_INPUT, 2)));
+  });
+
+  it('slows the car uphill and speeds it up downhill', () => {
+    expect(coast(-2)).toBeLessThan(coast(0) - 3);
+    expect(coast(2)).toBeGreaterThan(coast(0) + 3);
+  });
+
+  it('pulls away from rest on a climb, and the brake holds the car on it', () => {
+    let car = createCar({ id: 'a', position: { x: 0, z: 0 }, heading: 0 });
+    for (let i = 0; i < TICK_RATE; i++) {
+      car = stepCar(car, THROTTLE, CAR_PARAMS, FIXED_DT, NEUTRAL_SURFACE_EFFECT, undefined, -0.5);
+    }
+    expect(forwardSpeed(car)).toBeGreaterThan(10);
+    let held = createCar({ id: 'b', position: { x: 0, z: 0 }, heading: 0 });
+    for (let i = 0; i < TICK_RATE; i++) {
+      held = stepCar(held, BRAKE, CAR_PARAMS, FIXED_DT, NEUTRAL_SURFACE_EFFECT, undefined, -0.5);
+    }
+    expect(Math.abs(forwardSpeed(held))).toBeLessThan(0.01);
+  });
+});

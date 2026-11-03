@@ -184,7 +184,51 @@ the checklist in [circuits.md](circuits.md#adding-a-circuit); the online circuit
   first test: the 90° corners made sharp (you must brake), the stands made coherent (stadium bowls,
   the GP's grandstands at the corners), the surroundings drawn (park buildings, domes, lakes,
   volcanoes). Waiting for the owner's review.
-- 2.4b+ — next circuit: the owner's choice.
+- 2.4b+ — next circuit: the owner's choice. 2.4 carries on **in parallel** with Phase 3, one
+  circuit at a time, whenever the owner wants one.
+
+## Phase 3 — Elevation (Monaco v2) ✅
+
+**Scope: one map, Monaco v2**, built and tested in single player first (3a–3e), then offered
+online in every mode too (3f, owner's request after the test). Every other circuit, Monaco
+included, stays flat and untouched. Design: [elevation.md](elevation.md).
+
+Goal: a track that climbs and falls like the real one. Monaco v2 is Monaco with its real height
+differences: the climb from Sainte Dévote to Casino, the descent to Mirabeau and the Loews, the
+harbour front at sea level. Owner's choices (2026-11-03): **real physics but mild** (gravity along
+the slope × a tunable factor), **real heights** (first real gradients, heights × scale: too much
+after the 3c test), **its own scale**
+(the Hard bot laps in the real pole time, 1:09.954), **the town on the real terrain**.
+
+Data: track heights from **OpenF1 `location.z`** (F1's own positioning; Monaco's pole lap: 41.9 m
+of height difference, published 41.8 m), land from **EU-DEM 25 m** (OpenTopoData), the two
+aligned along the track.
+
+- 3a ✅ **Heights data** (tool only): `z` kept by `fetch`, smoothed heights per station in `profile`,
+  the DEM grid (`terrain.ts` → `data/<id>.terrain.json`), the track aligned to it, an elevation
+  preview; report vs the published figures. No game change. Monaco: 41.5 m of height difference
+  (published 41.8), 50.1 m at Casino, 8.5 m at the Piscine, +9.2 % at Beau Rivage, −8.3 % at
+  Mirabeau Bas ([elevation.md](elevation.md#measured-monaco-3a)).
+- 3b ✅ **Model**: track heights and grades (`TrackPoint.height`, samples, `locateOnTrack`); the slope
+  force (`SLOPE_PARAMS.factor`, F2); the bot's speed profile with the grade; Monaco v2 generated and
+  calibrated on the pole. Flat tracks bit-identical. Headless tests only. Monaco v2: Hard bot
+  70.03 s at Monaco's own scale (1.133); factor 0.5: −3 km/h at the top of the climb, braking 3 m
+  earlier for Mirabeau ([elevation.md](elevation.md#model-3b-)).
+- 3c ✅ **View**: track, kerbs, walls, lines, grid, gantries and lights at their heights; the car's
+  height and pitch, cameras following; Monaco v2 in the single-player menu (`TRACKS` only) on plain
+  ground. Owner tries the feel (F2 → Slope for the factor). Details:
+  [elevation.md](elevation.md#view-3c-).
+- 3d ✅ **Terrain and town**: the DEM terrain meeting the track, `groundHeight(x, z)`; Monaco's town
+  and props on it, the sea at 0, the tunnel following the track. Before it (owner's 3c test): the
+  heights in real metres (× scale was too much), the harbour front at 2.5 m above the sea, the
+  ground after the Grand Hotel hairpin fixed. Details:
+  [elevation.md](elevation.md#terrain-and-town-3d-). Waiting for the owner's review.
+- 3e ✅ **Owner test** (2026-11-03): approved; the slope factor stays 0.5.
+- 3f ✅ **Monaco v2 online** (owner's request): in `GP_TRACKS`, so Free practice, Time trial and
+  Grand Prix offer it; the server and the prediction run the same slope (`SLOPE_PARAMS`: no F2
+  online); the nickname tags float over the car's height.
+
+Not in Phase 3 (until the owner asks): elevation on other circuits, elevation online.
 
 ## Later
 

@@ -23,8 +23,8 @@ export interface TunnelSpan {
 }
 
 /**
- * Side walls past the run-off, a roof slab over the whole width (its top at `span.height`: the
- * buildings over the tunnel stand there), portals at both ends and a row of glowing ceiling lights.
+ * Side walls past the run-off, a roof slab over the whole width (its top `span.height` over the
+ * road: the buildings over the tunnel stand there; on an elevated track all of it follows the road), portals at both ends and a row of glowing ceiling lights.
  */
 export function createTunnel(track: Track, span: TunnelSpan): THREE.Group {
   const samples = samplesIn(track, span);
@@ -39,11 +39,15 @@ export function createTunnel(track: Track, span: TunnelSpan): THREE.Group {
     map: createConcreteTexture(),
     side: THREE.DoubleSide,
   });
-  /** Points at `offset` m to the right of the centreline (negative: left), at height `y`. */
+  /** Points at `offset` m to the right of the centreline (negative: left), `y` over the road. */
   const edge = (offset: (s: TrackSample) => number, y: number): THREE.Vector3[] =>
     samples.map((s) => {
       const o = offset(s);
-      return new THREE.Vector3(s.position.x + s.normal.x * o, y, s.position.z + s.normal.z * o);
+      return new THREE.Vector3(
+        s.position.x + s.normal.x * o,
+        s.height + y,
+        s.position.z + s.normal.z * o,
+      );
     });
   const inner = (k: 1 | -1) => (s: TrackSample) => k * (s.halfWidth + track.runoffWidth + WALL_GAP);
   const outer = (k: 1 | -1) => (s: TrackSample) => inner(k)(s) + k * THICKNESS;
@@ -68,7 +72,7 @@ export function createTunnel(track: Track, span: TunnelSpan): THREE.Group {
   // Portals: the wall and roof ends at both mouths.
   for (const s of [samples[0]!, samples[samples.length - 1]!]) {
     const at = (o: number, y: number): THREE.Vector3 =>
-      new THREE.Vector3(s.position.x + s.normal.x * o, y, s.position.z + s.normal.z * o);
+      new THREE.Vector3(s.position.x + s.normal.x * o, s.height + y, s.position.z + s.normal.z * o);
     for (const k of [1, -1] as const) {
       group.add(
         surfaceBetween(
@@ -124,7 +128,7 @@ function ceilingLights(samples: readonly TrackSample[]): THREE.InstancedMesh {
   spots.forEach((s, i) => {
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(s.tangent.x, s.tangent.z));
     m.compose(
-      new THREE.Vector3(s.position.x, INNER_HEIGHT - 0.1, s.position.z),
+      new THREE.Vector3(s.position.x, s.height + INNER_HEIGHT - 0.1, s.position.z),
       q,
       new THREE.Vector3(1, 1, 1),
     );

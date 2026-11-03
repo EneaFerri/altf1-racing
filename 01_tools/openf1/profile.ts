@@ -1,11 +1,11 @@
 /**
  * Builds a circuit profile (`data/<id>.json`) from the downloaded data, in real metres:
  * the road centreline (OpenStreetMap, ordered and placed by the OpenF1 pole lap), the pole lap's
- * speed along it, its corners and where its sectors start.
+ * speed and height along it, its corners and where its sectors start.
  * Usage: node 01_tools/openf1/profile.ts <id> (after fetch.ts). Method: README.md.
  */
 import { writeFileSync } from 'node:fs';
-import { circuitById } from './circuits.ts';
+import { circuitById, dataOf } from './circuits.ts';
 import { closedLength, resampleClosed, smoothClosed, type Point } from './geometry.ts';
 import {
   osmPath,
@@ -23,14 +23,16 @@ import {
 const SPACING = 5;
 /** A lap point is moved onto the OSM centreline if this close to it (m); else it stays. */
 const SNAP = 15;
+/** Heights are averaged over this distance either side (m): positions come at ~3.7 Hz, ~20 m apart. */
+const HEIGHT_SMOOTHING = 15;
 /** A corner is the slowest point within this distance either side (m)... */
 const CORNER_WINDOW = 150;
 /** ...at least this much slower than the fastest point in the same window (km/h). */
 const CORNER_DROP = 20;
 
 const circuit = circuitById(process.argv[2] ?? '');
-const raw = readJson<RawPoleLap>(rawPath(circuit.id));
-const osm = readJson<RawOsmCircuit>(osmPath(circuit.id));
+const raw = readJson<RawPoleLap>(rawPath(dataOf(circuit)));
+const osm = readJson<RawOsmCircuit>(osmPath(dataOf(circuit)));
 const { lap } = raw;
 const start = Date.parse(lap.date_start!);
 const end = start + lap.lap_duration! * 1000;
@@ -138,6 +140,24 @@ const speed = stations.map((_, k) =>
   Math.round(speedAt(timeAtLapDistance(lapIndexAt(k * spacing) * lapSpacing))),
 );
 
+// Heights (OpenF1 z, its own zero), when the data has them: the car's at the same moment, smoothed.
+const hasZ = raw.location.every((p) => p[3] !== undefined);
+const zAt = interpolate(
+  raw.location,
+  (p) => p[0],
+  (p) => (p[3] ?? 0) / 10,
+);
+const radius = Math.round(HEIGHT_SMOOTHING / spacing);
+const heights = hasZ
+  ? smoothClosed(
+      stations.map((_, k): Point => [
+        zAt(timeAtLapDistance(lapIndexAt(k * spacing) * lapSpacing)),
+        0,
+      ]),
+      radius,
+    ).map(([h]) => round(h, 2))
+  : undefined;
+
 const s1 = lap.duration_sector_1!;
 const s2 = lap.duration_sector_2!;
 const s3 = lap.duration_sector_3!;
@@ -170,10 +190,11 @@ const profile: CircuitProfile = {
   spacing: round(spacing, 3),
   stations: stations.map((p) => [round(p[0]), round(p[1])]),
   speed,
+  ...(heights ? { heights } : {}),
   corners,
   osmFrame,
 };
-writeFileSync(profilePath(circuit.id), JSON.stringify(profile) + '\n');
+writeFileSync(profilePath(dataOf(circuit)), JSON.stringify(profile) + '\n');
 
 const moved = lapStations.map((p, i) => Math.hypot(p[0] - snapped[i]![0], p[1] - snapped[i]![1]));
 console.log(
@@ -184,6 +205,11 @@ console.log(
   `  racing line → road centreline: mean ${(moved.reduce((a, b) => a + b, 0) / moved.length).toFixed(1)} m, ` +
     `max ${Math.max(...moved).toFixed(1)} m; ${kept} of ${lapStations.length} points too far from OSM, kept`,
 );
+if (heights) {
+  console.log(
+    `  heights: ${(Math.max(...heights) - Math.min(...heights)).toFixed(1)} m of height difference`,
+  );
+}
 console.log(
   `  corners (m: km/h): ${corners.map((c) => `${Math.round(c.at)}: ${c.speed}`).join(', ')}`,
 );

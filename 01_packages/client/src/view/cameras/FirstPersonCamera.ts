@@ -14,8 +14,10 @@ export class FirstPersonCamera {
   update(pose: CarPose, yawOffset: number): void {
     const p = this.params;
     const eye = toWorld({ x: pose.x, z: pose.z }, pose.heading, p.eyeAhead, 0);
-    this.camera.position.set(eye.x, p.eyeHeight, eye.z);
-    // Yaw first, then pitch: the camera looks down -Z like the car, so rotation.y = heading.
-    this.camera.rotation.set(p.pitch, pose.heading + yawOffset, 0, 'YXZ');
+    this.camera.position.set(eye.x, (pose.y ?? 0) + p.eyeHeight, eye.z);
+    // Yaw first, then pitch: the camera looks down -Z like the car, so rotation.y = heading. The
+    // car's own pitch tilts the view too (the other way when looking back).
+    const carPitch = (pose.pitch ?? 0) * Math.cos(yawOffset);
+    this.camera.rotation.set(p.pitch + carPitch, pose.heading + yawOffset, 0, 'YXZ');
   }
 }

@@ -18,6 +18,10 @@ export interface TrackLocation {
   readonly distance: number;
   /** Half of the asphalt width at this point (m). */
   readonly halfWidth: number;
+  /** Height of the road at this point (m; 0 on a flat track). */
+  readonly height: number;
+  /** Slope along the driving direction here (+ = uphill; 0 on a flat track). */
+  readonly grade: number;
 }
 
 /**
@@ -80,6 +84,8 @@ export function locateOnLoop(track: Track, p: Vec2): TrackLocation {
     lateral: dot(sub(p, best.point), normal),
     distance: (a.distance + segmentLength * best.t) % track.length,
     halfWidth: a.halfWidth + (b.halfWidth - a.halfWidth) * best.t,
+    height: a.height + (b.height - a.height) * best.t,
+    grade: a.grade + (b.grade - a.grade) * best.t,
   };
 }
 

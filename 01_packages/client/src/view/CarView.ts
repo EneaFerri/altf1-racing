@@ -12,6 +12,10 @@ export interface CarPose {
   readonly forwardSpeed: number;
   /** Slip angle (rad), used to lean the body outwards in slides. */
   readonly slip: number;
+  /** Height of the road under the car (m; left out on a flat track: 0). */
+  readonly y?: number;
+  /** Nose-up angle from the slope along the heading (rad; left out on a flat track: 0). */
+  readonly pitch?: number;
 }
 
 const WHEEL_RADIUS = 0.36;
@@ -116,10 +120,10 @@ export class CarView {
   }
 
   update(pose: CarPose, frameSeconds: number): void {
-    this.object.position.set(pose.x, 0, pose.z);
-    this.object.rotation.y = pose.heading;
-    // Euler order XYZ applies roll (local Z) before yaw: the car leans to the outside of the slide.
-    this.object.rotation.z = pose.slip * ROLL_PER_SLIP;
+    this.object.position.set(pose.x, pose.y ?? 0, pose.z);
+    // Euler order YXZ: roll (local Z) first, then pitch (local X), then yaw: the car leans to the
+    // outside of the slide and noses up a climb. With no pitch it is the same as yaw then roll.
+    this.object.rotation.set(pose.pitch ?? 0, pose.heading, pose.slip * ROLL_PER_SLIP, 'YXZ');
 
     // Steering right (+) turns the wheels clockwise seen from above (negative Y rotation).
     for (const pivot of this.frontPivots) pivot.rotation.y = -pose.steer * MAX_WHEEL_STEER;

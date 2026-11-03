@@ -4,10 +4,11 @@
  * - `<id>.openf1.json`: the pole lap of the qualifying from the OpenF1 API (lap and sector times,
  *   the car's positions and speed over the lap);
  * - `<id>.osm.json`: the circuit's road centreline from OpenStreetMap (Overpass API).
- * Usage: node 01_tools/openf1/fetch.ts <id>
+ * Usage: node 01_tools/openf1/fetch.ts <id> [--no-osm]
+ * (`--no-osm`: only the OpenF1 lap, the committed OSM centreline left as it is, so the shape can't move.)
  */
 import { writeFileSync } from 'node:fs';
-import { circuitById } from './circuits.ts';
+import { circuitById, dataOf } from './circuits.ts';
 import { osmPath, rawPath, type RawLap, type RawOsmCircuit, type RawPoleLap } from './openf1.ts';
 
 const API = 'https://api.openf1.org/v1';
@@ -40,19 +41,23 @@ const window = (from: number, to: number): string =>
   `&date>=${new Date(from).toISOString()}&date<=${new Date(to).toISOString()}`;
 const range = window(start - MARGIN, start + lap.lap_duration! * 1000 + MARGIN);
 
-const location = await get<{ date: string; x: number; y: number }[]>(`location?${range}`);
+const location = await get<{ date: string; x: number; y: number; z: number }[]>(
+  `location?${range}`,
+);
 const speed = await get<{ date: string; speed: number }[]>(`car_data?${range}`);
 const raw: RawPoleLap = {
   session,
   lap,
-  location: location.map((p) => [Date.parse(p.date), p.x, p.y]),
+  location: location.map((p) => [Date.parse(p.date), p.x, p.y, p.z]),
   speed: speed.map((s) => [Date.parse(s.date), s.speed]),
 };
-writeFileSync(rawPath(circuit.id), JSON.stringify(raw) + '\n');
+writeFileSync(rawPath(dataOf(circuit)), JSON.stringify(raw) + '\n');
 console.log(
   `${circuit.name}: pole ${lap.lap_duration} s by #${lap.driver_number} (lap ${lap.lap_number}), ` +
     `${raw.location.length} positions, ${raw.speed.length} speeds`,
 );
+
+if (process.argv.includes('--no-osm')) process.exit(0);
 
 interface OverpassRelation {
   readonly tags: Record<string, string>;
@@ -82,5 +87,5 @@ const osm: RawOsmCircuit = {
     .filter((m) => m.type === 'way' && m.geometry && !NOT_THE_TRACK.has(m.role))
     .map((m) => m.geometry!.map((p): [number, number] => [p.lat, p.lon])),
 };
-writeFileSync(osmPath(circuit.id), JSON.stringify(osm) + '\n');
+writeFileSync(osmPath(dataOf(circuit)), JSON.stringify(osm) + '\n');
 console.log(`  OpenStreetMap: "${osm.name}", ${osm.ways.length} ways`);

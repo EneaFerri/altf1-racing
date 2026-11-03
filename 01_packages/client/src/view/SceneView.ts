@@ -4,6 +4,7 @@ import {
   forward,
   lerp,
   lerpAngle,
+  locateOnTrack,
   slipAngle,
   type CarId,
   type CarState,
@@ -15,6 +16,7 @@ import type { CameraParams } from './cameras/params';
 import { CarView, type CarPose } from './CarView';
 import { NameTag } from './NameTag';
 import { LIVERIES, type Livery } from './pixelTexture';
+import { elevatedGround, gridHeightAt, trackGroundHeight } from './scenery/ground';
 import { trackBounds } from './scenery/placement';
 import { themeFor, type TrackTheme } from './themes/theme';
 
@@ -50,7 +52,7 @@ export class SceneView {
    * the track's theme (`themeFor`).
    */
   constructor(
-    track: Track,
+    private readonly track: Track,
     private followId: CarId,
     liveries: Readonly<Record<CarId, Livery>>,
     cameraParams: CameraParams,
@@ -71,10 +73,11 @@ export class SceneView {
       this.scene.add(sun);
     }
     // The camera is in the scene so the cockpit attached to it gets drawn.
+    const ground = createGround(track, theme);
     this.scene.add(
-      createGround(track, theme),
+      ground.object,
       createTrackView(track, theme),
-      ...theme.scenery(track),
+      ...theme.scenery(track, ground.height),
       this.cameraRig.camera,
     );
     bindResize(this.renderer, this.cameraRig.camera);
@@ -117,7 +120,7 @@ export class SceneView {
   render(prev: GameState, curr: GameState, alpha: number, frameSeconds: number): void {
     for (const car of curr.cars) {
       const before = prev.cars.find((c) => c.id === car.id) ?? car;
-      const pose = interpolateCar(before, car, alpha);
+      const pose = onRoad(this.track, interpolateCar(before, car, alpha));
       const view = this.carView(car.id);
       view.update(pose, frameSeconds);
       if (car.id === this.followId) {
@@ -131,7 +134,7 @@ export class SceneView {
       if (car.id === this.followId) continue;
       const tag = this.tag(car.id);
       const pose = this.cars.get(car.id)!.object.position;
-      tag?.update(pose.x, pose.z, this.cameraRig.camera);
+      tag?.update(pose.x, pose.y, pose.z, this.cameraRig.camera);
     }
     // Cars that left the race (e.g. the bot switched off).
     for (const [id, view] of this.cars) {
@@ -156,7 +159,7 @@ export class SceneView {
     }
     const { before, after, alpha } = this.ghost;
     this.ghostView.object.visible = true;
-    this.ghostView.update(interpolateCar(before, after, alpha), frameSeconds);
+    this.ghostView.update(onRoad(this.track, interpolateCar(before, after, alpha)), frameSeconds);
   }
 
   /** NameTag for `id`, created when it first has a name; null if it has none. */
@@ -202,11 +205,86 @@ function interpolateCar(prev: CarState, curr: CarState, alpha: number): CarPose 
   };
 }
 
+/**
+ * A pose lifted onto the road on an elevated track (Monaco v2): the road's height under the car and
+ * its pitch from the slope along the heading. Unchanged on a flat track.
+ */
+function onRoad(track: Track, pose: CarPose): CarPose {
+  if (!track.elevated) return pose;
+  const loc = locateOnTrack(track, { x: pose.x, z: pose.z });
+  const along = dot(forward(pose.heading), loc.tangent);
+  return { ...pose, y: loc.height, pitch: Math.atan(loc.grade * along) };
+}
+
 /** Ground cell size (m), see createGround. */
 const GROUND_CELL = 50;
 
-/** Grass square under the whole circuit, `theme.ground.margin` m past it on every side. */
-function createGround(track: Track, theme: TrackTheme): THREE.Mesh {
+/** The ground's height at a point, as drawn (0 on a flat track): props stand on it. */
+export type GroundHeight = (p: { readonly x: number; readonly z: number }) => number;
+
+/**
+ * Grass square under the whole circuit, `theme.ground.margin` m past it on every side. On an
+ * elevated track, a grid following the theme's ground (`theme.groundHeight`, else the road's
+ * heights around it: `trackGroundHeight`), settled under the road, over a square below its lowest
+ * point. Returns it with its height as drawn.
+ */
+function createGround(
+  track: Track,
+  theme: TrackTheme,
+): { readonly object: THREE.Object3D; readonly height: GroundHeight } {
+  if (!track.elevated) return { object: createFlatGround(track, theme), height: () => 0 };
+  const flat = createFlatGround(track, theme);
+  const lowest = Math.min(...track.samples.map((s) => s.height));
+  flat.position.y = lowest - 3;
+  const grid = elevatedGround(track, (theme.groundHeight ?? trackGroundHeight)(track));
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const colors: number[] = [];
+  const { highland } = theme.ground;
+  const white = new THREE.Color('#ffffff');
+  const tint = new THREE.Color(highland?.color ?? '#ffffff');
+  const color = new THREE.Color();
+  for (let r = 0; r < grid.rows; r++) {
+    for (let c = 0; c < grid.cols; c++) {
+      const x = grid.minX + c * grid.cell;
+      const z = grid.minZ + r * grid.cell;
+      const h = grid.heights[r * grid.cols + c]!;
+      positions.push(x, h, z);
+      uvs.push(x / theme.ground.tile, z / theme.ground.tile);
+      const f = highland
+        ? Math.min(1, Math.max(0, (h - highland.from) / (highland.to - highland.from)))
+        : 0;
+      color.copy(white).lerp(tint, f);
+      colors.push(color.r, color.g, color.b);
+    }
+  }
+  // The same split as `gridTriangle`: along each cell's diagonal from (c, r) to (c + 1, r + 1).
+  const index: number[] = [];
+  for (let r = 0; r < grid.rows - 1; r++) {
+    for (let c = 0; c < grid.cols - 1; c++) {
+      const a = r * grid.cols + c;
+      const b = a + 1;
+      const d = a + grid.cols;
+      const e = d + 1;
+      index.push(a, e, b, a, d, e);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setIndex(index);
+  geometry.computeVertexNormals();
+  const texture = theme.ground.texture();
+  const group = new THREE.Group();
+  group.add(
+    flat,
+    new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ map: texture, vertexColors: true })),
+  );
+  return { object: group, height: (p) => gridHeightAt(grid, p.x, p.z) ?? lowest - 3 };
+}
+
+function createFlatGround(track: Track, theme: TrackTheme): THREE.Mesh {
   const bounds = trackBounds(track, theme.ground.margin);
   const size = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ);
   const texture = theme.ground.texture();

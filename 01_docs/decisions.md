@@ -461,3 +461,21 @@
   grandstands placed by hand where they really are.
 - The park around is drawn from OSM (buildings with heights, domes, lakes) like Monaco's town,
   but as its own layer (`surroundings`): no sea, garages or tunnel rules.
+
+## 2026-11-03 — Elevation (Phase 3): single player, Monaco v2
+
+- Scope (owner): single player only, on a test map, Monaco v2; online and every existing circuit
+  stay flat and untouched. Phase 2.4 carries on in parallel.
+- Track heights from OpenF1 `location.z`: F1's own positioning, the same feed as x/y, and it
+  matches the published height difference (41.9 m vs 41.8 m). Land from EU-DEM 25 m
+  (OpenTopoData), aligned to the track.
+- Owner's choices: real physics but mild (a tunable factor on the slope force), real gradients
+  (heights × scale), its own scale calibrated on the pole, the town on the real terrain.
+- After trying it (3c): heights in real metres, not × scale. The real gradients felt too much; the
+  height difference is the real 41.6 m, the gradients ~12% gentler (the track is 1.133 × longer).
+- 3d, Monaco v2's land: the harbour front set at 2.5 m above the sea (owner), not the median fit.
+  EU-DEM is a surface model, so it is made bare ground (an opening of 40 m) and only used from 40 m
+  past the walls, blending to 200 m: nearer, the road's heights are the better ground. Buildings
+  rise at least a floor above their uphill side, as Monaco's are built into the slopes.
+- 3f (owner, after the 3e test): Monaco v2 online too, in every mode. No protocol change: the
+  room list carries the name and both ends build the same track.

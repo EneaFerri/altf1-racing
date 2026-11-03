@@ -25,7 +25,8 @@ import {
   type BotLevel,
   type TrackDefinition,
 } from '../../01_packages/shared/src/index.ts';
-import { circuitById } from './circuits.ts';
+import { circuitById, dataOf } from './circuits.ts';
+import { elevationOf } from './elevation.ts';
 import { generate } from './generate.ts';
 import { profilePath, readJson, type CircuitProfile } from './openf1.ts';
 
@@ -89,20 +90,24 @@ function measure(definition: TrackDefinition, level: BotLevel, poleTime: number)
 }
 
 const circuit = circuitById(process.argv[2] ?? '');
-const profile = readJson<CircuitProfile>(profilePath(circuit.id));
+const profile = readJson<CircuitProfile>(profilePath(dataOf(circuit)));
 const target = profile.pole.time;
 const fixed = process.argv[3] ? Number(process.argv[3]) : null;
 
 let scale = fixed ?? circuit.scale;
 for (let attempt = 0; ; attempt++) {
-  const { lap } = measure(generate(profile, circuit, scale).definition, 'hard', target);
+  const { lap } = measure(
+    generate(profile, circuit, scale, elevationOf(circuit, profile)).definition,
+    'hard',
+    target,
+  );
   const error = lap / target - 1;
   console.log(`scale ${scale.toFixed(4)}: Hard ${lap.toFixed(2)} s (${(error * 100).toFixed(2)}%)`);
   if (fixed !== null || Math.abs(error) < TOLERANCE || attempt === 8) break;
   scale = scale / (1 + error);
 }
 
-const { definition, adapted } = generate(profile, circuit, scale);
+const { definition, adapted } = generate(profile, circuit, scale, elevationOf(circuit, profile));
 const track = buildTrack(definition);
 const fmt = (s: number): string => s.toFixed(2).padStart(6);
 console.log(

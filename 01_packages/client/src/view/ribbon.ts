@@ -5,7 +5,8 @@ import type { Track, TrackSample, Vec2 } from '@altf1/shared';
 export type Band = (sample: TrackSample) => readonly [number, number];
 
 /**
- * Flat strip along the track within `band`. V runs along the track (`metresPerRepeat` per repeat);
+ * Strip along the track within `band`, `y` above the road (each sample at its own height: 0 on a
+ * flat track). V runs along the track (`metresPerRepeat` per repeat);
  * U spans the strip 0..1, or world metres / `metresAcross` when given. `include(i)` picks segments.
  */
 export function ribbon(
@@ -31,7 +32,7 @@ export function ribbon(
     const vB = (i + 1 === n ? track.length : b.distance) / metresPerRepeat;
     const corner = (s: TrackSample, offset: number): [number, number, number] => [
       s.position.x + s.normal.x * offset,
-      y,
+      y + s.height,
       s.position.z + s.normal.z * offset,
     ];
     const [a0, a1] = band(a);

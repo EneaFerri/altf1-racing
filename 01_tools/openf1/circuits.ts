@@ -69,8 +69,21 @@ export interface Surroundings {
 }
 
 export interface CircuitConfig {
-  /** File name of the data (`data/<id>.json`) and of the layout (`layouts/<id>.ts`). */
+  /** File name of the layout (`layouts/<id>.ts`) and, unless `data` says otherwise, of the data. */
   readonly id: string;
+  /** Another circuit's data it is built from (`data/<data>.*`: Monaco v2 uses Monaco's). */
+  readonly data?: string;
+  /**
+   * Heights from the profile, aligned on the land (`data/<data>.terrain.json`), in real metres (not
+   * × `scale`: owner's choice after trying the real gradients, too much): Phase 3, single player
+   * only (Monaco v2; 01_docs/elevation.md).
+   */
+  readonly elevation?: boolean;
+  /**
+   * With elevation: the track's lowest point is this high (m above sea level) instead of the median
+   * fit on the land (Monaco v2: the harbour front on its quay, owner's choice).
+   */
+  readonly lowestHeight?: number;
   /** Exported constant of the generated TrackDefinition, and its display name. */
   readonly constName: string;
   readonly name: string;
@@ -145,6 +158,53 @@ const CATALUNYA = 'motogp.com (12 m), gedlich-racing.com (12–14 m)';
 const OSM_AREAS = 'OSM area:highway=raceway, measured across the centreline';
 const ILLMAN = 'kymillman.com, "Why overtaking is nearly impossible at the Monaco Grand Prix"';
 
+const MONACO: CircuitConfig = {
+  id: 'monaco',
+  constName: 'MONACO',
+  name: 'Monaco',
+  qualifying: 9975,
+  osmRelation: 148194,
+  widthRange: [8, 12],
+  widthSource: ILLMAN,
+  widths: [
+    { at: 0, width: 12, place: 'start/finish straight', source: ILLMAN },
+    { at: 170, width: 10, place: 'Sainte Dévote' },
+    { at: 450, width: 10, place: 'Beau Rivage' },
+    { at: 750, width: 9.5, place: 'Massenet' },
+    { at: 860, width: 10, place: 'Casino' },
+    { at: 1090, width: 9.45, place: 'Mirabeau Haute', source: ILLMAN },
+    { at: 1200, width: 9, place: 'Grand Hotel hairpin' },
+    { at: 1300, width: 9, place: 'Mirabeau Bas' },
+    { at: 1370, width: 8.87, place: 'Portier', source: ILLMAN },
+    { at: 1700, width: 10, place: 'tunnel' },
+    { at: 2000, width: 9.3, place: 'Nouvelle Chicane (turn-in)', source: ILLMAN },
+    { at: 2100, width: 10.12, place: 'Nouvelle Chicane (exit)', source: ILLMAN },
+    { at: 2290, width: 9, place: 'Tabac' },
+    { at: 2480, width: 12, place: 'Piscine entry (turns 13–14)' },
+    { at: 2650, width: 9, place: 'Piscine exit (turns 15–16)' },
+    { at: 2840, width: 8, place: 'La Rascasse (narrowest, published minimum)' },
+    { at: 2950, width: 9, place: 'Anthony Noghes' },
+    { at: 3150, width: 12, place: 'start/finish straight', source: ILLMAN },
+  ],
+  // Real car-to-road ratio (our car is 2.2 m wide, an F1 2 m): overtaking as hard as in reality.
+  widthFactor: 1.2,
+  scale: 1.133,
+  lineDirection: 80,
+  runoffWidth: 3,
+  kerbs: 'corners',
+  town: true,
+  // The harbour is on the left from Tabac to La Rascasse.
+  stands: [
+    { name: 'Tribune B (Casino)', at: 870, length: 50, depth: 10, side: 'left' },
+    { name: 'Tribune K (Tabac)', at: 2390, length: 120, depth: 14, side: 'left' },
+    { name: 'Tribune T (Piscine, Rascasse)', at: 2770, length: 110, depth: 18, side: 'left' },
+  ],
+  landmarks: [
+    { name: 'Casino de Monte Carlo', kind: 'casino' },
+    { name: 'Chapelle Sainte-Dévote', kind: 'chapel' },
+  ],
+};
+
 export const CIRCUITS: readonly CircuitConfig[] = [
   {
     id: 'monza',
@@ -200,52 +260,7 @@ export const CIRCUITS: readonly CircuitConfig[] = [
     runoffWidth: 10,
     kerbs: 'corners',
   },
-  {
-    id: 'monaco',
-    constName: 'MONACO',
-    name: 'Monaco',
-    qualifying: 9975,
-    osmRelation: 148194,
-    widthRange: [8, 12],
-    widthSource: ILLMAN,
-    widths: [
-      { at: 0, width: 12, place: 'start/finish straight', source: ILLMAN },
-      { at: 170, width: 10, place: 'Sainte Dévote' },
-      { at: 450, width: 10, place: 'Beau Rivage' },
-      { at: 750, width: 9.5, place: 'Massenet' },
-      { at: 860, width: 10, place: 'Casino' },
-      { at: 1090, width: 9.45, place: 'Mirabeau Haute', source: ILLMAN },
-      { at: 1200, width: 9, place: 'Grand Hotel hairpin' },
-      { at: 1300, width: 9, place: 'Mirabeau Bas' },
-      { at: 1370, width: 8.87, place: 'Portier', source: ILLMAN },
-      { at: 1700, width: 10, place: 'tunnel' },
-      { at: 2000, width: 9.3, place: 'Nouvelle Chicane (turn-in)', source: ILLMAN },
-      { at: 2100, width: 10.12, place: 'Nouvelle Chicane (exit)', source: ILLMAN },
-      { at: 2290, width: 9, place: 'Tabac' },
-      { at: 2480, width: 12, place: 'Piscine entry (turns 13–14)' },
-      { at: 2650, width: 9, place: 'Piscine exit (turns 15–16)' },
-      { at: 2840, width: 8, place: 'La Rascasse (narrowest, published minimum)' },
-      { at: 2950, width: 9, place: 'Anthony Noghes' },
-      { at: 3150, width: 12, place: 'start/finish straight', source: ILLMAN },
-    ],
-    // Real car-to-road ratio (our car is 2.2 m wide, an F1 2 m): overtaking as hard as in reality.
-    widthFactor: 1.2,
-    scale: 1.133,
-    lineDirection: 80,
-    runoffWidth: 3,
-    kerbs: 'corners',
-    town: true,
-    // The harbour is on the left from Tabac to La Rascasse.
-    stands: [
-      { name: 'Tribune B (Casino)', at: 870, length: 50, depth: 10, side: 'left' },
-      { name: 'Tribune K (Tabac)', at: 2390, length: 120, depth: 14, side: 'left' },
-      { name: 'Tribune T (Piscine, Rascasse)', at: 2770, length: 110, depth: 18, side: 'left' },
-    ],
-    landmarks: [
-      { name: 'Casino de Monte Carlo', kind: 'casino' },
-      { name: 'Chapelle Sainte-Dévote', kind: 'chapel' },
-    ],
-  },
+  MONACO,
   {
     id: 'mexico',
     constName: 'MEXICO',
@@ -309,7 +324,25 @@ export const CIRCUITS: readonly CircuitConfig[] = [
     ],
     surroundings: { reach: 500, domes: ['Palacio de los Deportes', 'Velódromo CNAR'] },
   },
+  // Phase 3: Monaco with its real heights, in single player and online (01_docs/elevation.md).
+  {
+    ...MONACO,
+    id: 'monacoV2',
+    constName: 'MONACO_V2',
+    name: 'Monaco v2',
+    data: 'monaco',
+    elevation: true,
+    // The harbour front (Tabac, Piscine) on its quay, 2–3 m above the sea (owner's choice); the
+    // median fit put it at 8.5 m, the DEM's coast cells mixing road and sea.
+    lowestHeight: 2.5,
+    scale: 1.133,
+  },
 ];
+
+/** The id of the data files a circuit is built from. */
+export function dataOf(circuit: CircuitConfig): string {
+  return circuit.data ?? circuit.id;
+}
 
 export function circuitById(id: string): CircuitConfig {
   const circuit = CIRCUITS.find((c) => c.id === id);

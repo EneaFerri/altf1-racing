@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import type { Track, TrackSide, Vec2 } from '@altf1/shared';
+import { locateOnTrack, type Track, type TrackSide, type Vec2 } from '@altf1/shared';
 import { createGrandstand, createPitBuilding, face, GRANDSTAND_REACH } from '../scenery/buildings';
 import { createCasino, createChapel, createDome } from '../scenery/landmarks';
 import { createMountains } from '../scenery/nature';
@@ -30,6 +30,7 @@ import {
   type TownBuilding,
 } from '../scenery/town';
 import { BOWL_PIECE, BOWL_REACH, createStadium } from '../scenery/stadium';
+import { boxCorners, drape, liftInstances, lowestGround, type Ground } from '../scenery/onGround';
 import { createTunnel, type TunnelSpan } from '../scenery/tunnel';
 import { createYachts } from '../scenery/yachts';
 import type { TrackTheme, WallStyle } from './theme';
@@ -49,6 +50,8 @@ const TREE_MARGIN = 8;
 const BOAT_CLEARANCE = 3;
 const HILLS_RADIUS = 1100;
 const HILLS_ARC = 2.4;
+/** Elevated track: a building on a slope rises at least this much above its uphill side (m). */
+const UPHILL_FLOOR = 3.2;
 
 /** A real circuit's surroundings, as `01_tools/openf1/scenery.ts` generates them (`<id>Layout.ts`). */
 export interface RealCircuitScenery {
@@ -102,7 +105,7 @@ export function realCircuitTheme(scenery: RealCircuitScenery, look: RealCircuitL
     ...theme,
     gridBoxes: true,
     wallStyle: (track) => wallsByPlace(track, scenery, barrier),
-    scenery: (track) => buildScenery(track, scenery, trees, parkTrees, backdrop),
+    scenery: (track, ground) => buildScenery(track, scenery, trees, parkTrees, backdrop, ground),
   };
 }
 
@@ -192,25 +195,37 @@ function buildScenery(
   trees: RealCircuitLook['trees'],
   parkTrees: number,
   backdrop: RealCircuitLook['backdrop'],
+  ground: Ground,
 ): THREE.Object3D[] {
   const objects: THREE.Object3D[] = [];
   const keepClear: Circle[] = [];
+  // On an elevated track (Monaco v2) every prop stands on the ground; flat tracks skip it all.
+  const elevated = track.elevated;
+  const standOn = (object: THREE.Object3D, box: Footprint): THREE.Object3D => {
+    if (elevated) object.position.y = lowestGround(ground, boxCorners(box));
+    return object;
+  };
+  const draped = (object: THREE.Object3D): THREE.Object3D =>
+    elevated ? drape(object, ground) : object;
+  const lifted = (object: THREE.Object3D): THREE.Object3D =>
+    elevated ? liftInstances(object, ground) : object;
 
   for (const stand of scenery.stands) {
     for (const box of standPieces(track, stand.footprint, GRANDSTAND_REACH, STAND_PIECE)) {
-      objects.push(placeOn(createGrandstand(box.length), box));
+      objects.push(standOn(placeOn(createGrandstand(box.length), box), box));
       keepClear.push(cover(box));
     }
   }
   for (const building of scenery.pitBuildings) {
     const box = footprintBox(track, building);
     const height = box.length > 150 ? 9 : 6;
-    objects.push(placeOn(createPitBuilding(box.length, Math.max(8, box.depth), height), box));
+    const pit = createPitBuilding(box.length, Math.max(8, box.depth), height);
+    objects.push(standOn(placeOn(pit, box), box));
     keepClear.push(cover(box));
   }
 
   const { pitLane } = scenery;
-  objects.push(createPitLane(track, pitLane.path, pitLane.width));
+  objects.push(draped(createPitLane(track, pitLane.path, pitLane.width)));
   keepClear.push(...polylineFootprint(alongTrack(track, pitLane.path, 8), pitLane.width / 2 + 4));
 
   if (scenery.oval.length > 0) {
@@ -251,7 +266,26 @@ function buildScenery(
     }
   }
 
-  const { town } = scenery;
+  const { town: flatTown } = scenery;
+  // On the ground: every building from the lowest ground under it, rising at least a floor above
+  // its uphill side (Monaco's buildings are built into the slopes); those on the tunnel's roof
+  // (base > 0) from the road under them.
+  const town =
+    flatTown && elevated
+      ? {
+          ...flatTown,
+          city: flatTown.city.map((b) => {
+            if (b.base > 0) return { ...b, base: b.base + roadHeightUnder(track, b.points) };
+            const under = b.points.map(ground);
+            const base = Math.min(...under);
+            return {
+              ...b,
+              base,
+              height: Math.max(b.height, Math.max(...under) - base + UPHILL_FLOOR),
+            };
+          }),
+        }
+      : flatTown;
   if (town) {
     const landmarks = { casino: createCasino, chapel: createChapel } as const;
     for (const b of town.city) {
@@ -273,8 +307,8 @@ function buildScenery(
       createHills(track, town.sea),
       createSea(town.sea, town.islands),
       createPiers(town.piers),
-      createPools(town.pools),
-      createPalms(town.palms, 13),
+      draped(createPools(town.pools)),
+      lifted(createPalms(town.palms, 13)),
     );
     if (town.tunnel) objects.push(createTunnel(track, town.tunnel));
   }
@@ -307,6 +341,15 @@ function buildScenery(
     seed: 7,
     spacing: PARK_SPACING,
   });
-  objects.push(trees([...inWoods, ...inPark].filter(free), 5));
+  objects.push(lifted(trees([...inWoods, ...inPark].filter(free), 5)));
   return objects;
+}
+
+/** The road's height under a footprint's middle (a building on the tunnel's roof). */
+function roadHeightUnder(track: Track, points: readonly Vec2[]): number {
+  const c = {
+    x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+    z: points.reduce((sum, p) => sum + p.z, 0) / points.length,
+  };
+  return locateOnTrack(track, c).height;
 }

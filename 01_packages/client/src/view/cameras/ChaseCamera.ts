@@ -30,14 +30,16 @@ export class ChaseCamera {
         : lerpAngle(this.yaw, pose.heading, 1 - Math.exp(-p.yawStiffness * frameSeconds));
 
     const behind = forward(this.yaw + yawOffset);
+    // Heights over the road under the car (0 on a flat track).
+    const y = pose.y ?? 0;
     this.camera.position.set(
       pose.x - behind.x * p.distance,
-      p.height,
+      y + p.height,
       pose.z - behind.z * p.distance,
     );
     this.camera.lookAt(
       pose.x + behind.x * p.lookAhead,
-      p.lookHeight,
+      y + p.lookHeight,
       pose.z + behind.z * p.lookAhead,
     );
   }

@@ -41,10 +41,16 @@ export interface Generated {
   };
 }
 
+/**
+ * `heights`: each station's real height (m above sea level, `elevationOf`), for a circuit with
+ * elevation: on the points as they are, real metres (the track is × `scale` long, so its gradients
+ * are a little gentler than the real ones).
+ */
 export function generate(
   profile: CircuitProfile,
   circuit: CircuitConfig,
   scale: number,
+  heights?: readonly number[],
 ): Generated {
   const n = profile.stations.length;
   // Real width at each station, then game width.
@@ -96,6 +102,7 @@ export function generate(
     points: controls.map((i) => ({
       at: { x: round1(stations[i]![0]), z: round1(stations[i]![1]) },
       width: Math.round(widths[i]! * 10) / 10,
+      ...(heights ? { height: Math.round(heights[i]! * 100) / 100 } : {}),
     })),
   });
 
@@ -144,6 +151,25 @@ export function toGame(
     const dx = x - x0;
     const dy = y - y0;
     return [dx * cos - dy * sin, -(dx * sin + dy * cos)];
+  };
+}
+
+/** The game's (x, z) → the profile's frame (real m, y north): the inverse of `toGame`. */
+export function fromGame(
+  profile: CircuitProfile,
+  circuit: CircuitConfig,
+  scale: number,
+): (p: readonly [number, number]) => Point {
+  const [x0, y0] = profile.stations[0]!;
+  const [x1, y1] = profile.stations[Math.round(50 / profile.spacing)]!;
+  const turn = (circuit.lineDirection * Math.PI) / 180 - Math.atan2(y1 - y0, x1 - x0);
+  const cos = Math.cos(turn) * scale;
+  const sin = Math.sin(turn) * scale;
+  const k = cos * cos + sin * sin;
+  return ([gx, gz]) => {
+    const a = gx;
+    const b = -gz;
+    return [x0 + (a * cos + b * sin) / k, y0 + (-a * sin + b * cos) / k];
   };
 }
 

@@ -7,14 +7,20 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { circuitById, widthFactorOf } from './circuits.ts';
+import { circuitById, widthFactorOf, dataOf } from './circuits.ts';
+import { elevationOf } from './elevation.ts';
 import { generate } from './generate.ts';
 import { layoutPath, profilePath, readJson, type CircuitProfile } from './openf1.ts';
 import { Canvas, type Rgb } from './png.ts';
 
 const circuit = circuitById(process.argv[2] ?? '');
-const profile = readJson<CircuitProfile>(profilePath(circuit.id));
-const { definition, stations, adapted } = generate(profile, circuit, circuit.scale);
+const profile = readJson<CircuitProfile>(profilePath(dataOf(circuit)));
+const { definition, stations, adapted } = generate(
+  profile,
+  circuit,
+  circuit.scale,
+  elevationOf(circuit, profile),
+);
 
 const time = (s: number): string =>
   s >= 60 ? `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}` : s.toFixed(3);
@@ -26,7 +32,9 @@ const lines = [
   `import { vec2 } from '../../math/vec2';`,
   `import type { TrackDefinition, TrackPoint } from '../types';`,
   ``,
-  `const p = (x: number, z: number, width: number): TrackPoint => ({ at: vec2(x, z), width });`,
+  definition.points[0]!.height === undefined
+    ? `const p = (x: number, z: number, width: number): TrackPoint => ({ at: vec2(x, z), width });`
+    : `const p = (x: number, z: number, width: number, height: number): TrackPoint => ({\n  at: vec2(x, z),\n  width,\n  height,\n});`,
   ``,
   `/**`,
   ` * ${circuit.name}: the real circuit from open data, adapted to the game.`,
@@ -37,6 +45,12 @@ const lines = [
   ` * - Scale ${circuit.scale} (real ${Math.round(profile.length)} m), calibrated so the Hard bot laps in the pole time.`,
   ` * - Widths: the real ones (${circuit.widthRange.join('–')} m) × ${widthFactorOf(circuit)}.`,
   ` * - Normal kerbs only (no high kerbs), wider than on the imaginary tracks.`,
+  ...(circuit.elevation
+    ? [
+        ` * - Heights (m): the pole lap's (OpenF1 z) on the land (EU-DEM 25 m), in real metres.`,
+        ` *   Phase 3 (01_docs/elevation.md).`,
+      ]
+    : []),
   ` */`,
   `export const ${circuit.constName}: TrackDefinition = {`,
   `  name: '${definition.name}',`,
@@ -47,7 +61,10 @@ const lines = [
   `  sectorPoints: [${definition.sectorPoints!.join(', ')}],`,
   `  highKerbs: [],`,
   `  points: [`,
-  ...definition.points.map((p) => `    p(${p.at.x}, ${p.at.z}, ${p.width}),`),
+  ...definition.points.map(
+    (p) =>
+      `    p(${p.at.x}, ${p.at.z}, ${p.width}${p.height === undefined ? '' : `, ${p.height}`}),`,
+  ),
   `  ],`,
   `};`,
   ``,

@@ -193,3 +193,39 @@ describe('buildTrack (Kruncar)', () => {
     expect(near(366.2 - 13 - 6, 200)).toBe(true);
   });
 });
+
+describe('buildTrack — heights (Phase 3)', () => {
+  it('leaves a track without heights flat: no elevation, height and grade 0 everywhere', () => {
+    for (const definition of TRACKS.filter((d) => d.points[0]!.height === undefined)) {
+      const track = buildTrack(definition);
+      expect(track.elevated).toBe(false);
+      expect(track.samples.every((s) => s.height === 0 && s.grade === 0)).toBe(true);
+    }
+  });
+
+  it("passes through the points' heights, the grade + uphill and − downhill", () => {
+    // The Test Ring climbing 20 m over its first half and back down over the second.
+    const n = TEST_TRACK.points.length;
+    const height = (i: number): number => 20 * Math.sin((Math.PI * i) / n) ** 2;
+    const hilly = {
+      ...TEST_TRACK,
+      points: TEST_TRACK.points.map((p, i) => ({ ...p, height: height(i) })),
+    };
+    const track = buildTrack(hilly);
+    expect(track.elevated).toBe(true);
+    const near = (i: number) =>
+      track.samples.reduce((a, b) =>
+        distance(b.position, hilly.points[i]!.at) < distance(a.position, hilly.points[i]!.at)
+          ? b
+          : a,
+      );
+    for (const i of [0, Math.round(n / 4), Math.round(n / 2)]) {
+      expect(near(i).height).toBeCloseTo(height(i), 0);
+    }
+    expect(near(Math.round(n / 4)).grade).toBeGreaterThan(0);
+    expect(near(Math.round((3 * n) / 4)).grade).toBeLessThan(0);
+    const loc = locateOnTrack(track, near(Math.round(n / 4)).position);
+    expect(loc.height).toBeCloseTo(near(Math.round(n / 4)).height, 1);
+    expect(loc.grade).toBeGreaterThan(0);
+  });
+});

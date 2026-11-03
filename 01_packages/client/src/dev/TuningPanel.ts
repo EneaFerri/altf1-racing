@@ -4,6 +4,7 @@ import {
   CAR_PARAMS,
   COLLISION_PARAMS,
   SLIPSTREAM_PARAMS,
+  SLOPE_PARAMS,
   SURFACE_PARAMS,
   tuningLabel,
   type BotLevel,
@@ -11,6 +12,7 @@ import {
   type CarParams,
   type CollisionParams,
   type SlipstreamParams,
+  type SlopeParams,
   type Surface,
   type SurfaceParams,
 } from '@altf1/shared';
@@ -118,6 +120,7 @@ export class TuningPanel {
     private readonly surfaceParams: Record<Surface, SurfaceParams>,
     private readonly collisionParams: CollisionParams,
     private readonly slipstreamParams: SlipstreamParams,
+    private readonly slopeParams: SlopeParams,
     private readonly cameraParams: CameraParams,
     private readonly botParams: Record<BotLevel, BotParams>,
   ) {
@@ -143,6 +146,10 @@ export class TuningPanel {
     ][]) {
       slipstream.add(slipstreamParams, key, min, max, step);
     }
+
+    // Only an elevated track (Monaco v2) has slopes.
+    const slope = this.gui.addFolder('Slope (Monaco v2)').close();
+    slope.add(slopeParams, 'factor', 0, 1, 0.05);
 
     const camera = this.gui.addFolder('Camera').close();
     for (const [title, ranges] of Object.entries(CAMERA_GROUPS)) {
@@ -191,6 +198,7 @@ export class TuningPanel {
     Object.assign(this.carParams, CAR_PARAMS);
     Object.assign(this.collisionParams, COLLISION_PARAMS);
     Object.assign(this.slipstreamParams, SLIPSTREAM_PARAMS);
+    Object.assign(this.slopeParams, SLOPE_PARAMS);
     Object.assign(this.cameraParams, CAMERA_PARAMS);
     for (const [surface, params] of Object.entries(SURFACE_PARAMS)) {
       Object.assign(this.surfaceParams[surface as Surface], params);
@@ -235,6 +243,9 @@ export class TuningPanel {
       '',
       '// config/slipstream.ts',
       `export const SLIPSTREAM_PARAMS: SlipstreamParams = {\n${slipstreamLines.join('\n')}\n};`,
+      '',
+      '// config/slope.ts',
+      `export const SLOPE_PARAMS: SlopeParams = { gravity: ${round(this.slopeParams.gravity)}, factor: ${round(this.slopeParams.factor)} };`,
       '',
       '// config/surfaces.ts',
       `export const SURFACE_PARAMS: Record<Surface, SurfaceParams> = {\n${surfaceLines.join('\n')}\n};`,

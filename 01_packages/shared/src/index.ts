@@ -6,6 +6,7 @@ export * from './config/collision';
 export * from './config/grandPrix';
 export * from './config/sim';
 export * from './config/slipstream';
+export * from './config/slope';
 export * from './config/surfaces';
 export * from './config/track';
 export * from './config/tuning';

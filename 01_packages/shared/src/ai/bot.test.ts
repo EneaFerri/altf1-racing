@@ -16,7 +16,16 @@ import {
 } from '../sim/game';
 import { buildTrack } from '../track/buildTrack';
 import { locateOnTrack } from '../track/query';
-import { BARCELONA, KRUNCAR, MEXICO, MONACO, MONZA, TEST_TRACK, TRACKS } from '../track/layouts';
+import {
+  BARCELONA,
+  KRUNCAR,
+  MEXICO,
+  MONACO,
+  MONACO_V2,
+  MONZA,
+  TEST_TRACK,
+  TRACKS,
+} from '../track/layouts';
 import type { Track } from '../track/types';
 import { botInput, NEW_BOT_MEMORY } from './driver';
 import { botCarParams, buildBotPlan } from './plan';
@@ -87,6 +96,7 @@ const monza = runsByTrack.find((t) => t.name === MONZA.name)!.runs;
 const barcelona = runsByTrack.find((t) => t.name === BARCELONA.name)!.runs;
 const monaco = runsByTrack.find((t) => t.name === MONACO.name)!.runs;
 const mexico = runsByTrack.find((t) => t.name === MEXICO.name)!.runs;
+const monacoV2 = runsByTrack.find((t) => t.name === MONACO_V2.name)!.runs;
 
 /**
  * Real 2025 pole laps (OpenF1, see 01_docs/circuits.md): the Hard bot's targets. `sectorTolerance`:
@@ -122,6 +132,14 @@ const REAL_POLES = [
     lap: 75.586,
     sectors: [26.916, 29.114, 19.556],
     sectorTolerance: 0.1,
+  },
+  {
+    // Monaco with its real heights and slopes (Phase 3): the same pole.
+    name: MONACO_V2.name,
+    runs: monacoV2,
+    lap: 69.954,
+    sectors: [18.216, 33.254, 18.484],
+    sectorTolerance: 0.07,
   },
 ];
 

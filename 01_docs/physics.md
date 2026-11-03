@@ -125,6 +125,16 @@ Measured (full throttle from rest, constant tow, baseline v3 car):
 
 From 250 km/h, 3 s of full throttle: 268 km/h alone, 285 km/h at full tow.
 
+## Slope (Phase 3: only Monaco v2)
+
+Only a track with heights (`Track.elevated`: Monaco v2, single player) has slopes; on every other
+track nothing is computed or added, so their simulation is bit-identical (tested). Each tick,
+`stepGame` locates the car and `stepCar` gets `slopeAccel` = −g · `SLOPE_PARAMS.factor` · grade ·
+cos(heading vs. driving direction): + pushes forward (downhill). It is applied after the engine
+(which reads where the car was rolling, so a car at rest on a climb still pulls away) and before
+the brakes (which can hold it on a hill). `factor` 0.5 (owner: "real, but not too strong"),
+editable in F2 → Slope. Measured on Monaco v2 and design: [elevation.md](elevation.md).
+
 ## Parameters
 
 | Param                  | Value  | Unit  | Higher means…                                              |
