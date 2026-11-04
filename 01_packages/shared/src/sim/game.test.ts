@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CAR_PARAMS } from '../config/car';
 import { COLLISION_PARAMS } from '../config/collision';
+import { DAMAGE_PARAMS } from '../config/damage';
 import { SLIPSTREAM_PARAMS } from '../config/slipstream';
 import { SURFACE_PARAMS } from '../config/surfaces';
 import { distance, dot, forward, headingOf, scale, add } from '../math/vec2';
@@ -264,5 +265,40 @@ describe('stepGame — slopes (Phase 3)', () => {
     expect(speedAfter({ ...onHill, slopeParams: { gravity: 9.81, factor: 1 } })).toBeLessThan(
       speedAfter({ ...onHill, slopeParams: { gravity: 9.81, factor: 0 } }),
     );
+  });
+});
+
+describe('stepGame — damage', () => {
+  const withDamage: SimContext = { ...ctx, damage: DAMAGE_PARAMS };
+  const sample = track.samples[40]!;
+  /** Car `p1` at the centreline of sample 40, heading for the right-hand wall at `speed`. */
+  const towardsWall = (speed: number): GameState => {
+    const game = createGame(track, ['p1']);
+    const car = {
+      ...game.cars[0]!,
+      position: sample.position,
+      heading: headingOf(sample.normal),
+      velocity: scale(sample.normal, speed),
+    };
+    return { ...game, cars: [car] };
+  };
+
+  it('gives no car a damage field without SimContext.damage (every mode but the GP)', () => {
+    const after = run(towardsWall(30), { p1: THROTTLE }, 120);
+    expect(after.cars[0]!.damage).toBeUndefined();
+  });
+
+  it('damages the front wing in a wall hit and the tyres on the run-off, and keeps it on R', () => {
+    const after = run(towardsWall(30), { p1: THROTTLE }, 120, withDamage);
+    const damage = after.cars[0]!.damage!;
+    expect(damage.frontWing).toBeGreaterThan(0.2);
+    expect(Math.min(...damage.tyres)).toBeGreaterThan(0);
+    const reset = stepGame(after, { p1: { ...NEUTRAL_INPUT, reset: true } }, withDamage);
+    expect(reset.cars[0]!.damage).toEqual(damage);
+  });
+
+  it('keeps a car that drives clean undamaged', () => {
+    const after = run(createGame(track, ['p1']), { p1: THROTTLE }, 60, withDamage);
+    expect(after.cars[0]!.damage).toEqual({ frontWing: 0, rearWing: 0, tyres: [0, 0, 0, 0] });
   });
 });

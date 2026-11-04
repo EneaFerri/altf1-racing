@@ -1,3 +1,4 @@
+import type { CarDamage } from './damage';
 import type { CarParams } from '../config/car';
 import { moveToward, wrapAngle } from '../math/angle';
 import { add, dot, forward, headingOf, length, right, scale, ZERO, type Vec2 } from '../math/vec2';
@@ -30,6 +31,11 @@ export interface CarState {
   readonly wheelSurfaces: readonly Surface[];
   /** How much the car was towed by another car's wake in the last tick (0..1), see sim/slipstream.ts. */
   readonly slipstream: number;
+  /**
+   * How damaged its parts are (sim/damage.ts). Only in a race with damage (`SimContext.damage`:
+   * the Grand Prix); absent everywhere else, i.e. undamaged.
+   */
+  readonly damage?: CarDamage;
 }
 
 export interface CarSpawn {

@@ -244,7 +244,7 @@ Not in Phase 3 (until the owner asks): elevation on other circuits, elevation on
 
 **Scope: the online Grand Prix only**, on every circuit of `GP_TRACKS` (Monza, Barcelona, Monaco,
 Mexico City, Monaco v2). Free practice, Time trial and single player stay exactly as they are:
-no damage, the pit lane decorative behind its wall. Design: `damage.md` (written at 4a).
+no damage, the pit lane decorative behind its wall. Design: [damage.md](damage.md).
 
 Goal: a car is damaged by hitting other cars and walls and by time spent on grass and gravel, and
 gets slower according to how much and where it is damaged. A drivable pit lane, placed where the
@@ -264,12 +264,13 @@ Details (numbers, look, rules) are decided in each step with the owner.
 
 **Damage**
 
-- 4a **Damage model** (shared, pure, tested) — `CarState.damage`: front wing, rear wing and the
-  four tyres, each 0..1. Sources: car and wall impacts above a threshold (`ImpactEvent.strength`),
-  the part chosen from the contact point in the car's frame (front → front wing and front tyres,
-  rear → rear wing and rear tyres, side → that side's tyres); grass and gravel per wheel, per second
-  spent there (`wheelSurfaces`). Numbers in `config/damage.ts` (`DAMAGE_PARAMS`). Active only when
-  `SimContext.damage` is set: nothing changes anywhere yet.
+- 4a ✅ **Damage model** (shared, pure, tested) — `CarState.damage` (optional: only with
+  `SimContext.damage`): front wing, rear wing and the four tyres, each 0..1, up to a ceiling of 1.
+  Impacts (cars and walls) above 4 m/s of closing speed damage the part hit, chosen by the contact
+  point in the car's frame (front → front wing + front tyres, rear → rear wing + rear tyres,
+  side → that side's tyres); grass and gravel wear each wheel's tyre per second, by speed. R keeps
+  the damage. Numbers in `config/damage.ts` (`DAMAGE_PARAMS`, provisional), measured in
+  [damage.md](damage.md). Not active anywhere yet. Waiting for the owner's review.
 - 4b **Effects on the car** — damage → the car's effective params (top speed, front/rear grip,
   steering; a damaged tyre also pulls to its side), growing with the damage down to a floor (never
   undrivable). Measured with the bot at no / medium / full damage (lap times table in the docs).

@@ -1,5 +1,6 @@
 import type { CarParams } from '../config/car';
 import type { CollisionParams } from '../config/collision';
+import type { DamageParams } from '../config/damage';
 import { FIXED_DT } from '../config/sim';
 import type { SlipstreamParams } from '../config/slipstream';
 import { SLOPE_PARAMS, type SlopeParams } from '../config/slope';
@@ -11,6 +12,7 @@ import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
 import { createCar, stepCar, type CarId, type CarState } from './car';
 import { resolveCollisions } from './collision/resolve';
 import type { ImpactEvent } from './collision/types';
+import { stepDamage } from './damage';
 import { createLapState, stepLap, type LapState } from './laps';
 import { slipstreamEffect, slipstreamFactor } from './slipstream';
 import { carSurface } from './surface';
@@ -38,6 +40,8 @@ export interface SimContext {
   readonly slipstreamParams: SlipstreamParams;
   /** Slopes on an elevated track (Monaco v2); left out: SLOPE_PARAMS. */
   readonly slopeParams?: SlopeParams;
+  /** Cars take damage (Phase 4: the Grand Prix only); left out: no damage, no `CarState.damage`. */
+  readonly damage?: DamageParams;
 }
 
 /** A grid slot counts as free when no car is closer than this to it (m). */
@@ -65,6 +69,7 @@ export function createGame(track: Track, carIds: readonly CarId[]): GameState {
  * Advances the simulation by exactly one fixed tick. Pure: never mutates `state`.
  * Every car moves first (towed by the wakes of the cars as they were at the start of the tick),
  * then one collision pass resolves walls and car-vs-car contacts,
+ * then (in a race with damage) each car's impacts and wheels on grass or gravel damage it,
  * then lap timing reads where each car ended up.
  */
 export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): GameState {
@@ -82,7 +87,12 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
       slipstream,
     };
   });
-  const { cars, impacts } = resolveCollisions(moved, ctx.track, ctx.collisionParams);
+  const resolved = resolveCollisions(moved, ctx.track, ctx.collisionParams);
+  const { impacts } = resolved;
+  const damage = ctx.damage;
+  const cars = damage
+    ? resolved.cars.map((car) => ({ ...car, damage: stepDamage(car, impacts, FIXED_DT, damage) }))
+    : resolved.cars;
   const tick = state.tick + 1;
   const laps = state.laps.map((lap, i) =>
     stepLap(
@@ -198,10 +208,18 @@ export function removeCar(state: GameState, id: CarId): GameState {
   };
 }
 
-/** Puts a car back on the centreline at its nearest point, facing the driving direction, at rest. */
+/**
+ * Puts a car back on the centreline at its nearest point, facing the driving direction, at rest.
+ * Its damage stays: only the pits repair a car.
+ */
 function resetOnTrack(car: CarState, track: Track): CarState {
   const location = locateOnTrack(track, car.position);
-  return createCar({ id: car.id, position: location.point, heading: headingOf(location.tangent) });
+  const reset = createCar({
+    id: car.id,
+    position: location.point,
+    heading: headingOf(location.tangent),
+  });
+  return car.damage ? { ...reset, damage: car.damage } : reset;
 }
 
 function sortById(cars: readonly CarState[]): CarState[] {
