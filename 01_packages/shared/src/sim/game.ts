@@ -204,6 +204,12 @@ export function spawnOnGrid(state: GameState, track: Track, id: CarId): GameStat
   return { ...others, cars, laps };
 }
 
+/** Every car as new: their damage gone (when a race's damage is switched off). */
+export function repairCars(state: GameState): GameState {
+  if (!state.cars.some((car) => car.damage)) return state;
+  return { ...state, cars: state.cars.map(({ damage: _damage, ...car }) => car) };
+}
+
 /** Takes car `id` out of the race (no-op if it isn't there). */
 export function removeCar(state: GameState, id: CarId): GameState {
   return {

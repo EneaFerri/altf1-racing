@@ -134,4 +134,21 @@ describe('Predictor', () => {
     expect(distance(own(far).position, own(start).position)).toBeGreaterThan(SNAP_DISTANCE);
     expect(own(predictor.current)).toEqual(own(far));
   });
+
+  it('predicts with damage exactly like the server room, once told the room has it', () => {
+    const server = onlineSimContext(ctx.track, true);
+    const start = createGame(ctx.track, ['p1']);
+    const predictor = new Predictor('p1', ctx);
+    predictor.setDamage(true);
+    predictor.reconcile(snapshot(start));
+    for (let seq = 0; seq < 30; seq++) predictor.step(seq, THROTTLE);
+    let expected = start;
+    for (let i = 0; i < 30; i++) expected = stepGame(expected, { p1: THROTTLE }, server);
+    expect(own(predictor.current)).toEqual(own(expected));
+    expect(own(predictor.current).damage).toBeDefined();
+    predictor.setDamage(false);
+    predictor.reconcile(snapshot(start));
+    predictor.step(30, THROTTLE);
+    expect(own(predictor.current).damage).toBeUndefined();
+  });
 });

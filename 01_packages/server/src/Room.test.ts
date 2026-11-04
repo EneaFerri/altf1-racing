@@ -169,4 +169,18 @@ describe('Room', () => {
       dot(findCar(room.state, 'p1')!.velocity, forward(findCar(room.state, 'p1')!.heading)),
     ).toBeGreaterThan(1);
   });
+
+  it('gives the cars damage only while it is on; turning it off repairs them', () => {
+    const room = new Room(TEST_TRACK);
+    room.add('p1');
+    room.tick();
+    expect(room.damage).toBe(false);
+    expect(room.state.cars[0]!.damage).toBeUndefined();
+    room.setDamage(true);
+    room.queueInput('p1', 0, THROTTLE);
+    room.tick();
+    expect(room.state.cars[0]!.damage).toEqual({ frontWing: 0, rearWing: 0, tyres: [0, 0, 0, 0] });
+    room.setDamage(false);
+    expect(room.state.cars[0]!.damage).toBeUndefined();
+  });
 });

@@ -17,6 +17,7 @@ export * from './math/vec2';
 export * from './net/nickname';
 export * from './net/protocol';
 export * from './net/simContext';
+export * from './race/damage';
 export * from './race/hold';
 export * from './race/qualifying';
 export * from './race/standings';

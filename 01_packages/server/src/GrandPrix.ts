@@ -1,4 +1,5 @@
 import {
+  damageInPhase,
   GRAND_PRIX,
   HELD,
   qualifyingOrder,
@@ -16,7 +17,10 @@ import {
 import type { Room } from './Room.ts';
 
 /** What the Grand Prix needs from its room's simulation. */
-export type GrandPrixRoom = Pick<Room, 'state' | 'restart' | 'retire' | 'spawn' | 'hold'>;
+export type GrandPrixRoom = Pick<
+  Room,
+  'state' | 'restart' | 'retire' | 'spawn' | 'hold' | 'setDamage'
+>;
 
 /**
  * The rules of one circuit's Grand Prix, driving its room through the phases: lobby (free driving)
@@ -83,7 +87,7 @@ export class GrandPrix {
     const racer = this.racers.get(id);
     if (this.phase === 'race' && racer?.status === 'running') {
       this.racers.set(id, { ...racer, status: 'dnf' });
-      if (!this.anyRacing()) this.phase = 'results';
+      if (!this.anyRacing()) this.setPhase('results');
     }
   }
 
@@ -92,7 +96,7 @@ export class GrandPrix {
     if (command.action === 'playAgain') return this.playAgain(id);
     if (id !== this.drivers[0]) return false;
     if (command.action === 'start' && this.phase === 'lobby') {
-      this.phase = 'qualifying';
+      this.setPhase('qualifying');
       for (const driver of this.drivers) {
         this.results.set(driver, { id: driver, best: null, setAt: null, laps: 0, done: false });
       }
@@ -104,7 +108,7 @@ export class GrandPrix {
       return true;
     }
     if (command.action === 'startRace' && this.phase === 'grid') {
-      this.phase = 'race';
+      this.setPhase('race');
       this.raceLaps = command.laps;
       this.room.hold = startHold(this.room.state.tick, this.random());
       for (const { id } of this.order()) {
@@ -119,7 +123,7 @@ export class GrandPrix {
       return true;
     }
     if (command.action === 'endRace' && this.phase === 'race') {
-      this.phase = 'results'; // whoever is still racing is classified where they are
+      this.setPhase('results'); // whoever is still racing is classified where they are
       return true;
     }
     return false;
@@ -162,7 +166,7 @@ export class GrandPrix {
    */
   private playAgain(id: CarId): boolean {
     if (this.phase === 'results') {
-      this.phase = 'lobby';
+      this.setPhase('lobby');
       this.drivers = [id];
       this.results.clear();
       this.racers.clear();
@@ -195,8 +199,14 @@ export class GrandPrix {
       if (finished) this.room.retire(lap.carId);
       changed = true;
     }
-    if (changed && !this.anyRacing()) this.phase = 'results';
+    if (changed && !this.anyRacing()) this.setPhase('results');
     return changed;
+  }
+
+  /** Every phase change goes through here: the room's damage follows the phase (`damageInPhase`). */
+  private setPhase(phase: GrandPrixPhase): void {
+    this.phase = phase;
+    this.room.setDamage(damageInPhase(phase));
   }
 
   private anyRacing(): boolean {
@@ -215,7 +225,7 @@ export class GrandPrix {
 
   /** Every car back on the grid in qualifying order, held until the manager starts the race. */
   private toGrid(): void {
-    this.phase = 'grid';
+    this.setPhase('grid');
     this.room.restart(this.order().map((entry) => entry.id));
     this.room.hold = HELD;
   }

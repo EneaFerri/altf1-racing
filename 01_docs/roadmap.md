@@ -281,11 +281,12 @@ Details (numbers, look, rules) are decided in each step with the owner.
   tyres and rear wing coloured white → yellow → orange → red; only when the car has damage. On the
   car: the front wing's halves bend down (most on the side hit) and break off, the rear wing tilts
   and breaks off, tyres go flat from half damage ([damage.md](damage.md#view-4c)). Tried in
-  single player through the dev toggle. Waiting for the owner's review.
-- 4d **Damage online in the Grand Prix** (protocol v11) — damage in the snapshot's `GameState`;
-  only Grand Prix rooms have it (`onlineSimContext` per mode), only in qualifying and the race
-  (not in the lobby or results), cleared when the grid forms. Free practice and Time trial
-  unchanged (tests prove it).
+  single player through the dev toggle.
+- 4d ✅ **Damage online in the Grand Prix** (protocol v11) — damage in the snapshot's cars, only in
+  Grand Prix rooms and only in qualifying and the race (`damageInPhase`): `GrandPrix.setPhase`
+  turns the room's damage on or off (off repairs every car), the client's prediction follows the
+  phase. Free practice and Time trial unchanged (tested) ([damage.md](damage.md#online-4d)).
+  Waiting for the owner's review.
 
 **Pit lane**
 

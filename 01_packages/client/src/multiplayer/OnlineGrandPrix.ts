@@ -1,4 +1,5 @@
 import {
+  damageInPhase,
   GRAND_PRIX,
   lightsOn,
   type CarId,
@@ -64,6 +65,7 @@ export class OnlineGrandPrix {
       info.drivers.includes(this.playerId);
     this.info = info;
     this.predictor.hold = info.hold;
+    this.predictor.setDamage(damageInPhase(info.phase));
     this.hud.setLapName(lapName(info, this.playerId));
     if (raceOver) void this.showResults(info);
     else if (this.onResults) this.results.setPlayAgain(playAgainItem(info));

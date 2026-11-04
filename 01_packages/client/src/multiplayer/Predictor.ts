@@ -1,5 +1,6 @@
 import {
   add,
+  DAMAGE_PARAMS,
   distance,
   findCar,
   heldInputs,
@@ -58,10 +59,23 @@ export class Predictor {
   /** The room's start hold (Grand Prix), applied like the server does; null = none. */
   hold: StartHold | null = null;
 
+  /** What the prediction runs: `ctx`, with damage while the room has it (`setDamage`). */
+  private sim: SimContext;
+
   constructor(
     private readonly playerId: CarId,
     private readonly ctx: SimContext,
-  ) {}
+  ) {
+    this.sim = ctx;
+  }
+
+  /**
+   * Damage on or off, as the server's room has it (a Grand Prix in qualifying or the race,
+   * `damageInPhase`). The snapshots bring the damage itself; this only predicts it in between.
+   */
+  setDamage(on: boolean): void {
+    this.sim = on ? { ...this.ctx, damage: DAMAGE_PARAMS } : this.ctx;
+  }
 
   /** One client tick: input number `seq` (also sent to the server) moves the predicted world. */
   step(seq: number, input: InputCommand): void {
@@ -69,7 +83,7 @@ export class Predictor {
     if (this.pending.length > MAX_PENDING) this.pending.shift();
     if (!this.world) return;
     this.previous = this.world;
-    this.world = stepGame(this.world, this.inputs(input, this.world.tick), this.ctx);
+    this.world = stepGame(this.world, this.inputs(input, this.world.tick), this.sim);
   }
 
   /** Restarts from the server's snapshot and replays this player's inputs it hasn't run yet. */
@@ -84,7 +98,7 @@ export class Predictor {
     let world = snapshot.state;
     for (const { input } of this.pending) {
       previous = world;
-      world = stepGame(world, this.inputs(input, world.tick), this.ctx);
+      world = stepGame(world, this.inputs(input, world.tick), this.sim);
     }
     this.keepOnScreen(world);
     this.previous = previous;

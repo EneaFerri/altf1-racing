@@ -15,6 +15,7 @@ import {
   findLap,
   placeCar,
   removeCar,
+  repairCars,
   spawnOnGrid,
   stepGame,
   type GameState,
@@ -317,5 +318,12 @@ describe('stepGame — damage', () => {
     const ignored = run(damaged(start), { p1: THROTTLE }, 240);
     expect(speed(slow)).toBeLessThan(speed(clean) * 0.97);
     expect(speed(ignored)).toBeCloseTo(speed(clean));
+  });
+
+  it('repairCars takes every damage away (and leaves an undamaged state as it is)', () => {
+    const crashed = run(towardsWall(30), { p1: THROTTLE }, 120, withDamage);
+    expect(repairCars(crashed).cars[0]!.damage).toBeUndefined();
+    const clean = createGame(track, ['p1']);
+    expect(repairCars(clean)).toBe(clean);
   });
 });

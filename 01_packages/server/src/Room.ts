@@ -5,6 +5,7 @@ import {
   NEUTRAL_INPUT,
   onlineSimContext,
   removeCar,
+  repairCars,
   spawnOnGrid,
   stepGame,
   type CarId,
@@ -38,7 +39,7 @@ interface InputQueue {
 export class Room {
   readonly definition: TrackDefinition;
   private readonly track: Track;
-  private readonly ctx: SimContext;
+  private ctx: SimContext;
   private current: GameState = { tick: 0, cars: [], impacts: [], laps: [] };
   private readonly queues = new Map<CarId, InputQueue>();
   /** Cars held on the grid until lights out (a Grand Prix start); null = free to drive. */
@@ -48,6 +49,18 @@ export class Room {
     this.definition = definition;
     this.track = buildTrack(definition);
     this.ctx = onlineSimContext(this.track);
+  }
+
+  /** Whether cars take damage (a Grand Prix in qualifying or the race); off by default. */
+  get damage(): boolean {
+    return this.ctx.damage !== undefined;
+  }
+
+  /** Damage on or off from the next tick (the Grand Prix's phases); off repairs every car. */
+  setDamage(on: boolean): void {
+    if (on === this.damage) return;
+    this.ctx = onlineSimContext(this.track, on);
+    if (!on) this.current = repairCars(this.current);
   }
 
   /** No players left (cars out of the race still count: their players are watching). */

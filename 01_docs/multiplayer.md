@@ -50,8 +50,9 @@ The owner's rule: the two sections never mix. Enforced, not just by convention:
 ## Protocol (2.1b ✅)
 
 JSON over one WebSocket, typed unions in `shared/src/net/protocol.ts`, with a `PROTOCOL_VERSION`
-(a client with another version is rejected with `version`). Version **10** since 2.5a (`welcome`
-carries the lap `records`; v9 = 2.3i `playAgain`,
+(a client with another version is rejected with `version`). Version **11** since 4d (a car in a
+snapshot may carry its `damage`, Grand Prix only; v10 = 2.5a `welcome` carries the lap `records`;
+v9 = 2.3i `playAgain`,
 `grandPrix` carries `drivers`, `manager` may be null; v8 = 2.3h Grand Prix
 race: `race` standings, `results` phase, `endRace`; v7 = 2.3f–g qualifying, grid and start; v6 = 2.3e room
 `status`, `gp`, `refused`, `grandPrix`; v5 = 2.3b rooms and `enter` carry the mode; v4 = 2.2c
@@ -363,6 +364,11 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   shows that circuit dimmed as "GP in progress", and an `enter` that raced the start gets
   `refused` → a GRAND PRIX menu ("A Grand Prix is in progress on this circuit — try another one")
   → back to the start. Joining as a spectator is out of scope.
+- **Damage** (Phase 4, 4d ✅): cars take damage in qualifying and the race only
+  (`damageInPhase`): every phase change goes through `GrandPrix.setPhase`, which turns the room's
+  damage on or off (`Room.setDamage`; off repairs every car). The client's `Predictor` follows the
+  phase of each `grandPrix` message (`setDamage`), and the snapshots carry each car's `damage`.
+  Free practice and Time trial never have it. Rules and numbers: [damage.md](damage.md).
 - **Reset**: when the last player leaves, the room and its Grand Prix are dropped; the next player
   in opens a new one, in the lobby. After a race, Play again starts a new one in the same room.
 

@@ -16,6 +16,7 @@ import {
   NEW_BOT_MEMORY,
   placeCar,
   removeCar,
+  repairCars,
   stepGame,
   SURFACE_PARAMS,
   type BotLevel,
@@ -187,12 +188,7 @@ export class SinglePlayerGame {
   /** Dev only (F2 → Damage): the Grand Prix's damage on in single player; off repairs every car. */
   private setDamage(on: boolean): void {
     this.ctx = on ? { ...this.ctx, damage: this.damageParams } : withoutDamage(this.ctx);
-    if (!on) {
-      this.changeCars((state) => ({
-        ...state,
-        cars: state.cars.map(({ damage: _carDamage, ...car }) => car),
-      }));
-    }
+    if (!on) this.changeCars(repairCars);
   }
 
   /** Dev only (F2 → Damage): sets the player's damage, to feel it without crashing. */

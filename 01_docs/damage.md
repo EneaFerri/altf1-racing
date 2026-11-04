@@ -109,3 +109,21 @@ Client only, purely cosmetic; drawn only for cars that have damage (so only in a
   - tyres stay round up to 50% damage, then flatten (drawn up to 35% lower, onto the road).
 - `CarPose.damage` carries it from the state (`SceneView`); a car redraws its damage only when
   it changes. The time trial's ghost never has any.
+
+## Online (4d)
+
+Only the Grand Prix, only in **qualifying and the race** (`damageInPhase` in
+`shared/src/race/damage.ts`): never in its lobby, on the waiting grid or in the results.
+
+- **Server**: `Room.setDamage(on)` switches the room's `SimContext` (`onlineSimContext(track,
+damage)`); off also repairs every car (`repairCars`). `GrandPrix.setPhase`, the one way its phase
+  changes, sets it from `damageInPhase`. Qualifying and the race start from a fresh grid, so
+  every car starts them undamaged; the results repair everyone.
+- **Client**: the `Predictor` runs the same context: `OnlineGrandPrix` calls
+  `predictor.setDamage(damageInPhase(info.phase))` on every `grandPrix` message. Between the
+  server's phase change and that message the prediction may differ for a moment: the next
+  snapshot corrects it, like any other difference.
+- **Protocol v11**: a car in a snapshot may carry `damage` (absent = undamaged, so Free practice
+  and Time trial snapshots are exactly as before).
+- The HUD damage panel and the damaged cars (4c) show by themselves: they read the cars'
+  `damage`. Free practice and Time trial rooms never have it (tested).

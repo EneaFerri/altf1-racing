@@ -432,3 +432,24 @@ describe('finishedLaps', () => {
     expect(finishedLaps(old, now)).toEqual([{ carId: 'p1', ticks: 5002 }]);
   });
 });
+
+describe('GameServer — damage (Phase 4)', () => {
+  it('has damage only in a Grand Prix, from qualifying on; Free practice and Time trial never', () => {
+    const server = new GameServer();
+    inRoom(server, 'Enea', 'Monza');
+    inRoom(server, 'Kimi', 'Monza', 'timeTrial');
+    const max = inRoom(server, 'Max', 'Monza', 'grandPrix');
+    const grandPrix = server.rooms.get(roomKey('grandPrix', 'Monza', 'p3'))!;
+    server.advance(FIXED_DT);
+    expect(grandPrix.damage).toBe(false); // the lobby
+    server.message(max, encodeMessage({ type: 'gp', action: 'start' }));
+    server.advance(FIXED_DT);
+    expect(grandPrix.damage).toBe(true);
+    expect(grandPrix.state.cars[0]!.damage).toBeDefined();
+    for (const [key, room] of server.rooms) {
+      if (key.startsWith('grandPrix')) continue;
+      expect(room.damage).toBe(false);
+      expect(room.state.cars.every((car) => car.damage === undefined)).toBe(true);
+    }
+  });
+});

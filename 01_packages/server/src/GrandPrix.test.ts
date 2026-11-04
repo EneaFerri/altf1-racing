@@ -16,6 +16,11 @@ class FakeRoom implements GrandPrixRoom {
   restarts: CarId[][] = [];
   retired: CarId[] = [];
   spawned: CarId[] = [];
+  /** Whether damage is on, as the Grand Prix last set it. */
+  damage = false;
+  setDamage(on: boolean): void {
+    this.damage = on;
+  }
   restart(order: readonly CarId[]): void {
     this.restarts.push([...order]);
     this.state = { ...this.state, laps: order.map((id) => createLapState(id, 0)) };
@@ -102,6 +107,22 @@ describe('GrandPrix — lobby', () => {
     expect(gp.isTimed).toBe(true);
     gp.command('p1', { action: 'endRace' });
     expect(gp.isTimed).toBe(false);
+  });
+
+  it('turns damage on in qualifying and the race only', () => {
+    const { gp, room } = grandPrix('p1');
+    const damage: boolean[] = [room.damage];
+    gp.command('p1', { action: 'start' });
+    damage.push(room.damage);
+    gp.command('p1', { action: 'endQualifying' });
+    damage.push(room.damage);
+    gp.command('p1', { action: 'startRace', laps: 4 });
+    damage.push(room.damage);
+    gp.command('p1', { action: 'endRace' });
+    damage.push(room.damage);
+    gp.command('p1', { action: 'playAgain' });
+    damage.push(room.damage);
+    expect(damage).toEqual([false, true, false, true, false, false]);
   });
 
   it('hands the manager role to whoever has been there longest when the manager leaves', () => {
