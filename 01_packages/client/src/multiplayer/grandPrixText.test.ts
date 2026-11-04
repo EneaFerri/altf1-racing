@@ -40,6 +40,7 @@ const standing = (id: string, name: string, more: Partial<RaceStanding>): RaceSt
   gap: null,
   lapsBehind: 0,
   best: null,
+  stops: 0,
   ...more,
 });
 
@@ -119,6 +120,34 @@ describe('Grand Prix panel', () => {
     expect(forKimi.rows[3]!.color).toBe(LIVERIES.grey.body); // left: no livery any more
     expect(forKimi.hint).toBe('');
     expect(grandPrixContent(info, PLAYERS, 'p1').hint).toBe('Enter: end the race now');
+  });
+
+  it('marks the drivers in the pit lane: PIT, or BOX while stopped (race and qualifying)', () => {
+    const pits = new Map([
+      ['p1', 'BOX' as const],
+      ['p2', 'PIT' as const],
+    ]);
+    const race = grandPrixContent(
+      { ...LOBBY, phase: 'race', raceLaps: 8, race: RACE },
+      PLAYERS,
+      'p1',
+      pits,
+    );
+    expect(race.rows.map((r) => r.pit)).toEqual(['BOX', 'PIT', undefined, undefined]);
+    const qualifying = grandPrixContent(
+      { ...LOBBY, phase: 'qualifying', qualifying: QUALIFYING },
+      PLAYERS,
+      'p1',
+      pits,
+    );
+    expect(qualifying.rows.map((r) => r.pit)).toEqual(['PIT', 'BOX']);
+    const results = grandPrixContent(
+      { ...LOBBY, phase: 'results', raceLaps: 8, race: RACE },
+      PLAYERS,
+      'p1',
+      pits,
+    );
+    expect(results.rows.every((r) => r.pit === undefined)).toBe(true);
   });
 
   it('shows the winner’s race time and the finishers’ gaps in the results', () => {

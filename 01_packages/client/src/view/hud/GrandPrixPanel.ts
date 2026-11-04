@@ -7,7 +7,12 @@ export interface GrandPrixRow {
   readonly note: string;
   /** This player's own row, highlighted. */
   readonly own: boolean;
+  /** In the pit lane (Phase 4): `PIT`, or `BOX` while stopped in the box. */
+  readonly pit?: PitBadge;
 }
+
+/** What the timing tower shows beside a driver in the pit lane. */
+export type PitBadge = 'PIT' | 'BOX';
 
 /** What the panel shows; built by the multiplayer code, so the view knows nothing of the network. */
 export interface GrandPrixContent {
@@ -40,7 +45,9 @@ export class GrandPrixPanel {
         const swatch = document.createElement('span');
         swatch.className = 'gp-swatch';
         swatch.style.background = row.color;
-        item.append(swatch, text('span', 'gp-name', row.name), text('span', 'gp-note', row.note));
+        item.append(swatch, text('span', 'gp-name', row.name));
+        if (row.pit) item.append(text('span', 'gp-pit', row.pit));
+        item.append(text('span', 'gp-note', row.note));
         return item;
       }),
     );

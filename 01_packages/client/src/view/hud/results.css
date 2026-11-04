@@ -135,11 +135,11 @@
   height: 70px;
 }
 
-/* Classification card: POS · DRIVER · GAP · FASTEST LAP. */
+/* Classification card: POS · DRIVER · GAP · FASTEST LAP · STOPS. */
 
 .results-table {
   display: grid;
-  grid-template-columns: auto minmax(140px, 1fr) auto auto;
+  grid-template-columns: auto minmax(140px, 1fr) auto auto auto;
   column-gap: 18px;
   row-gap: 2px;
   margin: 4px 0 10px;
@@ -178,7 +178,8 @@
 }
 
 .results-gap,
-.results-best {
+.results-best,
+.results-stops {
   text-align: right;
 }
 

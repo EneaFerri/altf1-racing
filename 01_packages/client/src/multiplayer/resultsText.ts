@@ -49,6 +49,7 @@ export function classificationRows(
     color: livery(standing.id).body,
     gap: raceNote(standing, i, raceLaps),
     bestLap: standing.best === null ? '—' : formatLapTime(standing.best),
+    stops: String(standing.stops),
     fastest: standing.best !== null && standing.best === fastest,
     own: standing.id === ownId,
   }));

@@ -333,6 +333,17 @@
   text-overflow: ellipsis;
 }
 
+/* A driver in the pit lane (Phase 4): PIT, or BOX while stopped. */
+.gp-pit {
+  padding: 0 4px;
+  border-radius: 2px;
+  background: #f5c518;
+  color: #111;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
 .gp-note {
   color: #9a9aa6;
   font-size: 10px;

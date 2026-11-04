@@ -35,6 +35,8 @@ export interface ClassificationRow {
   /** Race time (winner), gap, laps down or DNF. */
   readonly gap: string;
   readonly bestLap: string;
+  /** Pit stops made (Phase 4). */
+  readonly stops: string;
   /** Holds the fastest lap of the race (purple, F1 style). */
   readonly fastest: boolean;
   /** This player's own row, highlighted. */
@@ -121,7 +123,9 @@ export class ResultsScreen {
 function table(rows: readonly ClassificationRow[]): HTMLElement {
   const root = element('div', 'results-table');
   root.append(
-    ...['POS', 'DRIVER', 'GAP', 'FASTEST LAP'].map((head) => element('span', 'results-head', head)),
+    ...['POS', 'DRIVER', 'GAP', 'FASTEST LAP', 'STOPS'].map((head) =>
+      element('span', 'results-head', head),
+    ),
   );
   for (const row of rows) {
     const own = row.own ? ' results-own' : '';
@@ -134,6 +138,7 @@ function table(rows: readonly ClassificationRow[]): HTMLElement {
       name,
       element('span', `results-gap${own}`, row.gap),
       element('span', `results-best${own}${row.fastest ? ' results-fastest' : ''}`, row.bestLap),
+      element('span', `results-stops${own}`, row.stops),
     );
   }
   return root;

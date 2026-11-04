@@ -8,6 +8,7 @@ const driver = (id: string, passes: number[], status: RaceDriver['status'] = 'ru
   passes,
   status,
   best: null,
+  stops: 0,
 });
 
 describe('race standings', () => {

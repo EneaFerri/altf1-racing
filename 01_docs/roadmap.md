@@ -310,10 +310,12 @@ Details (numbers, look, rules) are decided in each step with the owner.
   stops by itself, held for 2.5 s + 6 s × front wing + 8 s × rear wing damage, then leaves as new;
   one stop per pass. Pure rules in shared (`sim/pit.ts`, `config/pit.ts`), run by the server and
   the prediction alike. HUD: `PIT LIMITER`, `PIT STOP` countdown. Dev: in single player with F2 →
-  Pit lane ([pitlane.md](pitlane.md#pit-stop-4g)). Waiting for the owner's review.
-- 4h **Pit lane online in the Grand Prix** — Grand Prix rooms with the drivable pit lane, damage
-  and pit stops together; timing tower ("PIT" beside a driver in the pits), stops in the
-  classification, standings right while a car is in the pit lane.
+  Pit lane ([pitlane.md](pitlane.md#pit-stop-4g)).
+- 4h ✅ **Pit lane in the Grand Prix's timing** (protocol v13) — the timing tower marks drivers in
+  the pit lane (`PIT`, `BOX` while stopped), live from the predicted world; the server counts each
+  driver's stops in the race, shown in a `STOPS` column of the classification; the lap is timed
+  over the start line in the pit lane (tested on every circuit) ([pitlane.md](pitlane.md#in-the-grand-prix-4h)).
+  Waiting for the owner's review.
 - 4i **Owner test over Tailscale** on every circuit; damage and stop numbers tuned.
 
 ## Later

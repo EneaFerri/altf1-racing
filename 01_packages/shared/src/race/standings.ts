@@ -17,6 +17,8 @@ export interface RaceDriver {
   readonly status: RaceStatus;
   /** Fastest valid lap of the race; null = none yet. */
   readonly best: number | null;
+  /** Pit stops made in the race (Phase 4). */
+  readonly stops: number;
 }
 
 /** A line of the race classification. Times in ticks. */
@@ -36,6 +38,8 @@ export interface RaceStanding {
   /** Whole laps behind the leader (0 = on the lead lap). */
   readonly lapsBehind: number;
   readonly best: number | null;
+  /** Pit stops made. */
+  readonly stops: number;
 }
 
 /** Timing lines passed according to a car's lap timing: 0 before the start line. */
@@ -70,6 +74,7 @@ export function raceStandings(drivers: readonly RaceDriver[], start: number): Ra
       gap: behind ? passes[last]! - leader[last]! : null,
       lapsBehind: behind ? Math.floor((leader.length - 1 - last) / sectors) : 0,
       best: driver.best,
+      stops: driver.stops,
     };
   });
 }

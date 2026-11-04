@@ -1,5 +1,7 @@
 import {
   damageInPhase,
+  pitStatus,
+  type Track,
   GRAND_PRIX,
   lightsOn,
   type CarId,
@@ -9,7 +11,7 @@ import {
   type PlayerInfo,
 } from '@altf1/shared';
 import type { KeyboardController } from '../controller/KeyboardController';
-import { GrandPrixPanel } from '../view/hud/GrandPrixPanel';
+import { GrandPrixPanel, type PitBadge } from '../view/hud/GrandPrixPanel';
 import type { Hud } from '../view/hud/Hud';
 import { ResultsScreen } from '../view/hud/ResultsScreen';
 import { StartLights } from '../view/hud/StartLights';
@@ -42,6 +44,8 @@ export class OnlineGrandPrix {
     controller: KeyboardController,
     /** Marks the own pit box on the lane (null: none). */
     private readonly markPitBox: (box: number | null) => void,
+    /** The room's track, with its pit lane: who is in it is shown in the panel. */
+    private readonly track: Track,
   ) {
     // The server ignores a command from anyone but the manager, or in the wrong phase.
     controller.onAction('confirm', () => {
@@ -82,10 +86,24 @@ export class OnlineGrandPrix {
     this.show();
   }
 
-  /** The start lights at (predicted) tick `tick`; once per frame. */
-  render(tick: number): void {
-    this.lights.update(lightsOn(tick, this.info?.hold ?? null));
+  /** The start lights and who is in the pit lane, in the (predicted) world `state`; once per frame. */
+  render(state: GameState): void {
+    this.lights.update(lightsOn(state.tick, this.info?.hold ?? null));
+    const pits = new Map<CarId, PitBadge>();
+    for (const car of state.cars) {
+      const status = pitStatus(this.track, car, state.tick);
+      if (status) pits.set(car.id, status.stopLeft !== null ? 'BOX' : 'PIT');
+    }
+    const key = [...pits].join();
+    if (key === this.pitsKey) return;
+    this.pits = pits;
+    this.pitsKey = key;
+    this.show();
   }
+
+  /** Who is in the pit lane, as last shown (and a key to tell when it changes). */
+  private pits: ReadonlyMap<CarId, PitBadge> = new Map();
+  private pitsKey = '';
 
   /**
    * The car to watch in `state` while the own one is off the track: the best placed still on it
@@ -122,6 +140,8 @@ export class OnlineGrandPrix {
   }
 
   private show(): void {
-    if (this.info) this.panel.show(grandPrixContent(this.info, this.players, this.playerId));
+    if (this.info) {
+      this.panel.show(grandPrixContent(this.info, this.players, this.playerId, this.pits));
+    }
   }
 }

@@ -18,6 +18,7 @@ const standing = (id: string, name: string, more: Partial<RaceStanding>): RaceSt
   gap: null,
   lapsBehind: 0,
   best: null,
+  stops: 0,
   ...more,
 });
 
@@ -27,7 +28,7 @@ const RESULT: RaceResult = {
   players: PLAYERS,
   race: [
     standing('p2', 'Kimi', { time: 30000, best: 5500 }),
-    standing('p1', 'Enea', { gap: 75, best: 5400 }),
+    standing('p1', 'Enea', { gap: 75, best: 5400, stops: 1 }),
     standing('p3', 'Lewis', { status: 'running', laps: 3, gap: 4000, lapsBehind: 1, best: 5600 }),
     standing('p4', 'Max', { status: 'dnf', laps: 1 }),
   ],
@@ -61,7 +62,7 @@ describe('Grand Prix results', () => {
     expect(podiumContent({ ...RESULT, race }).places.map((p) => p.name)).toEqual(['Kimi']);
   });
 
-  it('classifies everyone with gap and fastest lap, the race’s fastest marked once', () => {
+  it('classifies everyone with gap, fastest lap and stops, the race’s fastest marked once', () => {
     expect(classificationRows(RESULT, 'p1')).toEqual([
       {
         position: '1',
@@ -69,6 +70,7 @@ describe('Grand Prix results', () => {
         color: playerLivery(1).body,
         gap: '8:20.000',
         bestLap: '1:31.667',
+        stops: '0',
         fastest: false,
         own: false,
       },
@@ -78,6 +80,7 @@ describe('Grand Prix results', () => {
         color: playerLivery(0).body,
         gap: '+1.250',
         bestLap: '1:30.000',
+        stops: '1',
         fastest: true,
         own: true,
       },
@@ -87,6 +90,7 @@ describe('Grand Prix results', () => {
         color: playerLivery(2).body,
         gap: '+1 LAP',
         bestLap: '1:33.333',
+        stops: '0',
         fastest: false,
         own: false,
       },
@@ -96,6 +100,7 @@ describe('Grand Prix results', () => {
         color: LIVERIES.grey.body,
         gap: 'DNF',
         bestLap: '—',
+        stops: '0',
         fastest: false,
         own: false,
       },

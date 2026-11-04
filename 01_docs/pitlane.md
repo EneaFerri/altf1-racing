@@ -141,3 +141,16 @@ without the pit rules; a slow car stopping in its own box for exactly the stop's
 too), released repaired, not stopping again on that pass; no stop when too fast, at another box
 or without one; the stop forgotten once off the lane; the prediction running the stop exactly
 like the server; the boxes handed out and kept.
+
+## In the Grand Prix (4h)
+
+- **Timing tower**: a yellow `PIT` beside a driver in the pit lane, `BOX` while stopped in the box,
+  in qualifying and the race, live: the client reads it from its predicted world every frame
+  (`pitStatus` per car, `OnlineGrandPrix.render`), no message needed. Not in the results.
+- **Stops**: the server counts each driver's pit stops in the race, one when it begins
+  (`RaceDriver.stops`, `RaceStanding.stops`; protocol v13); the classification card has a
+  `STOPS` column.
+- **Standings through the pits**: progress on the lane is the main loop's (`routeProgress`), so
+  the timing lines are passed there as on the track; every real pit lane crosses the start line,
+  and the lap is timed there (tested on every circuit). The timing tower orders at the timing
+  lines, so a car in the pits drops back as the others pass them.

@@ -110,7 +110,7 @@ step, each in every mode), in parallel whenever the owner wants one: 2.4a Mexico
 for the owner's review.
 Phase 3, elevation on Monaco v2, done: heights data, model and slope force, view, the town on the
 real land, owner-tested (3a–3e), and online in every mode (3f).
-Phase 4, pit lane and car damage (Grand Prix only): damage done (4a–4d), the real pit lanes (4e)
-drivable (4f); 4g, the pit stop (limiter, boxes, stop and repair; protocol v12), waiting for the
-owner's review; next 4h, the pit lane in the GP's timing and classification.
+Phase 4, pit lane and car damage (Grand Prix only): damage (4a–4d), the real pit lanes (4e–4f) and
+pit stops (4g) done; 4h, PIT in the timing tower and stops in the classification (protocol v13),
+waiting for the owner's review; next 4i, the owner's test over Tailscale and tuning.
 Step by step history: [01_docs/roadmap.md](01_docs/roadmap.md).

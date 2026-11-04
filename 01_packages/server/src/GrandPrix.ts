@@ -43,6 +43,8 @@ export class GrandPrix {
   /** The race by driver, in grid order, from the start on (a driver who left stays, DNF). */
   private readonly racers = new Map<CarId, RaceDriver>();
   private raceLaps: RaceLaps | null = null;
+  /** The race's last counted pit stop of each driver (its end tick). */
+  private readonly stopsCounted = new Map<CarId, number>();
   private readonly room: GrandPrixRoom;
   /** Draws lights out (0..1); tests pass a fixed one. */
   private readonly random: () => number;
@@ -123,6 +125,7 @@ export class GrandPrix {
           passes: [],
           status: 'running',
           best: null,
+          stops: 0,
         });
       }
       return true;
@@ -177,6 +180,7 @@ export class GrandPrix {
       this.giveBox(id);
       this.results.clear();
       this.racers.clear();
+      this.stopsCounted.clear();
       this.raceLaps = null;
       this.room.hold = null;
       this.room.restart([id]);
@@ -190,8 +194,17 @@ export class GrandPrix {
   }
 
   private raceTick(): boolean {
-    const { tick, laps } = this.room.state;
+    const { tick, laps, cars } = this.room.state;
     let changed = false;
+    // A pit stop counts when it begins (one per pass through the pits).
+    for (const car of cars) {
+      const racer = this.racers.get(car.id);
+      if (!car.pitStop || racer?.status !== 'running') continue;
+      if (this.stopsCounted.get(car.id) === car.pitStop.until) continue;
+      this.stopsCounted.set(car.id, car.pitStop.until);
+      this.racers.set(car.id, { ...racer, stops: racer.stops + 1 });
+      changed = true;
+    }
     for (const lap of laps) {
       const racer = this.racers.get(lap.carId);
       const lines = timingLinesPassed(lap);

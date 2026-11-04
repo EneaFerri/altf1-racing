@@ -76,8 +76,14 @@ export class OnlineGame {
     this.predictor = new Predictor(playerId, onlineSimContext(built));
     this.grandPrix =
       mode === 'grandPrix'
-        ? new OnlineGrandPrix(client, playerId, this.predictor, this.hud, this.controller, (box) =>
-            this.view.markPitBox(box),
+        ? new OnlineGrandPrix(
+            client,
+            playerId,
+            this.predictor,
+            this.hud,
+            this.controller,
+            (box) => this.view.markPitBox(box),
+            built,
           )
         : null;
     if (mode === 'grandPrix') this.hud.usePitLane(built);
@@ -125,7 +131,7 @@ export class OnlineGame {
     const car = findCar(curr, this.playerId);
     this.view.follow(car ? this.playerId : (this.grandPrix?.spectate(curr) ?? this.playerId));
     this.hud.setVisible(car !== undefined);
-    this.grandPrix?.render(curr.tick);
+    this.grandPrix?.render(curr);
     this.view.setLookBack(this.controller.isHeld('lookBack'));
     // The ghost runs on the lap's clock, at the same in-between tick as the cars.
     this.view.setGhost(this.ghost?.frameAt(prev.tick + (curr.tick - prev.tick) * alpha) ?? null);

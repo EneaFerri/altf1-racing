@@ -50,8 +50,9 @@ The owner's rule: the two sections never mix. Enforced, not just by convention:
 ## Protocol (2.1b ✅)
 
 JSON over one WebSocket, typed unions in `shared/src/net/protocol.ts`, with a `PROTOCOL_VERSION`
-(a client with another version is rejected with `version`). Version **12** since 4g (a car in a
-snapshot may carry its `pitStop`, `grandPrix` carries each driver's pit `boxes`; v11 = 4d a car in a
+(a client with another version is rejected with `version`). Version **13** since 4h (a race standing
+carries its pit `stops`; v12 = 4g a car in a snapshot may carry its `pitStop`, `grandPrix` carries
+each driver's pit `boxes`; v11 = 4d a car in a
 snapshot may carry its `damage`, Grand Prix only; v10 = 2.5a `welcome` carries the lap `records`;
 v9 = 2.3i `playAgain`,
 `grandPrix` carries `drivers`, `manager` may be null; v8 = 2.3h Grand Prix

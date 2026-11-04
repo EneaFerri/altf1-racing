@@ -7,6 +7,7 @@ import { SURFACE_PARAMS } from '../config/surfaces';
 import { distance, dot, forward, headingOf, right, scale, sub, add } from '../math/vec2';
 import { buildTrack } from '../track/buildTrack';
 import { GP_TRACKS } from '../track/layouts';
+import { createLapState } from './laps';
 import { TEST_TRACK } from '../track/layouts/testTrack';
 import { gridSlot, locateOnTrack } from '../track/query';
 import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
@@ -332,7 +333,7 @@ describe('stepGame — damage', () => {
 describe.each(GP_TRACKS.map((d) => [d.name, d] as const))(
   'stepGame — pit lane of %s',
   (_n, def) => {
-    it('drives from the track through the pit lane back onto it without touching a wall', () => {
+    it('drives through the pit lane back onto the track, timed over the line, touching no wall', () => {
       const pits = buildTrack(def, { pitLane: true });
       const road = pits.routes.find((route) => route.pit)!;
       const { mainFrom, mainTo, from } = road.branch!;
@@ -356,6 +357,7 @@ describe.each(GP_TRACKS.map((d) => [d.name, d] as const))(
         cars: [
           { ...state.cars[0]!, position: path[0]!, heading, velocity: scale(forward(heading), 15) },
         ],
+        laps: [createLapState('p1', locateOnTrack(pits, path[0]!).distance)],
       };
       let next = 0;
       let contacts = 0;
@@ -375,6 +377,8 @@ describe.each(GP_TRACKS.map((d) => [d.name, d] as const))(
       }
       expect(next).toBeGreaterThanOrEqual(path.length - 5);
       expect(contacts).toBe(0);
+      // Every real pit lane crosses the start line: the lap starts there, timed as on the track.
+      expect(state.laps[0]!.lapStartTick).not.toBeNull();
     });
   },
 );

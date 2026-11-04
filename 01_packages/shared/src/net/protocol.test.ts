@@ -129,6 +129,7 @@ describe('server messages', () => {
             gap: null,
             lapsBehind: 0,
             best: 5500,
+            stops: 1,
           },
         ],
         raceLaps: 4,

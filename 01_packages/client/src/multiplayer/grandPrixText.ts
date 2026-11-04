@@ -7,25 +7,33 @@ import {
   type RaceStanding,
 } from '@altf1/shared';
 import { defaultLapName, formatDelta, formatLapTime } from '../view/hud/format';
-import type { GrandPrixContent, GrandPrixRow } from '../view/hud/GrandPrixPanel';
+import type { GrandPrixContent, GrandPrixRow, PitBadge } from '../view/hud/GrandPrixPanel';
 import { LIVERIES, playerLivery } from '../view/pixelTexture';
 
 /**
  * The Grand Prix panel for player `ownId`, by phase: the drivers (arrival order in the lobby, then
  * the qualifying order, which becomes the starting grid, then the race order with the gaps) and
  * what this player can do or is waiting for. The manager's keys: Enter (start, end qualifying,
- * end the race), 1/2/3 (race laps).
+ * end the race), 1/2/3 (race laps). `pits`: the drivers in the pit lane now (PIT, BOX while
+ * stopped), shown beside them in qualifying and the race.
  */
 export function grandPrixContent(
   info: GrandPrixInfo,
   players: readonly PlayerInfo[],
   ownId: CarId,
+  pits: ReadonlyMap<CarId, PitBadge> = new Map(),
 ): GrandPrixContent {
   const byId = new Map(players.map((p) => [p.id, p]));
+  const pitOf = (id: CarId) => {
+    const badge = pits.get(id);
+    return badge ? { pit: badge } : {};
+  };
   const row = (id: CarId, name: string, note: string): GrandPrixRow[] => {
     const player = byId.get(id);
     if (!player) return [];
-    return [{ name, color: playerLivery(player.livery).body, note, own: id === ownId }];
+    return [
+      { name, color: playerLivery(player.livery).body, note, own: id === ownId, ...pitOf(id) },
+    ];
   };
   const isManager = info.manager === ownId;
   const manager = (info.manager !== null && byId.get(info.manager)?.nickname) || 'the manager';
@@ -91,6 +99,7 @@ export function grandPrixContent(
           color: (player ? playerLivery(player.livery) : LIVERIES.grey).body,
           note: raceNote(standing, i, info.raceLaps!),
           own: standing.id === ownId,
+          ...(info.phase === 'race' && pitOf(standing.id)),
         };
       });
       if (info.phase === 'results') return { title: 'GRAND PRIX · RESULTS', rows, hint: '' };

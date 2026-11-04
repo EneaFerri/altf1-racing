@@ -263,6 +263,23 @@ describe('GrandPrix — race', () => {
     ]);
   });
 
+  it('counts each pit stop once, when it begins, in the race', () => {
+    const { gp, room } = racing(4, 'p1', 'p2');
+    const car = (id: CarId, until?: number) =>
+      ({ id, ...(until !== undefined && { pitStop: { until } }) }) as GameState['cars'][number];
+    room.state = { ...room.state, cars: [car('p1', 900), car('p2')] };
+    expect(gp.afterTick()).toBe(true);
+    expect(gp.afterTick()).toBe(false); // the same stop, still held
+    room.state = { ...room.state, cars: [car('p1'), car('p2', 1200)] };
+    gp.afterTick();
+    room.state = { ...room.state, cars: [car('p1', 3000), car('p2', 1200)] };
+    gp.afterTick();
+    expect(gp.info.race.map((s) => [s.id, s.stops])).toEqual([
+      ['p1', 2],
+      ['p2', 1],
+    ]);
+  });
+
   it('takes finishers off the track with their race time, and ends when nobody is racing', () => {
     const { gp, room } = racing(4, 'p1', 'p2');
     const until = gp.info.hold!.until;
