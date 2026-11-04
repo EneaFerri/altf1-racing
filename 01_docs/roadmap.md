@@ -240,6 +240,67 @@ aligned along the track.
 
 Not in Phase 3 (until the owner asks): elevation on other circuits, elevation online.
 
+## Phase 4 — Pit lane and car damage (Grand Prix only)
+
+**Scope: the online Grand Prix only**, on every circuit of `GP_TRACKS` (Monza, Barcelona, Monaco,
+Mexico City, Monaco v2). Free practice, Time trial and single player stay exactly as they are:
+no damage, the pit lane decorative behind its wall. Design: `damage.md` (written at 4a).
+
+Goal: a car is damaged by hitting other cars and walls and by time spent on grass and gravel, and
+gets slower according to how much and where it is damaged. A drivable pit lane, placed where the
+real one is on each circuit, is the only way back to an undamaged car.
+
+Owner's choices (2026-11-04):
+
+- **Tyres: damage only** (impacts, grass, gravel), no wear lap after lap: pitting depends on
+  incidents.
+- **Never retires from damage**: there is a floor, the car always stays drivable and can reach
+  the pits.
+- **Pit stop automatic in the box**: an automatic limiter in the pit lane, the car stops by itself
+  in its own box, a repair time that grows with the damage, then it leaves as new.
+- **The pit lane is drivable only in the Grand Prix**; in every other mode it stays decorative.
+
+Details (numbers, look, rules) are decided in each step with the owner.
+
+**Damage**
+
+- 4a **Damage model** (shared, pure, tested) — `CarState.damage`: front wing, rear wing and the
+  four tyres, each 0..1. Sources: car and wall impacts above a threshold (`ImpactEvent.strength`),
+  the part chosen from the contact point in the car's frame (front → front wing and front tyres,
+  rear → rear wing and rear tyres, side → that side's tyres); grass and gravel per wheel, per second
+  spent there (`wheelSurfaces`). Numbers in `config/damage.ts` (`DAMAGE_PARAMS`). Active only when
+  `SimContext.damage` is set: nothing changes anywhere yet.
+- 4b **Effects on the car** — damage → the car's effective params (top speed, front/rear grip,
+  steering; a damaged tyre also pulls to its side), growing with the damage down to a floor (never
+  undrivable). Measured with the bot at no / medium / full damage (lap times table in the docs).
+  A dev-only F2 toggle to try it in single player; production unchanged. The baseline v3 car is
+  not touched.
+- 4c **Damage view** — HUD: an F1-style car outline with each part coloured by its damage; on the
+  car: wing pieces bent or missing, a flat tyre. Tried in single player through the dev toggle.
+- 4d **Damage online in the Grand Prix** (protocol v11) — damage in the snapshot's `GameState`;
+  only Grand Prix rooms have it (`onlineSimContext` per mode), only in qualifying and the race
+  (not in the lobby or results), cleared when the grid forms. Free practice and Time trial
+  unchanged (tests prove it).
+
+**Pit lane**
+
+- 4e **Pit lane data** — from OSM's `pit_lane` way into the generated track data (shared, no
+  longer only the theme's): path, real width, entry and exit on the main loop, pit wall, boxes (one
+  per player; the real garages where OSM maps them), the real speed limit (80 km/h, 60 at Monaco).
+  Previews checked against `03_F1Circuits/` and OSM; owner review circuit by circuit if needed.
+- 4f **Drivable pit lane** — `buildTrack` with an option that adds the pit lane as a road (an
+  extension of branches: it crosses the timing line, which reaches across the pit lane), the walls
+  opened at its entry and exit. Only the Grand Prix builds it; every other mode builds the track as
+  today. Cars are located and timed in the pit lane too.
+- 4g **Pit stop** — an automatic limiter between the pit lines; the own box marked; braking into it
+  stops the car and holds it (like `StartHold`) for a repair time = base + per damaged part, then
+  damage back to zero and release. Pure rules in shared, run by the server and the prediction
+  alike. HUD: "PIT LIMITER", the stop's countdown.
+- 4h **Pit lane online in the Grand Prix** — Grand Prix rooms with the drivable pit lane, damage
+  and pit stops together; timing tower ("PIT" beside a driver in the pits), stops in the
+  classification, standings right while a car is in the pit lane.
+- 4i **Owner test over Tailscale** on every circuit; damage and stop numbers tuned.
+
 ## Later
 
 - Desktop packaging (Tauri/Electron), assets, audio.

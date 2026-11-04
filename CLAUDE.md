@@ -108,4 +108,6 @@ step, each in every mode), in parallel whenever the owner wants one: 2.4a Mexico
 for the owner's review.
 Phase 3, elevation on Monaco v2, done: heights data, model and slope force, view, the town on the
 real land, owner-tested (3a–3e), and online in every mode (3f).
+Phase 4, pit lane and car damage (Grand Prix only), planned in the roadmap: next step 4a, the
+damage model.
 Step by step history: [01_docs/roadmap.md](01_docs/roadmap.md).

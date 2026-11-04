@@ -493,3 +493,17 @@
   player's ten laps. Nicknames aren't accounts, so whoever uses a nickname owns its record.
 - Sent in the `welcome` (a few kilobytes at most) instead of a request/answer message: the track
   menu needs them right away and they change rarely.
+
+## 2026-11-04 — Phase 4 plan: damage and pit lane, Grand Prix only
+
+- Only the online Grand Prix gets damage and a drivable pit lane: the other modes (and their
+  tuning, bots and lap records) stay untouched, and a race is where damage and strategy matter.
+- Tyres take damage only, no wear: with races of 4–12 laps, wear would mostly add a forced stop;
+  this way pitting is a choice caused by incidents.
+- Damage never retires a car (a floor on its effects): arcade, and a damaged car can always reach
+  the pits.
+- The stop is automatic in the box (limiter, stop, repair time by damage): the skill is in driving
+  in and out, not in a stopping minigame.
+- Built on what exists: `ImpactEvent` and `wheelSurfaces` as damage sources, per-car params for the
+  effects, `StartHold` for the stop, branches for the pit lane road, OSM's `pit_lane` already
+  extracted for the scenery.
