@@ -9,3 +9,6 @@ coverage/
 
 # Layout previews written by 01_tools/openf1/layout.ts
 01_tools/openf1/preview/
+
+# Lap records of the multiplayer server (SQLite, local data)
+01_packages/server/data/

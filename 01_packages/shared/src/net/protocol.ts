@@ -10,7 +10,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 9;
+export const PROTOCOL_VERSION = 10;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -33,6 +33,29 @@ export interface PlayerInfo {
 /** The online game modes, in menu order. See 01_docs/multiplayer.md#modes-23. */
 export const ONLINE_MODES = ['practice', 'timeTrial', 'grandPrix'] as const;
 export type OnlineMode = (typeof ONLINE_MODES)[number];
+
+/** The modes whose laps go into the lap records. See 01_docs/multiplayer.md#lap-records-25a. */
+export const RECORD_MODES = ['timeTrial', 'grandPrix'] as const satisfies readonly OnlineMode[];
+export type RecordMode = (typeof RECORD_MODES)[number];
+
+/** Lap records kept per mode and circuit (one per player, the fastest). */
+export const RECORDS_PER_TRACK = 10;
+
+/** One player's best lap on a record board. */
+export interface LapRecord {
+  readonly nickname: string;
+  /** The lap's time in ticks (see config/sim.ts). */
+  readonly ticks: number;
+  /** When it was set, ISO 8601 in UTC. */
+  readonly setAt: string;
+}
+
+/** The best laps of one mode on one circuit, fastest first (at most RECORDS_PER_TRACK). */
+export interface RecordBoard {
+  readonly mode: RecordMode;
+  readonly track: string;
+  readonly records: readonly LapRecord[];
+}
 
 /** Whether a room takes newcomers: a Grand Prix is `running` from its start on. */
 export type RoomStatus = 'open' | 'running';
@@ -106,8 +129,16 @@ export type ClientMessage =
   | ({ readonly type: 'gp' } & GrandPrixCommand);
 
 export type ServerMessage =
-  /** Nickname accepted: the player's id and the rooms to pick from (modes without any aren't ready). */
-  | { readonly type: 'welcome'; readonly playerId: CarId; readonly rooms: readonly RoomInfo[] }
+  /**
+   * Nickname accepted: the player's id, the rooms to pick from (modes without any aren't ready)
+   * and the lap records, one board per record mode and circuit.
+   */
+  | {
+      readonly type: 'welcome';
+      readonly playerId: CarId;
+      readonly rooms: readonly RoomInfo[];
+      readonly records: readonly RecordBoard[];
+    }
   | { readonly type: 'rejected'; readonly reason: RejectReason }
   /** `enter` refused: that circuit's Grand Prix has started (the player stays joined). */
   | { readonly type: 'refused'; readonly reason: 'inProgress' }

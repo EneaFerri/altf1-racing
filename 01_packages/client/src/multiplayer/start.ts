@@ -1,12 +1,17 @@
 import {
   checkNickname,
   PROTOCOL_VERSION,
+  RECORD_MODES,
+  RECORDS_PER_TRACK,
   type OnlineMode,
+  type RecordBoard,
+  type RecordMode,
   type RoomInfo,
   type ServerMessage,
 } from '@altf1/shared';
 import { ListMenu } from '../view/menu/ListMenu';
 import { NicknameScreen } from '../view/menu/NicknameScreen';
+import { RecordTable } from '../view/menu/RecordTable';
 import {
   lobbyProblemText,
   MODE_NAMES,
@@ -16,6 +21,7 @@ import {
 } from './lobbyText';
 import { NetClient } from './NetClient';
 import { OnlineGame, trackByName, type Entered } from './OnlineGame';
+import { boardFor, NO_RECORDS_TEXT, recordRows } from './recordsText';
 import { serverUrl } from './serverUrl';
 
 type Welcome = Extract<ServerMessage, { type: 'welcome' }>;
@@ -24,6 +30,7 @@ type Welcome = Extract<ServerMessage, { type: 'welcome' }>;
 interface Session {
   readonly client: NetClient;
   readonly welcome: Welcome;
+  readonly nickname: string;
 }
 
 /**
@@ -44,12 +51,12 @@ export async function startMultiplayer(): Promise<void> {
       return null;
     },
   }).choose();
-  const { client, welcome } = session!;
+  const { client, welcome, nickname } = session!;
   // From here on (track menu or race) a lost connection shows the DISCONNECTED menu.
   client.onClose(() => void showDisconnected());
 
   const mode = await chooseMode(welcome.rooms);
-  const track = await chooseRoom(mode, welcome.rooms);
+  const track = await chooseRoom(mode, welcome.rooms, welcome.records, nickname);
   const entered = await enter(client, mode, track);
   if (!entered) return showRefused();
   new OnlineGame(client, welcome.playerId, entered, mode, trackByName(track)!).start();
@@ -67,8 +74,9 @@ async function join(raw: string): Promise<Session | string> {
   }
   return new Promise((resolve) => {
     client.onMessage((message) => {
-      if (message.type === 'welcome') resolve({ client, welcome: message });
-      else if (message.type === 'rejected') resolve(lobbyProblemText(message.reason));
+      if (message.type === 'welcome') {
+        resolve({ client, welcome: message, nickname: check.nickname });
+      } else if (message.type === 'rejected') resolve(lobbyProblemText(message.reason));
     });
     // Rejected connections are closed by the server; the rejection text arrived first.
     client.onClose(() => resolve(lobbyProblemText('disconnected')));
@@ -86,11 +94,29 @@ function chooseMode(rooms: readonly RoomInfo[]): Promise<OnlineMode> {
   }).choose();
 }
 
-/** The circuits the server offers in `mode` (and this game knows), with who is on each. */
-function chooseRoom(mode: OnlineMode, rooms: readonly RoomInfo[]): Promise<string> {
+/**
+ * The circuits the server offers in `mode` (and this game knows), with who is on each; in a mode
+ * with lap records, the selected circuit's top times above them (`nickname`'s own highlighted).
+ */
+function chooseRoom(
+  mode: OnlineMode,
+  rooms: readonly RoomInfo[],
+  records: readonly RecordBoard[],
+  nickname: string,
+): Promise<string> {
+  const table = RECORD_MODES.includes(mode as RecordMode) ? new RecordTable() : null;
   return new ListMenu({
     label: `${MODE_NAMES[mode].toUpperCase()} · TRACK`,
     items: trackItems(mode, rooms, (track) => trackByName(track) !== null),
+    ...(table && {
+      content: table.root,
+      onSelect: (track: string) =>
+        table.show(
+          `${track.toUpperCase()} · TOP ${RECORDS_PER_TRACK}`,
+          recordRows(boardFor(records, mode, track), nickname),
+          NO_RECORDS_TEXT,
+        ),
+    }),
     hint: 'W/S · Enter — Esc: back to the start',
     escGoesBack: true,
   }).choose();

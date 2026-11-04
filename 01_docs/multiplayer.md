@@ -50,27 +50,28 @@ The owner's rule: the two sections never mix. Enforced, not just by convention:
 ## Protocol (2.1b ✅)
 
 JSON over one WebSocket, typed unions in `shared/src/net/protocol.ts`, with a `PROTOCOL_VERSION`
-(a client with another version is rejected with `version`). Version **9** since 2.3i (`playAgain`,
+(a client with another version is rejected with `version`). Version **10** since 2.5a (`welcome`
+carries the lap `records`; v9 = 2.3i `playAgain`,
 `grandPrix` carries `drivers`, `manager` may be null; v8 = 2.3h Grand Prix
 race: `race` standings, `results` phase, `endRace`; v7 = 2.3f–g qualifying, grid and start; v6 = 2.3e room
 `status`, `gp`, `refused`, `grandPrix`; v5 = 2.3b rooms and `enter` carry the mode; v4 = 2.2c
 snapshots carry each car's last input; v3 = 2.2a input `seq`, acks, ping; v2 = 2.1f+ rooms).
 
-| Direction       | Message     | Content                                                                                                                |
-| --------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------- |
-| client → server | `hello`     | `protocol`, `nickname`                                                                                                 |
-| client → server | `enter`     | `mode`, `track`: go into that room (once, after the welcome)                                                           |
-| client → server | `input`     | `seq` + `InputCommand`, once per client tick (only once in a room)                                                     |
-| client → server | `ping`      | `t` (the client's clock), once a second in a room                                                                      |
-| client → server | `gp`        | `action`: `start` / `endQualifying` / `startRace` + `laps` (4, 8, 12) / `endRace` (manager only); `playAgain` (anyone) |
-| server → client | `welcome`   | own `playerId`, the `rooms` offered (`mode`, `track`, `players`, `status`)                                             |
-| server → client | `rejected`  | `reason`: `taken` / `invalid` / `full` / `version`                                                                     |
-| server → client | `refused`   | `reason` `inProgress`: that circuit's Grand Prix has started                                                           |
-| server → client | `entered`   | the room's `track` and the players in it                                                                               |
-| server → client | `players`   | the players in the room, sent on every join and leave there                                                            |
-| server → client | `snapshot`  | whole `GameState`; per car `acks` (last `seq` run) + `inputs`; 30 Hz                                                   |
-| server → client | `pong`      | the `ping`'s `t`, echoed: the client measures the round trip                                                           |
-| server → client | `grandPrix` | `phase`, `manager`, `drivers`, `qualifying`, `race`, `raceLaps`, `hold`: on entering and every change                  |
+| Direction       | Message     | Content                                                                                                                      |
+| --------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| client → server | `hello`     | `protocol`, `nickname`                                                                                                       |
+| client → server | `enter`     | `mode`, `track`: go into that room (once, after the welcome)                                                                 |
+| client → server | `input`     | `seq` + `InputCommand`, once per client tick (only once in a room)                                                           |
+| client → server | `ping`      | `t` (the client's clock), once a second in a room                                                                            |
+| client → server | `gp`        | `action`: `start` / `endQualifying` / `startRace` + `laps` (4, 8, 12) / `endRace` (manager only); `playAgain` (anyone)       |
+| server → client | `welcome`   | own `playerId`, the `rooms` offered (`mode`, `track`, `players`, `status`), the lap `records` (one board per mode × circuit) |
+| server → client | `rejected`  | `reason`: `taken` / `invalid` / `full` / `version`                                                                           |
+| server → client | `refused`   | `reason` `inProgress`: that circuit's Grand Prix has started                                                                 |
+| server → client | `entered`   | the room's `track` and the players in it                                                                                     |
+| server → client | `players`   | the players in the room, sent on every join and leave there                                                                  |
+| server → client | `snapshot`  | whole `GameState`; per car `acks` (last `seq` run) + `inputs`; 30 Hz                                                         |
+| server → client | `pong`      | the `ping`'s `t`, echoed: the client measures the round trip                                                                 |
+| server → client | `grandPrix` | `phase`, `manager`, `drivers`, `qualifying`, `race`, `raceLaps`, `hold`: on entering and every change                        |
 
 - **The server trusts nothing**: `parseClientMessage` returns `null` for bad JSON, unknown types,
   missing or wrong-typed fields, non-finite numbers, and nicknames or track names longer than 64
@@ -96,6 +97,7 @@ port is taken (a server already running) it says so and exits.
 | `Lobby.ts`      | Who is online: nickname registry, player ids, liveries. Pure, tested                       |
 | `Room.ts`       | One circuit's race: authoritative simulation with each player's latest input. Pure, tested |
 | `GameServer.ts` | Lobby + rooms + messages, with no sockets and no timers (tested with fake connections)     |
+| `LapRecords.ts` | The lap records in SQLite (`node:sqlite`); `:memory:` in tests. Tested                     |
 | `main.ts`       | Adapts `ws` sockets and real time to `GameServer`; hello timeout, heartbeat, logs          |
 
 - **Joining** (`hello`, only before joining; later ones are ignored). `Lobby.join` checks, in this
@@ -117,7 +119,8 @@ port is taken (a server already running) it says so and exits.
   fixed-step accumulator like the client's `GameLoop` (at most 0.25 s simulated at once).
 - **Logs**: one line per join, rejection and leave, and per room opened, entered and closed, e.g.
   `[lobby] Enea joined as p1 (2 online)`, `[rooms] practice/Monza is live`,
-  `[rooms] Enea entered practice/Monza (1 there)`, `[rooms] practice/Monza closed (empty)`.
+  `[rooms] Enea entered practice/Monza (1 there)`, `[rooms] practice/Monza closed (empty)`, and one
+  per new lap record, `[records] timeTrial/Monza: Enea 81.000 s (P1)`.
 
 ## Rooms (2.1e ✅, 2.1f+ ✅)
 
@@ -366,6 +369,31 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
 The server decides what is ready (`READY_MODES`): the `welcome` only lists rooms of ready modes,
 and the client shows every other mode as "Work in progress", so turning a mode on is a server
 change only.
+
+## Lap records (2.5a)
+
+The server keeps the best laps for good: one **board per record mode and circuit**
+(`RECORD_MODES` = Time trial and Grand Prix, × every circuit of `GP_TRACKS`), the
+`RECORDS_PER_TRACK` = 10 fastest players, each with their best lap only.
+
+- **Which laps count**: a lap the server's own simulation finished **valid** (`finishedLaps`: the
+  car's lap count grew and `lastLap.valid`). Time trial: every such lap. Grand Prix: only in
+  qualifying and in the race (`GrandPrix.isTimed`), not in its lobby or results; read before the
+  GP handles the tick, so a car retired on its last lap still counts. Free practice: never.
+  The server trusts no client time: it is its simulation's lap.
+- **One spot per player**, by `nicknameKey` ("Enea" and "enea" are the same player): replaced only
+  by a faster lap, which also takes the nickname as written then. Equal times: the earlier lap
+  ranks first. A lap slower than the 10th is not kept.
+- **Storage**: `server/src/LapRecords.ts`, one SQLite table `lap_records` (primary key mode +
+  track + player; nickname, ticks, `set_at` ISO 8601 UTC), Node's built-in `node:sqlite`: no
+  dependency, one file. Default `01_packages/server/data/records.db` (git-ignored, created on
+  start), `RECORDS_DB=…` for another; deleting the file resets every board.
+- **To the client**: the `welcome` carries every board (`RecordBoard`: `mode`, `track`, `records`
+  of `nickname`, `ticks`, `setAt`), as they were at joining.
+- **Shown** in the track menu of a record mode: above the circuits, `<CIRCUIT> · TOP 10` of the
+  selected one (`ListMenu`'s `onSelect`), position, nickname, time and day (UTC), the player's own
+  line marked in red; "No times yet — set the first one" when empty (`view/menu/RecordTable.ts`,
+  texts in `multiplayer/recordsText.ts`).
 
 ## Dev setup
 

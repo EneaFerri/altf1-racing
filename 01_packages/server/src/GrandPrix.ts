@@ -51,6 +51,11 @@ export class GrandPrix {
     return this.phase === 'lobby';
   }
 
+  /** Whether laps driven now are timed ones (qualifying or race): those go into the lap records. */
+  get isTimed(): boolean {
+    return this.phase === 'qualifying' || this.phase === 'race';
+  }
+
   get info(): GrandPrixInfo {
     return {
       phase: this.phase,

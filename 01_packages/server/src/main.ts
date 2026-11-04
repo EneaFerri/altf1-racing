@@ -1,6 +1,10 @@
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { TICK_RATE } from '@altf1/shared';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { GameServer, type Connection } from './GameServer.ts';
+import { LapRecords } from './LapRecords.ts';
 
 /**
  * Multiplayer server entry point: adapts `ws` sockets and real time to GameServer.
@@ -14,7 +18,13 @@ const HELLO_TIMEOUT_MS = 10_000;
 /** Every socket is pinged this often; one that didn't answer the previous ping is dropped. */
 const HEARTBEAT_MS = 5_000;
 
-const server = new GameServer((line) => console.info(line));
+/** The lap records' SQLite file (git-ignored); RECORDS_DB=… to use another. */
+const RECORDS_DB =
+  process.env['RECORDS_DB'] ?? fileURLToPath(new URL('../data/records.db', import.meta.url));
+
+mkdirSync(dirname(RECORDS_DB), { recursive: true });
+const records = new LapRecords(RECORDS_DB);
+const server = new GameServer((line) => console.info(line), records);
 const sockets = new WebSocketServer({ port: PORT, path: '/ws' });
 const alive = new WeakSet<WebSocket>();
 
@@ -65,11 +75,13 @@ sockets.on('error', (error: NodeJS.ErrnoException) => {
 
 sockets.on('listening', () => {
   console.info(`[server] AltF1 multiplayer on ws://localhost:${PORT}/ws (Ctrl+C to stop)`);
+  console.info(`[server] lap records in ${RECORDS_DB}`);
 });
 
 process.on('SIGINT', () => {
   clearInterval(loop);
   clearInterval(heartbeat);
+  records.close();
   for (const socket of sockets.clients) socket.close(1001, 'server stopping');
   sockets.close(() => process.exit(0));
 });

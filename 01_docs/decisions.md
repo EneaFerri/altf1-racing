@@ -479,3 +479,17 @@
   rise at least a floor above their uphill side, as Monaco's are built into the slopes.
 - 3f (owner, after the 3e test): Monaco v2 online too, in every mode. No protocol change: the
   room list carries the name and both ends build the same track.
+
+## 2026-11-04 — Lap records in SQLite (step 2.5a)
+
+- Built-in `node:sqlite` (Node 26) rather than a JSON file or a database server: real queries and
+  atomic writes, one local file, no new dependency, nothing to install on the server machine.
+- Only the server's own valid laps count, never a time sent by a client: the simulation is
+  authoritative, so the records are too.
+- Time trial and Grand Prix (qualifying and race) have boards, Free practice doesn't: it has no
+  rules (laps among others' cars, anyone can come and go). The two modes stay apart: a race lap
+  with others on track is not a time-trial lap.
+- One spot per player (by `nicknameKey`), top 10: a board of the fastest drivers, not of one
+  player's ten laps. Nicknames aren't accounts, so whoever uses a nickname owns its record.
+- Sent in the `welcome` (a few kilobytes at most) instead of a request/answer message: the track
+  menu needs them right away and they change rarely.

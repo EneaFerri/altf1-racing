@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   encodeMessage,
   FIXED_DT,
@@ -8,10 +8,14 @@ import {
   parseServerMessage,
   PROTOCOL_VERSION,
   SNAPSHOT_EVERY_TICKS,
+  type CarId,
+  type GameState,
   type OnlineMode,
   type ServerMessage,
 } from '@altf1/shared';
 import { GameServer, REJECT_CLOSE_CODE, roomKey, type Connection } from './GameServer.ts';
+import { finishedLaps, LapRecords } from './LapRecords.ts';
+import type { Room } from './Room.ts';
 
 /** A fake socket that records what the server sends. */
 class FakeConnection implements Connection {
@@ -77,6 +81,9 @@ describe('GameServer — lobby', () => {
             players: mode === 'practice' && track === 'Monaco' ? 1 : 0,
             status: 'open',
           })),
+        ),
+        records: ['timeTrial', 'grandPrix'].flatMap((mode) =>
+          GP_TRACKS.map(({ name: track }) => ({ mode, track, records: [] })),
         ),
       },
     ]);
@@ -332,5 +339,96 @@ describe('GameServer — Grand Prix', () => {
     server.message(enea, gp('playAgain'));
     expect(lewis.last('grandPrix')).toMatchObject({ drivers: ['p2', 'p4', 'p1'] });
     expect(room.state.cars.map((car) => car.id)).toEqual(['p1', 'p2', 'p4']);
+  });
+});
+
+/** Makes `room`'s next tick end with `id` finishing a lap of `ticks` (the real tick is skipped). */
+function lapOnNextTick(room: Room, id: CarId, ticks: number, valid = true): void {
+  const before = room.state;
+  const after: GameState = {
+    ...before,
+    tick: before.tick + 1,
+    laps: before.laps.map((lap) =>
+      lap.carId === id
+        ? { ...lap, laps: lap.laps + 1, lastLap: { ticks, sectors: [], valid } }
+        : lap,
+    ),
+  };
+  let ticked = false;
+  vi.spyOn(room, 'tick').mockImplementationOnce(() => (ticked = true));
+  vi.spyOn(room, 'state', 'get').mockImplementation(() => (ticked ? after : before));
+}
+
+const SET_AT = new Date('2026-11-04T10:00:00.000Z');
+
+function recordsServer(): { server: GameServer; records: LapRecords; log: string[] } {
+  const records = new LapRecords(':memory:');
+  const log: string[] = [];
+  return {
+    server: new GameServer(
+      (line) => log.push(line),
+      records,
+      () => SET_AT,
+    ),
+    records,
+    log,
+  };
+}
+
+describe('GameServer — lap records', () => {
+  it('records a valid time-trial lap and sends the boards in the welcome', () => {
+    const { server, log } = recordsServer();
+    inRoom(server, 'Enea', 'Monza', 'timeTrial');
+    lapOnNextTick(server.rooms.get(roomKey('timeTrial', 'Monza', 'p1'))!, 'p1', 4860);
+    server.advance(FIXED_DT);
+    expect(log.at(-1)).toBe('[records] timeTrial/Monza: Enea 81.000 s (P1)');
+    const welcome = joined(server, 'Kimi').last('welcome');
+    expect(welcome?.type === 'welcome' && welcome.records).toContainEqual({
+      mode: 'timeTrial',
+      track: 'Monza',
+      records: [{ nickname: 'Enea', ticks: 4860, setAt: SET_AT.toISOString() }],
+    });
+  });
+
+  it('ignores invalid laps, Free practice and the Grand Prix lobby', () => {
+    const { server, records } = recordsServer();
+    inRoom(server, 'Enea', 'Monza', 'timeTrial');
+    lapOnNextTick(server.rooms.get(roomKey('timeTrial', 'Monza', 'p1'))!, 'p1', 4860, false);
+    server.advance(FIXED_DT);
+    inRoom(server, 'Kimi', 'Monaco');
+    lapOnNextTick(server.rooms.get(roomKey('practice', 'Monaco', 'p2'))!, 'p2', 4860);
+    server.advance(FIXED_DT);
+    inRoom(server, 'Max', 'Barcelona', 'grandPrix');
+    lapOnNextTick(server.rooms.get(roomKey('grandPrix', 'Barcelona', 'p3'))!, 'p3', 4860);
+    server.advance(FIXED_DT);
+    expect(records.boards().every((board) => board.records.length === 0)).toBe(true);
+  });
+
+  it('records the Grand Prix laps from qualifying on', () => {
+    const { server, records } = recordsServer();
+    const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
+    server.message(enea, encodeMessage({ type: 'gp', action: 'start' }));
+    lapOnNextTick(server.rooms.get(roomKey('grandPrix', 'Monza', 'p1'))!, 'p1', 4900);
+    server.advance(FIXED_DT);
+    expect(records.board('grandPrix', 'Monza')).toEqual([
+      { nickname: 'Enea', ticks: 4900, setAt: SET_AT.toISOString() },
+    ]);
+    expect(records.board('timeTrial', 'Monza')).toEqual([]);
+  });
+});
+
+describe('finishedLaps', () => {
+  it('lists the cars whose lap count grew with a valid lap', () => {
+    const before: GameState = { tick: 0, cars: [], impacts: [], laps: [] };
+    const lap = (carId: CarId, laps: number, valid: boolean) => ({
+      carId,
+      laps,
+      lastLap: laps > 0 ? { ticks: 5000 + laps, sectors: [], valid } : null,
+    });
+    const make = (laps: ReturnType<typeof lap>[]): GameState =>
+      ({ ...before, laps }) as unknown as GameState;
+    const old = make([lap('p1', 1, true), lap('p2', 0, true), lap('p3', 2, true)]);
+    const now = make([lap('p1', 2, true), lap('p2', 1, false), lap('p3', 2, true)]);
+    expect(finishedLaps(old, now)).toEqual([{ carId: 'p1', ticks: 5002 }]);
   });
 });

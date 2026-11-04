@@ -91,6 +91,19 @@ describe('GrandPrix — lobby', () => {
     expect(gp.command('p1', { action: 'start' })).toBe(false);
   });
 
+  it('times laps (for the lap records) only in qualifying and in the race', () => {
+    const { gp } = grandPrix('p1');
+    expect(gp.isTimed).toBe(false);
+    gp.command('p1', { action: 'start' });
+    expect(gp.isTimed).toBe(true);
+    gp.command('p1', { action: 'endQualifying' });
+    expect(gp.isTimed).toBe(false);
+    gp.command('p1', { action: 'startRace', laps: 4 });
+    expect(gp.isTimed).toBe(true);
+    gp.command('p1', { action: 'endRace' });
+    expect(gp.isTimed).toBe(false);
+  });
+
   it('hands the manager role to whoever has been there longest when the manager leaves', () => {
     const { gp } = grandPrix('p1', 'p2', 'p3');
     gp.remove('p2');

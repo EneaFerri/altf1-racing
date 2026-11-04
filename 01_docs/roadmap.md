@@ -187,6 +187,16 @@ the checklist in [circuits.md](circuits.md#adding-a-circuit); the online circuit
 - 2.4b+ — next circuit: the owner's choice. 2.4 carries on **in parallel** with Phase 3, one
   circuit at a time, whenever the owner wants one.
 
+### 2.5 — Lap records
+
+Goal: the best laps kept on the server for good, per mode and circuit, shown before choosing one.
+Design: [multiplayer.md](multiplayer.md#lap-records-25a).
+
+- 2.5a **Lap records in SQLite** (protocol v10) — the server keeps, per record mode (Time trial,
+  Grand Prix: qualifying and race) and circuit, the 10 fastest players' best valid laps
+  (`node:sqlite`, `server/data/records.db`); the `welcome` carries them and the track menu shows
+  the selected circuit's top 10, the own time marked. Waiting for the owner's review.
+
 ## Phase 3 — Elevation (Monaco v2) ✅
 
 **Scope: one map, Monaco v2**, built and tested in single player first (3a–3e), then offered

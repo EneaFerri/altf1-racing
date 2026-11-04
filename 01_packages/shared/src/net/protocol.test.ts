@@ -102,6 +102,13 @@ describe('server messages', () => {
         type: 'welcome',
         playerId: 'p1',
         rooms: [{ mode: 'practice', track: 'Monza', players: 2, status: 'open' }],
+        records: [
+          {
+            mode: 'timeTrial',
+            track: 'Monza',
+            records: [{ nickname: 'Enea', ticks: 4860, setAt: '2026-11-04T10:00:00.000Z' }],
+          },
+        ],
       },
       { type: 'entered', track: 'Monza', players },
       { type: 'rejected', reason: 'taken' },

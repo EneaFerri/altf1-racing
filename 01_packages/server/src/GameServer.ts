@@ -3,15 +3,20 @@ import {
   FIXED_DT,
   GP_TRACKS,
   parseClientMessage,
+  RECORD_MODES,
   SNAPSHOT_EVERY_TICKS,
+  TICK_RATE,
   type CarId,
   type GrandPrixCommand,
   type OnlineMode,
+  type GameState,
   type PlayerInfo,
+  type RecordMode,
   type RoomInfo,
   type ServerMessage,
 } from '@altf1/shared';
 import { GrandPrix } from './GrandPrix.ts';
+import { finishedLaps, LapRecords } from './LapRecords.ts';
 import { Lobby } from './Lobby.ts';
 import { Room } from './Room.ts';
 
@@ -60,16 +65,29 @@ export class GameServer {
   readonly lobby = new Lobby();
   /** Live rooms by `roomKey`. */
   readonly rooms = new Map<string, Room>();
+  /** The mode of each live room, by `roomKey`. */
+  private readonly modes = new Map<string, OnlineMode>();
   /** The Grand Prix of each live Grand Prix room, by `roomKey`. */
   private readonly grandPrix = new Map<string, GrandPrix>();
   /** Joined players' connections; a connection is in here only after an accepted hello. */
   private readonly members = new Map<Connection, Member>();
   private accumulator = 0;
   private readonly log: (line: string) => void;
+  private readonly records: LapRecords;
+  private readonly now: () => Date;
 
-  /** `log` gets one line per join, reject, room change and leave (main.ts prints them). */
-  constructor(log: (line: string) => void = () => {}) {
+  /**
+   * `log` gets one line per join, reject, room change, leave and new lap record (main.ts prints
+   * them); `records` keeps the lap records (main.ts opens the file, tests an in-memory one).
+   */
+  constructor(
+    log: (line: string) => void = () => {},
+    records: LapRecords = new LapRecords(':memory:'),
+    now: () => Date = () => new Date(),
+  ) {
     this.log = log;
+    this.records = records;
+    this.now = now;
   }
 
   /** Whether `conn` has joined (main.ts closes connections that never do). */
@@ -110,8 +128,11 @@ export class GameServer {
     while (this.accumulator >= FIXED_DT - EPSILON) {
       this.accumulator -= FIXED_DT;
       for (const [key, room] of this.rooms) {
+        const before = room.state;
         room.tick();
         const grandPrix = this.grandPrix.get(key);
+        // Before the GP reads the tick: a car it retires on its last lap still counts.
+        if (!grandPrix || grandPrix.isTimed) this.recordLaps(key, before, room.state);
         const phase = grandPrix?.info.phase;
         if (grandPrix?.afterTick()) {
           if (grandPrix.info.phase !== phase) this.log(`[gp] ${key} → ${grandPrix.info.phase}`);
@@ -157,7 +178,14 @@ export class GameServer {
     const { player } = result;
     this.members.set(conn, { id: player.id, room: null });
     this.log(`[lobby] ${player.nickname} joined as ${player.id} (${this.members.size} online)`);
-    conn.send(encodeMessage({ type: 'welcome', playerId: player.id, rooms: this.roomList() }));
+    conn.send(
+      encodeMessage({
+        type: 'welcome',
+        playerId: player.id,
+        rooms: this.roomList(),
+        records: this.records.boards(),
+      }),
+    );
   }
 
   /** Puts the player in the room of `mode` on `track`, opening it if nobody is there yet. */
@@ -174,6 +202,7 @@ export class GameServer {
     if (!room) {
       room = new Room(definition);
       this.rooms.set(key, room);
+      this.modes.set(key, mode);
       if (mode === 'grandPrix') this.grandPrix.set(key, new GrandPrix(room));
       this.log(`[rooms] ${key} is live`);
     }
@@ -187,6 +216,21 @@ export class GameServer {
     if (grandPrix) {
       grandPrix.add(member.id, this.nickname(member.id));
       this.broadcast(key, { type: 'grandPrix', ...grandPrix.info });
+    }
+  }
+
+  /** Offers the valid laps finished in room `key`'s last tick to the lap records, in a record mode. */
+  private recordLaps(key: string, before: GameState, after: GameState): void {
+    const mode = this.modes.get(key);
+    if (!RECORD_MODES.includes(mode as RecordMode)) return;
+    const track = this.rooms.get(key)!.definition.name;
+    for (const { carId, ticks } of finishedLaps(before, after)) {
+      const nickname = this.nickname(carId);
+      const position = this.records.submit(mode as RecordMode, track, nickname, ticks, this.now());
+      if (position !== null) {
+        const time = (ticks / TICK_RATE).toFixed(3);
+        this.log(`[records] ${mode}/${track}: ${nickname} ${time} s (P${position})`);
+      }
     }
   }
 
@@ -206,6 +250,7 @@ export class GameServer {
     grandPrix?.remove(id);
     if (room.isEmpty) {
       this.rooms.delete(key);
+      this.modes.delete(key);
       this.grandPrix.delete(key); // the next player in starts a new Grand Prix
       this.log(`[rooms] ${key} closed (empty)`);
       return;

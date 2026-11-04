@@ -20,6 +20,8 @@ export interface ListMenuOptions<T> {
   readonly items: readonly ListMenuItem<T>[];
   /** Shown between the label and the rows (e.g. the Grand Prix classification). */
   readonly content?: HTMLElement;
+  /** Called with the selected row's value, on showing and whenever the selection moves. */
+  readonly onSelect?: (value: T) => void;
   readonly hint: string;
   /** Esc reloads the page, i.e. goes back to the start screen. Off for the start screen itself. */
   readonly escGoesBack?: boolean;
@@ -35,6 +37,8 @@ export class ListMenu<T> {
   private readonly items: ListMenuItem<T>[];
   private readonly rows: HTMLButtonElement[];
   private selected = 0;
+  /** Whether a row has been selected yet (the first `onSelect`). */
+  private shown = false;
   private resolve: ((value: T) => void) | null = null;
 
   constructor(private readonly options: ListMenuOptions<T>) {
@@ -77,8 +81,12 @@ export class ListMenu<T> {
   }
 
   private select(index: number): void {
-    if (this.items[index]?.disabled) return;
+    const item = this.items[index];
+    if (!item || item.disabled) return;
+    const moved = index !== this.selected || !this.shown;
     this.selected = index;
+    this.shown = true;
+    if (moved) this.options.onSelect?.(item.value);
     this.rows.forEach((row, i) => row.classList.toggle('menu-selected', i === this.selected));
   }
 

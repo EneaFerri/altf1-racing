@@ -91,6 +91,60 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Multiplayer: the lap-record board of the selected circuit (track menu). */
+
+.menu-records {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 8px;
+  padding: 8px 10px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.menu-records-title {
+  margin: 0 0 4px;
+  color: var(--menu-dim);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.menu-records-row {
+  display: grid;
+  grid-template-columns: 2ch 1fr auto auto;
+  gap: 12px;
+  padding: 2px 4px;
+  border-left: 3px solid transparent;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-records-own {
+  border-left-color: var(--menu-red);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.menu-records-pos,
+.menu-records-date {
+  color: var(--menu-dim);
+}
+
+.menu-records-pos {
+  text-align: right;
+}
+
+.menu-records-name {
+  font-weight: 800;
+}
+
+.menu-records-empty {
+  margin: 0;
+  color: var(--menu-dim);
+  font-size: 12px;
+}
+
 /* Multiplayer: the nickname field. */
 
 .menu-field {
