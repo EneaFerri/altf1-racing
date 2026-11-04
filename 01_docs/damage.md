@@ -47,6 +47,47 @@ Each wheel on **grass** wears its tyre by `grassDamage` (0.03) per second, on **
 rest. So a short trip over the grass costs little and a long one adds up: 5 s with four wheels on
 grass at speed = 0.15 per tyre, 3 s in the gravel = 0.24. Kerbs (low and high) do nothing.
 
-## Effects (4b, next)
+## Effects (4b)
 
-Not yet: damage changes nothing about how the car drives until 4b.
+From the tick after it is damaged, a car drives the worse for it. Two pure functions in
+`sim/damage.ts`, applied by `stepGame` only with `SimContext.damage` (the car itself, baseline v3,
+is untouched):
+
+- **`damagedParams`**: the car's `CarParams` with less **top speed** (`maxSpeed`, so also less
+  pull near it), **turning** (`maxYawRate`: understeer) and **grip** (`lateralGrip`: it slides
+  wider). Each part costs, at full damage, a share of each; less damage costs proportionally less;
+  the costs add up, but never below a **floor** (80% of top speed, 60% of turning, 50% of grip):
+  a car always stays drivable and never retires.
+
+  | Part (fully damaged) | Top speed | Turning | Grip |
+  | -------------------- | --------- | ------- | ---- |
+  | Front wing           | −4%       | −25%    | —    |
+  | Rear wing            | −4%       | —       | −30% |
+  | Tyres (average)      | −8%       | −10%    | −30% |
+
+- **`damagedInput`**: uneven tyres **pull** to the more damaged side: steering added =
+  (right tyres − left tyres) / 2 × `tyrePull` (0.12), within the steering range. The player
+  counter-steers; the bot's line following corrects it by itself.
+
+Measured: the Hard bot, its plan built for the damaged car, best of two timed laps (no new damage
+during the run). Undamaged: the real pole, as calibrated.
+
+| Damage                         | Monza          | Monaco         |
+| ------------------------------ | -------------- | -------------- |
+| None                           | 78.50 s        | 70.05 s        |
+| Front wing 50%                 | 80.62 (+2.7%)  | 72.65 (+3.7%)  |
+| Front wing 100%                | 83.13 (+5.9%)  | 75.95 (+8.4%)  |
+| Rear wing 100%                 | 81.52 (+3.8%)  | 73.25 (+4.6%)  |
+| Tyres all 50%                  | 81.10 (+3.3%)  | 72.68 (+3.8%)  |
+| Tyres all 100%                 | 84.13 (+7.2%)  | 75.68 (+8.0%)  |
+| Right tyres 100% (pulls right) | 81.07 (+3.3%)  | 73.17 (+4.5%)  |
+| Everything 50%                 | 85.03 (+8.3%)  | 77.28 (+10.3%) |
+| Everything 100% (the floors)   | 94.13 (+19.9%) | 89.65 (+28.0%) |
+
+Fully damaged the bot touches walls (22 at Monza, 111 at Monaco, light: it slides wide), but never
+gets stuck or resets.
+
+**Trying it (dev only)**: single player, F2 → Damage (Grand Prix) → "on in single player" turns
+it on for every car (the bot too); "Player's car" sets each part by hand, Repair zeroes them; the
+params are live and in "Copy as code". F3 shows the damage (`FW · RW · tyres FL FR RL RR`, %).
+Turning it off repairs every car. Production builds have no panel, so no damage.

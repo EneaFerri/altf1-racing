@@ -1,6 +1,8 @@
+import type { CarParams } from '../config/car';
 import type { DamageParams } from '../config/damage';
 import { dot, forward, length, right, sub } from '../math/vec2';
 import type { Surface } from '../track/types';
+import type { InputCommand } from '../types/input';
 import type { CarState } from './car';
 import type { ImpactEvent } from './collision/types';
 
@@ -105,7 +107,47 @@ export function stepDamage(
   return offTrackDamage(damage, car.wheelSurfaces, length(car.velocity), dt, p);
 }
 
-/** Every part limited to 1: the ceiling (the car's effects keep a floor, see 4b). */
+/**
+ * The car a damaged car drives: `params` with less top speed, turning and grip, each by what its
+ * parts cost (front wing, rear wing, the tyres' average) but never below its floor.
+ */
+export function damagedParams(params: CarParams, damage: CarDamage, p: DamageParams): CarParams {
+  const tyres = average(damage.tyres);
+  const share = (front: number, rear: number, tyre: number, floor: number): number =>
+    Math.max(floor, 1 - damage.frontWing * front - damage.rearWing * rear - tyres * tyre);
+  return {
+    ...params,
+    maxSpeed:
+      params.maxSpeed *
+      share(p.frontWingSpeedLoss, p.rearWingSpeedLoss, p.tyreSpeedLoss, p.minSpeed),
+    maxYawRate:
+      params.maxYawRate * share(p.frontWingTurnLoss, p.rearWingTurnLoss, p.tyreTurnLoss, p.minTurn),
+    lateralGrip:
+      params.lateralGrip *
+      share(p.frontWingGripLoss, p.rearWingGripLoss, p.tyreGripLoss, p.minGrip),
+  };
+}
+
+/**
+ * `input` with the pull of uneven tyres: steering added towards the side whose tyres are more
+ * damaged (right = +), within the steering range. Even tyres: `input` itself.
+ */
+export function damagedInput(
+  input: InputCommand,
+  damage: CarDamage,
+  p: DamageParams,
+): InputCommand {
+  const [fl, fr, rl, rr] = damage.tyres;
+  const pull = ((fr - fl + (rr - rl)) / 2) * p.tyrePull;
+  if (pull === 0) return input;
+  return { ...input, steer: Math.max(-1, Math.min(1, input.steer + pull)) };
+}
+
+function average(values: readonly number[]): number {
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+/** Every part limited to 1: the ceiling (the car's effects keep a floor, see `damagedParams`). */
 function capped(damage: CarDamage): CarDamage {
   const cap = (value: number): number => Math.min(1, value);
   const [fl, fr, rl, rr] = damage.tyres;

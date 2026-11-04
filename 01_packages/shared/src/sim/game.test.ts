@@ -301,4 +301,21 @@ describe('stepGame — damage', () => {
     const after = run(createGame(track, ['p1']), { p1: THROTTLE }, 60, withDamage);
     expect(after.cars[0]!.damage).toEqual({ frontWing: 0, rearWing: 0, tyres: [0, 0, 0, 0] });
   });
+
+  it('makes a damaged car slower, and only with SimContext.damage', () => {
+    const damaged = (game: GameState): GameState => ({
+      ...game,
+      cars: [{ ...game.cars[0]!, damage: { frontWing: 1, rearWing: 1, tyres: [1, 1, 1, 1] } }],
+    });
+    const speed = (game: GameState): number => {
+      const { x, z } = game.cars[0]!.velocity;
+      return Math.hypot(x, z);
+    };
+    const start = createGame(track, ['p1']);
+    const clean = run(start, { p1: THROTTLE }, 240, withDamage);
+    const slow = run(damaged(start), { p1: THROTTLE }, 240, withDamage);
+    const ignored = run(damaged(start), { p1: THROTTLE }, 240);
+    expect(speed(slow)).toBeLessThan(speed(clean) * 0.97);
+    expect(speed(ignored)).toBeCloseTo(speed(clean));
+  });
 });

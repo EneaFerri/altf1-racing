@@ -3,14 +3,17 @@ import {
   BOT_PARAMS,
   CAR_PARAMS,
   COLLISION_PARAMS,
+  DAMAGE_PARAMS,
   SLIPSTREAM_PARAMS,
   SLOPE_PARAMS,
   SURFACE_PARAMS,
   tuningLabel,
   type BotLevel,
   type BotParams,
+  type CarDamage,
   type CarParams,
   type CollisionParams,
+  type DamageParams,
   type SlipstreamParams,
   type SlopeParams,
   type Surface,
@@ -108,6 +111,42 @@ const BOT_RANGES: Record<Exclude<keyof BotParams, 'shortcuts'>, Range> = {
   performance: [0.9, 1.15, 0.01],
 };
 
+/** Slider ranges of the damage params: impacts and off track, then the effects. */
+const DAMAGE_RANGES: Record<keyof DamageParams, Range> = {
+  impactThreshold: [0, 20, 0.5],
+  impactDamage: [0, 0.1, 0.005],
+  endTyreShare: [0, 1, 0.05],
+  sideTyreShare: [0, 1, 0.05],
+  frontZone: [0, 2.8, 0.1],
+  rearZone: [0, 2.4, 0.1],
+  grassDamage: [0, 0.3, 0.01],
+  gravelDamage: [0, 0.5, 0.01],
+  offTrackSpeed: [1, 95, 1],
+  frontWingSpeedLoss: [0, 0.5, 0.01],
+  frontWingTurnLoss: [0, 0.8, 0.01],
+  frontWingGripLoss: [0, 0.8, 0.01],
+  rearWingSpeedLoss: [0, 0.5, 0.01],
+  rearWingTurnLoss: [0, 0.8, 0.01],
+  rearWingGripLoss: [0, 0.8, 0.01],
+  tyreSpeedLoss: [0, 0.5, 0.01],
+  tyreTurnLoss: [0, 0.8, 0.01],
+  tyreGripLoss: [0, 0.8, 0.01],
+  tyrePull: [0, 0.5, 0.01],
+  minSpeed: [0.3, 1, 0.01],
+  minTurn: [0.3, 1, 0.01],
+  minGrip: [0.3, 1, 0.01],
+};
+
+/** What the panel needs to try the Grand Prix's damage in single player. */
+export interface DevDamage {
+  /** The live damage params (edited in place, like every other group). */
+  readonly params: DamageParams;
+  /** Damage on or off for every car; off repairs them. */
+  readonly setEnabled: (on: boolean) => void;
+  /** Sets the player's damage directly. */
+  readonly setPlayerDamage: (damage: CarDamage) => void;
+}
+
 /**
  * Dev-only live tuning (F2). Mutates the params objects the Game feeds to the simulation,
  * so changes apply on the next tick. Loaded via dynamic import only when import.meta.env.DEV.
@@ -123,6 +162,7 @@ export class TuningPanel {
     private readonly slopeParams: SlopeParams,
     private readonly cameraParams: CameraParams,
     private readonly botParams: Record<BotLevel, BotParams>,
+    private readonly damage: DevDamage,
   ) {
     for (const [title, ranges] of Object.entries(CAR_GROUPS)) {
       const folder = this.gui.addFolder(title);
@@ -185,6 +225,8 @@ export class TuningPanel {
       folder.add(params, 'shortcuts');
     }
 
+    this.addDamageFolder();
+
     this.gui.add({ copy: () => this.copyAsCode() }, 'copy').name('Copy as code');
     this.gui.add({ reset: () => this.reset() }, 'reset').name('Reset to defaults');
     this.gui.hide();
@@ -194,11 +236,54 @@ export class TuningPanel {
     this.gui.show(this.gui._hidden);
   }
 
+  /**
+   * Damage (Grand Prix only, tried here): on/off, the player's parts set by hand (to feel a damage
+   * without crashing), a repair, and the params.
+   */
+  private addDamageFolder(): void {
+    const folder = this.gui.addFolder('Damage (Grand Prix)').close();
+    folder
+      .add({ on: false }, 'on')
+      .name('on in single player')
+      .onChange((on: boolean) => this.damage.setEnabled(on));
+    const parts = { frontWing: 0, rearWing: 0, tyreFL: 0, tyreFR: 0, tyreRL: 0, tyreRR: 0 };
+    const apply = (): void =>
+      this.damage.setPlayerDamage({
+        frontWing: parts.frontWing,
+        rearWing: parts.rearWing,
+        tyres: [parts.tyreFL, parts.tyreFR, parts.tyreRL, parts.tyreRR],
+      });
+    const own = folder.addFolder("Player's car (needs on)");
+    for (const key of Object.keys(parts) as (keyof typeof parts)[]) {
+      own.add(parts, key, 0, 1, 0.05).onChange(apply);
+    }
+    own
+      .add(
+        {
+          repair: () => {
+            for (const key of Object.keys(parts) as (keyof typeof parts)[]) parts[key] = 0;
+            for (const controller of own.controllers) controller.updateDisplay();
+            apply();
+          },
+        },
+        'repair',
+      )
+      .name('Repair');
+    const params = folder.addFolder('Params').close();
+    for (const [key, [min, max, step]] of Object.entries(DAMAGE_RANGES) as [
+      keyof DamageParams,
+      Range,
+    ][]) {
+      params.add(this.damage.params, key, min, max, step);
+    }
+  }
+
   private reset(): void {
     Object.assign(this.carParams, CAR_PARAMS);
     Object.assign(this.collisionParams, COLLISION_PARAMS);
     Object.assign(this.slipstreamParams, SLIPSTREAM_PARAMS);
     Object.assign(this.slopeParams, SLOPE_PARAMS);
+    Object.assign(this.damage.params, DAMAGE_PARAMS);
     Object.assign(this.cameraParams, CAMERA_PARAMS);
     for (const [surface, params] of Object.entries(SURFACE_PARAMS)) {
       Object.assign(this.surfaceParams[surface as Surface], params);
@@ -219,6 +304,9 @@ export class TuningPanel {
       ([key, value]) => `  ${key}: ${round(value as number)},`,
     );
     const slipstreamLines = Object.entries(this.slipstreamParams).map(
+      ([key, value]) => `  ${key}: ${round(value as number)},`,
+    );
+    const damageLines = Object.entries(this.damage.params).map(
       ([key, value]) => `  ${key}: ${round(value as number)},`,
     );
     const cameraLines = Object.entries(this.cameraParams).map(
@@ -246,6 +334,9 @@ export class TuningPanel {
       '',
       '// config/slope.ts',
       `export const SLOPE_PARAMS: SlopeParams = { gravity: ${round(this.slopeParams.gravity)}, factor: ${round(this.slopeParams.factor)} };`,
+      '',
+      '// config/damage.ts',
+      `export const DAMAGE_PARAMS: DamageParams = {\n${damageLines.join('\n')}\n};`,
       '',
       '// config/surfaces.ts',
       `export const SURFACE_PARAMS: Record<Surface, SurfaceParams> = {\n${surfaceLines.join('\n')}\n};`,

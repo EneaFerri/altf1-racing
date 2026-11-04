@@ -10,6 +10,7 @@ import {
   SLIPSTREAM_PARAMS,
   SLOPE_PARAMS,
   createGame,
+  DAMAGE_PARAMS,
   findCar,
   NEUTRAL_INPUT,
   NEW_BOT_MEMORY,
@@ -20,6 +21,7 @@ import {
   type BotLevel,
   type BotParams,
   type BotPlan,
+  type CarDamage,
   type CarId,
   type CarParams,
   type GameState,
@@ -70,11 +72,13 @@ export class SinglePlayerGame {
   private readonly collisionParams = { ...COLLISION_PARAMS };
   private readonly slipstreamParams = { ...SLIPSTREAM_PARAMS };
   private readonly slopeParams = { ...SLOPE_PARAMS };
+  /** Damage is the Grand Prix's: here only through the dev panel (F2 → Damage), to try it. */
+  private readonly damageParams = { ...DAMAGE_PARAMS };
   private readonly cameraParams = { ...CAMERA_PARAMS };
   private readonly botParams = copyBotParams();
   /** Cars that drive a different car than the player's: the bot's, with its level's performance. */
   private readonly carParamsById: Record<CarId, CarParams> = {};
-  private readonly ctx: SimContext;
+  private ctx: SimContext;
 
   private readonly controller = new KeyboardController();
   private readonly view: SceneView;
@@ -132,6 +136,11 @@ export class SinglePlayerGame {
           this.slopeParams,
           this.cameraParams,
           this.botParams,
+          {
+            params: this.damageParams,
+            setEnabled: (on) => this.setDamage(on),
+            setPlayerDamage: (damage) => this.setPlayerDamage(damage),
+          },
         );
         this.controller.onAction('toggleTuning', () => panel.toggle());
       });
@@ -175,6 +184,25 @@ export class SinglePlayerGame {
     this.hud.setBotLevel(next);
   }
 
+  /** Dev only (F2 → Damage): the Grand Prix's damage on in single player; off repairs every car. */
+  private setDamage(on: boolean): void {
+    this.ctx = on ? { ...this.ctx, damage: this.damageParams } : withoutDamage(this.ctx);
+    if (!on) {
+      this.changeCars((state) => ({
+        ...state,
+        cars: state.cars.map(({ damage: _carDamage, ...car }) => car),
+      }));
+    }
+  }
+
+  /** Dev only (F2 → Damage): sets the player's damage, to feel it without crashing. */
+  private setPlayerDamage(damage: CarDamage): void {
+    this.changeCars((state) => ({
+      ...state,
+      cars: state.cars.map((car) => (car.id === PLAYER_ID ? { ...car, damage } : car)),
+    }));
+  }
+
   /** Applies a change of cars to both states, so the View never interpolates a car across the map. */
   private changeCars(change: (state: GameState) => GameState): void {
     this.state = change(this.state);
@@ -202,6 +230,11 @@ export class SinglePlayerGame {
     const player = findCar(this.state, PLAYER_ID);
     if (player) this.debugOverlay.update(this.state, player, this.lastInput);
   }
+}
+
+/** `ctx` with no damage: what every mode but the Grand Prix runs. */
+function withoutDamage({ damage: _damage, ...ctx }: SimContext): SimContext {
+  return ctx;
 }
 
 /** Deep copy, so live tuning never edits the defaults in config/surfaces.ts. */

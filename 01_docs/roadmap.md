@@ -270,12 +270,13 @@ Details (numbers, look, rules) are decided in each step with the owner.
   point in the car's frame (front → front wing + front tyres, rear → rear wing + rear tyres,
   side → that side's tyres); grass and gravel wear each wheel's tyre per second, by speed. R keeps
   the damage. Numbers in `config/damage.ts` (`DAMAGE_PARAMS`, provisional), measured in
-  [damage.md](damage.md). Not active anywhere yet. Waiting for the owner's review.
-- 4b **Effects on the car** — damage → the car's effective params (top speed, front/rear grip,
-  steering; a damaged tyre also pulls to its side), growing with the damage down to a floor (never
-  undrivable). Measured with the bot at no / medium / full damage (lap times table in the docs).
-  A dev-only F2 toggle to try it in single player; production unchanged. The baseline v3 car is
-  not touched.
+  [damage.md](damage.md). Not active anywhere yet.
+- 4b ✅ **Effects on the car** — `damagedParams`: less top speed, turning and grip, by part (front
+  wing → turning, rear wing → grip, tyres → some of each), adding up down to floors (80% / 60% /
+  50%): never undrivable, never a retirement. `damagedInput`: uneven tyres pull to their side.
+  Hard bot: +3% to +8% per part, +20% (Monza) to +28% (Monaco) with everything destroyed
+  ([damage.md](damage.md#effects-4b)). Dev only: F2 → Damage turns it on in single player and sets
+  the player's parts by hand; F3 shows them. Waiting for the owner's review.
 - 4c **Damage view** — HUD: an F1-style car outline with each part coloured by its damage; on the
   car: wing pieces bent or missing, a flat tyre. Tried in single player through the dev toggle.
 - 4d **Damage online in the Grand Prix** (protocol v11) — damage in the snapshot's `GameState`;

@@ -5,6 +5,7 @@ import {
   right,
   slipAngle,
   tuningLabel,
+  type CarDamage,
   type CarState,
   type GameState,
   type ImpactEvent,
@@ -100,6 +101,7 @@ export class DebugOverlay {
       `spin      ${car.spin.toFixed(2)} rad/s`,
       `wheels    ${car.wheelSurfaces.map((s) => SURFACE_LABEL[s]).join(' ')}  (FL FR RL RR)`,
       `impact    ${this.impactText(state.tick)}`,
+      ...(car.damage ? [`damage    ${damageText(car.damage)}`] : []),
       `tuning    ${tuningLabel()}`,
       ...(extra.length > 0 ? ['', ...extra] : []),
       '',
@@ -112,4 +114,10 @@ export class DebugOverlay {
     const { event, tick: at } = this.lastImpact;
     return `${event.other} ${event.strength.toFixed(1)} m/s, ${tick - at} ticks ago`;
   }
+}
+
+/** `FW 31 RW 0 · tyres 16 16 1 1 %` (front wing, rear wing, tyres FL FR RL RR). */
+function damageText({ frontWing, rearWing, tyres }: CarDamage): string {
+  const pct = (value: number): string => (value * 100).toFixed(0);
+  return `FW ${pct(frontWing)} RW ${pct(rearWing)} · tyres ${tyres.map(pct).join(' ')} %`;
 }

@@ -12,7 +12,7 @@ import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
 import { createCar, stepCar, type CarId, type CarState } from './car';
 import { resolveCollisions } from './collision/resolve';
 import type { ImpactEvent } from './collision/types';
-import { stepDamage } from './damage';
+import { damagedInput, damagedParams, stepDamage } from './damage';
 import { createLapState, stepLap, type LapState } from './laps';
 import { slipstreamEffect, slipstreamFactor } from './slipstream';
 import { carSurface } from './surface';
@@ -69,16 +69,21 @@ export function createGame(track: Track, carIds: readonly CarId[]): GameState {
  * Advances the simulation by exactly one fixed tick. Pure: never mutates `state`.
  * Every car moves first (towed by the wakes of the cars as they were at the start of the tick),
  * then one collision pass resolves walls and car-vs-car contacts,
- * then (in a race with damage) each car's impacts and wheels on grass or gravel damage it,
+ * then (in a race with damage) each car's impacts and wheels on grass or gravel damage it: from
+ * the next tick on it drives the worse for it (`damagedParams`, `damagedInput`),
  * then lap timing reads where each car ended up.
  */
 export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): GameState {
   const moved = state.cars.map((car) => {
-    const input = inputs[car.id] ?? NEUTRAL_INPUT;
-    if (input.reset) return resetOnTrack(car, ctx.track);
+    const given = inputs[car.id] ?? NEUTRAL_INPUT;
+    if (given.reset) return resetOnTrack(car, ctx.track);
 
     const { surfaces, effect } = carSurface(ctx.track, car, ctx.surfaceParams);
-    const params = ctx.carParamsById?.[car.id] ?? ctx.carParams;
+    const own = ctx.carParamsById?.[car.id] ?? ctx.carParams;
+    // A damaged car (only with ctx.damage) drives slower, turns and grips less, and may pull.
+    const { damage } = ctx;
+    const params = damage && car.damage ? damagedParams(own, car.damage, damage) : own;
+    const input = damage && car.damage ? damagedInput(given, car.damage, damage) : given;
     const slipstream = slipstreamFactor(car, state.cars, ctx.slipstreamParams);
     const slip = slipstreamEffect(slipstream, ctx.slipstreamParams);
     return {

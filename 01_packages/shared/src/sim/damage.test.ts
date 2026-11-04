@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { CAR_PARAMS } from '../config/car';
 import { DAMAGE_PARAMS as P } from '../config/damage';
 import { toWorld, type Vec2 } from '../math/vec2';
+import { NEUTRAL_INPUT } from '../types/input';
 import { createCar } from './car';
 import type { ImpactEvent } from './collision/types';
 import {
+  damagedInput,
+  damagedParams,
   hitZone,
   impactDamage,
   NO_DAMAGE,
@@ -118,5 +122,65 @@ describe('stepDamage', () => {
       damage: { frontWing: 0.5, rearWing: 0.1, tyres: [0, 0, 0, 0] as const },
     };
     expect(stepDamage(damaged, [], 1 / 60, P)).toBe(damaged.damage);
+  });
+});
+
+describe('damagedParams', () => {
+  const ratio = (damage: CarDamage) => {
+    const d = damagedParams(CAR_PARAMS, damage, P);
+    return {
+      speed: d.maxSpeed / CAR_PARAMS.maxSpeed,
+      turn: d.maxYawRate / CAR_PARAMS.maxYawRate,
+      grip: d.lateralGrip / CAR_PARAMS.lateralGrip,
+    };
+  };
+
+  it('leaves an undamaged car exactly as it is', () => {
+    expect(damagedParams(CAR_PARAMS, NO_DAMAGE, P)).toEqual(CAR_PARAMS);
+  });
+
+  it('a front wing costs turning, a rear wing grip, the tyres a bit of everything', () => {
+    const front = ratio({ ...NO_DAMAGE, frontWing: 1 });
+    expect(front.turn).toBeCloseTo(1 - P.frontWingTurnLoss);
+    expect(front.speed).toBeCloseTo(1 - P.frontWingSpeedLoss);
+    const rear = ratio({ ...NO_DAMAGE, rearWing: 1 });
+    expect(rear.grip).toBeCloseTo(1 - P.rearWingGripLoss);
+    const tyres = ratio({ ...NO_DAMAGE, tyres: [0.5, 0.5, 0.5, 0.5] });
+    expect(tyres.grip).toBeCloseTo(1 - P.tyreGripLoss / 2);
+    expect(tyres.speed).toBeCloseTo(1 - P.tyreSpeedLoss / 2);
+  });
+
+  it('costs more the more damaged, and never goes below the floors', () => {
+    const half = ratio({ frontWing: 0.5, rearWing: 0.5, tyres: [0.5, 0.5, 0.5, 0.5] });
+    const full = ratio({ frontWing: 1, rearWing: 1, tyres: [1, 1, 1, 1] });
+    expect(full.speed).toBeLessThan(half.speed);
+    expect(full.turn).toBeLessThan(half.turn);
+    expect(full.speed).toBeGreaterThanOrEqual(P.minSpeed);
+    expect(full.turn).toBeGreaterThanOrEqual(P.minTurn);
+    expect(full.grip).toBeGreaterThanOrEqual(P.minGrip);
+    const extreme = { ...P, frontWingSpeedLoss: 5, frontWingTurnLoss: 5, frontWingGripLoss: 5 };
+    const floored = damagedParams(CAR_PARAMS, { ...NO_DAMAGE, frontWing: 1 }, extreme);
+    expect(floored.maxSpeed).toBeCloseTo(CAR_PARAMS.maxSpeed * P.minSpeed);
+    expect(floored.lateralGrip).toBeCloseTo(CAR_PARAMS.lateralGrip * P.minGrip);
+  });
+});
+
+describe('damagedInput', () => {
+  it('pulls towards the side with the more damaged tyres', () => {
+    const right = damagedInput(NEUTRAL_INPUT, { ...NO_DAMAGE, tyres: [0, 1, 0, 1] }, P);
+    expect(right.steer).toBeCloseTo(P.tyrePull);
+    const left = damagedInput(NEUTRAL_INPUT, { ...NO_DAMAGE, tyres: [0.5, 0, 0, 0] }, P);
+    expect(left.steer).toBeCloseTo(-P.tyrePull / 4);
+  });
+
+  it('leaves even tyres alone and stays within the steering range', () => {
+    const even = { ...NO_DAMAGE, tyres: [0.7, 0.7, 0.2, 0.2] as const };
+    expect(damagedInput(NEUTRAL_INPUT, even, P)).toBe(NEUTRAL_INPUT);
+    const full = damagedInput(
+      { ...NEUTRAL_INPUT, steer: 1 },
+      { ...NO_DAMAGE, tyres: [0, 1, 0, 1] },
+      P,
+    );
+    expect(full.steer).toBe(1);
   });
 });
