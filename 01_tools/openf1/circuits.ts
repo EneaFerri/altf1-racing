@@ -107,6 +107,14 @@ export interface CircuitConfig {
   /** Distance from the asphalt edge to the wall (m, game scale). */
   readonly runoffWidth: number;
   readonly kerbs: 'corners' | 'everywhere';
+  /** The real pit lane speed limit (km/h; default 80, Monaco's 60): Phase 4, see pitLane.ts. */
+  readonly pitSpeedLimit?: number;
+  /**
+   * The pit lane leaves and rejoins the track at its edge instead of following the real line across
+   * it (Monaco, owner's choice: its real entry leaves La Rascasse sideways and its exit crossed the
+   * whole start straight). See pitLane.ts.
+   */
+  readonly pitLaneAtEdge?: boolean;
   /** Corners made sharper than the real ones, sorted by `at`. */
   readonly sharpCorners?: readonly SharpCorner[];
 
@@ -193,6 +201,8 @@ const MONACO: CircuitConfig = {
   runoffWidth: 3,
   kerbs: 'corners',
   town: true,
+  pitSpeedLimit: 60,
+  pitLaneAtEdge: true,
   // The harbour is on the left from Tabac to La Rascasse.
   stands: [
     { name: 'Tribune B (Casino)', at: 870, length: 50, depth: 10, side: 'left' },

@@ -14,6 +14,8 @@ const p = (x: number, z: number, width: number): TrackPoint => ({ at: vec2(x, z)
  * - Scale 1.011 (real 4643 m), calibrated so the Hard bot laps in the pole time.
  * - Widths: the real ones (12–14 m) × 1.6.
  * - Normal kerbs only (no high kerbs), wider than on the imaginary tracks.
+ * - Pit lane: OSM's `pit_lane`, where it really is along the lap, behind the pit wall beside
+ *   the track (Phase 4, Grand Prix only: 01_docs/pitlane.md).
  */
 export const BARCELONA: TrackDefinition = {
   name: 'Barcelona',
@@ -489,4 +491,48 @@ export const BARCELONA: TrackDefinition = {
     p(15.1, 0, 22.4),
     p(5, 0, 22.4),
   ],
+  pitLane: {
+    side: 'right',
+    fromPoint: 417,
+    toPoint: 58,
+    limit: { from: 89.3, to: 778.3 },
+    speedLimit: 22.47,
+    boxes: [132.3, 218.5, 304.6, 390.7, 476.8, 563, 649.1, 735.2],
+    points: [
+      p(354.52, -132.09, 12.1),
+      p(350.06, -112.17, 12.1),
+      p(337.22, -92.31, 12.1),
+      p(331.43, -74.89, 12.1),
+      p(328.46, -67.53, 12.1),
+      p(325.61, -61.7, 12.1),
+      p(319.93, -53.93, 12.1),
+      p(312.22, -46.22, 12.1),
+      p(306.53, -42.08, 12.1),
+      p(300.01, -38.56, 12.1),
+      p(291.48, -34.32, 12.1),
+      p(285.85, -32.58, 12.1),
+      p(274.92, -29.97, 12.1),
+      p(270.52, -29.43, 12.1),
+      p(261.87, -28.65, 12.1),
+      p(258.05, -28.5, 12.1),
+      p(248.19, -28.31, 12.1),
+      p(141.62, -28.44, 12.1),
+      p(101.96, -28.16, 12.1),
+      p(86.16, -28.04, 12.1),
+      p(66, -28.47, 12.1),
+      p(36, -28.23, 12.1),
+      p(-46, -28.33, 12.1),
+      p(-221.87, -28.09, 12.1),
+      p(-251.72, -28.13, 12.1),
+      p(-261.71, -28.19, 12.1),
+      p(-267.66, -28.61, 12.1),
+      p(-297.94, -28.74, 12.1),
+      p(-317.94, -28.62, 12.1),
+      p(-337.94, -28.13, 12.1),
+      p(-367.94, -27.12, 12.1),
+      p(-430.19, -18.1, 12.1),
+      p(-464.03, -13.28, 12.1),
+      p(-529.99, -4.84, 12.1),
+    ],
+  },
 };

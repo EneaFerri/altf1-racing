@@ -7,7 +7,7 @@ types), no build step; run from the repo root, `<id>` = `monza`, `barcelona`, `m
 ```
 node 01_tools/openf1/fetch.ts <id> [--no-osm]  # download: OpenF1 pole lap (with z) + OSM centreline → data/
 node 01_tools/openf1/profile.ts <id>     # data/<id>.json: centreline, speed, corners, sectors
-node --import ./01_tools/resolveTs.ts 01_tools/openf1/layout.ts <id>     # layout + preview
+node --import ./01_tools/resolveTs.ts 01_tools/openf1/layout.ts <id>     # layout (+ pit lane once the scenery is there) + previews
 node --import ./01_tools/resolveTs.ts 01_tools/openf1/calibrate.ts <id> [scale]
 node --import ./01_tools/resolveTs.ts 01_tools/openf1/scenery.ts <id> [--fetch]  # OSM scenery
 node --import ./01_tools/resolveTs.ts 01_tools/openf1/terrain.ts <id> [--fetch]  # land (EU-DEM), elevation report, Monaco v2's land grid
@@ -24,6 +24,8 @@ extension: `01_tools/resolveTs.ts` (shared with the multiplayer server) lets Nod
 | `generate.ts`  | Profile + adaptation → `TrackDefinition` (used by layout and calibrate)                |
 | `layout.ts`    | Writes `01_packages/shared/src/track/layouts/<id>.ts` and `preview/<id>.png`           |
 | `calibrate.ts` | Finds the scale at which the Hard bot laps in the real pole time                       |
+| `pitLane.ts`   | OSM's pit lane: the real one in order, and the drivable one in the layout (Phase 4)    |
+| `locate.ts`    | Real points on the real circuit: lap fraction, lateral offset, gap beyond the asphalt  |
 | `scenery.ts`   | OSM scenery (+ town layers, stadium) → `data/<id>.scenery.json` → `<id>Layout.ts`      |
 | `terrain.ts`   | EU-DEM land heights → `data/<id>.terrain.json`; elevation report and preview (Phase 3) |
 | `elevation.ts` | `landHeight`, `profileToOsm`, `alignHeights`: the track's heights onto the land        |

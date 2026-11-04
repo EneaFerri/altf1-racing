@@ -14,8 +14,10 @@ import { fileURLToPath } from 'node:url';
 import { buildTrack, locateOnTrack, vec2, type Track } from '../../01_packages/shared/src/index.ts';
 import { circuitById, type Landmark, dataOf } from './circuits.ts';
 import { elevationOf } from './elevation.ts';
-import { generate, toGame, widthAt } from './generate.ts';
-import type { Point } from './geometry.ts';
+import { generate, toGame } from './generate.ts';
+import { realLocator } from './locate.ts';
+import { PIT_LANE_WIDTH, PIT_WALL, realPitLane, wrapped } from './pitLane.ts';
+import { chain, type Point } from './geometry.ts';
 import {
   osmPath,
   osmToProfile,
@@ -59,13 +61,8 @@ const MAX_REACH = 250;
 const MIN_STAND = 12;
 /** Props never stand closer than this beyond the game's wall (m). */
 const MIN_GAP = 3;
-/** Pit lane: width (m, real), and the pit wall between it and the track's wall (m, game). */
-const PIT_LANE_WIDTH = 12;
-const PIT_WALL = 1;
 /** Pit buildings: within this distance of the pit lane (m, real). */
 const PIT_REACH = 80;
-/** Each pit lane point is located within this (plus the step) along the lap of the previous one (m, real). */
-const LANE_FOLLOW = 60;
 /** A footprint's points are located within this distance along the lap of its centre (m, real). */
 const FOOTPRINT_REACH = 200;
 /** Old raceways kept as scenery, by name (Monza's high-speed oval). */
@@ -326,34 +323,9 @@ function writeLayout(): void {
   const track = buildTrack(
     generate(profile, circuit, circuit.scale, elevationOf(circuit, profile)).definition,
   );
-  const stations = profile.stations;
-  const n = stations.length;
+  const n = profile.stations.length;
 
-  /**
-   * Lap fraction, signed lateral offset and gap beyond the real asphalt of a real point; with
-   * `around`, only the stations within `reach` m of that one are searched.
-   */
-  const relative = (p: Point, around?: number, reach = FOOTPRINT_REACH) => {
-    let best = 0;
-    let bestDistance = Infinity;
-    const window = Math.round(reach / profile.spacing);
-    stations.forEach(([x, y], i) => {
-      if (around !== undefined && Math.abs(wrappedIndex(i - around, n)) > window) return;
-      const d = Math.hypot(x - p[0], y - p[1]);
-      if (d < bestDistance) {
-        bestDistance = d;
-        best = i;
-      }
-    });
-    const [ax, ay] = stations[(best - 1 + n) % n]!;
-    const [bx, by] = stations[(best + 1) % n]!;
-    const len = Math.hypot(bx - ax, by - ay);
-    // Right of the driving direction, y north.
-    const lateral =
-      ((p[0] - stations[best]![0]) * (by - ay) - (p[1] - stations[best]![1]) * (bx - ax)) / len;
-    const half = widthAt(circuit.widths, best * profile.spacing, profile.length) / 2;
-    return { index: best, at: best / n, lateral, edgeGap: Math.abs(lateral) - half };
-  };
+  const relative = realLocator(profile, circuit, FOOTPRINT_REACH);
 
   /**
    * Real points → track spots, all moved out by the same amount so the nearest is at least `minGap`
@@ -387,36 +359,7 @@ function writeLayout(): void {
     ps.slice(1).reduce((sum, p, i) => sum + Math.hypot(p[0] - ps[i]![0], p[1] - ps[i]![1]), 0);
 
   // Pit lane and the buildings along it, moved out together past the pit wall.
-  // Its ways (entry, lane, exit) joined into one line, in the driving direction.
-  const laneLine = chain(raw.features.filter((f) => f.kind === 'pitLane').map(real)).reduce(
-    (longest, line) => (line.length > longest.length ? line : longest),
-  );
-  const wrapped = (d: number): number => (((d % 1) + 1.5) % 1) - 0.5;
-  // Each point located near the previous one's station: the lane follows one stretch even where
-  // another runs close on its other side (Monaco's pits, between the start straight and the Piscine).
-  const follow = (ps: readonly Point[]) => {
-    const out: ReturnType<typeof relative>[] = [];
-    ps.forEach((p, i) => {
-      if (i === 0) return out.push(relative(p));
-      const step = Math.hypot(p[0] - ps[i - 1]![0], p[1] - ps[i - 1]![1]);
-      return out.push(relative(p, out[i - 1]!.index, LANE_FOLLOW + step));
-    });
-    return out;
-  };
-  const laneAt = follow(laneLine).map((r) => r.at);
-  const forward = laneAt.slice(1).reduce((sum, at, i) => sum + wrapped(at - laneAt[i]!), 0) > 0;
-  const ordered = forward ? laneLine : [...laneLine].reverse();
-  // Points running back along the lap (a spur into the garages) are left out.
-  const orderedRel = follow(ordered);
-  const keep = orderedRel.map(() => true);
-  let last = orderedRel[0]!.at;
-  orderedRel.forEach((r, i) => {
-    if (i > 0 && wrapped(r.at - last) < -0.002) keep[i] = false;
-    else last = r.at;
-  });
-  const laneReal = ordered.filter((_, i) => keep[i]);
-  const laneRel = orderedRel.filter((_, i) => keep[i]);
-  const laneSide = Math.sign(laneRel.reduce((sum, r) => sum + r.lateral, 0));
+  const { points: laneReal, located: laneRel, side: laneSide } = realPitLane(profile, circuit, raw);
   const laneHalf = (PIT_LANE_WIDTH * circuit.scale) / 2;
   const laneGaps = laneRel.map((r) => Math.max(0, r.edgeGap) * circuit.scale - circuit.runoffWidth);
   const laneShift = PIT_WALL + laneHalf - Math.min(...laneGaps);
@@ -1368,34 +1311,6 @@ function insidePolygon([x, z]: Point, polygon: readonly Point[]): boolean {
   return inside;
 }
 
-/** Joins ways sharing end points (within 3 m) into continuous lines. */
-function chain(ways: Point[][]): Point[][] {
-  const rest = ways.filter((w) => w.length >= 2).map((w) => [...w]);
-  const lines: Point[][] = [];
-  const close = (a: Point, b: Point): boolean => Math.hypot(a[0] - b[0], a[1] - b[1]) < 3;
-  while (rest.length > 0) {
-    let line = rest.shift()!;
-    for (let grown = true; grown;) {
-      grown = false;
-      for (let i = 0; i < rest.length; i++) {
-        const w = rest[i]!;
-        const end = line[line.length - 1]!;
-        const start = line[0]!;
-        if (close(end, w[0]!)) line = [...line, ...w.slice(1)];
-        else if (close(end, w[w.length - 1]!)) line = [...line, ...[...w].reverse().slice(1)];
-        else if (close(start, w[w.length - 1]!)) line = [...w.slice(0, -1), ...line];
-        else if (close(start, w[0]!)) line = [...[...w].reverse().slice(0, -1), ...line];
-        else continue;
-        rest.splice(i, 1);
-        grown = true;
-        break;
-      }
-    }
-    lines.push(line);
-  }
-  return lines;
-}
-
 /** Points every `step` m along an open polyline. */
 function resample(line: readonly Point[], step: number): Point[] {
   const out: Point[] = [line[0]!];
@@ -1412,11 +1327,6 @@ function resample(line: readonly Point[], step: number): Point[] {
     carry = len - (at - step);
   }
   return out;
-}
-
-/** A station index difference brought into (-n/2, n/2]: the short way round the lap. */
-function wrappedIndex(d: number, n: number): number {
-  return (((d % n) + n + n / 2) % n) - n / 2;
 }
 
 function round(value: number, digits = 1): number {

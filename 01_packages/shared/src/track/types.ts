@@ -29,6 +29,29 @@ export interface TrackBranch {
   readonly points: readonly TrackPoint[];
 }
 
+/**
+ * A real circuit's pit lane (Phase 4: drivable in the Grand Prix only; generated from OSM by
+ * 01_tools/openf1, see 01_docs/pitlane.md). A road leaving the main loop after `fromPoint` and
+ * rejoining it before `toPoint`; it may cross the start line (then `fromPoint` > `toPoint`).
+ * Positions along it are metres along its centreline (the polyline from `fromPoint` through
+ * `points` to `toPoint`): unambiguous even where it runs across the lap (Monaco's entry).
+ */
+export interface PitLaneDefinition {
+  /** The side of the track it lies on. */
+  readonly side: TrackSide;
+  /** Main-loop control points it leaves after and rejoins before. */
+  readonly fromPoint: number;
+  readonly toPoint: number;
+  /** Its centreline between them, in driving order; `width` = the lane's. */
+  readonly points: readonly TrackPoint[];
+  /** The speed-limited stretch, between the pit entry and exit lines (m along the lane). */
+  readonly limit: { readonly from: number; readonly to: number };
+  /** Speed limit there (m/s). */
+  readonly speedLimit: number;
+  /** Each player's box, in order (m along the lane, inside `limit`). */
+  readonly boxes: readonly number[];
+}
+
 /** Hand-authored track data. Compiled into a `Track` by `buildTrack`. See 01_docs/track.md. */
 export interface TrackDefinition {
   readonly name: string;
@@ -57,6 +80,8 @@ export interface TrackDefinition {
    * Left out: TRACK_RULES.kerbInset / kerbOutset. Real circuits use wider kerbs.
    */
   readonly kerbBand?: { readonly inset: number; readonly outset: number };
+  /** Real circuits: the pit lane (only the Grand Prix drives it; elsewhere it is scenery). */
+  readonly pitLane?: PitLaneDefinition;
 }
 
 export interface TrackSample {
@@ -102,6 +127,13 @@ export interface BranchSpan {
   readonly to: number;
   readonly mainFrom: number;
   readonly mainTo: number;
+  /**
+   * Main-loop progress at the route's own distance 0: 0 for a branch (its route starts on the
+   * line); the pit lane's route starts where it rejoins, so it can cross the line.
+   */
+  readonly start: number;
+  /** The main loop's length, to wrap progress over the line. */
+  readonly mainLength: number;
 }
 
 /** Compiled, immutable track used by both Model and View. Static: never part of GameState. */
@@ -135,4 +167,6 @@ export interface Track {
   readonly routes: readonly Track[];
   /** On a route: where its branch runs. Absent on the main loop. */
   readonly branch?: BranchSpan;
+  /** On a route: true for the pit lane's (Phase 4, `buildTrack(…, { pitLane: true })`). */
+  readonly pit?: boolean;
 }

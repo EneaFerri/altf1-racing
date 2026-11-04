@@ -18,6 +18,8 @@ const p = (x: number, z: number, width: number, height: number): TrackPoint => (
  * - Scale 1.133 (real 3281 m), calibrated so the Hard bot laps in the pole time.
  * - Widths: the real ones (8–12 m) × 1.2.
  * - Normal kerbs only (no high kerbs), wider than on the imaginary tracks.
+ * - Pit lane: OSM's `pit_lane`, where it really is along the lap, behind the pit wall beside
+ *   the track (Phase 4, Grand Prix only: 01_docs/pitlane.md).
  * - Heights (m): the pole lap's (OpenF1 z) on the land (EU-DEM 25 m), in real metres.
  *   Phase 3 (01_docs/elevation.md).
  */
@@ -358,4 +360,39 @@ export const MONACO_V2: TrackDefinition = {
     p(-2.4, 22.5, 14.4, 5.02),
     p(-1.1, 11.2, 14.4, 5.03),
   ],
+  pitLane: {
+    side: 'right',
+    fromPoint: 286,
+    toPoint: 2,
+    limit: { from: 49.8, to: 360.5 },
+    speedLimit: 18.88,
+    boxes: [110, 137.2, 164.4, 191.5, 218.7, 245.9, 273.1, 300.3],
+    points: [
+      p(86.09, 386.65, 13.6, 5.57),
+      p(81.74, 384.07, 13.6, 5.83),
+      p(78.5, 380.67, 13.6, 6.07),
+      p(76.84, 376.04, 13.6, 6.07),
+      p(76.38, 370.14, 13.6, 6.07),
+      p(76.14, 362.75, 13.6, 6.07),
+      p(74.82, 353.07, 13.6, 5.74),
+      p(71.26, 340.33, 13.6, 5.63),
+      p(65.18, 324.89, 13.6, 5.41),
+      p(57.49, 308.07, 13.6, 5.3),
+      p(50.34, 289.51, 13.6, 5.22),
+      p(43.15, 266.05, 13.6, 5.16),
+      p(38.63, 240.86, 13.6, 5.06),
+      p(35.82, 221.51, 13.6, 5.08),
+      p(32.8, 195.98, 13.6, 5.1),
+      p(29.84, 170.61, 13.6, 5.04),
+      p(26.9, 145.61, 13.6, 5.01),
+      p(23.9, 120.95, 13.6, 5.06),
+      p(20.86, 96.35, 13.6, 5.08),
+      p(17.96, 72.78, 13.6, 5.06),
+      p(15.48, 53.06, 13.6, 5.01),
+      p(13.66, 39.22, 13.6, 5.01),
+      p(12.61, 30.24, 13.6, 5.01),
+      p(12.25, 23.58, 13.6, 5.02),
+      p(12.27, 17.55, 13.6, 5.03),
+    ],
+  },
 };

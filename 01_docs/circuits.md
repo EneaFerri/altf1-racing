@@ -238,7 +238,8 @@ One circuit per step (Phase 2.4, [roadmap.md](roadmap.md)). Every circuit is off
    `lineDirection` from the PNG; sharp corners, stadiums, hand-placed grandstands, surroundings or
    town layers if it needs them.
 3. `fetch` → `profile` → `layout` → `calibrate` (scale back into `circuits.ts`) → `layout` →
-   `scenery --fetch` (README); check `preview/<id>.png` against the PNG.
+   `scenery --fetch` → `layout` once more, now with the pit lane (README); check `preview/<id>.png`
+   against the PNG and `preview/<id>-pitlane.png` ([pitlane.md](pitlane.md)).
 4. Shared: export the layout in `track/layouts/index.ts` and add it to `TRACKS` (single player)
    and `GP_TRACKS` (online: Free practice, Time trial, Grand Prix; the server's rooms follow).
 5. Client: `themes/<id>.ts` (`realCircuitTheme`), mapped in `themes/theme.ts`.

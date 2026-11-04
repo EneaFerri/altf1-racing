@@ -60,3 +60,31 @@ export function smoothClosed(points: readonly Point[], radius: number): Point[] 
     return [x / (2 * radius + 1), y / (2 * radius + 1)];
   });
 }
+
+/** Joins ways sharing end points (within 3 m) into continuous lines. */
+export function chain(ways: Point[][]): Point[][] {
+  const rest = ways.filter((w) => w.length >= 2).map((w) => [...w]);
+  const lines: Point[][] = [];
+  const close = (a: Point, b: Point): boolean => Math.hypot(a[0] - b[0], a[1] - b[1]) < 3;
+  while (rest.length > 0) {
+    let line = rest.shift()!;
+    for (let grown = true; grown;) {
+      grown = false;
+      for (let i = 0; i < rest.length; i++) {
+        const w = rest[i]!;
+        const end = line[line.length - 1]!;
+        const start = line[0]!;
+        if (close(end, w[0]!)) line = [...line, ...w.slice(1)];
+        else if (close(end, w[w.length - 1]!)) line = [...line, ...[...w].reverse().slice(1)];
+        else if (close(start, w[w.length - 1]!)) line = [...w.slice(0, -1), ...line];
+        else if (close(start, w[0]!)) line = [...[...w].reverse().slice(0, -1), ...line];
+        else continue;
+        rest.splice(i, 1);
+        grown = true;
+        break;
+      }
+    }
+    lines.push(line);
+  }
+  return lines;
+}

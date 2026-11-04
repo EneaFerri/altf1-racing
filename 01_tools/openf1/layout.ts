@@ -1,16 +1,26 @@
 /**
  * Writes a circuit's game layout (`01_packages/shared/src/track/layouts/<id>.ts`) from its profile
  * and its adaptation in circuits.ts, plus a preview seen from above (`preview/<id>.png`,
- * git-ignored) to compare with the owner's reference PNG.
+ * git-ignored) to compare with the owner's reference PNG. With the OSM scenery downloaded
+ * (scenery.ts), also the pit lane (pitLane.ts) and its own preview (`preview/<id>-pitlane.png`).
  * Usage: node --import ./01_tools/resolveTs.ts 01_tools/openf1/layout.ts <id>
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildTrack } from '../../01_packages/shared/src/index.ts';
 import { circuitById, widthFactorOf, dataOf } from './circuits.ts';
 import { elevationOf } from './elevation.ts';
 import { generate } from './generate.ts';
-import { layoutPath, profilePath, readJson, type CircuitProfile } from './openf1.ts';
+import {
+  layoutPath,
+  profilePath,
+  readJson,
+  sceneryPath,
+  type CircuitProfile,
+  type RawScenery,
+} from './openf1.ts';
+import { pitLaneOf } from './pitLane.ts';
 import { Canvas, type Rgb } from './png.ts';
 
 const circuit = circuitById(process.argv[2] ?? '');
@@ -22,6 +32,20 @@ const { definition, stations, adapted } = generate(
   elevationOf(circuit, profile),
 );
 
+const track = buildTrack(definition);
+const pit = existsSync(sceneryPath(dataOf(circuit)))
+  ? pitLaneOf(
+      circuit,
+      profile,
+      readJson<RawScenery>(sceneryPath(dataOf(circuit))),
+      track,
+      definition,
+    )
+  : null;
+const elevated = definition.points[0]!.height !== undefined;
+const point = (p: { at: { x: number; z: number }; width: number; height?: number }): string =>
+  `p(${p.at.x}, ${p.at.z}, ${p.width}${elevated ? `, ${p.height}` : ''})`;
+
 const time = (s: number): string =>
   s >= 60 ? `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}` : s.toFixed(3);
 const pole = profile.pole;
@@ -32,7 +56,7 @@ const lines = [
   `import { vec2 } from '../../math/vec2';`,
   `import type { TrackDefinition, TrackPoint } from '../types';`,
   ``,
-  definition.points[0]!.height === undefined
+  !elevated
     ? `const p = (x: number, z: number, width: number): TrackPoint => ({ at: vec2(x, z), width });`
     : `const p = (x: number, z: number, width: number, height: number): TrackPoint => ({\n  at: vec2(x, z),\n  width,\n  height,\n});`,
   ``,
@@ -45,6 +69,12 @@ const lines = [
   ` * - Scale ${circuit.scale} (real ${Math.round(profile.length)} m), calibrated so the Hard bot laps in the pole time.`,
   ` * - Widths: the real ones (${circuit.widthRange.join('–')} m) × ${widthFactorOf(circuit)}.`,
   ` * - Normal kerbs only (no high kerbs), wider than on the imaginary tracks.`,
+  ...(pit
+    ? [
+        ` * - Pit lane: OSM's \`pit_lane\`, where it really is along the lap, behind the pit wall beside`,
+        ` *   the track (Phase 4, Grand Prix only: 01_docs/pitlane.md).`,
+      ]
+    : []),
   ...(circuit.elevation
     ? [
         ` * - Heights (m): the pole lap's (OpenF1 z) on the land (EU-DEM 25 m), in real metres.`,
@@ -61,11 +91,23 @@ const lines = [
   `  sectorPoints: [${definition.sectorPoints!.join(', ')}],`,
   `  highKerbs: [],`,
   `  points: [`,
-  ...definition.points.map(
-    (p) =>
-      `    p(${p.at.x}, ${p.at.z}, ${p.width}${p.height === undefined ? '' : `, ${p.height}`}),`,
-  ),
+  ...definition.points.map((p) => `    ${point(p)},`),
   `  ],`,
+  ...(pit
+    ? [
+        `  pitLane: {`,
+        `    side: '${pit.definition.side}',`,
+        `    fromPoint: ${pit.definition.fromPoint},`,
+        `    toPoint: ${pit.definition.toPoint},`,
+        `    limit: { from: ${pit.definition.limit.from}, to: ${pit.definition.limit.to} },`,
+        `    speedLimit: ${pit.definition.speedLimit},`,
+        `    boxes: [${pit.definition.boxes.join(', ')}],`,
+        `    points: [`,
+        ...pit.definition.points.map((p) => `      ${point(p)},`),
+        `    ],`,
+        `  },`,
+      ]
+    : []),
   `};`,
   ``,
 ];
@@ -119,3 +161,91 @@ console.log(
     `${definition.sectorPoints!.join(' / ')}; ${adapted.moved} stations moved for the game's limits ` +
     `(rounds: radius ${adapted.radiusRounds}, separation ${adapted.separationRounds}, folds ${adapted.foldRounds})`,
 );
+
+if (pit) {
+  // The lane's own walls never fold back (a turn tighter than half its width would).
+  const withLane = buildTrack({ ...definition, pitLane: pit.definition }, { pitLane: true });
+  const laneRoad = withLane.routes.find((r) => r.pit)!;
+  const folds = withLane.walls.filter((w) => {
+    if (w.route < 0) return false;
+    const t = laneRoad.samples[w.sample]!.tangent;
+    return (w.b.x - w.a.x) * t.x + (w.b.z - w.a.z) * t.z < 0;
+  }).length;
+  console.log(`  pit lane walls folding back: ${folds}`);
+  // The pit lane close up: the track's walls (grey), the lane's edges (blue), its speed-limited
+  // stretch (orange), the boxes (red), where it leaves and rejoins (green); conflicts in magenta.
+  const lane = pit.definition;
+  const all = [
+    definition.points[lane.fromPoint]!.at,
+    ...lane.points.map((p) => p.at),
+    definition.points[lane.toPoint]!.at,
+  ];
+  const margin = 60;
+  const minX = Math.min(...all.map((p) => p.x)) - margin;
+  const minZ = Math.min(...all.map((p) => p.z)) - margin;
+  const width = Math.max(...all.map((p) => p.x)) + margin - minX;
+  const height = Math.max(...all.map((p) => p.z)) + margin - minZ;
+  const size = 1400;
+  const kp = size / Math.max(width, height);
+  const px = (x: number, z: number): [number, number] => [(x - minX) * kp, (z - minZ) * kp];
+  const pits = new Canvas(Math.ceil(width * kp), Math.ceil(height * kp), [255, 255, 255]);
+  for (const wall of track.walls) {
+    pits.line(...px(wall.a.x, wall.a.z), ...px(wall.b.x, wall.b.z), [120, 120, 130], 1);
+  }
+  const half = lane.points[0]!.width / 2;
+  all.forEach((a, i) => {
+    const b = all[i + 1];
+    if (!b) return;
+    const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    const nx = -(b.z - a.z) / len;
+    const nz = (b.x - a.x) / len;
+    for (const side of [-1, 1]) {
+      pits.line(
+        ...px(a.x + nx * side * half, a.z + nz * side * half),
+        ...px(b.x + nx * side * half, b.z + nz * side * half),
+        [30, 90, 220],
+        1,
+      );
+    }
+    pits.line(...px(a.x, a.z), ...px(b.x, b.z), [180, 200, 240], 1);
+  });
+  /** The point `d` m along the lane (boxes and limit lines are along it). */
+  const spot = (d: number, color: [number, number, number], r: number): void => {
+    const { along } = pit;
+    const k = along.findIndex((a, m) => m + 1 < along.length && d >= a && d <= along[m + 1]!);
+    if (k < 0) return;
+    const f = (d - along[k]!) / (along[k + 1]! - along[k]! || 1);
+    const a = lane.points[k]!.at;
+    const b = lane.points[k + 1]!.at;
+    pits.dot(...px(a.x + (b.x - a.x) * f, a.z + (b.z - a.z) * f), color, r);
+  };
+  spot(lane.limit.from, [240, 140, 0], 7);
+  spot(lane.limit.to, [240, 140, 0], 7);
+  for (const box of lane.boxes) spot(box, [220, 30, 30], 4);
+  for (const c of pit.conflicts) pits.dot(...px(c.x, c.z), [220, 0, 220], 3);
+  pits.dot(
+    ...px(definition.points[lane.fromPoint]!.at.x, definition.points[lane.fromPoint]!.at.z),
+    [30, 170, 60],
+    7,
+  );
+  pits.dot(
+    ...px(definition.points[lane.toPoint]!.at.x, definition.points[lane.toPoint]!.at.z),
+    [30, 170, 60],
+    7,
+  );
+  pits.dot(...px(definition.points[0]!.at.x, definition.points[0]!.at.z), [0, 0, 0], 5);
+  pits.save(join(preview, `${circuit.id}-pitlane.png`));
+  console.log(
+    `  pit lane: ${lane.side}, ${Math.round(pit.length)} m, ${lane.points.length} points, from point ` +
+      `${lane.fromPoint} to ${lane.toPoint}; limited from ${Math.round(lane.limit.from)} to ${Math.round(lane.limit.to)} m along it at ` +
+      `${Math.round(lane.speedLimit * 3.6)} km/h (game); boxes from the ${pit.boxesFrom}; ` +
+      `${
+        pit.conflicts.length === 0
+          ? 'clear of every other stretch'
+          : `${pit.conflicts.length} points too close to another stretch (worst ${Math.min(...pit.conflicts.map((c) => c.clearance))} m, at ${pit.conflicts
+              .map((c) => c.at)
+              .filter((_, i, a) => i === 0 || i === a.length - 1)
+              .join('–')})`
+      }`,
+  );
+}
