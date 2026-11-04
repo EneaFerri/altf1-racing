@@ -200,7 +200,8 @@ export class GameServer {
     }
     let room = this.rooms.get(key);
     if (!room) {
-      room = new Room(definition);
+      // Only the Grand Prix drives the pit lane (Phase 4); every other mode keeps it as scenery.
+      room = new Room(definition, { pitLane: mode === 'grandPrix' });
       this.rooms.set(key, room);
       this.modes.set(key, mode);
       if (mode === 'grandPrix') this.grandPrix.set(key, new GrandPrix(room));

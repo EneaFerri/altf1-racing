@@ -88,7 +88,7 @@ woods (`landuse=forest`, `natural=wood`) and old raceways (`highway=raceway`) in
 - **Filters**: grandstands shorter than 12 m (kiosks, camera towers) or further than 250 m from the
   real asphalt (a circuit's `standReach`: Mexico City 60 m, its sports park has many) are left
   out, and those a circuit lists in `notStands` (Mexico City: a gym tagged as one).
-- **Pit lane** (12 m real, × scale): decorative behind a 1 m pit wall (drivable later). Its ways
+- **Pit lane** (12 m real, × scale): decorative behind a 1 m pit wall; in the Grand Prix the drivable one ([pitlane.md](pitlane.md)) replaces it. Its ways
   (entry, lane, exit) are joined into one line in the driving direction; each point is located
   near the previous one's station (within 60 m plus the step), so the lane follows one stretch even
   where another runs close on its other side, and points running back are dropped. Only the

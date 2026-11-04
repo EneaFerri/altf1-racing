@@ -147,6 +147,12 @@ export interface DevDamage {
   readonly setPlayerDamage: (damage: CarDamage) => void;
 }
 
+/** The Grand Prix's drivable pit lane in single player: on or off (the page reloads). */
+export interface DevPitLane {
+  readonly on: boolean;
+  readonly set: (on: boolean) => void;
+}
+
 /**
  * Dev-only live tuning (F2). Mutates the params objects the Game feeds to the simulation,
  * so changes apply on the next tick. Loaded via dynamic import only when import.meta.env.DEV.
@@ -163,6 +169,7 @@ export class TuningPanel {
     private readonly cameraParams: CameraParams,
     private readonly botParams: Record<BotLevel, BotParams>,
     private readonly damage: DevDamage,
+    pitLane: DevPitLane,
   ) {
     for (const [title, ranges] of Object.entries(CAR_GROUPS)) {
       const folder = this.gui.addFolder(title);
@@ -226,6 +233,12 @@ export class TuningPanel {
     }
 
     this.addDamageFolder();
+    this.gui
+      .addFolder('Pit lane (Grand Prix)')
+      .close()
+      .add({ on: pitLane.on }, 'on')
+      .name('drivable (reloads)')
+      .onChange((on: boolean) => pitLane.set(on));
 
     this.gui.add({ copy: () => this.copyAsCode() }, 'copy').name('Copy as code');
     this.gui.add({ reset: () => this.reset() }, 'reset').name('Reset to defaults');

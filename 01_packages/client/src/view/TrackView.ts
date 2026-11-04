@@ -13,6 +13,7 @@ import {
   type Track,
   type TrackSample,
   type TrackSide,
+  locateOnLoop,
 } from '@altf1/shared';
 import {
   createArmcoTexture,
@@ -106,9 +107,15 @@ export function createTrackView(track: Track, theme: TrackTheme): THREE.Group {
   group.add(...createRoad(track, track, -1, () => true, theme, materials));
   track.routes.forEach((road, route) => {
     const { from, to } = road.branch!;
+    // The pit lane isn't drawn where it lies on the track's asphalt: there it is the track.
+    const onTrack = (i: number): boolean => {
+      const s = road.samples[i]!;
+      const main = locateOnLoop(track, s.position);
+      return Math.abs(main.lateral) <= main.halfWidth;
+    };
     const onBranch = (i: number): boolean => {
       const d = road.samples[i]!.distance;
-      return d >= from && d <= to;
+      return d >= from && d <= to && !(road.pit && onTrack(i));
     };
     group.add(...createRoad(track, road, route, onBranch, theme, materials));
   });

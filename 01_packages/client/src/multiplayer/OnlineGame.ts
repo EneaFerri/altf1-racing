@@ -71,7 +71,8 @@ export class OnlineGame {
   ) {
     this.playerId = playerId;
     this.ghost = mode === 'timeTrial' ? new Ghost(playerId) : null;
-    const built = buildTrack(track);
+    // Only the Grand Prix drives the pit lane (Phase 4), like the server's room.
+    const built = buildTrack(track, { pitLane: mode === 'grandPrix' });
     this.predictor = new Predictor(playerId, onlineSimContext(built));
     this.grandPrix =
       mode === 'grandPrix'

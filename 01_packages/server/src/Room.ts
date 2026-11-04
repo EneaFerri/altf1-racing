@@ -8,6 +8,7 @@ import {
   repairCars,
   spawnOnGrid,
   stepGame,
+  type BuildOptions,
   type CarId,
   type GameState,
   type InputCommand,
@@ -45,9 +46,10 @@ export class Room {
   /** Cars held on the grid until lights out (a Grand Prix start); null = free to drive. */
   hold: StartHold | null = null;
 
-  constructor(definition: TrackDefinition) {
+  /** `options`: a Grand Prix's room drives the pit lane (`pitLane`). */
+  constructor(definition: TrackDefinition, options: BuildOptions = {}) {
     this.definition = definition;
-    this.track = buildTrack(definition);
+    this.track = buildTrack(definition, options);
     this.ctx = onlineSimContext(this.track);
   }
 

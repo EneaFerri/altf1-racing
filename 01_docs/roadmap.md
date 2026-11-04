@@ -286,18 +286,26 @@ Details (numbers, look, rules) are decided in each step with the owner.
   Grand Prix rooms and only in qualifying and the race (`damageInPhase`): `GrandPrix.setPhase`
   turns the room's damage on or off (off repairs every car), the client's prediction follows the
   phase. Free practice and Time trial unchanged (tested) ([damage.md](damage.md#online-4d)).
-  Waiting for the owner's review.
 
 **Pit lane**
 
-- 4e **Pit lane data** — from OSM's `pit_lane` way into the generated track data (shared, no
-  longer only the theme's): path, real width, entry and exit on the main loop, pit wall, boxes (one
-  per player; the real garages where OSM maps them), the real speed limit (80 km/h, 60 at Monaco).
-  Previews checked against `03_F1Circuits/` and OSM; owner review circuit by circuit if needed.
-- 4f **Drivable pit lane** — `buildTrack` with an option that adds the pit lane as a road (an
-  extension of branches: it crosses the timing line, which reaches across the pit lane), the walls
-  opened at its entry and exit. Only the Grand Prix builds it; every other mode builds the track as
-  today. Cars are located and timed in the pit lane too.
+- 4e ✅ **Pit lane data** — generated from OSM's `pit_lane` into every real circuit's shared layout
+  (`pitLane`, `01_tools/openf1/pitLane.ts`): where it really leaves and rejoins the track, its
+  centreline (the real line over the track, then right behind a 1 m pit wall with the real shape;
+  squeezed where another stretch is too close: Monaco's by the Piscine), the limit lines (where the
+  real lane is beside the track), 8 boxes along the real pit buildings (spread where OSM maps none:
+  Monaco, Mexico City), the real limit × scale (80 km/h, Monaco 60). Positions in metres along the
+  lane. Previews `preview/<id>-pitlane.png`; results in [pitlane.md](pitlane.md).
+- 4f ✅ **Drivable pit lane** — `buildTrack(def, { pitLane: true })`: the pit lane as one more
+  route (it crosses the start line: its route starts where the lane rejoins, progress wraps), its
+  own walls at its edges (pit wall, garages), no kerbs; the track's wall opens where it leaves and
+  rejoins. Built only by the Grand Prix (server rooms and client); every other mode unchanged. The
+  bot never takes it. Drawn with the track (the decorative lane left out there). Dev only: F2 → Pit
+  lane, or `?pitlane`, in single player. Tested on every circuit: open from track to track, a car
+  drives through without touching a wall ([pitlane.md](pitlane.md#drivable-4f)). Owner's test: all
+  fine but Monaco, made cleaner: its entry and exit join at the track's edge, smoothed (no folded
+  walls), and on the track's asphalt the pit lane never wins (none of it on the track). Waiting for
+  the owner's review.
 - 4g **Pit stop** — an automatic limiter between the pit lines; the own box marked; braking into it
   stops the car and holds it (like `StartHold`) for a repair time = base + per damaged part, then
   damage back to zero and release. Pure rules in shared, run by the server and the prediction

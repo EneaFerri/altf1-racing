@@ -54,6 +54,11 @@ const BOT_RESPAWN_DISTANCE = -40;
 const DUMMY_ID = 'dummy';
 /** How far ahead of the player F4 parks the dummy (m). */
 const DUMMY_DISTANCE = 25;
+/**
+ * Dev only: `?pitlane` in the URL builds a real circuit with its drivable pit lane, the Grand
+ * Prix's (F2 → Pit lane sets it and reloads).
+ */
+const PIT_LANE_PARAM = 'pitlane';
 
 /** Wires Model, View and Controller together and drives them with the game loop. */
 export class SinglePlayerGame {
@@ -92,7 +97,11 @@ export class SinglePlayerGame {
   });
 
   constructor(definition: TrackDefinition) {
-    this.track = buildTrack(definition);
+    const devPitLane =
+      import.meta.env.DEV && new URLSearchParams(location.search).has(PIT_LANE_PARAM);
+    this.track = buildTrack(definition, {
+      pitLane: devPitLane && definition.pitLane !== undefined,
+    });
     this.state = createGame(
       this.track,
       import.meta.env.DEV ? [PLAYER_ID, BOT_ID, DUMMY_ID] : [PLAYER_ID, BOT_ID],
@@ -141,6 +150,15 @@ export class SinglePlayerGame {
             params: this.damageParams,
             setEnabled: (on) => this.setDamage(on),
             setPlayerDamage: (damage) => this.setPlayerDamage(damage),
+          },
+          {
+            on: devPitLane,
+            set: (on) => {
+              const url = new URL(location.href);
+              if (on) url.searchParams.set(PIT_LANE_PARAM, '');
+              else url.searchParams.delete(PIT_LANE_PARAM);
+              location.assign(url); // back to the start screen: choose the circuit again
+            },
           },
         );
         this.controller.onAction('toggleTuning', () => panel.toggle());

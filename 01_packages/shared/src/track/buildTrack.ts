@@ -5,21 +5,34 @@ import { sampleClosedSpline } from '../math/spline';
 import { add, headingOf, normalize, right, scale, sub, type Vec2 } from '../math/vec2';
 import { locateOnLoop, routeProgress } from './query';
 import type {
+  BranchSpan,
   KerbKind,
   RunoffKind,
   Track,
+  PitLaneDefinition,
   TrackBranch,
   TrackDefinition,
+  TrackPoint,
   TrackSample,
   TrackSide,
   WallSegment,
 } from './types';
 
+/** What else to build than the track every mode drives. */
+export interface BuildOptions {
+  /**
+   * The drivable pit lane, from `def.pitLane` (Phase 4: the Grand Prix only, 01_docs/pitlane.md):
+   * one more route, after the branches', with its own walls; the track's walls open into it.
+   */
+  readonly pitLane?: boolean;
+}
+
 /**
  * Compiles hand-authored track data into geometry, surfaces and lookup grids. Pure and deterministic.
- * With branches, also compiles one route per branch and outlines all the roads with one set of walls.
+ * With branches, also compiles one route per branch and outlines all the roads with one set of walls;
+ * with `pitLane`, the pit lane's route too.
  */
-export function buildTrack(def: TrackDefinition): Track {
+export function buildTrack(def: TrackDefinition, options: BuildOptions = {}): Track {
   const rules = TRACK_RULES;
   const minWidth = def.minWidth ?? rules.minWidth;
   def.points.forEach(({ width }, i) => {
@@ -51,8 +64,13 @@ export function buildTrack(def: TrackDefinition): Track {
     }
   }
 
+  const lane = options.pitLane ? def.pitLane : undefined;
+  if (options.pitLane && !lane) throw new Error(`${def.name}: no pit lane in its data`);
+  if (lane) checkPitLane(def, lane);
+
   const main = compileLoop(def, -1);
   const routes = (def.branches ?? []).map((branch, r) => compileRoute(def, branch, r, main));
+  if (lane) routes.push(compilePitLane(def, lane, routes.length, main));
   if (routes.length === 0) return { ...main.track, routes: [] };
   const walls = outlineWalls(main.track, routes);
   return {
@@ -96,6 +114,8 @@ function compileRoute(def: TrackDefinition, branch: TrackBranch, route: number, 
     to: sampleAt(fromPoint + branch.points.length + 1, loop).distance,
     mainFrom: sampleAt(fromPoint, main).distance,
     mainTo: sampleAt(toPoint, main).distance,
+    start: 0,
+    mainLength: main.track.length,
   };
   const progress = (d: number): number => routeProgress(span, d);
   return {
@@ -103,6 +123,66 @@ function compileRoute(def: TrackDefinition, branch: TrackBranch, route: number, 
     sectorStarts: main.track.sectorStarts,
     walls: loop.track.walls.map((w) => ({ ...w, progress: progress(w.progress) })),
     branch: span,
+    routes: [],
+  };
+}
+
+function checkPitLane(def: TrackDefinition, lane: PitLaneDefinition): void {
+  const n = def.points.length;
+  const valid = (p: number): boolean => Number.isInteger(p) && p >= 0 && p < n;
+  if (!valid(lane.fromPoint) || !valid(lane.toPoint) || lane.fromPoint === lane.toPoint) {
+    throw new Error(`${def.name}: the pit lane must leave and rejoin at two of the track's points`);
+  }
+  if (lane.points.length < 2 || lane.points.some((p) => !(p.width > 0))) {
+    throw new Error(`${def.name}: the pit lane needs at least two points, each with a width`);
+  }
+}
+
+/**
+ * The pit lane's route: the main loop from where the lane rejoins (`toPoint`) round to where it
+ * leaves (`fromPoint`), then the lane back to the start. Starting there lets it cross the start
+ * line. No run-off (its walls are at its edges: the pit wall on one side, the garages on the
+ * other) and no kerbs.
+ */
+function compilePitLane(
+  def: TrackDefinition,
+  lane: PitLaneDefinition,
+  route: number,
+  main: Loop,
+): Track {
+  const n = def.points.length;
+  const around: TrackPoint[] = [];
+  for (let i = lane.toPoint; ; i = (i + 1) % n) {
+    around.push(def.points[i]!);
+    if (i === lane.fromPoint) break;
+  }
+  const points = [...around, ...lane.points];
+  const loop = compileLoop(
+    { ...def, points, highKerbs: [], sectorPoints: undefined, runoffWidth: 0 },
+    route,
+  );
+  const span: BranchSpan = {
+    from: loop.track.samples[loop.controlIndices[around.length - 1]!]!.distance,
+    to: loop.track.length,
+    mainFrom: main.track.samples[main.controlIndices[lane.fromPoint]!]!.distance,
+    mainTo: main.track.samples[main.controlIndices[lane.toPoint]!]!.distance,
+    start: main.track.samples[main.controlIndices[lane.toPoint]!]!.distance,
+    mainLength: main.track.length,
+  };
+  const onLane = (i: number): boolean => loop.track.samples[i]!.distance >= span.from;
+  const noKerbs = (kerb: readonly KerbKind[]): KerbKind[] =>
+    kerb.map((k, i) => (onLane(i) ? 'none' : k));
+  const { left, right: rightSide } = loop.track.sides;
+  return {
+    ...loop.track,
+    sectorStarts: main.track.sectorStarts,
+    sides: {
+      left: { ...left, kerb: noKerbs(left.kerb) },
+      right: { ...rightSide, kerb: noKerbs(rightSide.kerb) },
+    },
+    walls: loop.track.walls.map((w) => ({ ...w, progress: routeProgress(span, w.progress) })),
+    branch: span,
+    pit: true,
     routes: [],
   };
 }

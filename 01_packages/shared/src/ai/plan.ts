@@ -45,7 +45,9 @@ export function buildBotPlan(
   bot: BotParams,
   slope: SlopeParams = SLOPE_PARAMS,
 ): BotPlan {
-  return planRoad(bot.shortcuts ? (track.routes[0] ?? track) : track, player, bot, slope);
+  // A shortcut, never the pit lane (the bot doesn't stop).
+  const shortcut = track.routes.find((route) => !route.pit);
+  return planRoad(bot.shortcuts ? (shortcut ?? track) : track, player, bot, slope);
 }
 
 /** Braking never counts on less than this share of the planned deceleration (steep descents). */

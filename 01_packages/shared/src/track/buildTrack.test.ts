@@ -3,9 +3,10 @@ import { distance, dot, normalize, sub, vec2 } from '../math/vec2';
 import { TRACK_RULES } from '../config/track';
 import { buildTrack } from './buildTrack';
 import { KRUNCAR } from './layouts/kruncar';
-import { TEST_TRACK, TRACKS } from './layouts';
-import { locateOnTrack, roadOf, surfaceAt } from './query';
+import { GP_TRACKS, TEST_TRACK, TRACKS } from './layouts';
+import { locateOnLoop, locateOnTrack, roadOf, surfaceAt } from './query';
 import type { Track } from './types';
+import type { Vec2 } from '../math/vec2';
 
 /** Kerb sides on a sample that has high kerbs. */
 function highKerbs(track: Track) {
@@ -228,4 +229,88 @@ describe('buildTrack — heights (Phase 3)', () => {
     expect(loc.height).toBeCloseTo(near(Math.round(n / 4)).height, 1);
     expect(loc.grade).toBeGreaterThan(0);
   });
+});
+
+/** Whether segments ab and cd cross. */
+function crosses(a: Vec2, b: Vec2, c: Vec2, d: Vec2): boolean {
+  const side = (p: Vec2, q: Vec2, r: Vec2): number =>
+    Math.sign((q.x - p.x) * (r.z - p.z) - (q.z - p.z) * (r.x - p.x));
+  return side(a, b, c) !== side(a, b, d) && side(c, d, a) !== side(c, d, b);
+}
+
+describe('buildTrack: the pit lane (Phase 4)', () => {
+  it('is built only when asked for, and only where the data has one', () => {
+    expect(buildTrack(GP_TRACKS[0]!).routes.some((route) => route.pit)).toBe(false);
+    expect(() => buildTrack(TEST_TRACK, { pitLane: true })).toThrow(/no pit lane/);
+  });
+
+  describe.each(GP_TRACKS.map((definition) => [definition.name, definition] as const))(
+    '%s',
+    (_name, definition) => {
+      const plain = buildTrack(definition);
+      const track = buildTrack(definition, { pitLane: true });
+      const pit = track.routes.findIndex((route) => route.pit);
+      const road = track.routes[pit]!;
+      // The lane's centreline, from where it leaves the track to where it rejoins it.
+      const lane = [
+        ...road.samples.filter((s) => s.distance >= road.branch!.from).map((s) => s.position),
+        road.samples[0]!.position,
+      ];
+
+      it('leaves the main loop as it was', () => {
+        expect(track.samples).toEqual(plain.samples);
+        expect(track.length).toBe(plain.length);
+      });
+
+      it('is open from the track to the track: no wall across the lane or the main loop', () => {
+        const across = (path: readonly Vec2[]): number =>
+          path
+            .slice(1)
+            .reduce(
+              (n, b, i) => n + track.walls.filter((w) => crosses(path[i]!, b, w.a, w.b)).length,
+              0,
+            );
+        expect(across(lane)).toBe(0);
+        expect(across(track.samples.map((s) => s.position))).toBe(0);
+        // It has walls of its own (the pit wall, the garages' side), without kerbs.
+        expect(track.walls.some((w) => w.route === pit)).toBe(true);
+        const kerbs = (['left', 'right'] as const).flatMap((side) =>
+          road.sides[side].kerb.filter(
+            (k, i) => k !== 'none' && road.samples[i]!.distance >= road.branch!.from,
+          ),
+        );
+        expect(kerbs).toEqual([]);
+      });
+
+      it('has walls that never fold back (no turn tighter than its half-width)', () => {
+        const folded = track.walls.filter((w) => {
+          if (w.route !== pit) return false;
+          const { tangent } = road.samples[w.sample]!;
+          return (w.b.x - w.a.x) * tangent.x + (w.b.z - w.a.z) * tangent.z < 0;
+        });
+        expect(folded).toEqual([]);
+      });
+
+      it('never takes the asphalt of the track itself', () => {
+        for (const s of track.samples) {
+          expect(locateOnTrack(track, s.position).route).toBe(-1);
+        }
+      });
+
+      it('locates cars on it, with progress going forward (over the line too)', () => {
+        const located = lane.map((p) => locateOnTrack(track, p));
+        // Off the track's asphalt every point of the lane is on it (on the asphalt: the track).
+        const offTrack = lane.filter((p) => {
+          const main = locateOnLoop(track, p);
+          return Math.abs(main.lateral) > main.halfWidth;
+        });
+        expect(offTrack.length / lane.length).toBeGreaterThan(0.8);
+        expect(offTrack.every((p) => locateOnTrack(track, p).route === pit)).toBe(true);
+        located.slice(1).forEach((loc, i) => {
+          const step = (loc.distance - located[i]!.distance + 1.5 * track.length) % track.length;
+          expect(step - track.length / 2).toBeGreaterThan(-0.5);
+        });
+      });
+    },
+  );
 });

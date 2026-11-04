@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import { locateOnTrack, type Track, type TrackSide, type Vec2 } from '@altf1/shared';
+import { dot, locateOnTrack, type Track, type TrackSide, type Vec2 } from '@altf1/shared';
 import { createGrandstand, createPitBuilding, face, GRANDSTAND_REACH } from '../scenery/buildings';
 import { createCasino, createChapel, createDome } from '../scenery/landmarks';
 import { createMountains } from '../scenery/nature';
@@ -140,11 +140,13 @@ function wallsByPlace(
     ...scenery.stands.flatMap((s) => stretchOf(s.footprint, margin)),
     ...stretchOf(scenery.pitLane.path, margin),
   ];
-  const n = track.samples.length;
   return (index) => {
     const wall = track.walls[index]!;
-    // `track.walls` holds the left side's segments, then the right's.
-    const side: TrackSide = index < n ? 'left' : 'right';
+    // The pit lane's own walls (Grand Prix): its pit wall and the garages' side.
+    if (wall.route >= 0) return 'concrete';
+    // A right-hand wall faces left, towards the track.
+    const side: TrackSide =
+      dot(wall.normal, track.samples[wall.sample]!.normal) < 0 ? 'right' : 'left';
     const at = wall.progress / track.length;
     if (concrete.some((s) => s.side === side && at >= s.from && at <= s.to)) return 'concrete';
     if (track.sides[side].runoff[wall.sample] === 'gravel') return 'tyres';
@@ -216,17 +218,36 @@ function buildScenery(
       keepClear.push(cover(box));
     }
   }
+  // The pit lane drivable in the Grand Prix (a road of the track, drawn with it): its footprint.
+  const drivable = track.routes.find((route) => route.pit);
+  const laneSamples = drivable?.samples.filter((s) => s.distance >= drivable.branch!.from) ?? [];
+  const laneFootprint = (margin: number): Circle[] =>
+    polylineFootprint(
+      laneSamples.map((s) => s.position),
+      Math.max(...laneSamples.map((s) => s.halfWidth)) + margin,
+      4,
+    );
+  const onLane = laneFootprint(1);
   for (const building of scenery.pitBuildings) {
     const box = footprintBox(track, building);
+    // Placed beside the scenery's lane: one that would stand on the drivable lane is left out.
+    if (boxCorners(box).some((c) => onLane.some((o) => Math.hypot(c.x - o.x, c.z - o.z) < o.r))) {
+      continue;
+    }
     const height = box.length > 150 ? 9 : 6;
     const pit = createPitBuilding(box.length, Math.max(8, box.depth), height);
     objects.push(standOn(placeOn(pit, box), box));
     keepClear.push(cover(box));
   }
 
+  // The pit lane: drivable in the Grand Prix (drawn with the track), else scenery.
   const { pitLane } = scenery;
-  objects.push(draped(createPitLane(track, pitLane.path, pitLane.width)));
-  keepClear.push(...polylineFootprint(alongTrack(track, pitLane.path, 8), pitLane.width / 2 + 4));
+  if (drivable) {
+    keepClear.push(...laneFootprint(4));
+  } else {
+    objects.push(draped(createPitLane(track, pitLane.path, pitLane.width)));
+    keepClear.push(...polylineFootprint(alongTrack(track, pitLane.path, 8), pitLane.width / 2 + 4));
+  }
 
   if (scenery.oval.length > 0) {
     objects.push(createOldRaceway(track, scenery.oval, scenery.ovalWidth));

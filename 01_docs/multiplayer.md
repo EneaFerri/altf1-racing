@@ -369,6 +369,9 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   damage on or off (`Room.setDamage`; off repairs every car). The client's `Predictor` follows the
   phase of each `grandPrix` message (`setDamage`), and the snapshots carry each car's `damage`.
   Free practice and Time trial never have it. Rules and numbers: [damage.md](damage.md).
+- **Pit lane** (Phase 4, 4f ✅): a Grand Prix room's track has its drivable pit lane
+  (`new Room(definition, { pitLane: true })`), and so does the client's in that mode; no protocol
+  change (both build it from the same data). Rules: [pitlane.md](pitlane.md).
 - **Reset**: when the last player leaves, the room and its Grand Prix are dropped; the next player
   in opens a new one, in the lobby. After a race, Play again starts a new one in the same room.
 

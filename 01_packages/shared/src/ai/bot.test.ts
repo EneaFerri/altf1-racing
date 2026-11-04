@@ -173,6 +173,19 @@ describe('bot', () => {
     },
   );
 
+  it('never takes the pit lane (Grand Prix track, Phase 4), and still laps cleanly', () => {
+    const withPits = buildTrack(MONZA, { pitLane: true });
+    const run = drive(
+      'hard',
+      (withPits.length / track.length) * 60,
+      createGame(withPits, ['bot']),
+      withPits,
+    );
+    expect(run.branchTicks).toBe(0);
+    expect(run.wallHits).toBe(0);
+    expect(findLap(run.state, 'bot')!.laps).toBeGreaterThanOrEqual(1);
+  });
+
   it('takes the Kruncar shortcut on hard only', () => {
     expect(kruncar.hard.branchTicks).toBeGreaterThan(20 * TICK_RATE);
     expect(kruncar.medium.branchTicks).toBeLessThan(TICK_RATE);

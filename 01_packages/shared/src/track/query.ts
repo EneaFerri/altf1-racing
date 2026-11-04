@@ -26,11 +26,15 @@ export interface TrackLocation {
 
 /**
  * Where `p` is on the track: the closest centreline point of the road it is most inside (main
- * loop, or a branch: see `Track.routes`), with progress measured along the main loop.
+ * loop, or a branch: see `Track.routes`), with progress measured along the main loop. On the main
+ * loop's asphalt the pit lane never wins: where they meet, the track is the track.
  */
 export function locateOnTrack(track: Track, p: Vec2): TrackLocation {
-  let best = locateOnLoop(track, p);
+  const main = locateOnLoop(track, p);
+  const onMainAsphalt = Math.abs(main.lateral) <= main.halfWidth;
+  let best = main;
   track.routes.forEach((road, route) => {
+    if (road.pit && onMainAsphalt) return;
     const loc = locateOnLoop(road, p);
     const branch = road.branch!;
     if (loc.distance < branch.from || loc.distance > branch.to) return;
@@ -41,11 +45,16 @@ export function locateOnTrack(track: Track, p: Vec2): TrackLocation {
   return best;
 }
 
-/** Main-loop progress of distance `d` along a route: linear across its branch, offset after it. */
+/**
+ * Main-loop progress of distance `d` along a route: the same as the main loop's before its branch
+ * (from `start`), linear across it, offset after it; wrapped over the line (the pit lane crosses it).
+ */
 export function routeProgress(span: BranchSpan, d: number): number {
-  if (d <= span.from) return d;
-  if (d >= span.to) return d - span.to + span.mainTo;
-  return span.mainFrom + ((d - span.from) / (span.to - span.from)) * (span.mainTo - span.mainFrom);
+  const wrap = (x: number): number => ((x % span.mainLength) + span.mainLength) % span.mainLength;
+  if (d <= span.from) return wrap(span.start + d);
+  if (d >= span.to) return wrap(d - span.to + span.mainTo);
+  const mainSpan = wrap(span.mainTo - span.mainFrom);
+  return wrap(span.mainFrom + ((d - span.from) / (span.to - span.from)) * mainSpan);
 }
 
 /** The road `route` of `track` (-1 = the main loop itself). */

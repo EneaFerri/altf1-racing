@@ -135,6 +135,9 @@ loop keeps the 24 m minimum.
   unchanged. `locateOnLoop` ignores branches (one road only).
 - The bot drives one road: see [bot.md](bot.md) (`shortcuts`).
 
+The real circuits' pit lanes (Phase 4, Grand Prix only) are routes too, built on request and
+allowed over the start line: [pitlane.md](pitlane.md#drivable-4f).
+
 ## Kruncar (`track/layouts/kruncar.ts`)
 
 "Kruncar", ~2.56 km (main loop; ~2.52 km through the shortcut), clockwise, **24–32 m wide** (14 m on

@@ -4,8 +4,9 @@ import { COLLISION_PARAMS } from '../config/collision';
 import { DAMAGE_PARAMS } from '../config/damage';
 import { SLIPSTREAM_PARAMS } from '../config/slipstream';
 import { SURFACE_PARAMS } from '../config/surfaces';
-import { distance, dot, forward, headingOf, scale, add } from '../math/vec2';
+import { distance, dot, forward, headingOf, right, scale, sub, add } from '../math/vec2';
 import { buildTrack } from '../track/buildTrack';
+import { GP_TRACKS } from '../track/layouts';
 import { TEST_TRACK } from '../track/layouts/testTrack';
 import { gridSlot, locateOnTrack } from '../track/query';
 import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
@@ -327,3 +328,53 @@ describe('stepGame — damage', () => {
     expect(repairCars(clean)).toBe(clean);
   });
 });
+
+describe.each(GP_TRACKS.map((d) => [d.name, d] as const))(
+  'stepGame — pit lane of %s',
+  (_n, def) => {
+    it('drives from the track through the pit lane back onto it without touching a wall', () => {
+      const pits = buildTrack(def, { pitLane: true });
+      const road = pits.routes.find((route) => route.pit)!;
+      const { mainFrom, mainTo, from } = road.branch!;
+      // 80 m of the track before the lane, the lane, 80 m of the track after it.
+      const stretch = (start: number, sign: 1 | -1) =>
+        pits.samples
+          .map((s) => ({ s, d: (sign * (s.distance - start) + pits.length) % pits.length }))
+          .filter(({ d }) => d > 0 && d < 80)
+          .sort((a, b) => sign * (a.d - b.d))
+          .map(({ s }) => s.position);
+      const path = [
+        ...stretch(mainFrom, -1),
+        ...road.samples.filter((s) => s.distance >= from).map((s) => s.position),
+        ...stretch(mainTo, 1),
+      ];
+      const pitCtx: SimContext = { ...ctx, track: pits };
+      const heading = headingOf(sub(path[3]!, path[0]!));
+      let state = createGame(pits, ['p1']);
+      state = {
+        ...state,
+        cars: [
+          { ...state.cars[0]!, position: path[0]!, heading, velocity: scale(forward(heading), 15) },
+        ],
+      };
+      let next = 0;
+      let contacts = 0;
+      for (let tick = 0; tick < 120 * 60 && next < path.length - 5; tick++) {
+        const car = state.cars[0]!;
+        while (next < path.length - 1 && distance(path[next]!, car.position) < 8) next++;
+        const to = sub(path[next]!, car.position);
+        const error = Math.atan2(dot(to, right(car.heading)), dot(to, forward(car.heading)));
+        const speed = Math.hypot(car.velocity.x, car.velocity.z);
+        const input = {
+          ...NEUTRAL_INPUT,
+          steer: Math.max(-1, Math.min(1, error * 2.5)),
+          throttle: speed < 15 ? 1 : 0,
+        };
+        state = stepGame(state, { p1: input }, pitCtx);
+        contacts += state.impacts.length;
+      }
+      expect(next).toBeGreaterThanOrEqual(path.length - 5);
+      expect(contacts).toBe(0);
+    });
+  },
+);
