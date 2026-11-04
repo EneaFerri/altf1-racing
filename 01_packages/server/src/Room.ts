@@ -61,8 +61,13 @@ export class Room {
   /** Damage on or off from the next tick (the Grand Prix's phases); off repairs every car. */
   setDamage(on: boolean): void {
     if (on === this.damage) return;
-    this.ctx = onlineSimContext(this.track, on);
+    this.ctx = onlineSimContext(this.track, { damage: on, pitBoxes: this.ctx.pit?.boxes });
     if (!on) this.current = repairCars(this.current);
+  }
+
+  /** Each driver's pit box (a Grand Prix room, whose track has the pit lane). */
+  setPitBoxes(boxes: Readonly<Record<CarId, number>>): void {
+    this.ctx = onlineSimContext(this.track, { damage: this.damage, pitBoxes: boxes });
   }
 
   /** No players left (cars out of the race still count: their players are watching). */

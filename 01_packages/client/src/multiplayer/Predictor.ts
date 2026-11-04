@@ -74,7 +74,26 @@ export class Predictor {
    * `damageInPhase`). The snapshots bring the damage itself; this only predicts it in between.
    */
   setDamage(on: boolean): void {
-    this.sim = on ? { ...this.ctx, damage: DAMAGE_PARAMS } : this.ctx;
+    this.damage = on;
+    this.rebuild();
+  }
+
+  /** Each driver's pit box, as the server's room has them (a Grand Prix with its pit lane). */
+  setPitBoxes(boxes: Readonly<Record<CarId, number>>): void {
+    this.boxes = boxes;
+    this.rebuild();
+  }
+
+  private damage = false;
+  private boxes: Readonly<Record<CarId, number>> = {};
+
+  private rebuild(): void {
+    const { pit } = this.ctx;
+    this.sim = {
+      ...this.ctx,
+      ...(this.damage && { damage: DAMAGE_PARAMS }),
+      ...(pit && { pit: { ...pit, boxes: this.boxes } }),
+    };
   }
 
   /** One client tick: input number `seq` (also sent to the server) moves the predicted world. */

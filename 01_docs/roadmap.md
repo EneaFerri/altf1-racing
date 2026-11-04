@@ -304,12 +304,13 @@ Details (numbers, look, rules) are decided in each step with the owner.
   lane, or `?pitlane`, in single player. Tested on every circuit: open from track to track, a car
   drives through without touching a wall ([pitlane.md](pitlane.md#drivable-4f)). Owner's test: all
   fine but Monaco, made cleaner: its entry and exit join at the track's edge, smoothed (no folded
-  walls), and on the track's asphalt the pit lane never wins (none of it on the track). Waiting for
-  the owner's review.
-- 4g **Pit stop** — an automatic limiter between the pit lines; the own box marked; braking into it
-  stops the car and holds it (like `StartHold`) for a repair time = base + per damaged part, then
-  damage back to zero and release. Pure rules in shared, run by the server and the prediction
-  alike. HUD: "PIT LIMITER", the stop's countdown.
+  walls), and on the track's asphalt the pit lane never wins (none of it on the track).
+- 4g ✅ **Pit stop** (protocol v12) — automatic limiter between the limit lines; each GP driver
+  keeps a box from joining to leaving (own box painted yellow); slower than 29 km/h at it, the car
+  stops by itself, held for 2.5 s + 6 s × front wing + 8 s × rear wing damage, then leaves as new;
+  one stop per pass. Pure rules in shared (`sim/pit.ts`, `config/pit.ts`), run by the server and
+  the prediction alike. HUD: `PIT LIMITER`, `PIT STOP` countdown. Dev: in single player with F2 →
+  Pit lane ([pitlane.md](pitlane.md#pit-stop-4g)). Waiting for the owner's review.
 - 4h **Pit lane online in the Grand Prix** — Grand Prix rooms with the drivable pit lane, damage
   and pit stops together; timing tower ("PIT" beside a driver in the pits), stops in the
   classification, standings right while a car is in the pit lane.

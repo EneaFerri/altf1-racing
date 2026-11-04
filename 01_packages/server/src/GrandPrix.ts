@@ -19,7 +19,7 @@ import type { Room } from './Room.ts';
 /** What the Grand Prix needs from its room's simulation. */
 export type GrandPrixRoom = Pick<
   Room,
-  'state' | 'restart' | 'retire' | 'spawn' | 'hold' | 'setDamage'
+  'state' | 'restart' | 'retire' | 'spawn' | 'hold' | 'setDamage' | 'setPitBoxes'
 >;
 
 /**
@@ -36,6 +36,8 @@ export class GrandPrix {
   /** Players in the Grand Prix, in arrival order: the first is the manager. */
   private drivers: CarId[] = [];
   private readonly names = new Map<CarId, string>();
+  /** Each driver's pit box: the lowest free one on joining, kept until leaving. */
+  private readonly boxes = new Map<CarId, number>();
   /** Qualifying by driver, from the start of qualifying on. */
   private readonly results = new Map<CarId, QualifyingEntry>();
   /** The race by driver, in grid order, from the start on (a driver who left stays, DNF). */
@@ -69,18 +71,21 @@ export class GrandPrix {
       race: raceStandings([...this.racers.values()], this.room.hold?.until ?? 0),
       raceLaps: this.raceLaps,
       hold: this.room.hold,
+      boxes: Object.fromEntries(this.boxes),
     };
   }
 
   add(id: CarId, name: string): void {
     this.drivers.push(id);
     this.names.set(id, name);
+    this.giveBox(id);
   }
 
   /** A player left: out of the Grand Prix (a disconnected driver doesn't come back; racing: DNF). */
   remove(id: CarId): void {
     const index = this.drivers.indexOf(id);
     if (index >= 0) this.drivers.splice(index, 1);
+    if (this.boxes.delete(id)) this.room.setPitBoxes(Object.fromEntries(this.boxes));
     this.results.delete(id);
     if (this.drivers.length === 0) return; // nobody left to move the GP on
     if (this.phase === 'qualifying' && this.allDone()) this.toGrid();
@@ -168,6 +173,8 @@ export class GrandPrix {
     if (this.phase === 'results') {
       this.setPhase('lobby');
       this.drivers = [id];
+      this.boxes.clear();
+      this.giveBox(id);
       this.results.clear();
       this.racers.clear();
       this.raceLaps = null;
@@ -177,6 +184,7 @@ export class GrandPrix {
     }
     if (this.phase !== 'lobby' || this.drivers.includes(id)) return false;
     this.drivers.push(id);
+    this.giveBox(id);
     this.room.spawn(id);
     return true;
   }
@@ -201,6 +209,15 @@ export class GrandPrix {
     }
     if (changed && !this.anyRacing()) this.setPhase('results');
     return changed;
+  }
+
+  /** `id`'s pit box: the lowest no driver has, told to the room. */
+  private giveBox(id: CarId): void {
+    const taken = new Set(this.boxes.values());
+    let box = 0;
+    while (taken.has(box)) box++;
+    this.boxes.set(id, box);
+    this.room.setPitBoxes(Object.fromEntries(this.boxes));
   }
 
   /** Every phase change goes through here: the room's damage follows the phase (`damageInPhase`). */

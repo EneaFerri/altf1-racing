@@ -10,6 +10,7 @@ import type {
   RunoffKind,
   Track,
   PitLaneDefinition,
+  PitLaneRules,
   TrackBranch,
   TrackDefinition,
   TrackPoint,
@@ -170,6 +171,28 @@ function compilePitLane(
     mainLength: main.track.length,
   };
   const onLane = (i: number): boolean => loop.track.samples[i]!.distance >= span.from;
+  // The lane's rules come in metres along its points (from `fromPoint`): onto the route's distances.
+  const routeAt = (k: number): number =>
+    loop.track.samples[loop.controlIndices[around.length - 1 + k]!]!.distance;
+  const polyline = [def.points[lane.fromPoint]!, ...lane.points].map((p) => p.at);
+  const metres = polyline.map((_, k) =>
+    polyline
+      .slice(1, k + 1)
+      .reduce((sum, p, j) => sum + Math.hypot(p.x - polyline[j]!.x, p.z - polyline[j]!.z), 0),
+  );
+  const toRoute = (m: number): number => {
+    const k = Math.max(0, Math.min(metres.length - 2, metres.findIndex((v) => v > m) - 1));
+    const f = (m - metres[k]!) / (metres[k + 1]! - metres[k]! || 1);
+    return routeAt(k) + (routeAt(k + 1) - routeAt(k)) * f;
+  };
+  const pitRules: PitLaneRules = {
+    limitFrom: toRoute(lane.limit.from),
+    limitTo: toRoute(lane.limit.to),
+    speedLimit: lane.speedLimit,
+    boxes: lane.boxes.map(toRoute),
+    // The garages are beyond the lane, away from the track.
+    garageSide: lane.side === 'right' ? 1 : -1,
+  };
   const noKerbs = (kerb: readonly KerbKind[]): KerbKind[] =>
     kerb.map((k, i) => (onLane(i) ? 'none' : k));
   const { left, right: rightSide } = loop.track.sides;
@@ -183,6 +206,7 @@ function compilePitLane(
     walls: loop.track.walls.map((w) => ({ ...w, progress: routeProgress(span, w.progress) })),
     branch: span,
     pit: true,
+    pitRules,
     routes: [],
   };
 }

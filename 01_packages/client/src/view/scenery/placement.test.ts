@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTrack, KRUNCAR, locateOnTrack, vec2 } from '@altf1/shared';
+import { buildTrack, KRUNCAR, locateOnTrack, MONZA, vec2 } from '@altf1/shared';
 import {
   KRUNCAR_BARN,
   KRUNCAR_BRIDGES,
@@ -14,6 +14,7 @@ import {
   cornerApexes,
   fitsBeside,
   footprintBox,
+  pitLaneFootprint,
   polylineFootprint,
   scatter,
   standPieces,
@@ -133,5 +134,21 @@ describe('Kruncar scenery layout', () => {
         expect(clearance(track, spot.position)).toBeGreaterThan(2);
       }
     }
+  });
+});
+
+describe('pitLaneFootprint', () => {
+  it('covers the drivable pit lane, and is empty on a track without it', () => {
+    expect(pitLaneFootprint(buildTrack(MONZA), 1)).toEqual([]);
+    const withPits = buildTrack(MONZA, { pitLane: true });
+    const circles = pitLaneFootprint(withPits, 1);
+    expect(circles.length).toBeGreaterThan(50);
+    const lane = withPits.routes.find((route) => route.pit)!;
+    const middle = lane.samples.find(
+      (s) => s.distance > (lane.branch!.from + lane.branch!.to) / 2,
+    )!;
+    expect(
+      circles.some((c) => Math.hypot(c.x - middle.position.x, c.z - middle.position.z) < c.r),
+    ).toBe(true);
   });
 });

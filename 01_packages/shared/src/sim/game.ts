@@ -13,6 +13,7 @@ import { createCar, stepCar, type CarId, type CarState } from './car';
 import { resolveCollisions } from './collision/resolve';
 import type { ImpactEvent } from './collision/types';
 import { damagedInput, damagedParams, stepDamage } from './damage';
+import { heldInBox, inBox, limitedSpeed, pitStep, type PitRules } from './pit';
 import { createLapState, stepLap, type LapState } from './laps';
 import { slipstreamEffect, slipstreamFactor } from './slipstream';
 import { carSurface } from './surface';
@@ -42,6 +43,11 @@ export interface SimContext {
   readonly slopeParams?: SlopeParams;
   /** Cars take damage (Phase 4: the Grand Prix only); left out: no damage, no `CarState.damage`. */
   readonly damage?: DamageParams;
+  /**
+   * The pit lane's rules (Phase 4: the Grand Prix, on a track built with its pit lane): the speed
+   * limit and the stops in each car's box. Left out: neither.
+   */
+  readonly pit?: PitRules;
 }
 
 /** A grid slot counts as free when no car is closer than this to it (m). */
@@ -71,10 +77,13 @@ export function createGame(track: Track, carIds: readonly CarId[]): GameState {
  * then one collision pass resolves walls and car-vs-car contacts,
  * then (in a race with damage) each car's impacts and wheels on grass or gravel damage it: from
  * the next tick on it drives the worse for it (`damagedParams`, `damagedInput`),
+ * then (with the pit lane's rules) each car's pit stop moves on,
  * then lap timing reads where each car ended up.
  */
 export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): GameState {
   const moved = state.cars.map((car) => {
+    // Stopped in its box: held still, whatever its controls (R too).
+    if (ctx.pit && inBox(car, state.tick)) return heldInBox(car);
     const given = inputs[car.id] ?? NEUTRAL_INPUT;
     if (given.reset) return resetOnTrack(car, ctx.track);
 
@@ -86,19 +95,22 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
     const input = damage && car.damage ? damagedInput(given, car.damage, damage) : given;
     const slipstream = slipstreamFactor(car, state.cars, ctx.slipstreamParams);
     const slip = slipstreamEffect(slipstream, ctx.slipstreamParams);
-    return {
+    const next: CarState = {
       ...stepCar(car, input, params, FIXED_DT, effect, slip, slopeAccel(car, ctx)),
       wheelSurfaces: surfaces,
       slipstream,
     };
+    return ctx.pit ? limitedSpeed(next, ctx.track) : next;
   });
   const resolved = resolveCollisions(moved, ctx.track, ctx.collisionParams);
   const { impacts } = resolved;
   const damage = ctx.damage;
-  const cars = damage
+  const tick = state.tick + 1;
+  const damaged = damage
     ? resolved.cars.map((car) => ({ ...car, damage: stepDamage(car, impacts, FIXED_DT, damage) }))
     : resolved.cars;
-  const tick = state.tick + 1;
+  const { pit } = ctx;
+  const cars = pit ? damaged.map((car) => pitStep(car, ctx.track, tick, pit)) : damaged;
   const laps = state.laps.map((lap, i) =>
     stepLap(
       lap,

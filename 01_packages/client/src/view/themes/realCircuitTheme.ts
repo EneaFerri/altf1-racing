@@ -19,6 +19,7 @@ import {
   type Circle,
   type Footprint,
   type TrackSpot,
+  pitLaneFootprint,
 } from '../scenery/placement';
 import { createOldRaceway, createPitLane, type RacewayPiece } from '../scenery/realCircuit';
 import {
@@ -218,16 +219,9 @@ function buildScenery(
       keepClear.push(cover(box));
     }
   }
-  // The pit lane drivable in the Grand Prix (a road of the track, drawn with it): its footprint.
-  const drivable = track.routes.find((route) => route.pit);
-  const laneSamples = drivable?.samples.filter((s) => s.distance >= drivable.branch!.from) ?? [];
-  const laneFootprint = (margin: number): Circle[] =>
-    polylineFootprint(
-      laneSamples.map((s) => s.position),
-      Math.max(...laneSamples.map((s) => s.halfWidth)) + margin,
-      4,
-    );
-  const onLane = laneFootprint(1);
+  // The pit lane drivable in the Grand Prix (a road of the track, drawn with it); none elsewhere.
+  const drivable = track.routes.some((route) => route.pit);
+  const onLane = pitLaneFootprint(track, 1);
   for (const building of scenery.pitBuildings) {
     const box = footprintBox(track, building);
     // Placed beside the scenery's lane: one that would stand on the drivable lane is left out.
@@ -243,7 +237,7 @@ function buildScenery(
   // The pit lane: drivable in the Grand Prix (drawn with the track), else scenery.
   const { pitLane } = scenery;
   if (drivable) {
-    keepClear.push(...laneFootprint(4));
+    keepClear.push(...pitLaneFootprint(track, 4));
   } else {
     objects.push(draped(createPitLane(track, pitLane.path, pitLane.width)));
     keepClear.push(...polylineFootprint(alongTrack(track, pitLane.path, 8), pitLane.width / 2 + 4));

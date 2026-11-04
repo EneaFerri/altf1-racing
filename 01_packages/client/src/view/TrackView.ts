@@ -1,9 +1,12 @@
 import * as THREE from 'three';
 import {
+  boxSpot,
   gridSlot,
   GRID_SLOTS,
   headingOf,
+  locateOnLoop,
   locateOnTrack,
+  PIT_PARAMS,
   roadOf,
   toWorld,
   TRACK_RULES,
@@ -13,7 +16,7 @@ import {
   type Track,
   type TrackSample,
   type TrackSide,
-  locateOnLoop,
+  type Vec2,
 } from '@altf1/shared';
 import {
   createArmcoTexture,
@@ -125,7 +128,79 @@ export function createTrackView(track: Track, theme: TrackTheme): THREE.Group {
     ...createSectorGantries(track),
   );
   if (theme.gridBoxes) group.add(createGridBoxes(track));
+  const pitLane = track.routes.find((road) => road.pit);
+  if (pitLane) group.add(createPitMarkings(track, pitLane));
   return group;
+}
+
+/** A pit box's painted frame: this long and wide (m), lines this thick. */
+const PIT_BOX = { length: 6.5, width: 3.2, line: 0.25 } as const;
+
+/** Flat quads (each four corners, in order) painted on the road in `color`, at `y` above it. */
+function paintedQuads(
+  track: Track,
+  quads: readonly Vec2[][],
+  color: string,
+  y: number,
+): THREE.Mesh {
+  const positions: number[] = [];
+  for (const corners of quads) {
+    for (const i of [0, 1, 2, 0, 2, 3]) {
+      positions.push(corners[i]!.x, roadHeight(track, corners[i]!) + y, corners[i]!.z);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  return new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide }));
+}
+
+/** A rectangle from `from` to `to` ahead and `left` to `right` across (m, in a pose's frame). */
+function rectangle(
+  position: Vec2,
+  heading: number,
+  from: number,
+  to: number,
+  left: number,
+  right: number,
+): Vec2[] {
+  return [
+    toWorld(position, heading, from, left),
+    toWorld(position, heading, from, right),
+    toWorld(position, heading, to, right),
+    toWorld(position, heading, to, left),
+  ];
+}
+
+/** The pit lane's markings: a white frame for each box, and its two limit lines across it. */
+function createPitMarkings(track: Track, lane: Track): THREE.Mesh {
+  const rules = lane.pitRules!;
+  const { length, width, line } = PIT_BOX;
+  const quads: Vec2[][] = [];
+  rules.boxes.forEach((_, box) => {
+    const { position, heading } = boxSpot(lane, box, PIT_PARAMS);
+    const [l, w] = [length / 2, width / 2];
+    quads.push(
+      rectangle(position, heading, -l, l, -w, -w + line),
+      rectangle(position, heading, -l, l, w - line, w),
+      rectangle(position, heading, l - line, l, -w, w),
+      rectangle(position, heading, -l, -l + line, -w, w),
+    );
+  });
+  for (const at of [rules.limitFrom, rules.limitTo]) {
+    const s = lane.samples.find((sample) => sample.distance >= at) ?? lane.samples[0]!;
+    quads.push(rectangle(s.position, headingOf(s.tangent), -0.3, 0.3, -s.halfWidth, s.halfWidth));
+  }
+  return paintedQuads(track, quads, '#e8e8e8', Y_GRID_BOX);
+}
+
+/** The own pit box, filled in yellow over its frame (`SceneView.markPitBox`). */
+export function createOwnBoxMark(track: Track, box: number): THREE.Mesh {
+  const lane = track.routes.find((road) => road.pit)!;
+  const { position, heading } = boxSpot(lane, box, PIT_PARAMS);
+  const { length, width, line } = PIT_BOX;
+  const [l, w] = [length / 2 - line, width / 2 - line];
+  return paintedQuads(track, [rectangle(position, heading, -l, l, -w, w)], '#f5c518', Y_GRID_BOX);
 }
 
 interface RoadMaterials {

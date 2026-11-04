@@ -133,6 +133,7 @@ describe('server messages', () => {
         ],
         raceLaps: 4,
         hold: { lightsFrom: 100, until: 412 },
+        boxes: { p1: 0, p2: 1 },
       },
       { type: 'players', players },
       {

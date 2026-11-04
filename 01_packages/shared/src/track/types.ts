@@ -136,6 +136,19 @@ export interface BranchSpan {
   readonly mainLength: number;
 }
 
+/** The pit lane's rules on its route, in that route's own distances (m). See `PitLaneDefinition`. */
+export interface PitLaneRules {
+  /** The speed-limited stretch. */
+  readonly limitFrom: number;
+  readonly limitTo: number;
+  /** Speed limit there (m/s). */
+  readonly speedLimit: number;
+  /** Each box, in order. */
+  readonly boxes: readonly number[];
+  /** The garages' side of the lane: 1 = right of its driving direction, −1 = left. */
+  readonly garageSide: 1 | -1;
+}
+
 /** Compiled, immutable track used by both Model and View. Static: never part of GameState. */
 export interface Track {
   readonly name: string;
@@ -169,4 +182,6 @@ export interface Track {
   readonly branch?: BranchSpan;
   /** On a route: true for the pit lane's (Phase 4, `buildTrack(…, { pitLane: true })`). */
   readonly pit?: boolean;
+  /** On the pit lane's route: its speed limit and boxes. */
+  readonly pitRules?: PitLaneRules;
 }

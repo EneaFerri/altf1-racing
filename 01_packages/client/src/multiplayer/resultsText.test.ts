@@ -41,6 +41,7 @@ const LOBBY: GrandPrixInfo = {
   race: [],
   raceLaps: null,
   hold: null,
+  boxes: { p2: 0, p3: 1 },
 };
 
 describe('Grand Prix results', () => {

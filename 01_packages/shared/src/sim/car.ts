@@ -1,4 +1,5 @@
 import type { CarDamage } from './damage';
+import type { PitStop } from './pit';
 import type { CarParams } from '../config/car';
 import { moveToward, wrapAngle } from '../math/angle';
 import { add, dot, forward, headingOf, length, right, scale, ZERO, type Vec2 } from '../math/vec2';
@@ -36,6 +37,8 @@ export interface CarState {
    * the Grand Prix); absent everywhere else, i.e. undamaged.
    */
   readonly damage?: CarDamage;
+  /** Its pit stop (sim/pit.ts), from stopping in its box until it leaves the pit lane. */
+  readonly pitStop?: PitStop;
 }
 
 export interface CarSpawn {

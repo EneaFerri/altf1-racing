@@ -76,8 +76,11 @@ export class OnlineGame {
     this.predictor = new Predictor(playerId, onlineSimContext(built));
     this.grandPrix =
       mode === 'grandPrix'
-        ? new OnlineGrandPrix(client, playerId, this.predictor, this.hud, this.controller)
+        ? new OnlineGrandPrix(client, playerId, this.predictor, this.hud, this.controller, (box) =>
+            this.view.markPitBox(box),
+          )
         : null;
+    if (mode === 'grandPrix') this.hud.usePitLane(built);
     this.view = new SceneView(built, this.playerId, {}, { ...CAMERA_PARAMS });
     this.minimap = new Minimap(built);
     this.setPlayers(entered.players);

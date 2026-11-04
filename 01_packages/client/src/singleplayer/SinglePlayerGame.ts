@@ -11,6 +11,7 @@ import {
   SLOPE_PARAMS,
   createGame,
   DAMAGE_PARAMS,
+  PIT_PARAMS,
   findCar,
   NEUTRAL_INPUT,
   NEW_BOT_MEMORY,
@@ -115,6 +116,10 @@ export class SinglePlayerGame {
       collisionParams: this.collisionParams,
       slipstreamParams: this.slipstreamParams,
       slopeParams: this.slopeParams,
+      // Dev only, with the pit lane: the Grand Prix's pit rules, the player in the first box.
+      ...(this.track.routes.some((road) => road.pit) && {
+        pit: { params: PIT_PARAMS, boxes: { [PLAYER_ID]: 0 } },
+      }),
     };
     this.view = new SceneView(
       this.track,
@@ -123,6 +128,10 @@ export class SinglePlayerGame {
       this.cameraParams,
     );
     this.minimap = new Minimap(this.track);
+    if (this.ctx.pit) {
+      this.hud.usePitLane(this.track);
+      this.view.markPitBox(0);
+    }
     this.minimap.setPlayers({
       [PLAYER_ID]: { name: 'You', color: LIVERIES.red.body },
       [BOT_ID]: { name: 'Bot', color: LIVERIES.blue.body },

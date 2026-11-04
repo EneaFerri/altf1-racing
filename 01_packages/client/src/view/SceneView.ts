@@ -29,7 +29,7 @@ export interface GhostPose {
   readonly after: CarState;
   readonly alpha: number;
 }
-import { createTrackView } from './TrackView';
+import { createOwnBoxMark, createTrackView } from './TrackView';
 import { bindResize, createRenderer } from './renderer';
 
 /** Owns the Three.js scene and draws it. Reads game state, never writes it. */
@@ -110,6 +110,24 @@ export class SceneView {
   setGhost(ghost: GhostPose | null): void {
     this.ghost = ghost;
   }
+
+  /** The own pit box, filled in yellow (a Grand Prix with its pit lane); null shows none. */
+  markPitBox(box: number | null): void {
+    if (box === this.pitBox) return;
+    if (this.pitBoxMark) {
+      this.scene.remove(this.pitBoxMark);
+      this.pitBoxMark.geometry.dispose();
+      (this.pitBoxMark.material as THREE.Material).dispose();
+      this.pitBoxMark = null;
+    }
+    this.pitBox = box;
+    if (box === null || !this.track.routes.some((road) => road.pit)) return;
+    this.pitBoxMark = createOwnBoxMark(this.track, box);
+    this.scene.add(this.pitBoxMark);
+  }
+
+  private pitBox: number | null = null;
+  private pitBoxMark: THREE.Mesh | null = null;
 
   /** Looks behind the followed car while `on` (either camera). */
   setLookBack(on: boolean): void {

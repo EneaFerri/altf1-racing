@@ -50,7 +50,8 @@ The owner's rule: the two sections never mix. Enforced, not just by convention:
 ## Protocol (2.1b ✅)
 
 JSON over one WebSocket, typed unions in `shared/src/net/protocol.ts`, with a `PROTOCOL_VERSION`
-(a client with another version is rejected with `version`). Version **11** since 4d (a car in a
+(a client with another version is rejected with `version`). Version **12** since 4g (a car in a
+snapshot may carry its `pitStop`, `grandPrix` carries each driver's pit `boxes`; v11 = 4d a car in a
 snapshot may carry its `damage`, Grand Prix only; v10 = 2.5a `welcome` carries the lap `records`;
 v9 = 2.3i `playAgain`,
 `grandPrix` carries `drivers`, `manager` may be null; v8 = 2.3h Grand Prix
@@ -371,7 +372,9 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   Free practice and Time trial never have it. Rules and numbers: [damage.md](damage.md).
 - **Pit lane** (Phase 4, 4f ✅): a Grand Prix room's track has its drivable pit lane
   (`new Room(definition, { pitLane: true })`), and so does the client's in that mode; no protocol
-  change (both build it from the same data). Rules: [pitlane.md](pitlane.md).
+  change (both build it from the same data). Pit stops (4g): each driver keeps a box from joining
+  to leaving (`GrandPrixInfo.boxes`, `Room.setPitBoxes`, `Predictor.setPitBoxes`). Rules:
+  [pitlane.md](pitlane.md).
 - **Reset**: when the last player leaves, the room and its Grand Prix are dropped; the next player
   in opens a new one, in the lobby. After a race, Play again starts a new one in the same room.
 

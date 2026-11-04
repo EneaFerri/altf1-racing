@@ -7,6 +7,8 @@ import {
   type CarId,
   type GameState,
   type LapState,
+  pitStatus,
+  type Track,
 } from '@altf1/shared';
 import { DamagePanel } from './DamagePanel';
 import {
@@ -53,6 +55,10 @@ export class Hud {
   private readonly bot = botLabel(this.botLevel);
   /** Bottom right, only in a race with damage (Grand Prix). */
   private readonly damage = new DamagePanel();
+  /** Under the strip, in the pit lane (Grand Prix): the limiter, a stop's countdown. */
+  private readonly pit = element('div', 'hud-pit');
+  /** The track whose pit lane is driven (a Grand Prix); null: none. */
+  private pitTrack: Track | null = null;
 
   private lapStartTick: number | null = null;
   private seenLaps = 0;
@@ -84,7 +90,8 @@ export class Hud {
       this.slip,
       this.bot,
     );
-    this.root.append(strip, this.chip);
+    this.pit.hidden = true;
+    this.root.append(strip, this.chip, this.pit);
     document.body.appendChild(this.root);
   }
 
@@ -97,6 +104,11 @@ export class Hud {
   setVisible(visible: boolean): void {
     this.root.style.display = visible ? '' : 'none';
     this.damage.setVisible(visible);
+  }
+
+  /** The pit lane of `track` is driven (a Grand Prix): its limiter and stops are shown. */
+  usePitLane(track: Track): void {
+    this.pitTrack = track;
   }
 
   /** Removes the bot item (multiplayer: no bot in the room). */
@@ -118,6 +130,7 @@ export class Hud {
 
     this.trackEvents(timing, nowMs);
     this.damage.update(car.damage);
+    this.showPit(this.pitTrack && pitStatus(this.pitTrack, car, state.tick));
 
     const running = timing.lapStartTick !== null;
     setText(this.lap, this.lapName(timing));
@@ -136,6 +149,18 @@ export class Hud {
       for (const bar of this.bars) bar.className = 'hud-bar';
       this.clearBarsAt = null;
     }
+  }
+
+  /** `PIT STOP 3.4` while stopped in the box, `PIT LIMITER 76` between the limit lines. */
+  private showPit(status: ReturnType<typeof pitStatus>): void {
+    const text =
+      status?.stopLeft != null
+        ? `PIT STOP  ${status.stopLeft.toFixed(1)}`
+        : status?.limiter
+          ? `PIT LIMITER  ${Math.round(status.speedLimit * 3.6)}`
+          : '';
+    this.pit.hidden = text === '';
+    setText(this.pit, text);
   }
 
   /** Colours finished sectors and shows the chip; snapshots the bests when a new lap starts. */

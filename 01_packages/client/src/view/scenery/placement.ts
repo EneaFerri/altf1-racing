@@ -507,3 +507,19 @@ function segmentDistance(p: Vec2, a: Vec2, b: Vec2): number {
   const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / len2));
   return Math.hypot(p.x - (a.x + dx * t), p.z - (a.z + dz * t));
 }
+
+/**
+ * The drivable pit lane's ground (a track built with it: the Grand Prix), as circles reaching
+ * `margin` m beyond its edges; none on a track without it.
+ */
+export function pitLaneFootprint(track: Track, margin: number): Circle[] {
+  const lane = track.routes.find((route) => route.pit);
+  if (!lane) return [];
+  const samples = lane.samples.filter((s) => s.distance >= lane.branch!.from);
+  const half = Math.max(...samples.map((s) => s.halfWidth));
+  return polylineFootprint(
+    samples.map((s) => s.position),
+    half + margin,
+    4,
+  );
+}

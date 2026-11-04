@@ -10,7 +10,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 11;
+export const PROTOCOL_VERSION = 12;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -97,6 +97,8 @@ export interface GrandPrixInfo {
   readonly raceLaps: RaceLaps | null;
   /** Cars held on the grid (and the start lights); null while they may drive. */
   readonly hold: StartHold | null;
+  /** Each driver's pit box (an index into the pit lane's boxes), kept from joining to leaving. */
+  readonly boxes: Readonly<Record<CarId, number>>;
 }
 
 /** What the GP manager can ask for, each in its phase; `playAgain` is open to every player. */

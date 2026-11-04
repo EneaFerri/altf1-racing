@@ -21,6 +21,11 @@ class FakeRoom implements GrandPrixRoom {
   setDamage(on: boolean): void {
     this.damage = on;
   }
+  /** The pit boxes, as the Grand Prix last set them. */
+  boxes: Readonly<Record<CarId, number>> = {};
+  setPitBoxes(boxes: Readonly<Record<CarId, number>>): void {
+    this.boxes = boxes;
+  }
   restart(order: readonly CarId[]): void {
     this.restarts.push([...order]);
     this.state = { ...this.state, laps: order.map((id) => createLapState(id, 0)) };
@@ -82,6 +87,7 @@ describe('GrandPrix — lobby', () => {
       race: [],
       raceLaps: null,
       hold: null,
+      boxes: { p1: 1, p3: 0 },
     });
     expect(gp.isOpen).toBe(true);
   });
@@ -123,6 +129,16 @@ describe('GrandPrix — lobby', () => {
     gp.command('p1', { action: 'playAgain' });
     damage.push(room.damage);
     expect(damage).toEqual([false, true, false, true, false, false]);
+  });
+
+  it('gives each driver the lowest free pit box, kept until they leave', () => {
+    const { gp, room } = grandPrix('p1', 'p2', 'p3');
+    expect(room.boxes).toEqual({ p1: 0, p2: 1, p3: 2 });
+    gp.remove('p2');
+    expect(room.boxes).toEqual({ p1: 0, p3: 2 });
+    gp.add('p4', 'P4');
+    expect(gp.info.boxes).toEqual({ p1: 0, p3: 2, p4: 1 });
+    expect(room.boxes).toEqual(gp.info.boxes);
   });
 
   it('hands the manager role to whoever has been there longest when the manager leaves', () => {
@@ -318,6 +334,7 @@ describe('GrandPrix — play again', () => {
       race: [],
       raceLaps: null,
       hold: null,
+      boxes: { p2: 0 },
     });
     expect(room.restarts.at(-1)).toEqual(['p2']);
     expect(gp.isOpen).toBe(true);

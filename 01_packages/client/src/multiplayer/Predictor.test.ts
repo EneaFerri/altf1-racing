@@ -7,7 +7,10 @@ import {
   NEUTRAL_INPUT,
   onlineSimContext,
   stepGame,
+  MONZA,
   TEST_TRACK,
+  headingOf,
+  scale,
   type GameState,
   type InputCommand,
 } from '@altf1/shared';
@@ -136,7 +139,7 @@ describe('Predictor', () => {
   });
 
   it('predicts with damage exactly like the server room, once told the room has it', () => {
-    const server = onlineSimContext(ctx.track, true);
+    const server = onlineSimContext(ctx.track, { damage: true });
     const start = createGame(ctx.track, ['p1']);
     const predictor = new Predictor('p1', ctx);
     predictor.setDamage(true);
@@ -150,5 +153,33 @@ describe('Predictor', () => {
     predictor.reconcile(snapshot(start));
     predictor.step(30, THROTTLE);
     expect(own(predictor.current).damage).toBeUndefined();
+  });
+
+  it('runs a pit stop exactly like the server room, once told the boxes', () => {
+    const pits = buildTrack(MONZA, { pitLane: true });
+    const lane = pits.routes.find((road) => road.pit)!;
+    const box = lane.pitRules!.boxes[0]!;
+    const s = lane.samples.find((sample) => sample.distance >= box - 3)!;
+    const game = createGame(pits, ['p1']);
+    const start: GameState = {
+      ...game,
+      cars: [
+        {
+          ...game.cars[0]!,
+          position: s.position,
+          heading: headingOf(s.tangent),
+          velocity: scale(s.tangent, 4),
+        },
+      ],
+    };
+    const server = onlineSimContext(pits, { pitBoxes: { p1: 0 } });
+    const predictor = new Predictor('p1', onlineSimContext(pits));
+    predictor.setPitBoxes({ p1: 0 });
+    predictor.reconcile(snapshot(start));
+    for (let seq = 0; seq < 40; seq++) predictor.step(seq, NEUTRAL_INPUT);
+    let expected = start;
+    for (let i = 0; i < 40; i++) expected = stepGame(expected, { p1: NEUTRAL_INPUT }, server);
+    expect(own(predictor.current).pitStop).toBeDefined();
+    expect(own(predictor.current)).toEqual(own(expected));
   });
 });

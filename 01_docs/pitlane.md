@@ -105,5 +105,39 @@ from the track through the lane back onto it at 15 m/s touches no wall, and the 
 enters it. Measured (that drive): Monza 43 s in the lane at 15 m/s, Barcelona 66 s, Monaco 27 s,
 Mexico City 50 s.
 
-Not yet: the speed limit and the stop in the box (4g); until then the pit lane is a road, and
-driving it repairs nothing.
+The speed limit and the stop in the box: next section.
+
+## Pit stop (4g)
+
+Pure rules in `shared/src/sim/pit.ts`, numbers in `shared/src/config/pit.ts` (`PIT_PARAMS`,
+provisional until 4i), run by `stepGame` only with `SimContext.pit` (a track with its pit lane:
+the Grand Prix): the server's room and the client's prediction alike.
+
+- **Rules on the route**: `buildTrack` turns the lane's limit lines and boxes (metres along its
+  points) into the route's own distances: `Track.pitRules` on the pit lane's route (`limitFrom`,
+  `limitTo`, `speedLimit`, `boxes`, `garageSide`).
+- **Automatic limiter**: between the limit lines a car is never faster than the limit (its speed
+  is cut after it moves, `limitedSpeed`); the driver brakes for the entry line, the car does the
+  rest. Speed limits: Monza 76 km/h, Barcelona 81, Monaco 68, Mexico City 79 (the real one ×
+  scale).
+- **Boxes**: each Grand Prix driver gets the lowest free box on joining and keeps it until they
+  leave (`GrandPrix`, sent in its info: `GrandPrixInfo.boxes`); the room and the prediction run
+  with them (`Room.setPitBoxes`, `Predictor.setPitBoxes`). Box spots: half the lane's half-width
+  from its centre, towards the garages.
+- **The stop**: a car within 5 m of its own box along the lane, slower than 8 m/s (29 km/h),
+  stops by itself: placed on its box's spot, facing along the lane, and held still whatever its
+  controls (R too) for **2.5 s (the tyres, every time) + 6 s × front wing damage + 8 s × rear wing
+  damage**; at its end it is released **as new** (no damage). One stop per pass: it is forgotten
+  once the car has left the lane. `CarState.pitStop` (`until`) carries it (in the snapshots).
+- **HUD**: a yellow chip under the timing strip: `PIT LIMITER 76` between the limit lines,
+  `PIT STOP 3.4` counting down in the box (`pitStatus`, `Hud.usePitLane`).
+- **On the lane**: every box painted as a white frame, the two limit lines across the lane, and the
+  own box filled in yellow (`SceneView.markPitBox`; online from the GP's boxes).
+- **Single player (dev)**: with F2 → Pit lane, the player has the first box and the same rules.
+- **Protocol v12**: `CarState.pitStop` in the snapshots, `GrandPrixInfo.boxes`.
+
+Tested (`sim/pit.test.ts`, `Predictor.test.ts`, `GrandPrix.test.ts`): the limiter, and nothing
+without the pit rules; a slow car stopping in its own box for exactly the stop's time, held (R
+too), released repaired, not stopping again on that pass; no stop when too fast, at another box
+or without one; the stop forgotten once off the lane; the prediction running the stop exactly
+like the server; the boxes handed out and kept.

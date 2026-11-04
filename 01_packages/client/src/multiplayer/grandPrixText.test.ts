@@ -22,6 +22,7 @@ const LOBBY: GrandPrixInfo = {
   race: [],
   raceLaps: null,
   hold: null,
+  boxes: { p1: 0, p2: 1 },
 };
 
 /** Kimi fastest and done, Enea without a time, on Q2. */

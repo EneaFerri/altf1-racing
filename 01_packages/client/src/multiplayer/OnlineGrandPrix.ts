@@ -40,6 +40,8 @@ export class OnlineGrandPrix {
     private readonly predictor: Predictor,
     private readonly hud: Hud,
     controller: KeyboardController,
+    /** Marks the own pit box on the lane (null: none). */
+    private readonly markPitBox: (box: number | null) => void,
   ) {
     // The server ignores a command from anyone but the manager, or in the wrong phase.
     controller.onAction('confirm', () => {
@@ -66,6 +68,8 @@ export class OnlineGrandPrix {
     this.info = info;
     this.predictor.hold = info.hold;
     this.predictor.setDamage(damageInPhase(info.phase));
+    this.predictor.setPitBoxes(info.boxes);
+    this.markPitBox(info.boxes[this.playerId] ?? null);
     this.hud.setLapName(lapName(info, this.playerId));
     if (raceOver) void this.showResults(info);
     else if (this.onResults) this.results.setPlayAgain(playAgainItem(info));
