@@ -8,6 +8,7 @@ import {
   type GameState,
   type LapState,
 } from '@altf1/shared';
+import { DamagePanel } from './DamagePanel';
 import {
   defaultLapName,
   formatDelta,
@@ -30,7 +31,8 @@ interface Reference {
 /**
  * F1-style timing strip, top centre: lap, running time, sector bars, last and best lap, speed,
  * slipstream (SLIP bar + %, the same value as the wind lines).
- * A chip under it shows each sector's gap to the best lap for a few seconds. Reads state only.
+ * A chip under it shows each sector's gap to the best lap for a few seconds; in a race with damage,
+ * the damage panel bottom right. Reads state only.
  */
 export class Hud {
   private readonly root = element('div', 'hud');
@@ -49,6 +51,8 @@ export class Hud {
   private readonly botLevel = element('span', 'hud-bot-level');
   private readonly chip = element('div', 'hud-chip');
   private readonly bot = botLabel(this.botLevel);
+  /** Bottom right, only in a race with damage (Grand Prix). */
+  private readonly damage = new DamagePanel();
 
   private lapStartTick: number | null = null;
   private seenLaps = 0;
@@ -92,6 +96,7 @@ export class Hud {
   /** Shows or hides the whole strip (hidden while the own car is off the track). */
   setVisible(visible: boolean): void {
     this.root.style.display = visible ? '' : 'none';
+    this.damage.setVisible(visible);
   }
 
   /** Removes the bot item (multiplayer: no bot in the room). */
@@ -112,6 +117,7 @@ export class Hud {
     if (!timing || !car) return;
 
     this.trackEvents(timing, nowMs);
+    this.damage.update(car.damage);
 
     const running = timing.lapStartTick !== null;
     setText(this.lap, this.lapName(timing));

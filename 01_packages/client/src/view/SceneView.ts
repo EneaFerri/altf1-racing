@@ -202,6 +202,7 @@ function interpolateCar(prev: CarState, curr: CarState, alpha: number): CarPose 
     steer: prev.steer + (curr.steer - prev.steer) * alpha,
     forwardSpeed: dot(curr.velocity, forward(curr.heading)),
     slip: slipAngle(prev) + (slipAngle(curr) - slipAngle(prev)) * alpha,
+    ...(curr.damage && { damage: curr.damage }),
   };
 }
 

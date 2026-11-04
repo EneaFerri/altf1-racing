@@ -43,3 +43,14 @@ export function sectorColor(
 export function defaultLapName(timing: LapState): string {
   return timing.lapStartTick === null ? 'OUT LAP' : `LAP ${timing.laps + 1}`;
 }
+
+/** How a damaged part is coloured in the HUD, F1 style: white → yellow → orange → red. */
+export type DamageLevel = 'ok' | 'light' | 'heavy' | 'critical';
+
+/** The HUD level of a part's damage (0..1): under 10% ok, under 40% light, under 75% heavy. */
+export function damageLevel(damage: number): DamageLevel {
+  if (damage < 0.1) return 'ok';
+  if (damage < 0.4) return 'light';
+  if (damage < 0.75) return 'heavy';
+  return 'critical';
+}

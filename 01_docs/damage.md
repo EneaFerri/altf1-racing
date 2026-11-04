@@ -91,3 +91,21 @@ gets stuck or resets.
 it on for every car (the bot too); "Player's car" sets each part by hand, Repair zeroes them; the
 params are live and in "Copy as code". F3 shows the damage (`FW · RW · tyres FL FR RL RR`, %).
 Turning it off repairs every car. Production builds have no panel, so no damage.
+
+## View (4c)
+
+Client only, purely cosmetic; drawn only for cars that have damage (so only in a race with it).
+
+- **HUD damage panel** (`view/hud/DamagePanel.ts`, part of `Hud`, styles in `hud.css`): bottom
+  right, `DAMAGE` over the car seen from above, front wing, four tyres and rear wing each coloured
+  by `damageLevel` (`hud/format.ts`): white under 10%, yellow under 40%, orange under 75%, red
+  beyond. Hidden while the own car has no damage field, i.e. in every mode but the Grand Prix.
+- **On the car** (`CarView`, from `damageLook` in `view/carDamageLook.ts`, pure and tested):
+  - front wing in two halves hinged at the nose: each hangs down with the damage (up to ~9°, to
+    the road), most on the side whose front tyre is more damaged (where the hit was); from 80%
+    that half breaks off, at 100% both do. Seen in first person too (it is part of the tip);
+  - rear wing's main plane tilts trailing edge down (up to ~29°) and breaks off from 80% (the
+    endplates and post stay);
+  - tyres stay round up to 50% damage, then flatten (drawn up to 35% lower, onto the road).
+- `CarPose.damage` carries it from the state (`SceneView`); a car redraws its damage only when
+  it changes. The time trial's ghost never has any.

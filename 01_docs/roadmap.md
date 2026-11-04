@@ -276,9 +276,12 @@ Details (numbers, look, rules) are decided in each step with the owner.
   50%): never undrivable, never a retirement. `damagedInput`: uneven tyres pull to their side.
   Hard bot: +3% to +8% per part, +20% (Monza) to +28% (Monaco) with everything destroyed
   ([damage.md](damage.md#effects-4b)). Dev only: F2 → Damage turns it on in single player and sets
-  the player's parts by hand; F3 shows them. Waiting for the owner's review.
-- 4c **Damage view** — HUD: an F1-style car outline with each part coloured by its damage; on the
-  car: wing pieces bent or missing, a flat tyre. Tried in single player through the dev toggle.
+  the player's parts by hand; F3 shows them.
+- 4c ✅ **Damage view** — HUD: a damage panel bottom right, the car from above with front wing,
+  tyres and rear wing coloured white → yellow → orange → red; only when the car has damage. On the
+  car: the front wing's halves bend down (most on the side hit) and break off, the rear wing tilts
+  and breaks off, tyres go flat from half damage ([damage.md](damage.md#view-4c)). Tried in
+  single player through the dev toggle. Waiting for the owner's review.
 - 4d **Damage online in the Grand Prix** (protocol v11) — damage in the snapshot's `GameState`;
   only Grand Prix rooms have it (`onlineSimContext` per mode), only in qualifying and the race
   (not in the lobby or results), cleared when the grid forms. Free practice and Time trial

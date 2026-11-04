@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDelta, formatLapTime, sectorColor, slipstreamPercent } from './format';
+import { damageLevel, formatDelta, formatLapTime, sectorColor, slipstreamPercent } from './format';
 
 describe('slipstreamPercent', () => {
   it('rounds the tow to a whole percentage, clamped to 0..100', () => {
@@ -38,5 +38,20 @@ describe('sectorColor', () => {
     expect(sectorColor(100, 95, 110)).toBe('green');
     expect(sectorColor(120, 95, 110)).toBe('yellow');
     expect(sectorColor(110, 95, 110)).toBe('yellow');
+  });
+});
+
+describe('damageLevel', () => {
+  it('goes ok → light → heavy → critical as a part gets more damaged', () => {
+    expect([0, 0.09, 0.1, 0.39, 0.4, 0.74, 0.75, 1].map(damageLevel)).toEqual([
+      'ok',
+      'ok',
+      'light',
+      'light',
+      'heavy',
+      'heavy',
+      'critical',
+      'critical',
+    ]);
   });
 });

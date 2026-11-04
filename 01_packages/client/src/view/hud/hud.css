@@ -376,3 +376,92 @@
     inset 0 0 0 3px #000,
     0 0 18px #ff2a1a;
 }
+
+/* Damage panel (Grand Prix), bottom right: the car from above, each part coloured by its damage. */
+
+.hud-damage {
+  --hud-damage-ok: #f4f4f6;
+  --hud-damage-light: #f5c518;
+  --hud-damage-heavy: #ff7a1a;
+  --hud-damage-critical: #e10600;
+
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  border-top: 2px solid #e10600;
+  border-radius: 2px;
+  background: rgba(12, 12, 16, 0.72);
+  color: #9a9aa6;
+  font:
+    700 10px/1 system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hud-damage[hidden] {
+  display: none;
+}
+
+/* 3 × 5 cells: front wing / front tyres / cockpit / rear tyres / rear wing. */
+.hud-damage-car {
+  display: grid;
+  grid-template-columns: 10px 14px 10px;
+  grid-template-rows: 6px 16px 10px 18px 6px;
+  gap: 2px;
+}
+
+.hud-damage-part {
+  background: var(--hud-damage-ok);
+}
+
+.hud-damage-part[data-level='light'] {
+  background: var(--hud-damage-light);
+}
+
+.hud-damage-part[data-level='heavy'] {
+  background: var(--hud-damage-heavy);
+}
+
+.hud-damage-part[data-level='critical'] {
+  background: var(--hud-damage-critical);
+}
+
+.hud-damage-frontWing {
+  grid-area: 1 / 1 / 2 / 4;
+}
+
+.hud-damage-tyreFL {
+  grid-area: 2 / 1;
+}
+
+.hud-damage-tyreFR {
+  grid-area: 2 / 3;
+}
+
+.hud-damage-tyreRL {
+  grid-area: 4 / 1;
+}
+
+.hud-damage-tyreRR {
+  grid-area: 4 / 3;
+}
+
+.hud-damage-rearWing {
+  grid-area: 5 / 1 / 6 / 4;
+}
+
+/* The body, not a part: always dim. */
+.hud-damage-body {
+  grid-area: 2 / 2 / 5 / 3;
+  background: rgba(255, 255, 255, 0.25);
+}
