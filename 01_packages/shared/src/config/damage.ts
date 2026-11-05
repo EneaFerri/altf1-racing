@@ -50,14 +50,14 @@ export interface DamageParams {
 }
 
 export const DAMAGE_PARAMS: DamageParams = {
-  impactThreshold: 4,
-  impactDamage: 0.025,
+  impactThreshold: 8,
+  impactDamage: 0.018,
   endTyreShare: 0.5,
   sideTyreShare: 0.6,
   frontZone: 1,
   rearZone: 0.7,
-  grassDamage: 0.03,
-  gravelDamage: 0.08,
+  grassDamage: 0.015,
+  gravelDamage: 0.05,
   offTrackSpeed: 30,
 
   frontWingSpeedLoss: 0.04,

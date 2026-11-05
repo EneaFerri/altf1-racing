@@ -4,15 +4,6 @@ export type Point = readonly [number, number];
 export const mean = (values: readonly number[]): number =>
   values.reduce((sum, v) => sum + v, 0) / values.length;
 
-/** `p`-th percentile (0..100) of already sorted values, linearly interpolated; NaN if empty. */
-export function percentile(sorted: readonly number[], p: number): number {
-  if (sorted.length === 0) return NaN;
-  const at = (p / 100) * (sorted.length - 1);
-  const i = Math.floor(at);
-  const next = sorted[Math.min(i + 1, sorted.length - 1)]!;
-  return sorted[i]! + (next - sorted[i]!) * (at - i);
-}
-
 export function closedLength(points: readonly Point[]): number {
   let length = 0;
   points.forEach((a, i) => {

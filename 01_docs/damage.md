@@ -24,28 +24,32 @@ steps: [roadmap.md](roadmap.md#phase-4--pit-lane-and-car-damage-grand-prix-only)
 `ImpactEvent`s (car or wall; the strongest per car and per thing hit, each tick), by closing speed
 `strength`:
 
-- Below `impactThreshold` (4 m/s) nothing: leaning on a car, scraping along a wall.
-- Above it, `(strength − 4) × 0.025` to the part hit, chosen by the contact point in the car's
+- Below `impactThreshold` (8 m/s) nothing: leaning on or nudging a car, scraping along a wall.
+- Above it, `(strength − 8) × 0.018` to the part hit, chosen by the contact point in the car's
   frame (`hitZone`): more than `frontZone` (1 m) ahead of the centre = **front** (front wing,
   - half of it to each front tyre), more than `rearZone` (0.7 m) behind = **rear** (rear wing,
   - half to each rear tyre), in between = a **side** (60% to that side's two tyres, no wing).
+
+Owner's tuning (2026-11-04, 4i: "the cars get damaged too easily"): threshold 4 → 8 m/s, 0.025 →
+0.018 per m/s; grass 0.03 → 0.015, gravel 0.08 → 0.05 per second. Light contacts do nothing, a
+hard hit still breaks the wing.
 
 Measured (Monza, straight at the wall across 10 m of run-off, closing speed at the hit):
 
 | Run at the wall         | Closing speed | Front wing | Front tyres |
 | ----------------------- | ------------- | ---------- | ----------- |
-| 20 m/s, head-on         | 16.4 m/s      | 0.31       | 0.16        |
-| 30 m/s, head-on         | 27.6 m/s      | 0.59       | 0.30        |
-| 50 m/s, head-on         | 48.3 m/s      | 1.00       | 0.56        |
-| 60 m/s, at 30°          | 28.9 m/s      | 0.62       | 0.32        |
-| 80 m/s, at 15° (glance) | 20.0 m/s      | 0.40       | 0.21        |
+| 20 m/s, head-on         | 16.4 m/s      | 0.15       | 0.08        |
+| 30 m/s, head-on         | 27.6 m/s      | 0.35       | 0.18        |
+| 50 m/s, head-on         | 48.3 m/s      | 0.73       | 0.37        |
+| 60 m/s, at 30°          | 28.9 m/s      | 0.38       | 0.19        |
+| 80 m/s, at 15° (glance) | 20.0 m/s      | 0.22       | 0.11        |
 
 ### Off track
 
-Each wheel on **grass** wears its tyre by `grassDamage` (0.03) per second, on **gravel** by
-`gravelDamage` (0.08), in full from `offTrackSpeed` (30 m/s) on, proportionally slower, none at
+Each wheel on **grass** wears its tyre by `grassDamage` (0.015) per second, on **gravel** by
+`gravelDamage` (0.05), in full from `offTrackSpeed` (30 m/s) on, proportionally slower, none at
 rest. So a short trip over the grass costs little and a long one adds up: 5 s with four wheels on
-grass at speed = 0.15 per tyre, 3 s in the gravel = 0.24. Kerbs (low and high) do nothing.
+grass at speed = 0.075 per tyre, 3 s in the gravel = 0.15. Kerbs (low and high) do nothing.
 
 ## Effects (4b)
 

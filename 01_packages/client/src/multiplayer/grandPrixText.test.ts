@@ -7,7 +7,7 @@ import {
   type RaceStanding,
 } from '@altf1/shared';
 import { LIVERIES, playerLivery } from '../view/pixelTexture';
-import { grandPrixContent, lapName } from './grandPrixText';
+import { chequeredFlag, grandPrixContent, lapName } from './grandPrixText';
 
 const PLAYERS: PlayerInfo[] = [
   { id: 'p1', nickname: 'Enea', livery: 0 },
@@ -167,5 +167,20 @@ describe('Grand Prix panel', () => {
     const race = lapName({ ...LOBBY, phase: 'race', raceLaps: 8, race: RACE }, 'p2');
     expect([race(outLap), race(lap)]).toEqual(['P2/4 · LAP 1/8', 'P2/4 · LAP 2/8']);
     expect(lapName(LOBBY, 'p2')(lap)).toBe('LAP 2');
+  });
+});
+
+describe('chequeredFlag', () => {
+  it('is out in the race from the first driver on the last lap, until the results', () => {
+    const race = (laps: number[]): GrandPrixInfo => ({
+      ...LOBBY,
+      phase: 'race',
+      raceLaps: 4,
+      race: laps.map((l, i) => standing(`p${i + 1}`, `D${i}`, { laps: l })),
+    });
+    expect(chequeredFlag(race([2, 2]))).toBe(false);
+    expect(chequeredFlag(race([3, 2]))).toBe(true);
+    expect(chequeredFlag({ ...race([3, 2]), phase: 'results' })).toBe(false);
+    expect(chequeredFlag(LOBBY)).toBe(false);
   });
 });

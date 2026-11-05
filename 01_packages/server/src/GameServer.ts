@@ -2,6 +2,7 @@ import {
   encodeMessage,
   FIXED_DT,
   GP_TRACKS,
+  ONLINE_MODES,
   parseClientMessage,
   RECORD_MODES,
   SNAPSHOT_EVERY_TICKS,
@@ -29,9 +30,6 @@ export interface Connection {
 /** Close code for a rejected hello (WebSocket "policy violation"). */
 export const REJECT_CLOSE_CODE = 1008;
 
-/** The modes the server runs so far; the others show as work in progress (01_docs/roadmap.md). */
-export const READY_MODES: readonly OnlineMode[] = ['practice', 'timeTrial', 'grandPrix'];
-
 /** Modes where every player drives alone: a private room each (time trial). */
 const PRIVATE_MODES: readonly OnlineMode[] = ['timeTrial'];
 
@@ -55,7 +53,7 @@ interface Member {
 }
 
 /**
- * The multiplayer server's logic: the lobby (nicknames), one room per ready mode and track in
+ * The multiplayer server's logic: the lobby (nicknames), one room per mode and track in
  * `GP_TRACKS`, or one per player in a private mode (created when its first player enters, closed
  * when its last one leaves) and the messages between
  * them and the clients. No sockets and no timers, so it is fully testable.
@@ -151,12 +149,12 @@ export class GameServer {
   }
 
   /**
-   * Every offered room (ready modes × tracks) with how many players are in it now; for a private
+   * Every offered room (modes × tracks) with how many players are in it now; for a private
    * mode, how many are driving it on that circuit, each alone.
    */
   roomList(): RoomInfo[] {
     const members = [...this.members.values()];
-    return READY_MODES.flatMap((mode) =>
+    return ONLINE_MODES.flatMap((mode) =>
       GP_TRACKS.map(({ name: track }) => ({
         mode,
         track,
@@ -191,8 +189,8 @@ export class GameServer {
   /** Puts the player in the room of `mode` on `track`, opening it if nobody is there yet. */
   private enter(conn: Connection, member: Member, mode: OnlineMode, track: string): void {
     const definition = GP_TRACKS.find((t) => t.name === track);
-    // Not offered (unknown track, mode not ready yet): ignored, like any malformed message.
-    if (!definition || !READY_MODES.includes(mode)) return;
+    // Not offered (unknown track): ignored, like any malformed message.
+    if (!definition) return;
     const key = roomKey(mode, track, member.id);
     if (this.grandPrix.get(key)?.isOpen === false) {
       conn.send(encodeMessage({ type: 'refused', reason: 'inProgress' }));

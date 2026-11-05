@@ -15,7 +15,8 @@ import { GrandPrixPanel, type PitBadge } from '../view/hud/GrandPrixPanel';
 import type { Hud } from '../view/hud/Hud';
 import { ResultsScreen } from '../view/hud/ResultsScreen';
 import { StartLights } from '../view/hud/StartLights';
-import { grandPrixContent, lapName } from './grandPrixText';
+import type { SceneView } from '../view/SceneView';
+import { chequeredFlag, grandPrixContent, lapName } from './grandPrixText';
 import type { NetClient } from './NetClient';
 import type { Predictor } from './Predictor';
 import { classificationRows, playAgainItem, podiumContent, type RaceResult } from './resultsText';
@@ -42,8 +43,8 @@ export class OnlineGrandPrix {
     private readonly predictor: Predictor,
     private readonly hud: Hud,
     controller: KeyboardController,
-    /** Marks the own pit box on the lane (null: none). */
-    private readonly markPitBox: (box: number | null) => void,
+    /** The view: the own pit box marked, the flag marshal at the line on the last lap. */
+    private readonly scene: Pick<SceneView, 'markPitBox' | 'showFlagMarshal'>,
     /** The room's track, with its pit lane: who is in it is shown in the panel. */
     private readonly track: Track,
   ) {
@@ -73,7 +74,8 @@ export class OnlineGrandPrix {
     this.predictor.hold = info.hold;
     this.predictor.setDamage(damageInPhase(info.phase));
     this.predictor.setPitBoxes(info.boxes);
-    this.markPitBox(info.boxes[this.playerId] ?? null);
+    this.scene.markPitBox(info.boxes[this.playerId] ?? null);
+    this.scene.showFlagMarshal(chequeredFlag(info));
     this.hud.setLapName(lapName(info, this.playerId));
     if (raceOver) void this.showResults(info);
     else if (this.onResults) this.results.setPlayAgain(playAgainItem(info));

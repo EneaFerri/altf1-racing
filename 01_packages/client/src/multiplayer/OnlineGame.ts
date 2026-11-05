@@ -82,7 +82,10 @@ export class OnlineGame {
             this.predictor,
             this.hud,
             this.controller,
-            (box) => this.view.markPitBox(box),
+            {
+              markPitBox: (box) => this.view.markPitBox(box),
+              showFlagMarshal: (on) => this.view.showFlagMarshal(on),
+            },
             built,
           )
         : null;

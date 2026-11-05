@@ -371,6 +371,10 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   damage on or off (`Room.setDamage`; off repairs every car). The client's `Predictor` follows the
   phase of each `grandPrix` message (`setDamage`), and the snapshots carry each car's `damage`.
   Free practice and Time trial never have it. Rules and numbers: [damage.md](damage.md).
+- **Chequered flag** (2.3k): from the first driver on the last lap (`chequeredFlag`) until the
+  results, a flag marshal waves it at the finish line (`view/FlagMarshal.ts`: a pixel-art sprite,
+  two frames from `view/flagMarshalArt.ts`, 2.4 m on a 1.2 m podium, on the run-off of the side
+  away from the pit lane).
 - **Pit lane** (Phase 4, 4f ✅): a Grand Prix room's track has its drivable pit lane
   (`new Room(definition, { pitLane: true })`), and so does the client's in that mode; no protocol
   change (both build it from the same data). Pit stops (4g): each driver keeps a box from joining
@@ -379,9 +383,9 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
 - **Reset**: when the last player leaves, the room and its Grand Prix are dropped; the next player
   in opens a new one, in the lobby. After a race, Play again starts a new one in the same room.
 
-The server decides what is ready (`READY_MODES`): the `welcome` only lists rooms of ready modes,
-and the client shows every other mode as "Work in progress", so turning a mode on is a server
-change only.
+The server offers a room for every mode of `ONLINE_MODES` on every circuit of `GP_TRACKS` (its
+`READY_MODES` list, used while the modes were being built, is gone now that all of them are). The
+client still shows a mode the `welcome` has no rooms for as "Work in progress".
 
 ## Lap records (2.5a)
 

@@ -165,6 +165,10 @@ leaderboards, bots online.
   Play again / Exit. Owner's change to the plan: no manager close — the first Play again opens a
   new lobby on the circuit (its manager), the others join it; Exit goes back to the start.
 - 2.3j ✅ **Owner test over Tailscale** of all three modes (owner, 2026-11-03).
+- 2.3k ✅ **Chequered flag marshal** (owner's request, 2026-11-04) — from the first driver on the
+  last lap until the results, a pixel-art flag marshal (team jacket, ponytail) waves the
+  chequered flag on a small podium at the finish line, on the side away from the pits; Grand Prix
+  only.
 
 ### 2.4 — More circuits
 
@@ -183,7 +187,7 @@ the checklist in [circuits.md](circuits.md#adding-a-circuit); the online circuit
   Hard bot 75.48 s, clean on every level; garages beside the pit lane where OSM maps none. Owner's
   first test: the 90° corners made sharp (you must brake), the stands made coherent (stadium bowls,
   the GP's grandstands at the corners), the surroundings drawn (park buildings, domes, lakes,
-  volcanoes). Waiting for the owner's review.
+  volcanoes).
 - 2.4b+ — next circuit: the owner's choice. 2.4 carries on **in parallel** with Phase 3, one
   circuit at a time, whenever the owner wants one.
 
@@ -192,10 +196,10 @@ the checklist in [circuits.md](circuits.md#adding-a-circuit); the online circuit
 Goal: the best laps kept on the server for good, per mode and circuit, shown before choosing one.
 Design: [multiplayer.md](multiplayer.md#lap-records-25a).
 
-- 2.5a **Lap records in SQLite** (protocol v10) — the server keeps, per record mode (Time trial,
+- 2.5a ✅ **Lap records in SQLite** (protocol v10) — the server keeps, per record mode (Time trial,
   Grand Prix: qualifying and race) and circuit, the 10 fastest players' best valid laps
   (`node:sqlite`, `server/data/records.db`); the `welcome` carries them and the track menu shows
-  the selected circuit's top 10, the own time marked. Waiting for the owner's review.
+  the selected circuit's top 10, the own time marked.
 
 ## Phase 3 — Elevation (Monaco v2) ✅
 
@@ -232,7 +236,7 @@ aligned along the track.
   and props on it, the sea at 0, the tunnel following the track. Before it (owner's 3c test): the
   heights in real metres (× scale was too much), the harbour front at 2.5 m above the sea, the
   ground after the Grand Hotel hairpin fixed. Details:
-  [elevation.md](elevation.md#terrain-and-town-3d-). Waiting for the owner's review.
+  [elevation.md](elevation.md#terrain-and-town-3d-).
 - 3e ✅ **Owner test** (2026-11-03): approved; the slope factor stays 0.5.
 - 3f ✅ **Monaco v2 online** (owner's request): in `GP_TRACKS`, so Free practice, Time trial and
   Grand Prix offer it; the server and the prediction run the same slope (`SLOPE_PARAMS`: no F2
@@ -266,8 +270,8 @@ Details (numbers, look, rules) are decided in each step with the owner.
 
 - 4a ✅ **Damage model** (shared, pure, tested) — `CarState.damage` (optional: only with
   `SimContext.damage`): front wing, rear wing and the four tyres, each 0..1, up to a ceiling of 1.
-  Impacts (cars and walls) above 4 m/s of closing speed damage the part hit, chosen by the contact
-  point in the car's frame (front → front wing + front tyres, rear → rear wing + rear tyres,
+  Impacts (cars and walls) above 4 m/s (8 since 4i) of closing speed damage the part hit, chosen
+  by the contact point in the car's frame (front → front wing + front tyres, rear → rear wing + rear tyres,
   side → that side's tyres); grass and gravel wear each wheel's tyre per second, by speed. R keeps
   the damage. Numbers in `config/damage.ts` (`DAMAGE_PARAMS`, provisional), measured in
   [damage.md](damage.md). Not active anywhere yet.
@@ -314,9 +318,12 @@ Details (numbers, look, rules) are decided in each step with the owner.
 - 4h ✅ **Pit lane in the Grand Prix's timing** (protocol v13) — the timing tower marks drivers in
   the pit lane (`PIT`, `BOX` while stopped), live from the predicted world; the server counts each
   driver's stops in the race, shown in a `STOPS` column of the classification; the lap is timed
-  over the start line in the pit lane (tested on every circuit) ([pitlane.md](pitlane.md#in-the-grand-prix-4h)).
-  Waiting for the owner's review.
-- 4i **Owner test over Tailscale** on every circuit; damage and stop numbers tuned.
+  over the start line in the pit lane (tested on every circuit)
+  ([pitlane.md](pitlane.md#in-the-grand-prix-4h)).
+- 4i (in progress) **Owner test over Tailscale** on every circuit; damage and stop numbers tuned.
+  - Cars sturdier (owner, 2026-11-04: damaged too easily): impacts from 8 m/s instead of 4 and
+    0.018 per m/s instead of 0.025; grass and gravel wear halved / −40%
+    ([damage.md](damage.md#impacts)).
 
 ## Later
 

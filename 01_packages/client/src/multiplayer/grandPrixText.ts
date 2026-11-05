@@ -130,6 +130,16 @@ export function raceNote(standing: RaceStanding, position: number, raceLaps: num
 }
 
 /**
+ * Whether the chequered flag is out (its marshal at the line): in the race, from the first driver
+ * on the last lap, until the results.
+ */
+export function chequeredFlag(info: GrandPrixInfo): boolean {
+  if (info.phase !== 'race' || info.raceLaps === null) return false;
+  const last = info.raceLaps - 1;
+  return info.race.some((standing) => standing.status !== 'dnf' && standing.laps >= last);
+}
+
+/**
  * How the HUD names player `ownId`'s lap: Q1–Q3 in qualifying, position and lap in the race
  * (`P2/6 · LAP 3/8`, lap 1 from the grid on), else the usual `OUT LAP` / `LAP n`.
  */

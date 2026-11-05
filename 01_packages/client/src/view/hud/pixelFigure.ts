@@ -74,6 +74,18 @@ export function pixelFigure(livery: Livery, trophy: boolean): HTMLCanvasElement 
     h: livery.shade,
     s: livery.shade,
   };
+  return paintPixels(rows, colors);
+}
+
+/**
+ * Pixel art from rows of characters, one per pixel (`colors` per character; others are empty): a
+ * canvas one pixel per sprite pixel, to be scaled up crisply (CSS `image-rendering: pixelated`,
+ * or a nearest-filtered texture).
+ */
+export function paintPixels(
+  rows: readonly string[],
+  colors: Readonly<Record<string, string>>,
+): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = rows[0]!.length;
   canvas.height = rows.length;

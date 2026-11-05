@@ -30,6 +30,7 @@ export interface GhostPose {
   readonly alpha: number;
 }
 import { createOwnBoxMark, createTrackView } from './TrackView';
+import { FlagMarshal } from './FlagMarshal';
 import { bindResize, createRenderer } from './renderer';
 
 /** Owns the Three.js scene and draws it. Reads game state, never writes it. */
@@ -128,6 +129,17 @@ export class SceneView {
 
   private pitBox: number | null = null;
   private pitBoxMark: THREE.Mesh | null = null;
+  private flagMarshal: FlagMarshal | null = null;
+
+  /** The flag marshal at the finish line (a Grand Prix's last lap); created when first shown. */
+  showFlagMarshal(on: boolean): void {
+    if (!on && !this.flagMarshal) return;
+    if (!this.flagMarshal) {
+      this.flagMarshal = new FlagMarshal(this.track);
+      this.scene.add(this.flagMarshal.object);
+    }
+    this.flagMarshal.visible = on;
+  }
 
   /** Looks behind the followed car while `on` (either camera). */
   setLookBack(on: boolean): void {
@@ -147,6 +159,7 @@ export class SceneView {
       }
     }
     this.renderGhost(frameSeconds);
+    this.flagMarshal?.update(frameSeconds);
     // Tags after the camera moved, so they face it and size against its new position.
     for (const car of curr.cars) {
       if (car.id === this.followId) continue;
