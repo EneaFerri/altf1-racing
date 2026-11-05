@@ -63,8 +63,9 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 - `TrackView` builds asphalt, kerbs, high kerbs, gravel, walls, the start line and the sector
   gantries from the same compiled `Track` the physics uses.
 - **Themes** (`view/themes/`): sky, light, ground, asphalt, kerb colours, wall style and scenery per
-  track (`themeFor(track.name)`; Kruncar has its own, other tracks the classic look). Scenery builders
-  in `view/scenery/`. Details: [themes.md](themes.md).
+  track (`loadTheme(track.name)`, loaded on demand: each theme is its own chunk of the production
+  build, fetched once the track is chosen; Kruncar and the real circuits have their own, other
+  tracks the classic look). Scenery builders in `view/scenery/`. Details: [themes.md](themes.md).
 - **HUD** (`view/hud/Hud.ts` + `hud.css`): F1-style timing strip at the top centre (lap, running time,
   sector bars, last/best, speed, SLIP bar + % of slipstream, bot level) with a sector-gap chip; always on. The F3 debug overlay stays top left.
   Details: [laps.md](laps.md#hud-top-centre).

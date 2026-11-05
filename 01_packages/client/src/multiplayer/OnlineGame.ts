@@ -19,6 +19,7 @@ import { Hud } from '../view/hud/Hud';
 import { Minimap } from '../view/hud/Minimap';
 import { playerLivery } from '../view/pixelTexture';
 import { SceneView } from '../view/SceneView';
+import type { TrackTheme } from '../view/themes/theme';
 import { Ghost } from './ghost';
 import type { NetClient } from './NetClient';
 import { OnlineGrandPrix } from './OnlineGrandPrix';
@@ -68,6 +69,7 @@ export class OnlineGame {
     entered: Entered,
     mode: OnlineMode,
     track: TrackDefinition,
+    theme: TrackTheme,
   ) {
     this.playerId = playerId;
     this.ghost = mode === 'timeTrial' ? new Ghost(playerId) : null;
@@ -90,7 +92,7 @@ export class OnlineGame {
           )
         : null;
     if (mode === 'grandPrix') this.hud.usePitLane(built);
-    this.view = new SceneView(built, this.playerId, {}, { ...CAMERA_PARAMS });
+    this.view = new SceneView(built, this.playerId, {}, { ...CAMERA_PARAMS }, theme);
     this.minimap = new Minimap(built);
     this.setPlayers(entered.players);
     this.hud.hideBot();

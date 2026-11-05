@@ -6,7 +6,8 @@ the simulation never sees a theme. Code in `01_packages/client/src/view/themes/`
 
 ## Theme system
 
-- `themes/theme.ts`: the `TrackTheme` interface and `themeFor(trackName)`. **Kruncar**, **Monza**,
+- `themes/theme.ts`: the `TrackTheme` interface and `loadTheme(trackName)` (a dynamic import per
+  theme: the generated scenery stays out of the first download). **Kruncar**, **Monza**,
   **Barcelona** and **Monaco** have their own theme; every other track gets **classic** (`themes/classic.ts`: the original look,
   Test Ring).
 - `SceneView` reads the theme for sky colour, fog, camera far plane (`viewDistance`), hemisphere light
@@ -250,7 +251,8 @@ hazy ridges round the rest of the valley.
 
 ## Theming a new track
 
-1. Add `themes/<track>.ts` exporting a `TrackTheme`, and map the track's name in `themeFor`.
+1. Add `themes/<track>.ts` exporting a `TrackTheme`, and map the track's name in `loadTheme`'s `THEMES`
+   (a dynamic import, so it gets its own chunk).
 2. Put prop positions in a plain-data `themes/<track>Layout.ts` and test them like Kruncar's
    (real circuit: generate it with `01_tools/openf1/scenery.ts`, like Monza's).
 3. Reuse the builders in `scenery/` (`nature.ts`, `buildings.ts`, `trackside.ts`) and the textures in

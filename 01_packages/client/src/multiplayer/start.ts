@@ -12,6 +12,7 @@ import {
 import { ListMenu } from '../view/menu/ListMenu';
 import { NicknameScreen } from '../view/menu/NicknameScreen';
 import { RecordTable } from '../view/menu/RecordTable';
+import { loadTheme } from '../view/themes/theme';
 import {
   lobbyProblemText,
   MODE_NAMES,
@@ -57,9 +58,11 @@ export async function startMultiplayer(): Promise<void> {
 
   const mode = await chooseMode(welcome.rooms);
   const track = await chooseRoom(mode, welcome.rooms, welcome.records, nickname);
+  // The look first, so the race starts drawing as soon as the room is entered.
+  const theme = await loadTheme(track);
   const entered = await enter(client, mode, track);
   if (!entered) return showRefused();
-  new OnlineGame(client, welcome.playerId, entered, mode, trackByName(track)!).start();
+  new OnlineGame(client, welcome.playerId, entered, mode, trackByName(track)!, theme).start();
 }
 
 /** Connects and says hello: the accepted session, or the text explaining why not. */

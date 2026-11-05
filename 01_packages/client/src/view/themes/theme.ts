@@ -1,12 +1,5 @@
 import type * as THREE from 'three';
 import type { Track, Vec2 } from '@altf1/shared';
-import { BARCELONA_THEME } from './barcelona';
-import { CLASSIC_THEME } from './classic';
-import { KRUNCAR_THEME } from './kruncar';
-import { MEXICO_THEME } from './mexico';
-import { MONACO_THEME } from './monaco';
-import { MONACO_V2_THEME } from './monacoV2';
-import { MONZA_THEME } from './monza';
 
 /** How a stretch of wall is drawn (the physics wall is the same everywhere). */
 export type WallStyle = 'tyres' | 'fence' | 'concrete' | 'armco' | 'armcoFence';
@@ -59,16 +52,21 @@ export interface TrackTheme {
   readonly groundHeight?: (track: Track) => (p: Vec2) => number;
 }
 
-const THEMES: Readonly<Record<string, TrackTheme>> = {
-  Kruncar: KRUNCAR_THEME,
-  Monza: MONZA_THEME,
-  Barcelona: BARCELONA_THEME,
-  Monaco: MONACO_THEME,
-  'Monaco v2': MONACO_V2_THEME,
-  'Mexico City': MEXICO_THEME,
+/**
+ * Each track's own theme, loaded only when that track is chosen: the real circuits' scenery
+ * (generated from OSM) is most of the client's code, so each one is its own chunk.
+ */
+const THEMES: Readonly<Record<string, () => Promise<TrackTheme>>> = {
+  Kruncar: async () => (await import('./kruncar')).KRUNCAR_THEME,
+  Monza: async () => (await import('./monza')).MONZA_THEME,
+  Barcelona: async () => (await import('./barcelona')).BARCELONA_THEME,
+  Monaco: async () => (await import('./monaco')).MONACO_THEME,
+  'Monaco v2': async () => (await import('./monacoV2')).MONACO_V2_THEME,
+  'Mexico City': async () => (await import('./mexico')).MEXICO_THEME,
 };
 
-/** The theme drawn for a track: its own when it has one, else the classic look. */
-export function themeFor(trackName: string): TrackTheme {
-  return THEMES[trackName] ?? CLASSIC_THEME;
+/** Loads the theme drawn for a track: its own when it has one, else the classic look. */
+export async function loadTheme(trackName: string): Promise<TrackTheme> {
+  const own = THEMES[trackName];
+  return own ? own() : (await import('./classic')).CLASSIC_THEME;
 }

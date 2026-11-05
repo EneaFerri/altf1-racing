@@ -72,7 +72,7 @@
   defaults and smoke test, obsolete `.vite/` ignore). They come back only when something uses them.
 - `Surface` moved to `track/types.ts` so `config/` no longer depends on query code.
 - Vite `chunkSizeWarningLimit` raised to 700 kB: Three.js alone is ~530 kB and can't be split further,
-  so the default warning was permanent noise.
+  so the default warning was permanent noise. (Dropped on 2026-11-05: themes load on demand.)
 
 ## 2026-10-22 — Collisions: own circle solver, forgiving by design
 
@@ -507,3 +507,11 @@
 - Built on what exists: `ImpactEvent` and `wheelSurfaces` as damage sources, per-car params for the
   effects, `StartHold` for the stop, branches for the pit lane road, OSM's `pit_lane` already
   extracted for the scenery.
+
+## 2026-11-05 — Track themes loaded on demand
+
+- The real circuits' generated scenery (`<id>Layout.ts`, `monacoV2Land.ts`) had grown the main
+  view chunk to ~1.2 MB. `themeFor` became `loadTheme`, one dynamic import per theme, awaited by
+  each mode's `start.ts` once the track is chosen and handed to `SceneView`: only the chosen
+  circuit's scenery is downloaded. The biggest chunk is now ~400 kB, so Vite's default 500 kB
+  warning is back (the 700 kB `chunkSizeWarningLimit` is gone).

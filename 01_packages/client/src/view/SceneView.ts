@@ -18,7 +18,7 @@ import { NameTag } from './NameTag';
 import { LIVERIES, type Livery } from './pixelTexture';
 import { elevatedGround, gridHeightAt, trackGroundHeight } from './scenery/ground';
 import { trackBounds } from './scenery/placement';
-import { themeFor, type TrackTheme } from './themes/theme';
+import type { TrackTheme } from './themes/theme';
 
 /** How see-through the ghost car is (time trial). */
 const GHOST_OPACITY = 0.35;
@@ -50,16 +50,16 @@ export class SceneView {
   /**
    * `followId`: the car the camera follows (the local player; `follow` changes it). `liveries`: colour per car id, others
    * are grey (more can be added with `setLivery`). `cameraParams` are read live. The look comes from
-   * the track's theme (`themeFor`).
+   * the track's `theme` (`loadTheme`).
    */
   constructor(
     private readonly track: Track,
     private followId: CarId,
     liveries: Readonly<Record<CarId, Livery>>,
     cameraParams: CameraParams,
+    theme: TrackTheme,
   ) {
     this.liveries = { ...liveries };
-    const theme = themeFor(track.name);
     this.cameraRig = new CameraRig(cameraParams);
     this.cameraRig.camera.far = theme.viewDistance;
     this.cameraRig.camera.updateProjectionMatrix();

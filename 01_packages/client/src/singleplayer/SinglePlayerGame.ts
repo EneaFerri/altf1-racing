@@ -41,6 +41,7 @@ import { Hud } from '../view/hud/Hud';
 import { Minimap } from '../view/hud/Minimap';
 import { LIVERIES } from '../view/pixelTexture';
 import { SceneView } from '../view/SceneView';
+import type { TrackTheme } from '../view/themes/theme';
 import { GameLoop } from '../core/GameLoop';
 
 /** Id of the car driven by this machine's keyboard. */
@@ -97,7 +98,7 @@ export class SinglePlayerGame {
     render: (alpha, frameSeconds) => this.render(alpha, frameSeconds),
   });
 
-  constructor(definition: TrackDefinition) {
+  constructor(definition: TrackDefinition, theme: TrackTheme) {
     const devPitLane =
       import.meta.env.DEV && new URLSearchParams(location.search).has(PIT_LANE_PARAM);
     this.track = buildTrack(definition, {
@@ -126,6 +127,7 @@ export class SinglePlayerGame {
       PLAYER_ID,
       { [PLAYER_ID]: LIVERIES.red, [BOT_ID]: LIVERIES.blue },
       this.cameraParams,
+      theme,
     );
     this.minimap = new Minimap(this.track);
     if (this.ctx.pit) {
