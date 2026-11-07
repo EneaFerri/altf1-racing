@@ -219,7 +219,7 @@ describe('GameServer — rooms', () => {
     if (snapshot?.type !== 'snapshot') throw new Error('no snapshot');
     const car = snapshot.state.cars[0]!;
     expect(Math.hypot(car.velocity.x, car.velocity.z)).toBeGreaterThan(10); // Enea's throttle
-    expect(snapshot.acks).toEqual({ [car.id]: 0 }); // the one input sent, run on the first tick
+    expect(snapshot.acks[car.id]).toBeGreaterThan(50); // a slot per tick, the missed ones repeat it
     expect(snapshot.inputs).toEqual({ [car.id]: { ...NEUTRAL_INPUT, throttle: 1 } }); // repeated
   });
 

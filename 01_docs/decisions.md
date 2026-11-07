@@ -515,3 +515,19 @@
   each mode's `start.ts` once the track is chosen and handed to `SceneView`: only the chosen
   circuit's scenery is downloaded. The biggest chunk is now ~400 kB, so Vite's default 500 kB
   warning is back (the 700 kB `chunkSizeWarningLimit` is gone).
+
+## 2026-11-07 — Inputs on a timeline of slots (2.6a)
+
+- Over Tailscale, players on a weak connection found the game unplayable. Cause: the server ran
+  "the next queued input" and, with none waiting, repeated the last one without using a `seq`.
+  Every stall (jitter, a TCP retransmission) therefore gave the server's car extra ticks that the
+  client's prediction learned of at once (the own car thrown forward by the stall), and the burst
+  after it overflowed the 6-input cap (thrown back).
+- Now one `seq` slot per tick, always: a missing input is guessed (the last one) and its late
+  arrival thrown away. The guess is right while the keys don't change, so most stalls cost nothing.
+  Standard approach of fast multiplayer racing games; no protocol change.
+- The buffer adapts one tick at a time instead of a fixed size: a good connection keeps the
+  shortest delay (what the others see of this car), a bad one gets up to 250 ms, and each change
+  costs at most one tick of motion, glided by the prediction.
+- TCP (WebSocket) stays: an unreliable WebRTC channel would remove head-of-line blocking but is a
+  big job; only if 2.6a–c aren't enough.

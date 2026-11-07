@@ -143,12 +143,23 @@ port is taken (a server already running) it says so and exits.
 - **Spawn**: `spawnOnGrid` (`shared/src/sim/game.ts`, pure, tested) puts the new car at rest on the
   first grid slot with no car within 6 m, on an out-lap. A slot frees up as soon as its car drives
   away.
-- **Inputs** (2.2a): each player has a **queue**; every tick runs exactly one input from it, the
-  one the client simulated for that tick, and records its `seq` as the car's ack (`Room.acks`,
-  sent in every snapshot). A duplicate or older `seq` is ignored. An empty queue repeats the last
-  input (without its `reset`, so R is applied exactly once). Past `MAX_QUEUED_INPUTS` (6 ticks,
-  100 ms) the oldest inputs are dropped (a dropped reset moves to the next input), so a burst after
-  a network hiccup never leaves the car running late. No input yet = neutral.
+- **Inputs** (2.2a, timeline since 2.6a): each player's inputs are run on a **timeline of `seq`
+  slots**, one slot per tick, whether its input arrived or not (`Room.queueInput`, `runSlot`). A
+  slot whose input hasn't arrived repeats the last input (without its `reset`) and is still used up
+  and acked; when that input arrives it is late and thrown away (its reset rides on the next input
+  run, so R is never lost). Duplicates are ignored. So the server always runs exactly as many inputs
+  as the client simulated: a late input only moves the own car if it differed from the repeated one
+  (with the keys held, not at all). No input yet = neutral.
+- **Jitter buffer** (2.6a): how far the slots run behind the client's newest input adapts by one
+  tick at a time, per window of 0.5 s (`WINDOW_TICKS`): ≥ 2 missed slots → one tick longer (a tick
+  that runs the last input without using a slot), up to 15 ticks (`MAX_DELAY_TICKS`, 250 ms);
+  3 windows in a row with no miss and always ≥ 3 inputs waiting → one tick shorter (a slot
+  skipped). Each change moves the own car by one tick of motion (≤ ~1.3 m at top speed), which the
+  prediction's correction glide smooths. Arrivals more than 30 ticks off the timeline for 30 ticks
+  in a row (a tab that stopped ticking, a server stall) restart it at the client's newest input.
+  (Before 2.6a an empty queue repeated the last input _without_ using a slot and a queue past 6 was
+  cut: every network stall then threw the own car forward by the stall's length and the burst
+  after it back, which made the game unplayable on weak connections.)
 - **Rates**: every live room is simulated at 60 Hz and sends a `snapshot` (its whole `GameState`)
   to its players every 2 ticks = **30 Hz** (`SNAPSHOT_EVERY_TICKS`). Players who joined but haven't
   picked a circuit yet get none.
@@ -252,8 +263,9 @@ Sub-steps in [roadmap.md](roadmap.md#22--client-side-prediction-the-own-car-resp
     the client didn't see, a reset) is shown at once.
 - **Where corrections come from**: the other players changing their input (their car was predicted
   with the old one: the bigger the round trip, the bigger the glide), contacts that depend on that,
-  and the client's and server's tick clocks drifting apart (the server's queue repeats or drops an
-  input). With one player alone the correction is 0.
+  own inputs that arrived too late for their slot and differed from the repeated one, and the
+  server's jitter buffer growing or shrinking by a tick (see Rooms). With one player alone on a
+  steady network the correction is 0.
 - (2.2c's first plan — keep the other cars on the ~67 ms playback with an adaptive delay — was
   dropped: they would be drawn behind where the own car can touch them.)
 
@@ -423,3 +435,14 @@ npm run dev      # the game (Vite), port 5173, also on LAN/Tailscale
 
 Other machines open the dev URL (LAN or Tailscale IP, port 5173): their socket goes through the same
 Vite server, nothing else to configure. Two browser tabs on one machine are two players.
+
+**Bad network on purpose** (2.6a, `server/src/netSim.ts`): with any of these set, the server delays
+every message both ways, keeping their order as TCP does:
+
+```
+NET_DELAY_MS=80 NET_JITTER_MS=40 NET_STALL_MS=250 npm run server
+```
+
+`NET_DELAY_MS` one-way delay, `NET_JITTER_MS` extra random delay up to it, `NET_STALL_MS` a stall
+that holds everything back (what a lost packet's retransmission looks like), about every
+`NET_STALL_EVERY_MS` (default 3000, ±50%). F3's `corrected` and `ahead` show how the game copes.

@@ -43,7 +43,7 @@ Server: Node.js + `ws`. Rationale in [01_docs/decisions.md](01_docs/decisions.md
 - `01_packages/client/src/view/scenery/` — `placement.ts` (pure: clearance, scatter, apexes, track-relative spots, stands in pieces along bends, a stadium's bowl, moored boats; tested), `ground.ts` (pure: the ground's height round an elevated track, on the real land, settled under the road), `onGround.ts` (props stood on it), `nature.ts` (incl. pines, volcanoes), `buildings.ts`, `trackside.ts`, `realCircuit.ts` (pit lane, old oval), `town.ts` (city, sea, piers, pools, palms), `tunnel.ts`, `landmarks.ts` (Casino, chapel, domes), `yachts.ts`, `stadium.ts` (stadium bowls: Mexico City's Foro Sol and ballpark) _(See `01_docs/themes.md`)_
 - `01_packages/client/src/view/menu/` — `ListMenu` (every list menu: mouse, W/S + Enter; optional `content`, live `setItem`), `ModeMenu` (start: Singleplayer / Multiplayer), `TrackMenu` (single player's track), `NicknameScreen` (multiplayer, network-free), `RecordTable` (lap-record board), `dom.ts`, `menu.css` _(See `01_docs/architecture.md`, `01_docs/multiplayer.md`)_
 - `01_packages/client/src/main.ts` — Bootstrap only: `ModeMenu` → dynamic import of the chosen mode
-- `01_packages/server/` — **Multiplayer server** (Node + `ws`, TS run directly via `01_tools/resolveTs.ts`) — `Lobby` (nicknames, ids, liveries), `Room` (one circuit's authoritative race, damage on/off), `GrandPrix` (manager, phases: qualifying, grid, start, race, results, play again), `GameServer` (rooms per mode and circuit of `GP_TRACKS`; messages; socket-free), `LapRecords` (lap records in SQLite, `node:sqlite`), `main.ts` (ws adapter, timeouts, heartbeat, opens `data/records.db`) _(`npm run server`; see `01_docs/multiplayer.md`)_
+- `01_packages/server/` — **Multiplayer server** (Node + `ws`, TS run directly via `01_tools/resolveTs.ts`) — `Lobby` (nicknames, ids, liveries), `Room` (one circuit's authoritative race, input timeline with jitter buffer, damage on/off), `GrandPrix` (manager, phases: qualifying, grid, start, race, results, play again), `GameServer` (rooms per mode and circuit of `GP_TRACKS`; messages; socket-free), `LapRecords` (lap records in SQLite, `node:sqlite`), `main.ts` (ws adapter, timeouts, heartbeat, opens `data/records.db`), `netSim.ts` (dev: simulated bad network, `NET_DELAY_MS`…) _(`npm run server`; see `01_docs/multiplayer.md`)_
 - `01_tools/openf1/` — Real-circuit tool (plain Node): OpenF1 + OpenStreetMap data in `data/` → generated `layouts/<id>.ts`; `circuits.ts` holds widths and adaptation; `calibrate.ts` fits the scale to the real pole; `pitLane.ts` (+ `locate.ts`) the real pit lane into the layout (Phase 4); `scenery.ts` → generated `themes/<id>Layout.ts`; `terrain.ts` + `elevation.ts`: land heights (EU-DEM) and the track's elevation (Phase 3) _(See its `README.md` and `01_docs/circuits.md`)_
 - `01_tools/resolveTs.ts` — Node loader: lets plain `node` run TypeScript importing `shared` (extensionless imports) _(Used by the OpenF1 tool and the server)_
 - `01_docs/` — Topic docs _(See index below)_
@@ -101,7 +101,9 @@ npm run server     # multiplayer server (port 8787, restarts on save); the clien
 - Phase 2 (multiplayer): lobby (2.1), client-side prediction and minimap (2.2), the online modes
   Free practice, Time trial with ghost and the full Grand Prix incl. the chequered flag (2.3a–k),
   Mexico City (2.4a) and server lap records in SQLite (2.5a) done. More circuits (2.4) whenever
-  the owner wants one. Protocol v13.
+  the owner wants one. Protocol v13. **2.6 in progress** (netcode on weak connections): 2.6a input
+  timeline with jitter buffer done, awaiting the owner's test; 2.6b lighter snapshots, 2.6c smoother
+  opponents next.
 - Phase 3 (elevation on Monaco v2, online in every mode): done.
 - Phase 4 (pit lane and car damage, Grand Prix only): 4a–4h done; **4i in progress**: the
   owner's test over Tailscale and tuning (cars made sturdier on 2026-11-04).

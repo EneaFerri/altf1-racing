@@ -201,6 +201,22 @@ Design: [multiplayer.md](multiplayer.md#lap-records-25a).
   (`node:sqlite`, `server/data/records.db`); the `welcome` carries them and the track menu shows
   the selected circuit's top 10, the own time marked.
 
+### 2.6 — Netcode on weak connections
+
+Goal: the game stays playable over Tailscale for players on a weak connection (jitter, lost
+packets, little bandwidth). Design: [multiplayer.md](multiplayer.md#rooms-21e--21f-).
+
+- 2.6a ✅ **Input timeline with a jitter buffer** — the server runs one `seq` slot per tick, a
+  missing input repeats the last one and uses its slot up, and its buffer adapts by one tick at a
+  time: network stalls no longer throw the own car forward and back (measured on the simulated bad
+  network: jumps of up to 11 ticks before, 1 tick now). Dev: `NET_DELAY_MS`/`NET_JITTER_MS`/
+  `NET_STALL_MS` simulate a bad network on the server. Protocol unchanged (v13).
+- 2.6b **Lighter snapshots** — a snapshot is 6.2 KB (8 cars, Grand Prix), ~1.5 Mbit/s per client at
+  30 Hz: compression (`perMessageDeflate`) and rounded numbers, applied by the server to its own
+  state so the prediction stays exact.
+- 2.6c **Smoother opponents** — snap and glide of the other cars scaled to their speed and the round
+  trip.
+
 ## Phase 3 — Elevation (Monaco v2) ✅
 
 **Scope: one map, Monaco v2**, built and tested in single player first (3a–3e), then offered

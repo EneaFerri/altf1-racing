@@ -5,6 +5,7 @@ import { TICK_RATE } from '@altf1/shared';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { GameServer, type Connection } from './GameServer.ts';
 import { LapRecords } from './LapRecords.ts';
+import { NetSim, netSimFromEnv } from './netSim.ts';
 
 /**
  * Multiplayer server entry point: adapts `ws` sockets and real time to GameServer.
@@ -22,6 +23,15 @@ const HEARTBEAT_MS = 5_000;
 const RECORDS_DB =
   process.env['RECORDS_DB'] ?? fileURLToPath(new URL('../data/records.db', import.meta.url));
 
+/** Dev only: a simulated bad network on every socket (NET_DELAY_MS, NET_JITTER_MS, NET_STALL_MS). */
+const NET_SIM = netSimFromEnv(process.env);
+
+/** Runs `deliver` when a message sent now arrives on `link` (at once without a simulated network). */
+function overLink(link: NetSim | null, deliver: () => void): void {
+  if (!link) return deliver();
+  setTimeout(deliver, link.deliveryTime(performance.now()) - performance.now());
+}
+
 mkdirSync(dirname(RECORDS_DB), { recursive: true });
 const records = new LapRecords(RECORDS_DB);
 const server = new GameServer((line) => console.info(line), records);
@@ -29,14 +39,19 @@ const sockets = new WebSocketServer({ port: PORT, path: '/ws' });
 const alive = new WeakSet<WebSocket>();
 
 sockets.on('connection', (socket) => {
+  const down = NET_SIM && new NetSim(NET_SIM);
+  const up = NET_SIM && new NetSim(NET_SIM);
   const conn: Connection = {
-    send: (text) => socket.send(text),
+    send: (text) => overLink(down, () => socket.readyState === socket.OPEN && socket.send(text)),
     close: (code, reason) => socket.close(code, reason),
   };
   alive.add(socket);
   socket.on('pong', () => alive.add(socket));
   socket.on('message', (data, isBinary) => {
-    if (!isBinary) server.message(conn, data.toString());
+    if (!isBinary) {
+      const text = data.toString();
+      overLink(up, () => socket.readyState === socket.OPEN && server.message(conn, text));
+    }
   });
   socket.on('close', () => server.close(conn));
   socket.on('error', () => socket.terminate());
@@ -76,6 +91,7 @@ sockets.on('error', (error: NodeJS.ErrnoException) => {
 sockets.on('listening', () => {
   console.info(`[server] AltF1 multiplayer on ws://localhost:${PORT}/ws (Ctrl+C to stop)`);
   console.info(`[server] lap records in ${RECORDS_DB}`);
+  if (NET_SIM) console.info(`[server] simulated bad network: ${JSON.stringify(NET_SIM)}`);
 });
 
 process.on('SIGINT', () => {
