@@ -25,8 +25,16 @@ export type Snapshot = Extract<ServerMessage, { type: 'snapshot' }>;
 const MAX_PENDING = 120;
 /** A correction bigger than this (m) is shown at once instead of faded out (crash, reset). */
 export const SNAP_DISTANCE = 4;
-/** How quickly a correction fades out (1/s): ~90% gone in 0.25 s. */
+/**
+ * Another car's correction is shown at once only past what it covers in this long (s), and never
+ * under SNAP_DISTANCE: at speed, a late snapshot moves it by metres that are better glided (a
+ * car reset is at rest, so it still jumps at once).
+ */
+export const REMOTE_SNAP_SECONDS = 0.35;
+/** How quickly the own car's correction fades out (1/s): ~90% gone in 0.25 s. */
 const CORRECTION_RATE = 10;
+/** The other cars' (1/s): ~90% gone in 0.4 s, so the glide hides their frequent corrections. */
+const REMOTE_CORRECTION_RATE = 6;
 /** Below this (m, rad) a correction is gone. */
 const NEGLIGIBLE = 1e-3;
 
@@ -40,7 +48,8 @@ interface Offset {
  * Client-side prediction of the whole room. Every client tick moves the world one tick on: this
  * player's car with its own input (so it responds at once), the other cars with the last input
  * the server saw from them. Every snapshot restarts from the server's state and replays the inputs
- * the server hasn't run yet; the jump this causes on screen fades out (`decay`) unless it is big.
+ * the server hasn't run yet; the jump this causes on screen fades out (`decay`) unless it is big
+ * (for the other cars: big for their speed).
  * Pure: no network, no clock. See 01_docs/multiplayer.md#prediction-22.
  */
 export class Predictor {
@@ -126,8 +135,10 @@ export class Predictor {
 
   /** Fades the corrections out by `seconds` of real time (once per frame). */
   decay(seconds: number): void {
-    const keep = Math.exp(-CORRECTION_RATE * seconds);
+    const keepOwn = Math.exp(-CORRECTION_RATE * seconds);
+    const keepOther = Math.exp(-REMOTE_CORRECTION_RATE * seconds);
     for (const [id, { position, heading }] of this.offsets) {
+      const keep = id === this.playerId ? keepOwn : keepOther;
       const offset = { position: scale(position, keep), heading: heading * keep };
       if (length(offset.position) < NEGLIGIBLE && Math.abs(offset.heading) < NEGLIGIBLE) {
         this.offsets.delete(id);
@@ -176,13 +187,19 @@ export class Predictor {
       const offset = this.offsets.get(car.id);
       const drawn = offset ? add(old.position, offset.position) : old.position;
       const position = sub(drawn, car.position);
-      if (length(position) > SNAP_DISTANCE) {
+      if (length(position) > this.snapDistance(car.id, length(car.velocity))) {
         this.offsets.delete(car.id);
         continue;
       }
       const heading = wrapAngle(old.heading + (offset?.heading ?? 0) - car.heading);
       this.offsets.set(car.id, { position, heading });
     }
+  }
+
+  /** How big a correction of `id`'s car going at `speed` (m/s) is shown at once (m). */
+  private snapDistance(id: CarId, speed: number): number {
+    if (id === this.playerId) return SNAP_DISTANCE;
+    return Math.max(SNAP_DISTANCE, speed * REMOTE_SNAP_SECONDS);
   }
 
   private shown(state: GameState): GameState {

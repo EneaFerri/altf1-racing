@@ -33,7 +33,7 @@ Server: Node.js + `ws`. Rationale in [01_docs/decisions.md](01_docs/decisions.md
 - `01_packages/shared/src/types/` — `InputCommand`
 - `01_packages/client/src/core/` — `GameLoop` (fixed-step accumulator), shared by both modes _(Only place using `requestAnimationFrame`)_
 - `01_packages/client/src/singleplayer/` — **Single player** — `start.ts` (track menu → race), `SinglePlayerGame` (wires M-V-C, builds the track, keeps prev/curr state, owns live params, drives the bot: B) _(Never imports `multiplayer/` (ESLint); see `01_docs/multiplayer.md`)_
-- `01_packages/client/src/multiplayer/` — **Multiplayer** — `start.ts` (nickname → join → mode → track → race), `OnlineGame` (sends numbered inputs, draws the predicted room), `Predictor` (client-side prediction + corrections), `ghost.ts` (time trial's ghost), `OnlineGrandPrix` (GP panel, lights, manager keys, spectating, results), `grandPrixText.ts` (GP panel texts), `resultsText.ts` (podium and classification texts), `recordsText.ts` (lap-record rows), `NetClient` (typed WebSocket), `serverUrl.ts`, `lobbyText.ts` (texts, mode menu rows) _(Never imports `singleplayer/` (ESLint); see `01_docs/multiplayer.md`)_
+- `01_packages/client/src/multiplayer/` — **Multiplayer** — `start.ts` (nickname → join → mode → track → race), `OnlineGame` (sends numbered inputs, draws the predicted room), `Predictor` (client-side prediction + corrections, the other cars' scaled to their speed), `ghost.ts` (time trial's ghost), `OnlineGrandPrix` (GP panel, lights, manager keys, spectating, results), `grandPrixText.ts` (GP panel texts), `resultsText.ts` (podium and classification texts), `recordsText.ts` (lap-record rows), `NetClient` (typed WebSocket), `serverUrl.ts`, `lobbyText.ts` (texts, mode menu rows) _(Never imports `singleplayer/` (ESLint); see `01_docs/multiplayer.md`)_
 - `01_packages/client/src/controller/` — **Controller** — `bindings.ts` (drive keys, view keys, tick triggers, actions), `KeyboardController` _(Uses `KeyboardEvent.code` (layout-independent))_
 - `01_packages/client/src/view/` — **View** — `SceneView` (scene, one `CarView` per car id with its livery, interpolation), `TrackView` (meshes from `Track` + theme), `ribbon.ts` (strip geometry), `CarView` (also see-through, for the ghost; height and pitch on an elevated track), `CockpitView` (first-person wheel), `FlagMarshal` + `flagMarshalArt.ts` (the GP's chequered flag at the line), `carDamageLook.ts` (how damage looks: bent or missing wings, flat tyres), `WindLines` (slipstream streaks), `NameTag` (online nicknames), pixel textures + liveries, renderer _(Reads state, never writes it)_
 - `01_packages/client/src/view/cameras/` — `CameraRig` (V toggle, Z look back, speed FOV), `ChaseCamera`, `FirstPersonCamera`, `params.ts` (`CAMERA_PARAMS`)
@@ -102,8 +102,8 @@ npm run server     # multiplayer server (port 8787, restarts on save); the clien
   Free practice, Time trial with ghost and the full Grand Prix incl. the chequered flag (2.3a–k),
   Mexico City (2.4a) and server lap records in SQLite (2.5a) done. More circuits (2.4) whenever
   the owner wants one. Protocol v13. **2.6 in progress** (netcode on weak connections): 2.6a input
-  timeline with jitter buffer and 2.6b lighter snapshots (rounding + compression) done, awaiting the
-  owner's test; 2.6c smoother opponents next.
+  timeline with jitter buffer, 2.6b lighter snapshots (rounding + compression) and 2.6c smoother
+  opponents done; awaiting the owner's test over Tailscale.
 - Phase 3 (elevation on Monaco v2, online in every mode): done.
 - Phase 4 (pit lane and car damage, Grand Prix only): 4a–4h done; **4i in progress**: the
   owner's test over Tailscale and tuning (cars made sturdier on 2026-11-04).

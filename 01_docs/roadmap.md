@@ -215,8 +215,9 @@ packets, little bandwidth). Design: [multiplayer.md](multiplayer.md#rooms-21e--2
   client at 30 Hz. Now numbers rounded to 4 decimals (`quantizeState`, applied by the server to its
   own state so the prediction stays exact) and `perMessageDeflate` on the socket: ~0.3 KB on the
   wire, ~20× less for the clients and the host. Protocol unchanged (v13).
-- 2.6c **Smoother opponents** — snap and glide of the other cars scaled to their speed and the round
-  trip.
+- 2.6c ✅ **Smoother opponents** — the other cars' corrections glide unless bigger than what the
+  car covers in 0.35 s (was a fixed 4 m: a late snapshot made a car at speed teleport), and fade
+  slower (6/s instead of 10/s); the own car unchanged.
 
 ## Phase 3 — Elevation (Monaco v2) ✅
 

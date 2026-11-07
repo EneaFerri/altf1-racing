@@ -266,9 +266,14 @@ Sub-steps in [roadmap.md](roadmap.md#22--client-side-prediction-the-own-car-resp
     ran (`seq` ≤ its ack) and replays the others (about half a round trip + the server's queue;
     F3 `ahead`). Kept for replay: at most 120 inputs (2 s). Cost: ~0.12 ms per tick with 8 cars,
     so a snapshot's replay is a few ms at most;
-  - **corrections**: every car stays where it was drawn and glides to its corrected place (the
-    offset fades at 10/s, ~90% gone in 0.25 s); one bigger than **4 m** (`SNAP_DISTANCE`: a crash
-    the client didn't see, a reset) is shown at once.
+  - **corrections**: every car stays where it was drawn and glides to its corrected place. The
+    own car: the offset fades at 10/s (~90% gone in 0.25 s), one bigger than **4 m**
+    (`SNAP_DISTANCE`: a crash the client didn't see, a reset) is shown at once. The other cars
+    (2.6c): they are corrected on most snapshots and by more (their input changes reach the client
+    late), so their offset fades at 6/s (~90% in 0.4 s) and is shown at once only past what the
+    car covers in 0.35 s (`REMOTE_SNAP_SECONDS`: 28 m at 80 m/s), never under 4 m; a reset car is
+    at rest, so its jump still shows at once. (The round trip was left out of the threshold: the
+    speed already covers it and the `Predictor` stays clock-free.)
 - **Where corrections come from**: the other players changing their input (their car was predicted
   with the old one: the bigger the round trip, the bigger the glide), contacts that depend on that,
   own inputs that arrived too late for their slot and differed from the repeated one, and the

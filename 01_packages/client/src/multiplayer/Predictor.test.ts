@@ -4,6 +4,7 @@ import {
   createGame,
   distance,
   findCar,
+  forward,
   NEUTRAL_INPUT,
   onlineSimContext,
   stepGame,
@@ -14,7 +15,7 @@ import {
   type GameState,
   type InputCommand,
 } from '@altf1/shared';
-import { Predictor, SNAP_DISTANCE, type Snapshot } from './Predictor';
+import { Predictor, REMOTE_SNAP_SECONDS, SNAP_DISTANCE, type Snapshot } from './Predictor';
 
 const ctx = onlineSimContext(buildTrack(TEST_TRACK));
 const THROTTLE: InputCommand = { ...NEUTRAL_INPUT, throttle: 1 };
@@ -136,6 +137,51 @@ describe('Predictor', () => {
     predictor.reconcile(snapshot(far));
     expect(distance(own(far).position, own(start).position)).toBeGreaterThan(SNAP_DISTANCE);
     expect(own(predictor.current)).toEqual(own(far));
+  });
+
+  it('glides another car’s correction that is big only for a slow car, and fades it slower', () => {
+    const start = createGame(ctx.track, ['p1', 'p2']);
+    const speed = 70;
+    const forwardOf = (c: GameState['cars'][number]) => scale(forward(c.heading), speed);
+    const fast = (state: GameState, dx: number): GameState => ({
+      ...state,
+      cars: state.cars.map((c) => ({
+        ...c,
+        position: { ...c.position, x: c.position.x + dx },
+        velocity: forwardOf(c),
+      })),
+    });
+    const predictor = new Predictor('p1', ctx);
+    predictor.reconcile(snapshot(fast(start, 0)));
+    const drawn = (id: string) => findCar(predictor.current!, id)!.position.x;
+    const before = { p1: drawn('p1'), p2: drawn('p2') };
+    const jump = 10; // over SNAP_DISTANCE, under what 70 m/s covers in REMOTE_SNAP_SECONDS
+    expect(jump).toBeGreaterThan(SNAP_DISTANCE);
+    expect(jump).toBeLessThan(speed * REMOTE_SNAP_SECONDS);
+    predictor.reconcile(snapshot(fast(start, jump)));
+    expect(drawn('p1')).toBeCloseTo(before.p1 + jump); // the own car: at once
+    expect(drawn('p2')).toBeCloseTo(before.p2); // another: glided from where it was
+    predictor.decay(0.1);
+    const ownLeft = Math.abs(drawn('p1') - (before.p1 + jump));
+    expect(ownLeft).toBeCloseTo(0);
+    const otherLeft = before.p2 + jump - drawn('p2');
+    expect(otherLeft).toBeGreaterThan(jump * 0.5); // 6/s: ~55% left after 0.1 s
+    predictor.decay(2);
+    expect(drawn('p2')).toBeCloseTo(before.p2 + jump);
+  });
+
+  it('still shows another car’s reset at once (a car at rest)', () => {
+    const start = createGame(ctx.track, ['p1', 'p2']);
+    const predictor = new Predictor('p1', ctx);
+    predictor.reconcile(snapshot(start));
+    const moved = {
+      ...start,
+      cars: start.cars.map((c) =>
+        c.id === 'p2' ? { ...c, position: { ...c.position, x: c.position.x + 10 } } : c,
+      ),
+    };
+    predictor.reconcile(snapshot(moved));
+    expect(findCar(predictor.current!, 'p2')).toEqual(findCar(moved, 'p2'));
   });
 
   it('predicts with damage exactly like the server room, once told the room has it', () => {
