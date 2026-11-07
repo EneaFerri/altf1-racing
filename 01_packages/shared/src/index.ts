@@ -17,6 +17,7 @@ export * from './math/geometry';
 export * from './math/vec2';
 export * from './net/nickname';
 export * from './net/protocol';
+export * from './net/quantize';
 export * from './net/simContext';
 export * from './race/damage';
 export * from './race/hold';

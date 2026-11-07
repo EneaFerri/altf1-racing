@@ -211,9 +211,10 @@ packets, little bandwidth). Design: [multiplayer.md](multiplayer.md#rooms-21e--2
   time: network stalls no longer throw the own car forward and back (measured on the simulated bad
   network: jumps of up to 11 ticks before, 1 tick now). Dev: `NET_DELAY_MS`/`NET_JITTER_MS`/
   `NET_STALL_MS` simulate a bad network on the server. Protocol unchanged (v13).
-- 2.6b **Lighter snapshots** — a snapshot is 6.2 KB (8 cars, Grand Prix), ~1.5 Mbit/s per client at
-  30 Hz: compression (`perMessageDeflate`) and rounded numbers, applied by the server to its own
-  state so the prediction stays exact.
+- 2.6b ✅ **Lighter snapshots** — a snapshot was ~6.4 KB (8 cars, Grand Prix), ~1.5 Mbit/s per
+  client at 30 Hz. Now numbers rounded to 4 decimals (`quantizeState`, applied by the server to its
+  own state so the prediction stays exact) and `perMessageDeflate` on the socket: ~0.3 KB on the
+  wire, ~20× less for the clients and the host. Protocol unchanged (v13).
 - 2.6c **Smoother opponents** — snap and glide of the other cars scaled to their speed and the round
   trip.
 

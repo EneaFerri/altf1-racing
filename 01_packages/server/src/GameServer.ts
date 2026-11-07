@@ -139,7 +139,7 @@ export class GameServer {
         if (room.state.tick % SNAPSHOT_EVERY_TICKS === 0) {
           this.broadcast(key, {
             type: 'snapshot',
-            state: room.state,
+            state: room.snapshotState(),
             acks: room.acks,
             inputs: room.lastInputs,
           });

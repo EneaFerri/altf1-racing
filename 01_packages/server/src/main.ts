@@ -35,7 +35,17 @@ function overLink(link: NetSim | null, deliver: () => void): void {
 mkdirSync(dirname(RECORDS_DB), { recursive: true });
 const records = new LapRecords(RECORDS_DB);
 const server = new GameServer((line) => console.info(line), records);
-const sockets = new WebSocketServer({ port: PORT, path: '/ws' });
+/**
+ * Messages from this size up are compressed (permessage-deflate, negotiated with the browser,
+ * through Vite's proxy too): a snapshot shrinks ~15×, since it repeats the previous one's keys.
+ */
+const COMPRESS_FROM_BYTES = 128;
+
+const sockets = new WebSocketServer({
+  port: PORT,
+  path: '/ws',
+  perMessageDeflate: { threshold: COMPRESS_FROM_BYTES },
+});
 const alive = new WeakSet<WebSocket>();
 
 sockets.on('connection', (socket) => {

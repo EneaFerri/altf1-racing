@@ -4,6 +4,7 @@ import {
   heldInputs,
   NEUTRAL_INPUT,
   onlineSimContext,
+  quantizeState,
   removeCar,
   repairCars,
   spawnOnGrid,
@@ -138,6 +139,15 @@ export class Room {
   }
 
   get state(): GameState {
+    return this.current;
+  }
+
+  /**
+   * The state to send in a snapshot, rounded (`quantizeState`); the room carries on from exactly
+   * these numbers, so the clients' prediction from it matches the server.
+   */
+  snapshotState(): GameState {
+    this.current = quantizeState(this.current);
     return this.current;
   }
 

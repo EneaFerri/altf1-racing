@@ -7,6 +7,7 @@ import {
   NEUTRAL_INPUT,
   parseServerMessage,
   PROTOCOL_VERSION,
+  quantizeState,
   SNAPSHOT_EVERY_TICKS,
   type CarId,
   type GameState,
@@ -221,6 +222,9 @@ describe('GameServer — rooms', () => {
     expect(Math.hypot(car.velocity.x, car.velocity.z)).toBeGreaterThan(10); // Enea's throttle
     expect(snapshot.acks[car.id]).toBeGreaterThan(50); // a slot per tick, the missed ones repeat it
     expect(snapshot.inputs).toEqual({ [car.id]: { ...NEUTRAL_INPUT, throttle: 1 } }); // repeated
+    // Rounded, and the very state the room goes on from (the client predicts from it).
+    expect(snapshot.state).toEqual(quantizeState(snapshot.state));
+    expect(snapshot.state).toEqual(server.rooms.get(roomKey('practice', 'Barcelona', 'p1'))!.state);
   });
 
   it('answers a ping with a pong, only once joined', () => {

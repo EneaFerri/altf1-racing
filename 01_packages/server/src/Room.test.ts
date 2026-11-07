@@ -1,6 +1,9 @@
+import { deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import {
   buildTrack,
+  encodeMessage,
+  GP_TRACKS,
   distance,
   dot,
   findCar,
@@ -9,6 +12,7 @@ import {
   HELD,
   NEUTRAL_INPUT,
   TEST_TRACK,
+  type GameState,
 } from '@altf1/shared';
 import { NetSim } from './netSim.ts';
 import { MAX_DELAY_TICKS, Room, SHRINK_LEAD } from './Room.ts';
@@ -238,6 +242,28 @@ describe('Room', () => {
     expect(
       dot(findCar(room.state, 'p1')!.velocity, forward(findCar(room.state, 'p1')!.heading)),
     ).toBeGreaterThan(1);
+  });
+
+  it('rounds its state for a snapshot and goes on from it; compressed, a snapshot is small', () => {
+    const room = new Room(GP_TRACKS[0]!, { pitLane: true });
+    room.setDamage(true);
+    const ids = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
+    for (const id of ids) room.add(id);
+    for (let seq = 0; seq < 300; seq++) {
+      ids.forEach((id, i) =>
+        room.queueInput(id, seq, { ...THROTTLE, steer: Math.sin(seq / 40 + i) * 0.4 }),
+      );
+      room.tick();
+    }
+    const text = (state: GameState): string =>
+      encodeMessage({ type: 'snapshot', state, acks: room.acks, inputs: room.lastInputs });
+    const exact = text(room.state);
+    const sent = room.snapshotState();
+    expect(room.state).toBe(sent);
+    // One snapshot compressed on its own; the socket also reuses the previous ones' keys.
+    const compressed = deflateRawSync(text(sent)).length;
+    expect(compressed).toBeLessThan(deflateRawSync(exact).length * 0.7);
+    expect(compressed / exact.length).toBeLessThan(0.25);
   });
 
   it('gives the cars damage only while it is on; turning it off repairs them', () => {

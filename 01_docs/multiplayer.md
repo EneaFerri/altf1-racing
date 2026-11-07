@@ -163,6 +163,14 @@ port is taken (a server already running) it says so and exits.
 - **Rates**: every live room is simulated at 60 Hz and sends a `snapshot` (its whole `GameState`)
   to its players every 2 ticks = **30 Hz** (`SNAPSHOT_EVERY_TICKS`). Players who joined but haven't
   picked a circuit yet get none.
+- **Snapshot size** (2.6b): before each snapshot the room rounds its own state to 4 decimals
+  (`Room.snapshotState`, `quantizeState` in `shared/src/net/quantize.ts`: 0.1 mm, 0.1 mrad), so the
+  snapshot is exactly the state the server goes on from and the prediction stays identical to it.
+  The socket compresses every message from 128 bytes up (`perMessageDeflate` in `main.ts`,
+  negotiated with the browser through Vite's proxy, keeping each socket's history), so a snapshot
+  costs little more than what changed since the last one. Measured: 8 cars in a Grand Prix,
+  ~6.4 KB of JSON before → ~0.3 KB on the wire (~190 → ~9 KB/s per player, the host uploads that
+  times the players); one car, 588 B → 61 B.
 
 ## Joining (2.1d ✅, 2.1f+ ✅)
 

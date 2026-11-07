@@ -531,3 +531,13 @@
   costs at most one tick of motion, glided by the prediction.
 - TCP (WebSocket) stays: an unreliable WebRTC channel would remove head-of-line blocking but is a
   big job; only if 2.6a–c aren't enough.
+
+## 2026-11-07 — Lighter snapshots: rounding + permessage-deflate (2.6b)
+
+- The snapshot stays the whole `GameState` in JSON: no delta encoding or binary format to keep
+  in step with every new field. Compression with each socket's history (`perMessageDeflate`)
+  does most of the job by itself: successive snapshots repeat their keys and most values.
+- Full doubles are noise to the compressor, so the numbers are rounded to 4 decimals. Rounding
+  only what is sent would make the client predict from a state the server doesn't have: the
+  server rounds its own room instead, before each snapshot, and goes on from exactly that.
+- Cost: a little CPU on the server and ~tens of kB of zlib memory per socket, fine for 8 players.
