@@ -199,7 +199,7 @@ Next three circuits (owner's plan, 2026-11-17; [decisions.md](decisions.md)), on
 other, each: data → circuit → look and scenery → owner's test and OK → commit. Before each step
 the owner adds the circuit's PNG to `03_F1Circuits/` and picks its width factor.
 
-- 2.4c **Singapore** (Marina Bay) — flat, at night. Pole 2025 (Russell 1:29.158, to confirm on
+- 2.4c ✅ **Singapore** (Marina Bay) — flat, at night. Pole 2025 (Russell 1:29.158, to confirm on
   OpenF1).
   - c.1 ✅ Data, layout (the 2023+ layout: a straight where turns 16–19 were), calibration on the
     pole, pit lane (previews against the PNG). Widths estimated from OSM's lane counts × 1.2
@@ -212,7 +212,7 @@ the owner adds the circuit's PNG to `03_F1Circuits/` and picks its width factor.
     ground darkened (`ground.tint`), the track bright under floodlight poles behind the walls
     (instanced, emissive lamps; no light source per lamp). Lit windows come with the town (c.3).
     Built on Singapore, reused by Las Vegas ([themes.md](themes.md#night-races-realcircuitlooknight-step-24c2)).
-  - c.3 (owner's test pending) **Town and landmarks** — a town circuit from OSM within 700 m
+  - c.3 ✅ **Town and landmarks** (owner's test: approved, 2026-11-17) — a town circuit from OSM within 700 m
     (`townReach`): ~1200 buildings with real heights and lit windows at night, Marina Bay and the
     river (inland water, cut where the track crosses it on a bridge), palms; the Singapore Flyer,
     Marina Bay Sands with its SkyPark, the Esplanade's durians; six grandstands by hand. Owner's

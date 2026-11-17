@@ -107,7 +107,7 @@ npm run server     # multiplayer server (port 8787, restarts on save); the clien
   Free practice, Time trial with ghost and the full Grand Prix incl. the chequered flag (2.3a–k),
   Mexico City (2.4a) and server lap records in SQLite (2.5a) done. More circuits (2.4) whenever
   the owner wants one. Protocol v14. **Next circuits** (plan in the roadmap): 2.4b one Monaco
-  (with its heights) done; 2.4c Singapore (circuit, night look, town and landmarks done; owner's test of c.3 pending), 2.4d Las Vegas (flat, at night), 2.4e São Paulo
+  (with its heights) done; 2.4c Singapore (night race, town, landmarks) done; 2.4d Las Vegas (flat, at night), 2.4e São Paulo
   (with heights) to come, each after the owner's OK. **2.6 in progress** (netcode on weak
   connections): 2.6a input timeline with jitter buffer, 2.6b lighter snapshots (rounding +
   compression) and 2.6c smoother opponents done; awaiting the owner's test over Tailscale.
