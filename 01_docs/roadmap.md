@@ -208,9 +208,10 @@ the owner adds the circuit's PNG to `03_F1Circuits/` and picks its width factor.
     step: `WIDTH_FACTOR` 1.6 → **1.4** for new circuits (owner; Monza and Barcelona keep 1.6), the
     tool reads OSM's `pitlane` role and opens lasting folds wider
     ([circuits.md](circuits.md#singapore-layoutssingaporets-step-24c)).
-  - c.2 **Night look** — a new option of the real-circuit look: dark sky, low ambient light,
-    floodlight poles along the track and lit windows as emissive pixel materials (no dynamic
-    light per lamp). Built on Singapore, reused by Las Vegas.
+  - c.2 ✅ **Night look** — `night` in the real-circuit look: navy sky with stars, dark fog, the
+    ground darkened (`ground.tint`), the track bright under floodlight poles behind the walls
+    (instanced, emissive lamps; no light source per lamp). Lit windows come with the town (c.3).
+    Built on Singapore, reused by Las Vegas ([themes.md](themes.md#night-races-realcircuitlooknight-step-24c2)).
   - c.3 Scenery from OSM: a town circuit (buildings with heights, Marina Bay's water), landmarks
     chosen with the owner (Marina Bay Sands, Singapore Flyer, the floating platform); owner's test.
 - 2.4d **Las Vegas** (Strip Circuit) — flat, at night (c.2's look).

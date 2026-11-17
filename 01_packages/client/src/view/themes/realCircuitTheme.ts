@@ -3,10 +3,12 @@ import { dot, locateOnTrack, type Track, type TrackSide, type Vec2 } from '@altf
 import { createGrandstand, createPitBuilding, face, GRANDSTAND_REACH } from '../scenery/buildings';
 import { createCasino, createChapel, createDome } from '../scenery/landmarks';
 import { createMountains } from '../scenery/nature';
+import { createFloodlights, createStars } from '../scenery/night';
 import {
   alongTrack,
   bowlPieces,
   fitsBeside,
+  floodlightSpots,
   footprintBox,
   clearance,
   insidePolygon,
@@ -35,6 +37,11 @@ import { boxCorners, drape, liftInstances, lowestGround, type Ground } from '../
 import { createTunnel, type TunnelSpan } from '../scenery/tunnel';
 import { createYachts } from '../scenery/yachts';
 import type { TrackTheme, WallStyle } from './theme';
+
+/** Night races: floodlight poles this far behind the wall (m); stars, and their dome's least radius. */
+const FLOODLIGHT_OFFSET = 1.5;
+const STARS = 600;
+const STARS_MIN_RADIUS = 600;
 
 /** Concrete walls reach this far past a grandstand or the pit lane, either end (m). */
 const CONCRETE_MARGIN = 15;
@@ -93,6 +100,11 @@ export type RealCircuitLook = Omit<TrackTheme, 'wallStyle' | 'scenery'> & {
   readonly barrier?: WallStyle;
   /** Far scenery placed by compass (with surroundings): the track's centre and north. */
   readonly backdrop?: (centre: Vec2, north: Vec2) => THREE.Object3D;
+  /**
+   * A night race (Singapore, Las Vegas): floodlight poles behind the walls, one every
+   * `floodlightSpacing` m per side, and stars. The dark sky and bright light are the look's own.
+   */
+  readonly night?: { readonly floodlightSpacing: number };
 };
 
 /**
@@ -101,12 +113,15 @@ export type RealCircuitLook = Omit<TrackTheme, 'wallStyle' | 'scenery'> & {
  * walls by place, drawn with `look`. See 01_docs/themes.md.
  */
 export function realCircuitTheme(scenery: RealCircuitScenery, look: RealCircuitLook): TrackTheme {
-  const { trees, parkTrees = PARK_TREES, barrier = 'armco', backdrop, ...theme } = look;
+  const { trees, parkTrees = PARK_TREES, barrier = 'armco', backdrop, night, ...theme } = look;
   return {
     ...theme,
     gridBoxes: true,
     wallStyle: (track) => wallsByPlace(track, scenery, barrier),
-    scenery: (track, ground) => buildScenery(track, scenery, trees, parkTrees, backdrop, ground),
+    scenery: (track, ground) => [
+      ...buildScenery(track, scenery, trees, parkTrees, backdrop, ground),
+      ...(night ? nightScenery(track, night.floodlightSpacing, theme.viewDistance, ground) : []),
+    ],
   };
 }
 
@@ -358,6 +373,27 @@ function buildScenery(
   });
   objects.push(lifted(trees([...inWoods, ...inPark].filter(free), 5)));
   return objects;
+}
+
+/**
+ * A night race's floodlights (behind the walls, on the ground) and stars on a dome that stays
+ * inside the camera's far plane from anywhere on the track.
+ */
+function nightScenery(
+  track: Track,
+  spacing: number,
+  viewDistance: number,
+  ground: Ground,
+): THREE.Object3D[] {
+  const floodlights = createFloodlights(floodlightSpots(track, spacing, FLOODLIGHT_OFFSET));
+  const bounds = trackBounds(track);
+  const centre = { x: (bounds.minX + bounds.maxX) / 2, z: (bounds.minZ + bounds.maxZ) / 2 };
+  const reach = Math.hypot(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) / 2;
+  const radius = Math.max(STARS_MIN_RADIUS, viewDistance - reach - 100);
+  return [
+    track.elevated ? liftInstances(floodlights, ground) : floodlights,
+    createStars(centre, radius, STARS, 29),
+  ];
 }
 
 /** The road's height under a footprint's middle (a building on the tunnel's roof). */

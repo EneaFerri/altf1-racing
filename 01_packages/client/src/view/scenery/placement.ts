@@ -523,3 +523,38 @@ export function pitLaneFootprint(track: Track, margin: number): Circle[] {
     4,
   );
 }
+
+/** A floodlight pole: where it stands and the way it faces (towards the track, unit). */
+export interface Floodlight {
+  readonly at: Vec2;
+  readonly facing: Vec2;
+}
+
+/**
+ * Floodlight poles along the main loop's walls, on both sides, one every `spacing` m of the lap
+ * per side, `offset` m behind the wall, facing the track (a night race, 01_docs/themes.md). A spot
+ * nearer another stretch than `offset` (behind a hairpin's other leg) is left out.
+ */
+export function floodlightSpots(track: Track, spacing: number, offset: number): Floodlight[] {
+  const spots: Floodlight[] = [];
+  const next: Record<TrackSide, number> = { left: spacing / 2, right: 0 };
+  for (const wall of track.walls) {
+    if (wall.route >= 0) continue;
+    // A right-hand wall faces left, towards the track.
+    const side: TrackSide =
+      wall.normal.x * track.samples[wall.sample]!.normal.x +
+        wall.normal.z * track.samples[wall.sample]!.normal.z <
+      0
+        ? 'right'
+        : 'left';
+    if (wall.progress < next[side]) continue;
+    next[side] = wall.progress + spacing;
+    const at = vec2(
+      (wall.a.x + wall.b.x) / 2 - wall.normal.x * offset,
+      (wall.a.z + wall.b.z) / 2 - wall.normal.z * offset,
+    );
+    if (clearance(track, at) < offset - 0.5) continue;
+    spots.push({ at, facing: wall.normal });
+  }
+  return spots;
+}

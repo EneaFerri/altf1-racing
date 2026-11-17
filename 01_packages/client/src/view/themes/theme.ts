@@ -30,6 +30,8 @@ export interface TrackTheme {
      * slopes above the town).
      */
     readonly highland?: { readonly from: number; readonly to: number; readonly color: string };
+    /** Multiplies the ground's texture (a night race: darker away from the floodlights). */
+    readonly tint?: string;
   };
   readonly asphalt: () => THREE.Texture;
   /** Low-kerb colours and the length of one colour block (m). */

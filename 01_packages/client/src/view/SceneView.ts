@@ -311,7 +311,14 @@ function createGround(
   const group = new THREE.Group();
   group.add(
     flat,
-    new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ map: texture, vertexColors: true })),
+    new THREE.Mesh(
+      geometry,
+      new THREE.MeshLambertMaterial({
+        map: texture,
+        color: theme.ground.tint ?? '#ffffff',
+        vertexColors: true,
+      }),
+    ),
   );
   return { object: group, height: (p) => gridHeightAt(grid, p.x, p.z) ?? lowest - 3 };
 }
@@ -326,7 +333,7 @@ function createFlatGround(track: Track, theme: TrackTheme): THREE.Mesh {
   const cells = Math.ceil(size / GROUND_CELL);
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(size, size, cells, cells),
-    new THREE.MeshLambertMaterial({ map: texture }),
+    new THREE.MeshLambertMaterial({ map: texture, color: theme.ground.tint ?? '#ffffff' }),
   );
   ground.rotation.x = -Math.PI / 2; // PlaneGeometry is vertical by default
   ground.position.set((bounds.minX + bounds.maxX) / 2, 0, (bounds.minZ + bounds.maxZ) / 2);

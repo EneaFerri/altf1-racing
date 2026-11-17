@@ -13,6 +13,7 @@ import {
   clearance,
   cornerApexes,
   fitsBeside,
+  floodlightSpots,
   footprintBox,
   pitLaneFootprint,
   polylineFootprint,
@@ -150,5 +151,27 @@ describe('pitLaneFootprint', () => {
     expect(
       circles.some((c) => Math.hypot(c.x - middle.position.x, c.z - middle.position.z) < c.r),
     ).toBe(true);
+  });
+});
+
+describe('floodlightSpots', () => {
+  const monza = buildTrack(MONZA);
+  const spots = floodlightSpots(monza, 30, 1.5);
+
+  it('lines both sides of the lap, about one pole per 30 m per side', () => {
+    const perSide = monza.length / 30;
+    expect(spots.length).toBeGreaterThan(perSide * 1.6);
+    expect(spots.length).toBeLessThan(perSide * 2.1);
+    const sides = new Set(spots.map((s) => Math.sign(locateOnTrack(monza, s.at).lateral)));
+    expect(sides).toEqual(new Set([1, -1]));
+  });
+
+  it('stands just behind the wall, facing the track', () => {
+    for (const { at, facing } of spots) {
+      expect(clearance(monza, at)).toBeGreaterThan(1);
+      expect(clearance(monza, at)).toBeLessThan(2);
+      const towards = vec2(at.x + facing.x * 2, at.z + facing.z * 2);
+      expect(clearance(monza, towards)).toBeLessThan(clearance(monza, at));
+    }
   });
 });

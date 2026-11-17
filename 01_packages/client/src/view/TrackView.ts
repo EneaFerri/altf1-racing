@@ -87,8 +87,8 @@ const GRID_LINE = 0.3;
 const SIDES: readonly TrackSide[] = ['left', 'right'];
 const sign = (side: TrackSide): number => (side === 'right' ? 1 : -1);
 
-const textured = (texture: THREE.Texture): THREE.Material =>
-  new THREE.MeshLambertMaterial({ map: texture, side: THREE.DoubleSide });
+const textured = (texture: THREE.Texture, color = '#ffffff'): THREE.Material =>
+  new THREE.MeshLambertMaterial({ map: texture, color, side: THREE.DoubleSide });
 
 /**
  * Builds the circuit's meshes from the same compiled `Track` the simulation uses,
@@ -105,7 +105,7 @@ export function createTrackView(track: Track, theme: TrackTheme): THREE.Group {
     lowKerb: textured(createKerbTexture(...theme.kerb.colors)),
     highKerb: textured(createKerbTexture('#f5c400', '#151515')),
     gravel: textured(createGravelTexture()),
-    runoff: textured(theme.ground.texture()),
+    runoff: textured(theme.ground.texture(), theme.ground.tint),
   };
   group.add(...createRoad(track, track, -1, () => true, theme, materials));
   track.routes.forEach((road, route) => {

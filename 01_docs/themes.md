@@ -263,7 +263,22 @@ hazy ridges round the rest of the valley.
 
 ## Singapore theme (`themes/singapore.ts`, step 2.4c)
 
-For now (c.1) a plain daylight look: park grass, broadleaf trees in OSM's parks, guard rails with
+A night race (c.2, below): park grass darkened, broadleaf trees in OSM's parks, guard rails with
 catch fences (a street circuit), the real pit lane and the pit buildings OSM maps beside it
-(`singaporeLayout.ts`, generated). Next: the night look with lights (c.2) and the town around the
-bay, its water and landmarks (c.3).
+(`singaporeLayout.ts`, generated). Next: the town around the bay, its water and landmarks (c.3).
+
+## Night races (`RealCircuitLook.night`, step 2.4c.2)
+
+Singapore now, Las Vegas next. No light source per lamp (hundreds would cost too much): the look is
+made of what the theme already has, plus emissive props.
+
+- **Sky and fog** deep navy (`#0b1430`), fog from 250 to 1500 m: the distance fades into the dark.
+- **Light**: the global light stays bright and a little cool (floodlights from above, `sky`
+  `#eef1ff`, little from the ground), so the track and the cars read as lit.
+- **Ground** darkened by `ground.tint` (multiplies its texture; the run-off grass too): away from
+  the asphalt it is night.
+- **Floodlights** (`scenery/night.ts`, instanced): a grey pole 1.5 m behind the wall, an arm out
+  over it, a warm-white lamp that ignores the fog (so far lamps still glow), every
+  `floodlightSpacing` m (Singapore 30) per side; `floodlightSpots` in `placement.ts` (pure, tested)
+  leaves out spots nearer another stretch (behind a hairpin's other leg).
+- **Stars**: 600 fixed-size pixels on a dome above the track, inside the camera's far plane.
