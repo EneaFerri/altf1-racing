@@ -7,6 +7,7 @@ import {
   MEXICO,
   MONACO,
   MONZA,
+  SAO_PAULO,
   SINGAPORE,
   type TrackDefinition,
 } from '@altf1/shared';
@@ -78,6 +79,14 @@ import {
   LAS_VEGAS_WOODS,
 } from './lasVegasLayout';
 import { STAND_PIECE, type RealCircuitScenery } from './realCircuitTheme';
+import {
+  SAO_PAULO_OVAL,
+  SAO_PAULO_OVAL_WIDTH,
+  SAO_PAULO_PIT_BUILDINGS,
+  SAO_PAULO_PIT_LANE,
+  SAO_PAULO_STANDS,
+  SAO_PAULO_WOODS,
+} from './saoPauloLayout';
 import {
   SINGAPORE_CITY,
   SINGAPORE_OVAL,
@@ -182,6 +191,20 @@ const CIRCUITS: readonly {
     // Placed by hand (temporary stands are not in OSM).
     minStands: 4,
     mainStand: 'Main Grandstand',
+  },
+  {
+    definition: SAO_PAULO,
+    scenery: {
+      stands: SAO_PAULO_STANDS,
+      pitLane: SAO_PAULO_PIT_LANE,
+      pitBuildings: SAO_PAULO_PIT_BUILDINGS,
+      woods: SAO_PAULO_WOODS,
+      oval: SAO_PAULO_OVAL,
+      ovalWidth: SAO_PAULO_OVAL_WIDTH,
+    },
+    // OSM's, on the start straight (the stands round the lap come with the scenery, 2.4e.3).
+    minStands: 2,
+    mainStand: 'Tribuna',
   },
 ];
 

@@ -1,9 +1,9 @@
 # Elevation (Phase 3)
 
-**One map with heights: Monaco**, in single player and in every online mode. Built in Phase 3 as
+**Two maps with heights: Monaco and São Paulo (2.4e)**, in single player and in every online mode. Built in Phase 3 as
 "Monaco v2" beside the flat Monaco; since step 2.4b it is the only Monaco (the flat one removed,
-v2 renamed: below). Every other track stays flat and untouched; São Paulo will be the second
-elevated circuit (2.4e). Plan and status: [roadmap.md](roadmap.md#phase-3--elevation-monaco-v2-).
+v2 renamed: below). Every other track stays flat and untouched; São Paulo is the second
+elevated circuit (2.4e, [below](#são-paulo-24e)). Plan and status: [roadmap.md](roadmap.md#phase-3--elevation-monaco-v2-).
 Below, "Monaco v2" and "flat Monaco" are the names of the time.
 
 ## Data
@@ -12,7 +12,7 @@ Below, "Monaco v2" and "flat Monaco" are the names of the time.
 | --------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Track heights   | OpenF1 `location.z` (decimetres), the pole lap we already use for x/y                                                | F1's own positioning, map-matched like x/y. Its zero is arbitrary. Monaco 2025 pole lap: z 476–895 dm, **41.9 m** of height difference |
 | Published check | 41.8 m of rise and fall over the lap ([lightsoutblog](https://www.lightsoutblog.com/the-jewel-in-the-crown-monaco/)) | Matches OpenF1                                                                                                                         |
-| Land            | EU-DEM 25 m via [OpenTopoData](https://www.opentopodata.org) (`eudem25m`)                                            | Free: ≤ 100 points per call, 1 call/s. Null over the sea (→ 0). Casino square ~50 m                                                    |
+| Land            | EU-DEM 25 m via [OpenTopoData](https://www.opentopodata.org) (`eudem25m`); outside Europe SRTM 30 m (`srtm30m`)      | Free: ≤ 100 points per call, 1 call/s. Null over the sea (→ 0). Casino square ~50 m                                                    |
 
 **Alignment**: OpenF1's z has its own zero. By default it is shifted by the median difference to
 the DEM along the track (that is what the 3a report below shows). Monaco v2 instead sets its lowest
@@ -51,7 +51,7 @@ In `01_tools/openf1/` (its [README](../01_tools/openf1/README.md)):
 2. `profile.ts`: `heights` per station (the car's z at the moment it passed, averaged over ±15 m:
    positions come ~20 m apart). Only when the data has z. For Monaco the profile is identical
    otherwise, and flat Monaco's layout is unchanged.
-3. `terrain.ts <id> [--fetch]` (with `--import ./01_tools/resolveTs.ts`): the EU-DEM grid, 25 m, 400 m around the centreline (Monaco:
+3. `terrain.ts <id> [--fetch]` (with `--import ./01_tools/resolveTs.ts`): the land's grid at the DEM's own step (`CircuitConfig.dem`: EU-DEM 25 m by default, SRTM 30 m for São Paulo; `demOf` in `elevation.ts`), 400 m around the centreline (Monaco:
    72 × 63 points, 46 calls), in `data/<id>.terrain.json` (committed). Then `alignHeights`
    (`elevation.ts`): OpenF1's heights + the median gap to the land under the stations. It prints
    the report below and writes `preview/<id>-elevation.png`: black the track, grey the land above
@@ -187,3 +187,24 @@ Monaco's layout and theme are gone; `CIRCUITS` has one `monaco` entry with `elev
 regenerated `layouts/monaco.ts` and `themes/monacoLand.ts` are identical to v2's but for the names;
 scale 1.133. Online: protocol v14 (the name "Monaco" now means the elevated track), and the server's
 lap records moved: v2's renamed Monaco (flat Monaco had none).
+
+## São Paulo (2.4e)
+
+The second elevated circuit, the same pipeline. **EU-DEM covers Europe only**: São Paulo's land
+comes from **SRTM 30 m** (NASA, public domain, via OpenTopoData's `srtm30m`; `dem: 'srtm30m'` in
+`circuits.ts`). Heights aligned by the median gap to the land (no `lowestHeight`): OpenF1 + 6.0 m.
+
+| What                    | Value                                               | Reference                                          |
+| ----------------------- | --------------------------------------------------- | -------------------------------------------------- |
+| Height difference       | 43.0 m                                              | ~40–43 m, the figure commonly cited for Interlagos |
+| Highest point           | 787.9 m at 265 m, braking for the Senna S           | the top of the start straight                      |
+| Lowest point            | 744.9 m at 1544 m, turn 5                           | the bottom of the infield, by the lake             |
+| Start line              | 783.3 m                                             |                                                    |
+| Steepest climb (50 m)   | +10.1 % from 3393 m, Subida dos Boxes               |                                                    |
+| Steepest descent (50 m) | −13.6 % from 355 m, Senna S                         |                                                    |
+| Under the land          | 90 m from 560 m, Curva do Sol                       | the cutting on the outside of turn 3               |
+| Land for the client     | 170 × 135 heights, 12.5 m apart (`saoPauloLand.ts`) |                                                    |
+
+Real metres, like Monaco: the track is 1.048 × longer than the real one, so its gradients are that
+much gentler in the game. The look (2.4e.3: the lakes inside the circuit, the grandstands round the
+lap) comes next.

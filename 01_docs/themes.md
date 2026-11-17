@@ -8,7 +8,7 @@ the simulation never sees a theme. Code in `01_packages/client/src/view/themes/`
 
 - `themes/theme.ts`: the `TrackTheme` interface and `loadTheme(trackName)` (a dynamic import per
   theme: the generated scenery stays out of the first download). **Kruncar**, **Monza**,
-  **Barcelona**, **Monaco**, **Mexico City**, **Singapore** and **Las Vegas** have their own theme; every other track gets **classic** (`themes/classic.ts`: the original look,
+  **Barcelona**, **Monaco**, **Mexico City**, **Singapore**, **Las Vegas** and **São Paulo** have their own theme; every other track gets **classic** (`themes/classic.ts`: the original look,
   Test Ring).
 - `SceneView` reads the theme for sky colour, fog, camera far plane (`viewDistance`), hemisphere light
   plus an optional directional "sun", the ground (texture, tile size, margin past the track; the
@@ -330,3 +330,11 @@ north; five grandstands placed by hand (Main Grandstand on the pit straight, Kov
 Flamingo and East Harmon zones); dark paving as the ground (car parks and sidewalks), guard rails
 with catch fences, floodlights every 30 m, the real pit lane (on the left) and its garages
 (`lasVegasLayout.ts`, generated).
+
+## São Paulo theme (`themes/saoPaulo.ts`, step 2.4e)
+
+A day race under a warm hazy sky, on the real land (the generated `saoPauloLand.ts`, SRTM:
+[elevation.md](elevation.md#são-paulo-24e)): park grass, broadleaf trees in OSM's woods, OSM's
+three grandstands on the start straight, the real pit lane (on the left) and its buildings
+(`saoPauloLayout.ts`, generated). Next (e.3): the lakes inside the circuit, the grandstands round
+the lap, the town around.

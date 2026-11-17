@@ -1,6 +1,6 @@
 # Real circuits
 
-Monza (step 9b), Barcelona (9c), Monaco (9d), Mexico City (2.4a), Singapore (2.4c) and Las Vegas (2.4d) are the real circuits, built from open data by the
+Monza (step 9b), Barcelona (9c), Monaco (9d), Mexico City (2.4a), Singapore (2.4c), Las Vegas (2.4d) and São Paulo (2.4e) are the real circuits, built from open data by the
 tool in `01_tools/openf1/` (how to run it: its [README](../01_tools/openf1/README.md)). Owner's
 rules: **shape** faithful to the real track (the PNGs in `03_F1Circuits/` are the visual
 reference), **real widths** (Monza wide, Monaco narrow, varying along the lap), and **lap times
@@ -88,9 +88,10 @@ the real one (4.4–6.5): overtaking stays as hard as in reality.
 | Mexico City | 4289 m      | 0.9858 | 4.25 km     | 10.8–15        | 15.1–21        | 4 m     |
 | Singapore   | 4895 m      | 1.048  | 5.10 km     | 10–15          | 12–18          | 3 m     |
 | Las Vegas   | 6154 m      | 0.945  | 5.81 km     | 10–15          | 14–21          | 3 m     |
+| São Paulo   | 4288 m      | 1.048  | 4.49 km     | 10.6–16.3      | 14.8–22.8      | 10 m    |
 
 Real lengths are the OSM centreline's (official: Monza 5793 m, Barcelona 4657 m, Monaco 3337 m,
-Mexico City 4304 m, Singapore 4940 m, Las Vegas 6201 m).
+Mexico City 4304 m, Singapore 4940 m, Las Vegas 6201 m, São Paulo 4309 m).
 
 ### Widths (published, then per section)
 
@@ -118,6 +119,11 @@ within that range unless marked with their own source there.
   Lane, Westchester Drive and the west end of Sands Avenue (2–3 lanes), 13.2–15 m on the east of
   Sands Avenue, the Strip (Las Vegas Boulevard, 4–8 lanes a side) and Harmon Avenue; by hand: 15 m
   on the purpose-built pit straight, 13 m through turns 1–4, 12 m by the Sphere (turns 7–9).
+- **São Paulo**: nothing published; measured on OSM's asphalt areas as Mexico City's: 15.7–16.3 m on
+  the start straight, 13–14 m through the Senna S and Curva do Sol, 10.6–11.4 m along the Reta
+  Oposta, 10.7–14.7 m in the infield (Descida do Lago to Junção), 13–15.7 m up the Subida dos
+  Boxes. By hand: 12 m at the Reta Oposta's start (OSM's area cut short there, 5–9 m across) and
+  11 m at the Ferradura.
 
 ### Monza (`layouts/monza.ts`, step 9b)
 
@@ -288,6 +294,26 @@ stations.
 S3 is 4% slow: it is mostly the Strip, ~1.9 km flat out (our car tops out at ~283 km/h, an F1 at
 ~340 there); S1 and S2 win it back in the corners.
 
+### São Paulo (`layouts/saoPaulo.ts`, step 2.4e)
+
+Autódromo José Carlos Pace (Interlagos), **with its real heights** (the second elevated circuit
+after Monaco: [elevation.md](elevation.md#são-paulo-24e)). Shape from OSM relation 6781071;
+target: the 2025 pole, 1:09.511 (car #4, OpenF1 session 9865). Anticlockwise; `lineDirection` 210. Real widths × 1.4. Run-off 10 m (a permanent circuit). The pit lane (on the left, 1350 m)
+runs on round the inside of the Senna S and Curva do Sol; its tight bend there folded the walls,
+so it joins at the track's edge and is smoothed 16 times (`pitLaneSmoothing`). No station moved
+for the game's limits.
+
+| Lap (s)   | Lap   | S1    | S2    | S3    | Walls | Off |
+| --------- | ----- | ----- | ----- | ----- | ----- | --- |
+| Real pole | 69.51 | 18.04 | 35.53 | 15.94 |       |     |
+| Hard      | 69.50 | 18.73 | 32.92 | 17.85 | 0     | 0   |
+| Medium    | 70.72 | 19.07 | 33.52 | 18.13 | 0     | 0   |
+| Easy      | 81.25 | 21.98 | 39.32 | 19.95 | 0     | 0   |
+
+S3 is 12% slow: it is the long full-throttle climb from Junção to the line (our car slower on
+straights, and uphill: the slope force); S2's corners win it back (7% fast). The test's sector
+tolerance is 13% for this circuit.
+
 ## Adding a circuit
 
 One circuit per step (Phase 2.4, [roadmap.md](roadmap.md)). Every circuit is offered in every mode:
@@ -297,7 +323,8 @@ One circuit per step (Phase 2.4, [roadmap.md](roadmap.md)). Every circuit is off
    (`sessions?year=2025&country_name=…`; another year: `year`), the OSM `type=circuit` relation of the GP layout, widths
    (published, else measured as Mexico City's), the width factor the owner chose, run-off,
    `lineDirection` from the PNG; sharp corners, stadiums, hand-placed grandstands, surroundings or
-   town layers if it needs them.
+   town layers if it needs them; real heights with `elevation` (+ `dem: 'srtm30m'` outside Europe,
+   then `terrain`: [elevation.md](elevation.md)).
 3. `fetch` → `profile` → `layout` → `calibrate` (scale back into `circuits.ts`) → `layout` →
    `scenery --fetch` → `layout` once more, now with the pit lane (README); check `preview/<id>.png`
    against the PNG and `preview/<id>-pitlane.png` ([pitlane.md](pitlane.md)).

@@ -233,9 +233,13 @@ the owner adds the circuit's PNG to `03_F1Circuits/` and picks its width factor.
     ([themes.md](themes.md#town-circuits-circuitconfigtown-monaco-singapore-las-vegas)).
 - 2.4e **São Paulo** (Interlagos) — **with its real heights**, like Monaco
   ([elevation.md](elevation.md)). Pole 2025 (Norris 1:09.511, to confirm on OpenF1).
-  - e.1 Tool: the land's dataset per circuit (EU-DEM covers Europe only: SRTM 30 m for Brazil);
-    data, elevation report against the published height difference.
-  - e.2 Layout with heights, calibration, pit lane.
+  - e.1 ✅ Tool: the land's dataset per circuit (`dem`: EU-DEM covers Europe only, SRTM 30 m for
+    Brazil); data, elevation report: 43.0 m of height difference, as published
+    ([elevation.md](elevation.md#são-paulo-24e)).
+  - e.2 ✅ Layout with heights, widths from OSM's asphalt areas × 1.4, scale 1.048, Hard bot
+    69.50 s, every level clean; pit lane on the left, 1350 m, joined at the edge and smoothed
+    (`pitLaneSmoothing`). In every mode, with a first day look on the real land
+    ([circuits.md](circuits.md#são-paulo-layoutssaopaulots-step-24e)).
   - e.3 Terrain and scenery on the real land (the lakes inside the circuit, the grandstands);
     owner's test.
 

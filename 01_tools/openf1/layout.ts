@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildTrack } from '../../01_packages/shared/src/index.ts';
 import { circuitById, widthFactorOf } from './circuits.ts';
-import { elevationOf } from './elevation.ts';
+import { demOf, elevationOf } from './elevation.ts';
 import { generate } from './generate.ts';
 import {
   layoutPath,
@@ -71,7 +71,7 @@ const lines = [
     : []),
   ...(circuit.elevation
     ? [
-        ` * - Heights (m): the pole lap's (OpenF1 z) on the land (EU-DEM 25 m), in real metres.`,
+        ` * - Heights (m): the pole lap's (OpenF1 z) on the land (${demOf(circuit).label}), in real metres.`,
         ` *   Phase 3 (01_docs/elevation.md).`,
       ]
     : []),

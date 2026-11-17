@@ -44,7 +44,10 @@ const NEAR_POINT = 3;
  */
 const EDGE_LEAD = 30;
 const EDGE_SPACING = 4;
-/** At the edge, the lane's points are smoothed this many times (entry, step behind the wall, exit). */
+/**
+ * At the edge, the lane's points are smoothed this many times (entry, step behind the wall, exit),
+ * unless the circuit asks for more (`pitLaneSmoothing`).
+ */
 const EDGE_SMOOTHING = 4;
 /** A wall at least this far along the lap from the lane's point belongs to another stretch (m, game). */
 const OTHER_STRETCH = 60;
@@ -143,6 +146,7 @@ export function pitLaneOf(
   const sampleAt = (at: number) => track.samples[((Math.round(at * n) % n) + n) % n]!;
   const laneHalf = (PIT_LANE_WIDTH * circuit.scale) / 2;
   const elevated = definition.points[0]!.height !== undefined;
+  const smoothing = circuit.pitLaneSmoothing ?? EDGE_SMOOTHING;
 
   /** How far the lane's edge at (x, z) is from the walls of every other stretch than `at`'s, beyond the pit wall. */
   const room = (x: number, z: number, at: number): number => {
@@ -187,7 +191,7 @@ export function pitLaneOf(
       const [a, b] = [last && at(last, last.base), at(p, p.base)];
       return !a || Math.hypot(b.x - a.x, b.z - a.z) >= EDGE_SPACING ? [...list, p] : list;
     }, []);
-    for (let k = 0; k < EDGE_SMOOTHING; k++) {
+    for (let k = 0; k < smoothing; k++) {
       kept = kept.map((p, i) => {
         const a = kept[i - 1];
         const b = kept[i + 1];
@@ -213,7 +217,7 @@ export function pitLaneOf(
   });
   // At the edge, the lane's points smoothed too (Monaco's turns away from La Rascasse tighter
   // than its half-width), each only where it keeps its room from the other stretches.
-  for (let k = 0; circuit.pitLaneAtEdge && k < EDGE_SMOOTHING; k++) {
+  for (let k = 0; circuit.pitLaneAtEdge && k < smoothing; k++) {
     const before = spaced.map((p) => ({ x: p.x, z: p.z }));
     spaced.forEach((p, i) => {
       const a = before[i - 1];

@@ -97,3 +97,29 @@ export function elevationOf(
   return alignHeights(profile, readJson<RawTerrain>(terrainPath(circuit.id)), circuit.lowestHeight)
     .heights;
 }
+
+/** The land's datasets (OpenTopoData), by `CircuitConfig.dem`: step = the DEM's own resolution (m). */
+const DEMS = {
+  eudem25m: {
+    step: 25,
+    label: 'EU-DEM 25 m',
+    name: 'EU-DEM 25 m (Copernicus, via OpenTopoData)',
+    dataset: 'EU-DEM v1.1, 25 m (via OpenTopoData)',
+    attribution:
+      'Produced using Copernicus data and information funded by the European Union - EU-DEM layers',
+    short: 'EU-DEM',
+  },
+  srtm30m: {
+    step: 30,
+    label: 'SRTM 30 m',
+    name: 'SRTM 30 m (NASA, via OpenTopoData)',
+    dataset: 'SRTM GL1, 30 m (via OpenTopoData)',
+    attribution: 'NASA Shuttle Radar Topography Mission (SRTM GL1), public domain',
+    short: 'SRTM',
+  },
+} as const;
+
+/** The dataset a circuit's land comes from (`CircuitConfig.dem`, EU-DEM by default). */
+export function demOf(circuit: CircuitConfig): (typeof DEMS)[keyof typeof DEMS] {
+  return DEMS[circuit.dem ?? 'eudem25m'];
+}

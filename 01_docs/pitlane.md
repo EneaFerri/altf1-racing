@@ -12,14 +12,14 @@ when the circuit's OSM scenery is there, writes `pitLane` into the shared layout
 (`track/layouts/<id>.ts`, a `PitLaneDefinition` in `track/types.ts`). `buildTrack` makes it a
 road only when asked (4f).
 
-| Field                    | What                                                                                                 |
-| ------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `side`                   | Side of the track it lies on (right on the clockwise circuits, left at Singapore and Las Vegas)      |
-| `fromPoint`, `toPoint`   | Main-loop control points it leaves after and rejoins before (`fromPoint` > `toPoint`: over the line) |
-| `points`                 | Its centreline between them, world x/z, the lane's width (and the road's height on Monaco)           |
-| `limit.from`, `limit.to` | The speed-limited stretch, between the pit entry and exit lines: **metres along the lane**           |
-| `speedLimit`             | m/s: the real 80 km/h (Monaco 60, `pitSpeedLimit` in `circuits.ts`) × the circuit's scale            |
-| `boxes`                  | `MAX_PLAYERS` (8) boxes, metres along the lane, inside `limit`, in driving order                     |
+| Field                    | What                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `side`                   | Side of the track it lies on (right on the clockwise circuits, left at Singapore, Las Vegas, São Paulo) |
+| `fromPoint`, `toPoint`   | Main-loop control points it leaves after and rejoins before (`fromPoint` > `toPoint`: over the line)    |
+| `points`                 | Its centreline between them, world x/z, the lane's width (and the road's height on Monaco)              |
+| `limit.from`, `limit.to` | The speed-limited stretch, between the pit entry and exit lines: **metres along the lane**              |
+| `speedLimit`             | m/s: the real 80 km/h (Monaco 60, `pitSpeedLimit` in `circuits.ts`) × the circuit's scale               |
+| `boxes`                  | `MAX_PLAYERS` (8) boxes, metres along the lane, inside `limit`, in driving order                        |
 
 Metres along the lane, from where it leaves the main loop (its polyline from `fromPoint` through
 `points`), not lap fractions: Monaco's entry runs across the lap, so a lap fraction there would be
@@ -60,14 +60,15 @@ wall between its limit lines, no pit lane on the imaginary tracks.
 
 ### Results
 
-| Circuit     | Lane  | Limited stretch (m along) | Limit (game) | Boxes along       | Notes                                                                                                                        |
-| ----------- | ----- | ------------------------- | ------------ | ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Monza       | 698 m | 124–568                   | 76 km/h      | the pit buildings | Over the line, along the main straight                                                                                       |
-| Barcelona   | 945 m | 89–778                    | 81 km/h      | the pit buildings | Exit up the inside of turn 1; last box there                                                                                 |
-| Monaco      | 381 m | 50–361                    | 68 km/h      | spread (town)     | From the inside of La Rascasse, between the start straight and the Piscine (squeezed), back just after the line; at the edge |
-| Mexico City | 780 m | 135–573                   | 79 km/h      | spread            | From the Peraltada, along the main straight; OSM maps only the paddock                                                       |
-| Singapore   | 828 m | 259–792                   | 63 km/h      | spread            | Inside the start straight, from before the last corner to turns 1–2; joined at the edge (`pitLaneAtEdge`)                    |
-| Las Vegas   | 426 m | 83–438                    | 76 km/h      | spread            | Inside the pit straight, into the turn 1 hairpin; joined at the edge (`pitLaneAtEdge`)                                       |
+| Circuit     | Lane   | Limited stretch (m along) | Limit (game) | Boxes along       | Notes                                                                                                                                                 |
+| ----------- | ------ | ------------------------- | ------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Monza       | 698 m  | 124–568                   | 76 km/h      | the pit buildings | Over the line, along the main straight                                                                                                                |
+| Barcelona   | 945 m  | 89–778                    | 81 km/h      | the pit buildings | Exit up the inside of turn 1; last box there                                                                                                          |
+| Monaco      | 381 m  | 50–361                    | 68 km/h      | spread (town)     | From the inside of La Rascasse, between the start straight and the Piscine (squeezed), back just after the line; at the edge                          |
+| Mexico City | 780 m  | 135–573                   | 79 km/h      | spread            | From the Peraltada, along the main straight; OSM maps only the paddock                                                                                |
+| Singapore   | 828 m  | 259–792                   | 63 km/h      | spread            | Inside the start straight, from before the last corner to turns 1–2; joined at the edge (`pitLaneAtEdge`)                                             |
+| Las Vegas   | 426 m  | 83–438                    | 76 km/h      | spread            | Inside the pit straight, into the turn 1 hairpin; joined at the edge (`pitLaneAtEdge`)                                                                |
+| São Paulo   | 1350 m | 134–1165                  | 84 km/h      | spread            | From the Subida dos Boxes, along the start straight, round the inside of the Senna S and Curva do Sol; at the edge, smoothed 16× (`pitLaneSmoothing`) |
 
 The ramps cross the run-off and the wall where they leave and rejoin the track: the walls open
 there (4f).

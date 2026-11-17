@@ -5,6 +5,7 @@ import { LAS_VEGAS } from './lasVegas';
 import { MEXICO } from './mexico';
 import { MONACO } from './monaco';
 import { MONZA } from './monza';
+import { SAO_PAULO } from './saoPaulo';
 import { SINGAPORE } from './singapore';
 import { TEST_TRACK } from './testTrack';
 
@@ -14,6 +15,7 @@ export * from './lasVegas';
 export * from './mexico';
 export * from './monaco';
 export * from './monza';
+export * from './saoPaulo';
 export * from './singapore';
 export * from './testTrack';
 
@@ -27,6 +29,7 @@ export const TRACKS: readonly TrackDefinition[] = [
   MEXICO,
   SINGAPORE,
   LAS_VEGAS,
+  SAO_PAULO,
 ];
 
 /**
@@ -41,4 +44,5 @@ export const GP_TRACKS: readonly TrackDefinition[] = [
   MEXICO,
   SINGAPORE,
   LAS_VEGAS,
+  SAO_PAULO,
 ];

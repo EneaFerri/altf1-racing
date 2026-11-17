@@ -23,6 +23,7 @@ import {
   MEXICO,
   MONACO,
   MONZA,
+  SAO_PAULO,
   SINGAPORE,
   TEST_TRACK,
   TRACKS,
@@ -99,6 +100,7 @@ const monaco = runsByTrack.find((t) => t.name === MONACO.name)!.runs;
 const mexico = runsByTrack.find((t) => t.name === MEXICO.name)!.runs;
 const singapore = runsByTrack.find((t) => t.name === SINGAPORE.name)!.runs;
 const lasVegas = runsByTrack.find((t) => t.name === LAS_VEGAS.name)!.runs;
+const saoPaulo = runsByTrack.find((t) => t.name === SAO_PAULO.name)!.runs;
 
 /**
  * Real pole laps (OpenF1, 2025; Las Vegas 2024; see 01_docs/circuits.md): the Hard bot's targets.
@@ -151,6 +153,15 @@ const REAL_POLES = [
     lap: 92.312,
     sectors: [25.736, 30.916, 35.66],
     sectorTolerance: 0.07,
+  },
+  {
+    // With its real heights. S3 is the long full-throttle climb to the line (our car: slower on
+    // straights, and uphill), won back in S2's corners.
+    name: SAO_PAULO.name,
+    runs: saoPaulo,
+    lap: 69.511,
+    sectors: [18.036, 35.534, 15.941],
+    sectorTolerance: 0.13,
   },
 ];
 

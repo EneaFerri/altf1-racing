@@ -68,6 +68,7 @@ const THEMES: Readonly<Record<string, () => Promise<TrackTheme>>> = {
   'Mexico City': async () => (await import('./mexico')).MEXICO_THEME,
   Singapore: async () => (await import('./singapore')).SINGAPORE_THEME,
   'Las Vegas': async () => (await import('./lasVegas')).LAS_VEGAS_THEME,
+  'São Paulo': async () => (await import('./saoPaulo')).SAO_PAULO_THEME,
 };
 
 /** Loads the theme drawn for a track: its own when it has one, else the classic look. */

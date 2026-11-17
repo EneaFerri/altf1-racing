@@ -92,6 +92,11 @@ export interface CircuitConfig {
    */
   readonly elevation?: boolean;
   /**
+   * The land's heights (OpenTopoData dataset): EU-DEM 25 m by default (Europe only); SRTM 30 m
+   * elsewhere (São Paulo). See terrain.ts.
+   */
+  readonly dem?: 'eudem25m' | 'srtm30m';
+  /**
    * With elevation: the track's lowest point is this high (m above sea level) instead of the median
    * fit on the land (Monaco: the harbour front on its quay, owner's choice).
    */
@@ -129,6 +134,11 @@ export interface CircuitConfig {
    * whole start straight). See pitLane.ts.
    */
   readonly pitLaneAtEdge?: boolean;
+  /**
+   * At the edge: how many times the lane's points are smoothed (default 4); more where the real lane
+   * bends tighter than its walls allow (São Paulo's, round the inside of the Senna S).
+   */
+  readonly pitLaneSmoothing?: number;
   /** Corners made sharper than the real ones, sorted by `at`. */
   readonly sharpCorners?: readonly SharpCorner[];
 
@@ -180,8 +190,9 @@ export const KERB_BAND = { inset: 0.9, outset: 1.5 } as const;
 const MONZANET = 'monzanet.it: 10–12 m';
 const CATALUNYA = 'motogp.com (12 m), gedlich-racing.com (12–14 m)';
 /**
- * No published width for Mexico: measured on OSM's asphalt areas (`area:highway=raceway`, traced
- * from aerial imagery) across the centreline, the median of each stretch (01_docs/circuits.md).
+ * No published width for Mexico or São Paulo: measured on OSM's asphalt areas
+ * (`area:highway=raceway`, traced from aerial imagery) across the centreline, the median of each
+ * stretch (01_docs/circuits.md).
  */
 const OSM_AREAS = 'OSM area:highway=raceway, measured across the centreline';
 /**
@@ -478,6 +489,51 @@ export const CIRCUITS: readonly CircuitConfig[] = [
       { name: 'Fountains of Bellagio', kind: 'fountains' },
       { name: 'Stratosphere Tower', kind: 'strat', osmWay: 135457469 },
     ],
+  },
+  {
+    id: 'saoPaulo',
+    constName: 'SAO_PAULO',
+    name: 'São Paulo',
+    qualifying: 9865,
+    osmRelation: 6781071,
+    widthRange: [10.6, 16.3],
+    widthSource: OSM_AREAS,
+    widths: [
+      { at: 0, width: 15.7, place: 'start/finish straight', source: OSM_AREAS },
+      { at: 200, width: 15.8, place: 'braking for the Senna S', source: OSM_AREAS },
+      { at: 400, width: 13.6, place: 'Senna S (turns 1–2)', source: OSM_AREAS },
+      { at: 600, width: 13.2, place: 'Curva do Sol (turn 3)', source: OSM_AREAS },
+      // OSM's area is cut short here (5–9 m across): the neighbours' width.
+      { at: 850, width: 12, place: 'Reta Oposta (start)' },
+      { at: 1050, width: 10.6, place: 'Reta Oposta', source: OSM_AREAS },
+      { at: 1250, width: 11.4, place: 'Reta Oposta (end)', source: OSM_AREAS },
+      { at: 1400, width: 14.7, place: 'Descida do Lago (turn 4)', source: OSM_AREAS },
+      { at: 1550, width: 12.3, place: 'turn 5', source: OSM_AREAS },
+      { at: 1700, width: 11, place: 'Ferradura (turn 6)' },
+      { at: 1800, width: 10.7, place: 'Ferradura (exit)', source: OSM_AREAS },
+      { at: 2000, width: 13.4, place: 'Laranjinha (turn 7)', source: OSM_AREAS },
+      { at: 2200, width: 12.3, place: 'turn 8', source: OSM_AREAS },
+      { at: 2400, width: 12.9, place: 'Pinheirinho (turn 9)', source: OSM_AREAS },
+      { at: 2600, width: 13.2, place: 'Bico de Pato (turn 10)', source: OSM_AREAS },
+      { at: 2800, width: 12, place: 'Mergulho (turn 11)', source: OSM_AREAS },
+      { at: 3000, width: 10.6, place: 'Junção (turn 12)', source: OSM_AREAS },
+      { at: 3200, width: 13.1, place: 'Subida dos Boxes', source: OSM_AREAS },
+      { at: 3400, width: 15.7, place: 'Subida dos Boxes', source: OSM_AREAS },
+      { at: 3800, width: 14.7, place: 'Arquibancadas', source: OSM_AREAS },
+      { at: 4000, width: 16.3, place: 'start/finish straight', source: OSM_AREAS },
+      { at: 4288, width: 15.7, place: 'start/finish straight', source: OSM_AREAS },
+    ],
+    scale: 1.048,
+    lineDirection: 210,
+    runoffWidth: 10,
+    kerbs: 'corners',
+    // Its real heights (Phase 3, 01_docs/elevation.md), on SRTM: EU-DEM covers Europe only.
+    elevation: true,
+    dem: 'srtm30m',
+    // The real lane runs on round the inside of the Senna S and Curva do Sol: its tight bend
+    // there folded the walls; smoothed and joined at the track's edge, as Monaco's.
+    pitLaneAtEdge: true,
+    pitLaneSmoothing: 16,
   },
 ];
 
