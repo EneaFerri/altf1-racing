@@ -42,7 +42,7 @@ export class NameTag {
   }
 
   /** Puts the tag over the car at (x, z), seen from `camera`. */
-  /** `y`: the road's height under the car (Monaco v2; 0 on a flat track). */
+  /** `y`: the road's height under the car (Monaco; 0 on a flat track). */
   update(x: number, y: number, z: number, camera: THREE.Camera): void {
     this.object.position.set(x, y + HEIGHT, z);
     const grow = Math.max(1, this.object.position.distanceTo(camera.position) / READABLE_DISTANCE);

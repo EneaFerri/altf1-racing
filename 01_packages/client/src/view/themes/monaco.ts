@@ -1,4 +1,5 @@
 import { createAsphaltTexture, createPavingTexture } from '../pixelTexture';
+import { landGroundHeight } from '../scenery/ground';
 import { createPines } from '../scenery/nature';
 import {
   MONACO_CITY,
@@ -15,6 +16,7 @@ import {
   MONACO_TUNNEL,
   MONACO_WOODS,
 } from './monacoLayout';
+import { MONACO_LAND } from './monacoLand';
 import {
   realCircuitTheme,
   type RealCircuitLook,
@@ -27,7 +29,7 @@ import {
  * the tunnel under the Fairmont; guard rails with tall catch fences, three grandstands placed by
  * hand (B, K, T). Positions in the generated monacoLayout.ts. See 01_docs/themes.md.
  */
-export const MONACO_SCENERY: RealCircuitScenery = {
+const MONACO_SCENERY: RealCircuitScenery = {
   stands: MONACO_STANDS,
   pitLane: MONACO_PIT_LANE,
   pitBuildings: MONACO_PIT_BUILDINGS,
@@ -45,19 +47,30 @@ export const MONACO_SCENERY: RealCircuitScenery = {
   },
 };
 
-/** Monaco's look: Riviera sky and light, stone paving, pines, guard rails with catch fences. */
-export const MONACO_LOOK: RealCircuitLook = {
+/**
+ * Monaco's look: Riviera sky and light, stone paving (green-grey above the town: the slopes of the
+ * Moyenne Corniche), pines, guard rails with catch fences. On the real land (Phase 3,
+ * 01_docs/elevation.md; EU-DEM 25 m, `monacoLand.ts`): the town climbing from Port Hercule to the
+ * Casino, every building, stand, palm and pine on the ground, the sea at 0 against its quays.
+ */
+const MONACO_LOOK: RealCircuitLook = {
   sky: '#9fd3f7',
   fog: { near: 500, far: 2400 },
   viewDistance: 2800,
   light: { sky: '#fffaf0', ground: '#8a7f6a', intensity: 2.4, sun: 1.3 },
-  ground: { texture: createPavingTexture, tile: 6, margin: 900 },
+  ground: {
+    texture: createPavingTexture,
+    tile: 6,
+    margin: 900,
+    highland: { from: 55, to: 95, color: '#86956f' },
+  },
   asphalt: createAsphaltTexture,
   kerb: { colors: ['#e10600', '#f4f4f4'], block: 1.5 },
   edgeLineInset: 0,
   trees: createPines,
   parkTrees: 0,
   barrier: 'armcoFence',
+  groundHeight: landGroundHeight(MONACO_LAND, MONACO_SEA),
 };
 
 export const MONACO_THEME = realCircuitTheme(MONACO_SCENERY, MONACO_LOOK);

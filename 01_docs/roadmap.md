@@ -188,8 +188,40 @@ the checklist in [circuits.md](circuits.md#adding-a-circuit); the online circuit
   first test: the 90° corners made sharp (you must brake), the stands made coherent (stadium bowls,
   the GP's grandstands at the corners), the surroundings drawn (park buildings, domes, lakes,
   volcanoes).
-- 2.4b+ — next circuit: the owner's choice. 2.4 carries on **in parallel** with Phase 3, one
-  circuit at a time, whenever the owner wants one.
+- 2.4b ✅ **Monaco: one only, with its heights** (owner, 2026-11-17) — the flat Monaco removed,
+  Phase 3's Monaco v2 renamed **Monaco** (`layouts/monaco.ts`, `themes/monaco.ts` +
+  `monacoLand.ts`, regenerated identical to v2's); in `TRACKS` and `GP_TRACKS` where the flat one
+  was. The tool's `data` field (v2 borrowing Monaco's data) removed. Protocol v14; the server's lap
+  records: v2's moved under Monaco (flat Monaco had none)
+  ([elevation.md](elevation.md#one-monaco-24b-)).
+
+Next three circuits (owner's plan, 2026-11-17; [decisions.md](decisions.md)), one after the
+other, each: data → circuit → look and scenery → owner's test and OK → commit. Before each step
+the owner adds the circuit's PNG to `03_F1Circuits/` and picks its width factor.
+
+- 2.4c **Singapore** (Marina Bay) — flat, at night. Pole 2025 (Russell 1:29.158, to confirm on
+  OpenF1).
+  - c.1 Data, layout (the 2023+ layout: a straight where turns 16–19 were), calibration on the
+    pole, pit lane (previews against the PNG).
+  - c.2 **Night look** — a new option of the real-circuit look: dark sky, low ambient light,
+    floodlight poles along the track and lit windows as emissive pixel materials (no dynamic
+    light per lamp). Built on Singapore, reused by Las Vegas.
+  - c.3 Scenery from OSM: a town circuit (buildings with heights, Marina Bay's water), landmarks
+    chosen with the owner (Marina Bay Sands, Singapore Flyer, the floating platform); owner's test.
+- 2.4d **Las Vegas** (Strip Circuit) — flat, at night (c.2's look).
+  - d.1 Data and layout; target the **2024 pole** (Russell 1:32.312: the 2025 qualifying was wet),
+    calibration, pit lane.
+  - d.2 Scenery: the Strip's hotels with their real heights, landmarks chosen with the owner (the
+    Sphere, the pit building); owner's test.
+- 2.4e **São Paulo** (Interlagos) — **with its real heights**, like Monaco
+  ([elevation.md](elevation.md)). Pole 2025 (Norris 1:09.511, to confirm on OpenF1).
+  - e.1 Tool: the land's dataset per circuit (EU-DEM covers Europe only: SRTM 30 m for Brazil);
+    data, elevation report against the published height difference.
+  - e.2 Layout with heights, calibration, pit lane.
+  - e.3 Terrain and scenery on the real land (the lakes inside the circuit, the grandstands);
+    owner's test.
+
+After 2.4e: more circuits whenever the owner wants one.
 
 ### 2.5 — Lap records
 
@@ -220,6 +252,8 @@ packets, little bandwidth). Design: [multiplayer.md](multiplayer.md#rooms-21e--2
   slower (6/s instead of 10/s); the own car unchanged.
 
 ## Phase 3 — Elevation (Monaco v2) ✅
+
+Since 2.4b Monaco v2 is simply **Monaco** (the flat one removed); the names below are the time's.
 
 **Scope: one map, Monaco v2**, built and tested in single player first (3a–3e), then offered
 online in every mode too (3f, owner's request after the test). Every other circuit, Monaco
@@ -260,7 +294,7 @@ aligned along the track.
   Grand Prix offer it; the server and the prediction run the same slope (`SLOPE_PARAMS`: no F2
   online); the nickname tags float over the car's height.
 
-Not in Phase 3 (until the owner asks): elevation on other circuits, elevation online.
+Not in Phase 3 (until the owner asks): elevation on other circuits (São Paulo: 2.4e), elevation online (done in 3f).
 
 ## Phase 4 — Pit lane and car damage (Grand Prix only)
 

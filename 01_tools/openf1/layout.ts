@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildTrack } from '../../01_packages/shared/src/index.ts';
-import { circuitById, widthFactorOf, dataOf } from './circuits.ts';
+import { circuitById, widthFactorOf } from './circuits.ts';
 import { elevationOf } from './elevation.ts';
 import { generate } from './generate.ts';
 import {
@@ -24,7 +24,7 @@ import { pitLaneOf } from './pitLane.ts';
 import { Canvas, type Rgb } from './png.ts';
 
 const circuit = circuitById(process.argv[2] ?? '');
-const profile = readJson<CircuitProfile>(profilePath(dataOf(circuit)));
+const profile = readJson<CircuitProfile>(profilePath(circuit.id));
 const { definition, stations, adapted } = generate(
   profile,
   circuit,
@@ -33,14 +33,8 @@ const { definition, stations, adapted } = generate(
 );
 
 const track = buildTrack(definition);
-const pit = existsSync(sceneryPath(dataOf(circuit)))
-  ? pitLaneOf(
-      circuit,
-      profile,
-      readJson<RawScenery>(sceneryPath(dataOf(circuit))),
-      track,
-      definition,
-    )
+const pit = existsSync(sceneryPath(circuit.id))
+  ? pitLaneOf(circuit, profile, readJson<RawScenery>(sceneryPath(circuit.id)), track, definition)
   : null;
 const elevated = definition.points[0]!.height !== undefined;
 const point = (p: { at: { x: number; z: number }; width: number; height?: number }): string =>

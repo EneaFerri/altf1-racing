@@ -26,7 +26,7 @@ describe('speedFov', () => {
   });
 });
 
-describe('cameras on an elevated road (Monaco v2)', () => {
+describe('cameras on an elevated road (Monaco)', () => {
   const pose: CarPose = { x: 10, z: -20, heading: 0, steer: 0, forwardSpeed: 30, slip: 0 };
 
   it('rise with the road under the car, the same height above it', () => {

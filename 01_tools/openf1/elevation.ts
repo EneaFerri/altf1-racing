@@ -3,7 +3,7 @@
  * terrain.ts downloads, and the track's OpenF1 heights aligned onto it. Pure but `elevationOf`.
  */
 import type { Point } from './geometry.ts';
-import { dataOf, type CircuitConfig } from './circuits.ts';
+import type { CircuitConfig } from './circuits.ts';
 import { osmMetres, readJson, terrainPath, type CircuitProfile, type OsmFrame } from './openf1.ts';
 
 /** What terrain.ts saves (`data/<id>.terrain.json`): land heights on a regular lat/lon grid. */
@@ -94,9 +94,6 @@ export function elevationOf(
   profile: CircuitProfile,
 ): readonly number[] | undefined {
   if (!circuit.elevation) return undefined;
-  return alignHeights(
-    profile,
-    readJson<RawTerrain>(terrainPath(dataOf(circuit))),
-    circuit.lowestHeight,
-  ).heights;
+  return alignHeights(profile, readJson<RawTerrain>(terrainPath(circuit.id)), circuit.lowestHeight)
+    .heights;
 }

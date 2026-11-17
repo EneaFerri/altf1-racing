@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Vec2 } from '@altf1/shared';
 import type { Footprint } from './placement';
 
-// Props built on flat ground (y = 0) stood on an elevated track's ground (Phase 3: Monaco v2;
+// Props built on flat ground (y = 0) stood on an elevated track's ground (Phase 3: Monaco;
 // 01_docs/elevation.md). Only used where the track is elevated: flat tracks never pass here.
 
 /** The ground's height at a point, as drawn. */

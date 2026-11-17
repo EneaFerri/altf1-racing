@@ -25,7 +25,7 @@ import {
   type BotLevel,
   type TrackDefinition,
 } from '../../01_packages/shared/src/index.ts';
-import { circuitById, dataOf } from './circuits.ts';
+import { circuitById } from './circuits.ts';
 import { elevationOf } from './elevation.ts';
 import { generate } from './generate.ts';
 import { profilePath, readJson, type CircuitProfile } from './openf1.ts';
@@ -90,7 +90,7 @@ function measure(definition: TrackDefinition, level: BotLevel, poleTime: number)
 }
 
 const circuit = circuitById(process.argv[2] ?? '');
-const profile = readJson<CircuitProfile>(profilePath(dataOf(circuit)));
+const profile = readJson<CircuitProfile>(profilePath(circuit.id));
 const target = profile.pole.time;
 const fixed = process.argv[3] ? Number(process.argv[3]) : null;
 

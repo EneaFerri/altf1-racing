@@ -209,6 +209,9 @@ it are left out (owner's choice).
 
 ## Monaco theme (`themes/monaco.ts`, step 9d.2a)
 
+On the real land since 2.4b (Phase 3's Monaco v2 theme folded in: `groundHeight` from the generated
+`monacoLand.ts`, green-grey slopes above the town): [elevation.md](elevation.md#terrain-and-town-3d-).
+
 A street circuit: bright Riviera sky, fog 500–2400 m, pale stone paving as the ground
 (`createPavingTexture`), red/white kerbs, guard rails with tall catch fences (`armcoFence`),
 tyres where there's gravel. From `themes/monacoLayout.ts` (generated): ~300 buildings with their

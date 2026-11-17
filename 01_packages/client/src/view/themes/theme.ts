@@ -26,7 +26,7 @@ export interface TrackTheme {
     readonly tile: number;
     readonly margin: number;
     /**
-     * Elevated ground only: tinted `color` from `from` to `to` m up and above (Monaco v2: the green
+     * Elevated ground only: tinted `color` from `from` to `to` m up and above (Monaco: the green
      * slopes above the town).
      */
     readonly highland?: { readonly from: number; readonly to: number; readonly color: string };
@@ -46,7 +46,7 @@ export interface TrackTheme {
    */
   readonly scenery: (track: Track, ground: (p: Vec2) => number) => THREE.Object3D[];
   /**
-   * The ground's height around an elevated track (Monaco v2: the real land); left out: the road's
+   * The ground's height around an elevated track (Monaco: the real land); left out: the road's
    * heights around it. Settled under the road by SceneView.
    */
   readonly groundHeight?: (track: Track) => (p: Vec2) => number;
@@ -61,7 +61,6 @@ const THEMES: Readonly<Record<string, () => Promise<TrackTheme>>> = {
   Monza: async () => (await import('./monza')).MONZA_THEME,
   Barcelona: async () => (await import('./barcelona')).BARCELONA_THEME,
   Monaco: async () => (await import('./monaco')).MONACO_THEME,
-  'Monaco v2': async () => (await import('./monacoV2')).MONACO_V2_THEME,
   'Mexico City': async () => (await import('./mexico')).MEXICO_THEME,
 };
 

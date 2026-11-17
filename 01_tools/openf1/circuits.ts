@@ -69,19 +69,17 @@ export interface Surroundings {
 }
 
 export interface CircuitConfig {
-  /** File name of the layout (`layouts/<id>.ts`) and, unless `data` says otherwise, of the data. */
+  /** File name of the layout (`layouts/<id>.ts`) and of the data (`data/<id>.*`). */
   readonly id: string;
-  /** Another circuit's data it is built from (`data/<data>.*`: Monaco v2 uses Monaco's). */
-  readonly data?: string;
   /**
-   * Heights from the profile, aligned on the land (`data/<data>.terrain.json`), in real metres (not
-   * × `scale`: owner's choice after trying the real gradients, too much): Phase 3, single player
-   * only (Monaco v2; 01_docs/elevation.md).
+   * Heights from the profile, aligned on the land (`data/<id>.terrain.json`), in real metres (not
+   * × `scale`: owner's choice after trying the real gradients, too much): Phase 3 (Monaco;
+   * 01_docs/elevation.md).
    */
   readonly elevation?: boolean;
   /**
    * With elevation: the track's lowest point is this high (m above sea level) instead of the median
-   * fit on the land (Monaco v2: the harbour front on its quay, owner's choice).
+   * fit on the land (Monaco: the harbour front on its quay, owner's choice).
    */
   readonly lowestHeight?: number;
   /** Exported constant of the generated TrackDefinition, and its display name. */
@@ -203,6 +201,11 @@ const MONACO: CircuitConfig = {
   town: true,
   pitSpeedLimit: 60,
   pitLaneAtEdge: true,
+  // Phase 3: its real heights (01_docs/elevation.md). The harbour front (Tabac, Piscine) on its
+  // quay, 2–3 m above the sea (owner's choice); the median fit put it at 8.5 m, the DEM's coast
+  // cells mixing road and sea.
+  elevation: true,
+  lowestHeight: 2.5,
   // The harbour is on the left from Tabac to La Rascasse.
   stands: [
     { name: 'Tribune B (Casino)', at: 870, length: 50, depth: 10, side: 'left' },
@@ -334,25 +337,7 @@ export const CIRCUITS: readonly CircuitConfig[] = [
     ],
     surroundings: { reach: 500, domes: ['Palacio de los Deportes', 'Velódromo CNAR'] },
   },
-  // Phase 3: Monaco with its real heights, in single player and online (01_docs/elevation.md).
-  {
-    ...MONACO,
-    id: 'monacoV2',
-    constName: 'MONACO_V2',
-    name: 'Monaco v2',
-    data: 'monaco',
-    elevation: true,
-    // The harbour front (Tabac, Piscine) on its quay, 2–3 m above the sea (owner's choice); the
-    // median fit put it at 8.5 m, the DEM's coast cells mixing road and sea.
-    lowestHeight: 2.5,
-    scale: 1.133,
-  },
 ];
-
-/** The id of the data files a circuit is built from. */
-export function dataOf(circuit: CircuitConfig): string {
-  return circuit.data ?? circuit.id;
-}
 
 export function circuitById(id: string): CircuitConfig {
   const circuit = CIRCUITS.find((c) => c.id === id);

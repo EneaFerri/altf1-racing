@@ -12,7 +12,7 @@ import { existsSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildTrack, locateOnTrack, vec2, type Track } from '../../01_packages/shared/src/index.ts';
-import { circuitById, type Landmark, dataOf } from './circuits.ts';
+import { circuitById, type Landmark } from './circuits.ts';
 import { elevationOf } from './elevation.ts';
 import { generate, toGame } from './generate.ts';
 import { realLocator } from './locate.ts';
@@ -94,13 +94,13 @@ const GARAGE_CHUNK = 60;
 const GARAGE_ENDS = 0.15;
 
 const circuit = circuitById(process.argv[2] ?? '');
-if (process.argv.includes('--fetch') || !existsSync(sceneryPath(dataOf(circuit)))) {
+if (process.argv.includes('--fetch') || !existsSync(sceneryPath(circuit.id))) {
   await fetchScenery();
 }
 writeLayout();
 
 async function fetchScenery(): Promise<void> {
-  const track = readJson<RawOsmCircuit>(osmPath(dataOf(circuit)));
+  const track = readJson<RawOsmCircuit>(osmPath(circuit.id));
   const lats = track.ways.flat().map(([lat]) => lat);
   const lons = track.ways.flat().map(([, lon]) => lon);
   const bbox = [
@@ -239,7 +239,7 @@ out geom;`;
     bbox,
     features,
   };
-  writeFileSync(sceneryPath(dataOf(circuit)), JSON.stringify(raw) + '\n');
+  writeFileSync(sceneryPath(circuit.id), JSON.stringify(raw) + '\n');
   const count = (kind: string): number => features.filter((f) => f.kind === kind).length;
   console.log(
     `${circuit.name}: ${count('grandstand')} grandstands, ${count('building')} buildings, ` +
@@ -316,8 +316,8 @@ function nearCircuit(
 type Spot = [number, number];
 
 function writeLayout(): void {
-  const profile = readJson<CircuitProfile>(profilePath(dataOf(circuit)));
-  const raw = readJson<RawScenery>(sceneryPath(dataOf(circuit)));
+  const profile = readJson<CircuitProfile>(profilePath(circuit.id));
+  const raw = readJson<RawScenery>(sceneryPath(circuit.id));
   const toProfile = osmToProfile(profile.osmFrame);
   const toWorld = toGame(profile, circuit, circuit.scale);
   const track = buildTrack(

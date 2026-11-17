@@ -5,7 +5,7 @@
  * Usage: node 01_tools/openf1/profile.ts <id> (after fetch.ts). Method: README.md.
  */
 import { writeFileSync } from 'node:fs';
-import { circuitById, dataOf } from './circuits.ts';
+import { circuitById } from './circuits.ts';
 import { closedLength, resampleClosed, smoothClosed, type Point } from './geometry.ts';
 import {
   osmPath,
@@ -31,8 +31,8 @@ const CORNER_WINDOW = 150;
 const CORNER_DROP = 20;
 
 const circuit = circuitById(process.argv[2] ?? '');
-const raw = readJson<RawPoleLap>(rawPath(dataOf(circuit)));
-const osm = readJson<RawOsmCircuit>(osmPath(dataOf(circuit)));
+const raw = readJson<RawPoleLap>(rawPath(circuit.id));
+const osm = readJson<RawOsmCircuit>(osmPath(circuit.id));
 const { lap } = raw;
 const start = Date.parse(lap.date_start!);
 const end = start + lap.lap_duration! * 1000;
@@ -194,7 +194,7 @@ const profile: CircuitProfile = {
   corners,
   osmFrame,
 };
-writeFileSync(profilePath(dataOf(circuit)), JSON.stringify(profile) + '\n');
+writeFileSync(profilePath(circuit.id), JSON.stringify(profile) + '\n');
 
 const moved = lapStations.map((p, i) => Math.hypot(p[0] - snapped[i]![0], p[1] - snapped[i]![1]));
 console.log(

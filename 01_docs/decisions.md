@@ -541,3 +541,19 @@
   only what is sent would make the client predict from a state the server doesn't have: the
   server rounds its own room instead, before each snapshot, and goes on from exactly that.
 - Cost: a little CPU on the server and ~tens of kB of zlib memory per socket, fine for 8 players.
+
+## 2026-11-17 — One Monaco, and the next three circuits (2.4b–e plan)
+
+- Owner: only the Monaco with real heights stays, named **Monaco** (files and constants
+  `monacoV2` → `monaco`); the flat one removed (it had no lap records on the server); v2's moved
+  under "Monaco". Protocol v14 although no message changed: the name now means another track.
+- The tool's `data` field (a circuit built on another's data) only served Monaco v2: removed.
+- Next circuits (owner): **Singapore** and **Las Vegas** flat, **São Paulo** (Interlagos) with its
+  real heights. Order: Singapore, Las Vegas, São Paulo, one step each with the owner's test.
+- Las Vegas's target is the **2024 pole** (Russell 1:32.312): the 2025 qualifying was wet (Norris
+  1:47.934), a time far from the track's dry pace.
+- Singapore and Las Vegas are night races: a **night look with lights** (owner), a new option of
+  the real-circuit look (dark sky, low ambient light, emissive floodlights and windows; no dynamic
+  lights per lamp, for speed). Built once in Singapore's step, reused by Las Vegas.
+- EU-DEM covers Europe only: Interlagos's land comes from another OpenTopoData dataset (SRTM 30 m),
+  chosen per circuit in `circuits.ts`.

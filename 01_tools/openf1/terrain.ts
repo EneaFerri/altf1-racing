@@ -6,14 +6,14 @@
  *   highest and lowest points, steepest gradients, against the published figure;
  * - writes `preview/<id>-elevation.png`: height along the lap (black: track; grey: land above it,
  *   the town over the tunnel; yellow: sector starts);
- * - for a circuit with elevation (Monaco v2), writes the client's land grid in game coordinates,
+ * - for a circuit with elevation (Monaco), writes the client's land grid in game coordinates,
  *   `01_packages/client/src/view/themes/<id>Land.ts` (generated: never edit by hand).
  * Usage: node --import ./01_tools/resolveTs.ts 01_tools/openf1/terrain.ts <id> [--fetch]
  */
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { circuitById, dataOf } from './circuits.ts';
+import { circuitById } from './circuits.ts';
 import { alignHeights, landHeight, profileToOsm, type RawTerrain } from './elevation.ts';
 import { elevationOf } from './elevation.ts';
 import { fromGame, generate } from './generate.ts';
@@ -50,13 +50,12 @@ const SEA_FLOOR = -3;
 const BARE_RADIUS = 40;
 
 const circuit = circuitById(process.argv[2] ?? '');
-if (process.argv.includes('--fetch') || !existsSync(terrainPath(dataOf(circuit))))
-  await fetchTerrain();
+if (process.argv.includes('--fetch') || !existsSync(terrainPath(circuit.id))) await fetchTerrain();
 report();
 if (circuit.elevation) writeLand();
 
 async function fetchTerrain(): Promise<void> {
-  const nodes = readJson<RawOsmCircuit>(osmPath(dataOf(circuit))).ways.flat();
+  const nodes = readJson<RawOsmCircuit>(osmPath(circuit.id)).ways.flat();
   const lats = nodes.map(([lat]) => lat);
   const lons = nodes.map(([, lon]) => lon);
   const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
@@ -93,7 +92,7 @@ async function fetchTerrain(): Promise<void> {
     cols,
     heights,
   };
-  writeFileSync(terrainPath(dataOf(circuit)), JSON.stringify(terrain) + '\n');
+  writeFileSync(terrainPath(circuit.id), JSON.stringify(terrain) + '\n');
 }
 
 /** One OpenTopoData call: the heights, null where it has no land (the sea); retried when busy. */
@@ -112,8 +111,8 @@ async function get(url: string): Promise<(number | null)[]> {
 }
 
 function report(): void {
-  const profile = readJson<CircuitProfile>(profilePath(dataOf(circuit)));
-  const terrain = readJson<RawTerrain>(terrainPath(dataOf(circuit)));
+  const profile = readJson<CircuitProfile>(profilePath(circuit.id));
+  const terrain = readJson<RawTerrain>(terrainPath(circuit.id));
   const { heights, offset, land } = alignHeights(profile, terrain, circuit.lowestHeight);
   const n = heights.length;
   const at = (i: number): number => Math.round(i * profile.spacing);
@@ -179,8 +178,8 @@ function report(): void {
 
 /** The land around the track in game coordinates, for the ground the client draws (Phase 3d). */
 function writeLand(): void {
-  const profile = readJson<CircuitProfile>(profilePath(dataOf(circuit)));
-  const terrain = readJson<RawTerrain>(terrainPath(dataOf(circuit)));
+  const profile = readJson<CircuitProfile>(profilePath(circuit.id));
+  const terrain = readJson<RawTerrain>(terrainPath(circuit.id));
   const { stations } = generate(profile, circuit, circuit.scale, elevationOf(circuit, profile));
   const toReal = fromGame(profile, circuit, circuit.scale);
   const toOsm = profileToOsm(profile.osmFrame);

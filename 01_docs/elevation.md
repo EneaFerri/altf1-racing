@@ -1,8 +1,10 @@
 # Elevation (Phase 3)
 
-**One map: Monaco v2**, in single player and (since 3f) in every online mode. Every other track,
-Monaco included, stays flat and untouched. Plan and status:
-[roadmap.md](roadmap.md#phase-3--elevation-monaco-v2-).
+**One map with heights: Monaco**, in single player and in every online mode. Built in Phase 3 as
+"Monaco v2" beside the flat Monaco; since step 2.4b it is the only Monaco (the flat one removed,
+v2 renamed: below). Every other track stays flat and untouched; São Paulo will be the second
+elevated circuit (2.4e). Plan and status: [roadmap.md](roadmap.md#phase-3--elevation-monaco-v2-).
+Below, "Monaco v2" and "flat Monaco" are the names of the time.
 
 ## Data
 
@@ -33,7 +35,7 @@ the road the cars drive; the DEM's 25 m cells smooth the town's steep streets.
 - **Bot**: its speed profile includes the grade (longer braking downhill, slower acceleration
   uphill).
 - **Monaco v2**: a `CIRCUITS` entry reusing Monaco's data, with elevation, its own scale calibrated
-  on the pole (1:09.954, Hard bot), in `TRACKS` only (single player).
+  on the pole (1:09.954, Hard bot), in `TRACKS` only (single player). Since 2.4b simply Monaco.
 - **View**: every track part at its sample's height; the car's height and pitch from the slope; the
   cameras follow. The terrain mesh comes from the DEM, blended into the track's edges and run-off;
   props stand on `groundHeight(x, z)`; the sea, piers and yachts stay at 0; the tunnel follows the
@@ -90,7 +92,7 @@ land around it, and 3d blends the two near the track.
   away from rest on a climb and the brake holds it there; the bot laps Monaco v2 cleanly on every
   level, Hard in the pole time.
 
-### Monaco v2 (`layouts/monacoV2.ts`, generated)
+### Monaco v2 (now `layouts/monaco.ts`, generated)
 
 A `CIRCUITS` entry built on Monaco's data (`data: 'monaco'`, `elevation: true`): the same shape,
 widths and limits, its heights from `elevationOf` (aligned profile) in real metres: 8.5–50.1 m,
@@ -130,7 +132,7 @@ for the owner to try in 3c (F2).
 - **Cameras**: the chase camera and the driver's eye at `y` + their usual heights; the driver's
   view tilts with the car (the other way looking back).
 - **Monaco v2 in single player**: in `TRACKS` (the track menu); online since 3f (below). Theme
-  `themes/monacoV2.ts`: Monaco's look and walls, no scenery until 3d.
+  then `themes/monacoV2.ts`: Monaco's look and walls, no scenery until 3d.
 - **Flat tracks** draw exactly as before: every height is 0 and the ground is the flat square.
 
 Fixed after the owner's 3c test: after the Grand Hotel hairpin (Mirabeau Bas) the ground rose up
@@ -143,7 +145,7 @@ rise above it; the grid is built once (`elevatedGround`) and drawn with the same
 
 - **Land** (`terrain.ts`, for a circuit with elevation): the EU-DEM grid resampled into game
   coordinates, 12.5 m cells, 500 m round the track, the sea (no land in the DEM) at −3 m, written
-  as the generated `themes/monacoV2Land.ts`. **EU-DEM is a surface model**: in a town its cells
+  as the generated `themes/<id>Land.ts` (`monacoLand.ts`). **EU-DEM is a surface model**: in a town its cells
   count the roofs (22–29 m along the start straight, where the road is at 5–15 m). So it is
   turned into bare ground by a **morphological opening** (the lowest height within 40 m, then the
   highest of those lows): blobs the size of buildings go, the hills stay. From the harbour to
@@ -162,9 +164,8 @@ rise above it; the grid is built once (`elevatedGround`) and drawn with the same
   the ground); those on the tunnel's roof from the road under them (+ 8 m, as on flat Monaco);
   the Casino and the chapel the same. The tunnel follows the road. The sea, pontoons and yachts
   stay at sea level.
-- **Theme** (`themes/monacoV2.ts`): Monaco's own scenery and look (`MONACO_SCENERY`,
-  `MONACO_LOOK`: the track has the same shape) with `groundHeight` from the land.
-- **Tests** (`themes/monacoV2.test.ts`): the land climbs from the sea to over 100 m; the ground
+- **Theme** (`themes/monaco.ts`): Monaco's scenery and look with `groundHeight` from the land.
+- **Tests** (`themes/monaco.test.ts`): the land climbs from the sea to over 100 m; the ground
   stays under the road and its run-off; the sea floor lies under the water past the quays; no
   building floats or ends under the ground.
 
@@ -177,3 +178,12 @@ track from the same definition and step it with the same `stepGame` and `SLOPE_P
 panel exists in single player only), so the prediction stays exact. The view already follows the
 heights (cars, ghost, cameras, ground, town); the nickname tags now float over the car's height
 (`NameTag.update(x, y, z, …)`).
+
+## One Monaco (2.4b ✅)
+
+Owner's choice (2026-11-17): only the Monaco with heights stays, named **Monaco**. The flat
+Monaco's layout and theme are gone; `CIRCUITS` has one `monaco` entry with `elevation: true` and
+`lowestHeight: 2.5` (the `data` field, used only by v2 to borrow Monaco's data, removed). The
+regenerated `layouts/monaco.ts` and `themes/monacoLand.ts` are identical to v2's but for the names;
+scale 1.133. Online: protocol v14 (the name "Monaco" now means the elevated track), and the server's
+lap records moved: v2's renamed Monaco (flat Monaco had none).

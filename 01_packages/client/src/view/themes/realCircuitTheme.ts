@@ -202,7 +202,7 @@ function buildScenery(
 ): THREE.Object3D[] {
   const objects: THREE.Object3D[] = [];
   const keepClear: Circle[] = [];
-  // On an elevated track (Monaco v2) every prop stands on the ground; flat tracks skip it all.
+  // On an elevated track (Monaco) every prop stands on the ground; flat tracks skip it all.
   const elevated = track.elevated;
   const standOn = (object: THREE.Object3D, box: Footprint): THREE.Object3D => {
     if (elevated) object.position.y = lowestGround(ground, boxCorners(box));

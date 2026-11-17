@@ -39,7 +39,7 @@ export interface SimContext {
   readonly surfaceParams: Readonly<Record<Surface, SurfaceParams>>;
   readonly collisionParams: CollisionParams;
   readonly slipstreamParams: SlipstreamParams;
-  /** Slopes on an elevated track (Monaco v2); left out: SLOPE_PARAMS. */
+  /** Slopes on an elevated track (Monaco); left out: SLOPE_PARAMS. */
   readonly slopeParams?: SlopeParams;
   /** Cars take damage (Phase 4: the Grand Prix only); left out: no damage, no `CarState.damage`. */
   readonly damage?: DamageParams;

@@ -16,7 +16,7 @@ road only when asked (4f).
 | ------------------------ | ---------------------------------------------------------------------------------------------------- |
 | `side`                   | Side of the track it lies on (every one so far: right)                                               |
 | `fromPoint`, `toPoint`   | Main-loop control points it leaves after and rejoins before (`fromPoint` > `toPoint`: over the line) |
-| `points`                 | Its centreline between them, world x/z, the lane's width (and the road's height on Monaco v2)        |
+| `points`                 | Its centreline between them, world x/z, the lane's width (and the road's height on Monaco)           |
 | `limit.from`, `limit.to` | The speed-limited stretch, between the pit entry and exit lines: **metres along the lane**           |
 | `speedLimit`             | m/s: the real 80 km/h (Monaco 60, `pitSpeedLimit` in `circuits.ts`) × the circuit's scale            |
 | `boxes`                  | `MAX_PLAYERS` (8) boxes, metres along the lane, inside `limit`, in driving order                     |
@@ -66,7 +66,6 @@ wall between its limit lines, no pit lane on the imaginary tracks.
 | Barcelona   | 945 m | 89–778                    | 81 km/h      | the pit buildings | Exit up the inside of turn 1; last box there                                                                                 |
 | Monaco      | 381 m | 50–361                    | 68 km/h      | spread (town)     | From the inside of La Rascasse, between the start straight and the Piscine (squeezed), back just after the line; at the edge |
 | Mexico City | 780 m | 135–573                   | 79 km/h      | spread            | From the Peraltada, along the main straight; OSM maps only the paddock                                                       |
-| Monaco v2   | 402 m | 26–357                    | 68 km/h      | spread (town)     | Monaco's, with the road's heights                                                                                            |
 
 The ramps cross the run-off and the wall where they leave and rejoin the track: the walls open
 there (4f).
@@ -94,7 +93,7 @@ branches', `Track.pit` true), like a branch (01_docs/track.md#branches-forks-and
   loop's samples are the same either way).
 - **The bot never takes it** (`buildBotPlan` picks a shortcut that isn't the pit lane).
 - **The view**: drawn with the track like a branch (asphalt, edge lines, its walls in concrete,
-  heights on Monaco v2); the decorative lane behind the wall is left out, and a pit building that
+  heights on Monaco); the decorative lane behind the wall is left out, and a pit building that
   would stand on the drivable lane too (one garage box at Monaco).
 - **Tried in single player (dev only)**: F2 → Pit lane (Grand Prix) → "drivable (reloads)", or
   `?pitlane` in the URL; the page goes back to the start screen, choose the circuit again.

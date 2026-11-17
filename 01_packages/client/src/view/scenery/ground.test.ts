@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTrack, locateOnTrack, MONACO, MONACO_V2 } from '@altf1/shared';
+import { buildTrack, locateOnTrack, MONACO, MONZA } from '@altf1/shared';
 import {
   gridHeightAt,
   GROUND_DROP,
@@ -11,12 +11,12 @@ import { clearance, trackBounds } from './placement';
 
 describe('trackGroundHeight', () => {
   it('is 0 everywhere around a flat track', () => {
-    const height = trackGroundHeight(buildTrack(MONACO));
+    const height = trackGroundHeight(buildTrack(MONZA));
     expect(height({ x: 0, z: 0 })).toBe(0);
     expect(height({ x: 500, z: -300 })).toBe(0);
   });
 
-  const track = buildTrack(MONACO_V2);
+  const track = buildTrack(MONACO);
   const height = trackGroundHeight(track);
 
   it('lies just under the road and its run-off on an elevated track', () => {
@@ -49,7 +49,7 @@ describe('trackGroundHeight', () => {
 
 describe('settleUnderRoad', () => {
   it('leaves no ground above the road or its run-off (after the Grand Hotel hairpin it rose 4.5 m)', () => {
-    const track = buildTrack(MONACO_V2);
+    const track = buildTrack(MONACO);
     const grid = groundGrid(trackBounds(track, 400), 8, trackGroundHeight(track));
     expect(settleUnderRoad(grid, track)).toBeGreaterThan(0);
     for (const s of track.samples) {

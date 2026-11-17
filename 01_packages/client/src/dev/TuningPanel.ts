@@ -194,8 +194,8 @@ export class TuningPanel {
       slipstream.add(slipstreamParams, key, min, max, step);
     }
 
-    // Only an elevated track (Monaco v2) has slopes.
-    const slope = this.gui.addFolder('Slope (Monaco v2)').close();
+    // Only an elevated track (Monaco) has slopes.
+    const slope = this.gui.addFolder('Slope (elevated tracks)').close();
     slope.add(slopeParams, 'factor', 0, 1, 0.05);
 
     const camera = this.gui.addFolder('Camera').close();

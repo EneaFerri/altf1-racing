@@ -1,7 +1,7 @@
 import { locateOnTrack, vec2, type Track, type Vec2 } from '@altf1/shared';
 import { clearance, insidePolygon, trackBounds } from './placement';
 
-// The ground's height around an elevated track (Phase 3: Monaco v2; 01_docs/elevation.md). Pure.
+// The ground's height around an elevated track (Phase 3: Monaco; 01_docs/elevation.md). Pure.
 // On a flat track it is 0 everywhere. Under the road it is always the road less GROUND_DROP.
 
 /** The ground sits this far under the road and its run-off, so it never shows through (m). */
@@ -99,7 +99,7 @@ export function landHeightAt(land: LandGrid, p: Vec2): number {
 }
 
 /**
- * Height of the ground on the real land (Monaco v2): the road less GROUND_DROP under it; past the
+ * Height of the ground on the real land (Monaco): the road less GROUND_DROP under it; past the
  * walls, the road's heights around, then the land's (LAND_FROM → LAND_TO); SEA_FLOOR inside the
  * `sea` (OSM's, already kept off the walls), so the coast is a quay wall.
  */

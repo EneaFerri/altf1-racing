@@ -10,7 +10,7 @@ node 01_tools/openf1/profile.ts <id>     # data/<id>.json: centreline, speed, co
 node --import ./01_tools/resolveTs.ts 01_tools/openf1/layout.ts <id>     # layout (+ pit lane once the scenery is there) + previews
 node --import ./01_tools/resolveTs.ts 01_tools/openf1/calibrate.ts <id> [scale]
 node --import ./01_tools/resolveTs.ts 01_tools/openf1/scenery.ts <id> [--fetch]  # OSM scenery
-node --import ./01_tools/resolveTs.ts 01_tools/openf1/terrain.ts <id> [--fetch]  # land (EU-DEM), elevation report, Monaco v2's land grid
+node --import ./01_tools/resolveTs.ts 01_tools/openf1/terrain.ts <id> [--fetch]  # land (EU-DEM), elevation report, an elevated circuit's land grid
 ```
 
 `layout`, `calibrate` and `scenery` use the game's own code in `01_packages/shared`, whose imports have no

@@ -8,7 +8,7 @@
  * (`--no-osm`: only the OpenF1 lap, the committed OSM centreline left as it is, so the shape can't move.)
  */
 import { writeFileSync } from 'node:fs';
-import { circuitById, dataOf } from './circuits.ts';
+import { circuitById } from './circuits.ts';
 import { osmPath, rawPath, type RawLap, type RawOsmCircuit, type RawPoleLap } from './openf1.ts';
 
 const API = 'https://api.openf1.org/v1';
@@ -51,7 +51,7 @@ const raw: RawPoleLap = {
   location: location.map((p) => [Date.parse(p.date), p.x, p.y, p.z]),
   speed: speed.map((s) => [Date.parse(s.date), s.speed]),
 };
-writeFileSync(rawPath(dataOf(circuit)), JSON.stringify(raw) + '\n');
+writeFileSync(rawPath(circuit.id), JSON.stringify(raw) + '\n');
 console.log(
   `${circuit.name}: pole ${lap.lap_duration} s by #${lap.driver_number} (lap ${lap.lap_number}), ` +
     `${raw.location.length} positions, ${raw.speed.length} speeds`,
@@ -87,5 +87,5 @@ const osm: RawOsmCircuit = {
     .filter((m) => m.type === 'way' && m.geometry && !NOT_THE_TRACK.has(m.role))
     .map((m) => m.geometry!.map((p): [number, number] => [p.lat, p.lon])),
 };
-writeFileSync(osmPath(dataOf(circuit)), JSON.stringify(osm) + '\n');
+writeFileSync(osmPath(circuit.id), JSON.stringify(osm) + '\n');
 console.log(`  OpenStreetMap: "${osm.name}", ${osm.ways.length} ways`);

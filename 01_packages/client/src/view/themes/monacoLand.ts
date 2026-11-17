@@ -2,11 +2,11 @@
 // edit by hand: re-run the tool (see 01_docs/elevation.md).
 
 /**
- * Monaco v2's land around the track (m above sea level, real; -3 under the sea; roofs taken
+ * Monaco's land around the track (m above sea level, real; -3 under the sea; roofs taken
  * away by an opening of 40 m, the DEM being a surface model), on a
  * grid in game coordinates: `heights[row * cols + col]` at (minX + col · cell, minZ + row · cell).
  */
-export const MONACO_V2_LAND = {
+export const MONACO_LAND = {
   minX: -512.5,
   minZ: -1075,
   cell: 12.5,

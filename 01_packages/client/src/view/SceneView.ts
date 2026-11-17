@@ -238,7 +238,7 @@ function interpolateCar(prev: CarState, curr: CarState, alpha: number): CarPose 
 }
 
 /**
- * A pose lifted onto the road on an elevated track (Monaco v2): the road's height under the car and
+ * A pose lifted onto the road on an elevated track (Monaco): the road's height under the car and
  * its pitch from the slope along the heading. Unchanged on a flat track.
  */
 function onRoad(track: Track, pose: CarPose): CarPose {

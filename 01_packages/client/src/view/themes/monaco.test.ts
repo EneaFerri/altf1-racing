@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { buildTrack, locateOnTrack, MONACO_V2 } from '@altf1/shared';
+import { buildTrack, locateOnTrack, MONACO } from '@altf1/shared';
 import { elevatedGround, gridHeightAt, SEA_FLOOR } from '../scenery/ground';
 import { clearance, insidePolygon } from '../scenery/placement';
 import { MONACO_CITY, MONACO_SEA, MONACO_TUNNEL } from './monacoLayout';
-import { MONACO_V2_THEME } from './monacoV2';
+import { MONACO_THEME } from './monaco';
 
-// Monaco v2's town on the real land (Phase 3d): the ground the game draws, and what stands on it.
-const track = buildTrack(MONACO_V2);
-const grid = elevatedGround(track, MONACO_V2_THEME.groundHeight!(track));
+// Monaco's town on the real land (Phase 3d): the ground the game draws, and what stands on it.
+const track = buildTrack(MONACO);
+const grid = elevatedGround(track, MONACO_THEME.groundHeight!(track));
 const ground = (p: { x: number; z: number }): number => gridHeightAt(grid, p.x, p.z) ?? SEA_FLOOR;
 
-describe('Monaco v2 on the real land', () => {
+describe('Monaco on the real land', () => {
   it('climbs from the harbour to the slopes above the town', () => {
     const heights = Array.from(grid.heights);
     expect(Math.min(...heights)).toBeLessThanOrEqual(SEA_FLOOR);

@@ -155,6 +155,8 @@ the braking gets bigger. Hard bot, top speed before the corner → minimum (km/h
 ### Monaco (`layouts/monaco.ts`, step 9d)
 
 Shape from OSM relation 148194; target: the 2025 pole, 1:09.954 (car #4, OpenF1 session 9975).
+With its real heights since 2.4b (Phase 3's "Monaco v2", the flat Monaco removed):
+[elevation.md](elevation.md).
 Oriented by the owner's PNG (`lineDirection` 80: up the start straight). The game's limits moved
 30 stations (> 1 m), mostly the Grand Hotel hairpin's legs (spread so its walls don't fold).
 
