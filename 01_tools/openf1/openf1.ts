@@ -128,6 +128,9 @@ export interface CircuitProfile {
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
+/** Roles of a circuit relation's pit lane ways: OSM mappers spell it both ways (Singapore: `pitlane`). */
+export const PIT_LANE_ROLES: ReadonlySet<string> = new Set(['pit_lane', 'pitlane']);
+
 export const rawPath = (id: string): string => join(HERE, 'data', `${id}.openf1.json`);
 export const osmPath = (id: string): string => join(HERE, 'data', `${id}.osm.json`);
 export const sceneryPath = (id: string): string => join(HERE, 'data', `${id}.scenery.json`);

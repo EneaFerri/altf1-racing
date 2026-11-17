@@ -1,6 +1,6 @@
 # Real circuits
 
-Monza (step 9b), Barcelona (9c), Monaco (9d) and Mexico City (2.4a) are the real circuits, built from open data by the
+Monza (step 9b), Barcelona (9c), Monaco (9d), Mexico City (2.4a) and Singapore (2.4c) are the real circuits, built from open data by the
 tool in `01_tools/openf1/` (how to run it: its [README](../01_tools/openf1/README.md)). Owner's
 rules: **shape** faithful to the real track (the PNGs in `03_F1Circuits/` are the visual
 reference), **real widths** (Monza wide, Monaco narrow, varying along the lap), and **lap times
@@ -44,10 +44,14 @@ and speed from OpenF1**.
    - oriented like the owner's PNG (`lineDirection`), scaled by `scale`, start line at the origin;
      the real `(x, y north)` becomes the game's `(x, z = −y)`, so clockwise stays clockwise;
    - **widths**: the real width at each point (eased between the circuit's width marks) ×
-     `WIDTH_FACTOR` (1.6, independent of `scale`), or the circuit's own `widthFactor` (Monaco 1.2);
+     `WIDTH_FACTOR` (1.4 for new circuits since 2026-11-17, independent of `scale`), or the
+     circuit's own `widthFactor` (Monza and Barcelona 1.6, the old default; Monaco and Singapore
+     1.2);
    - **game limits**, changing the real shape as little as possible: corners tighter than the
      half-width plus the run-off plus 2 m are opened a little (smoothing), then the compiled track
-     is checked and only the corners whose wall really folds are opened further; distant sections
+     is checked and only the corners whose wall really folds are opened further (a fold that lasts
+     10 rounds widens the smoothing: in a hairpin it is reported on the other leg, Singapore's
+     turn 13); distant sections
      closer than both half-widths plus both run-offs are pushed apart; **hairpins** (stations
      < 150 m apart along the lap facing opposite ways, e.g. Monaco's Grand Hotel) get their legs
      spread to 1.25 × both minimum radii instead of being smoothed (smoothing tightens a U-turn),
@@ -70,9 +74,10 @@ and speed from OpenF1**.
 
 `scale` is the only lever left with the car frozen: our car tops out at ~283 km/h (F1: ~350) but
 corners much harder, so fast circuits shrink and slow ones grow. Widths are not scaled: they
-follow reality × `WIDTH_FACTOR`, so the circuits keep their character. **Mexico City** uses × 1.4
-(owner's choice). **Monaco** uses × 1.2
-(owner's choice): our car is 2.2 m wide, an F1 2 m, so the road holds as many cars side by side as
+follow reality × `WIDTH_FACTOR` (1.4, the owner's default for new circuits since 2026-11-17; it
+was 1.6, which **Monza** and **Barcelona** keep), so the circuits keep their character. **Mexico
+City** uses × 1.4 (owner's choice, now the default). **Monaco** and **Singapore** use × 1.2
+(owner's choice; Singapore: "the map is narrow"): our car is 2.2 m wide, an F1 2 m, so the road holds as many cars side by side as
 the real one (4.4–6.5): overtaking stays as hard as in reality.
 
 | Circuit     | Real length | Scale  | Game length | Real width (m) | Game width (m) | Run-off |
@@ -81,9 +86,10 @@ the real one (4.4–6.5): overtaking stays as hard as in reality.
 | Barcelona   | 4643 m      | 1.011  | 4.69 km     | 12–14          | 19.2–22.4      | 10 m    |
 | Monaco      | 3281 m      | 1.133  | 3.72 km     | 8–12           | 9.6–14.4       | 3 m     |
 | Mexico City | 4289 m      | 0.9858 | 4.25 km     | 10.8–15        | 15.1–21        | 4 m     |
+| Singapore   | 4895 m      | 1.048  | 5.10 km     | 10–15          | 12–18          | 3 m     |
 
 Real lengths are the OSM centreline's (official: Monza 5793 m, Barcelona 4657 m, Monaco 3337 m,
-Mexico City 4304 m).
+Mexico City 4304 m, Singapore 4940 m).
 
 ### Widths (published, then per section)
 
@@ -101,6 +107,12 @@ within that range unless marked with their own source there.
   Portier 8.87, Nouvelle Chicane 9.3 → 10.12). Estimates elsewhere: 9–10 m through the town, 8 m at
   La Rascasse (the published minimum), 12 m at the Piscine entry (turns 13–14: the fast left-right
   where the bots ran wide at 9–10 m).
+- **Singapore**: nothing published, and no asphalt areas in OSM. Estimated from the lane counts OSM
+  gives the public roads it runs on (`lanes` × 3.3 m, kept within 10–15 m): 15 m on the wide
+  boulevards (Raffles Boulevard, Stamford Road, Raffles Avenue), 13.2 m on four-lane roads, 10 m by
+  the Padang and over Anderson Bridge (the narrowest). By hand: 14 m on the purpose-built start
+  straight, 13 m at turns 1–2, 11 m through the turn 13 hairpin and along the bay (wider, its walls
+  folded).
 
 ### Monza (`layouts/monza.ts`, step 9b)
 
@@ -228,6 +240,27 @@ Peraltada (`widths` in `circuits.ts`, each marked with that source).
 S1 is 7.4% slow: the 1.2 km main straight at up to 360 km/h in reality (thin air at 2240 m; our
 car: ~283). S2 (−4.6%) and S3 (−3.8%) win it back in the corners. Tests: Hard within 1.5% of the pole,
 every sector within 10% (as Barcelona).
+
+### Singapore (`layouts/singapore.ts`, step 2.4c)
+
+Marina Bay Street Circuit, the 2023 layout (a straight where turns 16–19 were, as in the owner's
+`Singapore carbon.png`). Shape from OSM relation 421263; target: the 2025 pole, 1:29.158 (car #63,
+OpenF1 session 9892). Anticlockwise; `lineDirection` 95 (up the start straight). Run-off 3 m (a
+street circuit, guard rails). OSM gives its pit lane the role `pitlane` (the tool read only
+`pit_lane`, so it was taken for the track: both are accepted now). The pit lane joins at the
+track's edge (`pitLaneAtEdge`: its real exit runs into turns 1–2 and the walls folded), limit 60
+km/h as in reality. The game's limits moved 24 stations (> 1 m), mostly the turn 13 hairpin (real
+radius ~13 m).
+
+| Lap (s)   | Lap    | S1    | S2    | S3    | Walls | Off |
+| --------- | ------ | ----- | ----- | ----- | ----- | --- |
+| Real pole | 89.16  | 26.48 | 37.33 | 25.35 |       |     |
+| Hard      | 89.20  | 26.38 | 36.73 | 26.08 | 0     | 0   |
+| Medium    | 90.53  | 26.83 | 37.23 | 26.47 | 0     | 0   |
+| Easy      | 110.83 | 32.85 | 46.18 | 31.80 | 0     | 0   |
+
+Every sector within 3% of the real one. The scale is not monotonic near the pole (the game's
+limits move a few stations as it changes): 1.048 measured 89.20 s, 1.049 89.57 s.
 
 ## Adding a circuit
 

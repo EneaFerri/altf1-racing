@@ -201,8 +201,13 @@ the owner adds the circuit's PNG to `03_F1Circuits/` and picks its width factor.
 
 - 2.4c **Singapore** (Marina Bay) — flat, at night. Pole 2025 (Russell 1:29.158, to confirm on
   OpenF1).
-  - c.1 Data, layout (the 2023+ layout: a straight where turns 16–19 were), calibration on the
-    pole, pit lane (previews against the PNG).
+  - c.1 ✅ Data, layout (the 2023+ layout: a straight where turns 16–19 were), calibration on the
+    pole, pit lane (previews against the PNG). Widths estimated from OSM's lane counts × 1.2
+    (owner); scale 1.048, Hard bot 89.20 s (pole 89.158), every level clean; pit lane on the left,
+    joined at the track's edge. In every mode, with a plain daylight theme until c.2–c.3. Same
+    step: `WIDTH_FACTOR` 1.6 → **1.4** for new circuits (owner; Monza and Barcelona keep 1.6), the
+    tool reads OSM's `pitlane` role and opens lasting folds wider
+    ([circuits.md](circuits.md#singapore-layoutssingaporets-step-24c)).
   - c.2 **Night look** — a new option of the real-circuit look: dark sky, low ambient light,
     floodlight poles along the track and lit windows as emissive pixel materials (no dynamic
     light per lamp). Built on Singapore, reused by Las Vegas.

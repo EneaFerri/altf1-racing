@@ -16,7 +16,16 @@ import {
 } from '../sim/game';
 import { buildTrack } from '../track/buildTrack';
 import { locateOnTrack } from '../track/query';
-import { BARCELONA, KRUNCAR, MEXICO, MONACO, MONZA, TEST_TRACK, TRACKS } from '../track/layouts';
+import {
+  BARCELONA,
+  KRUNCAR,
+  MEXICO,
+  MONACO,
+  MONZA,
+  SINGAPORE,
+  TEST_TRACK,
+  TRACKS,
+} from '../track/layouts';
 import type { Track } from '../track/types';
 import { botInput, NEW_BOT_MEMORY } from './driver';
 import { botCarParams, buildBotPlan } from './plan';
@@ -87,6 +96,7 @@ const monza = runsByTrack.find((t) => t.name === MONZA.name)!.runs;
 const barcelona = runsByTrack.find((t) => t.name === BARCELONA.name)!.runs;
 const monaco = runsByTrack.find((t) => t.name === MONACO.name)!.runs;
 const mexico = runsByTrack.find((t) => t.name === MEXICO.name)!.runs;
+const singapore = runsByTrack.find((t) => t.name === SINGAPORE.name)!.runs;
 
 /**
  * Real 2025 pole laps (OpenF1, see 01_docs/circuits.md): the Hard bot's targets. `sectorTolerance`:
@@ -123,6 +133,13 @@ const REAL_POLES = [
     lap: 75.586,
     sectors: [26.916, 29.114, 19.556],
     sectorTolerance: 0.1,
+  },
+  {
+    name: SINGAPORE.name,
+    runs: singapore,
+    lap: 89.158,
+    sectors: [26.475, 37.329, 25.354],
+    sectorTolerance: 0.07,
   },
 ];
 

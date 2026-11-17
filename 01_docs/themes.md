@@ -8,7 +8,7 @@ the simulation never sees a theme. Code in `01_packages/client/src/view/themes/`
 
 - `themes/theme.ts`: the `TrackTheme` interface and `loadTheme(trackName)` (a dynamic import per
   theme: the generated scenery stays out of the first download). **Kruncar**, **Monza**,
-  **Barcelona** and **Monaco** have their own theme; every other track gets **classic** (`themes/classic.ts`: the original look,
+  **Barcelona**, **Monaco**, **Mexico City** and **Singapore** have their own theme; every other track gets **classic** (`themes/classic.ts`: the original look,
   Test Ring).
 - `SceneView` reads the theme for sky colour, fog, camera far plane (`viewDistance`), hemisphere light
   plus an optional directional "sun", the ground (texture, tile size, margin past the track; the
@@ -260,3 +260,10 @@ hazy ridges round the rest of the valley.
    (real circuit: generate it with `01_tools/openf1/scenery.ts`, like Monza's).
 3. Reuse the builders in `scenery/` (`nature.ts`, `buildings.ts`, `trackside.ts`) and the textures in
    `view/pixelTexture.ts` (tiny canvas textures, nearest filtering: the pixel look).
+
+## Singapore theme (`themes/singapore.ts`, step 2.4c)
+
+For now (c.1) a plain daylight look: park grass, broadleaf trees in OSM's parks, guard rails with
+catch fences (a street circuit), the real pit lane and the pit buildings OSM maps beside it
+(`singaporeLayout.ts`, generated). Next: the night look with lights (c.2) and the town around the
+bay, its water and landmarks (c.3).

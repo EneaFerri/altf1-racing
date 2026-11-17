@@ -21,6 +21,7 @@ import { chain, type Point } from './geometry.ts';
 import {
   osmPath,
   osmToProfile,
+  PIT_LANE_ROLES,
   profilePath,
   readJson,
   sceneryPath,
@@ -203,7 +204,7 @@ out geom;`;
         continue;
       }
       for (const m of e.members ?? []) {
-        if (m.type === 'way' && m.role === 'pit_lane' && m.geometry) {
+        if (m.type === 'way' && PIT_LANE_ROLES.has(m.role) && m.geometry) {
           features.push({ kind: 'pitLane', name: 'pit lane', points: geometry(m.geometry) });
         }
       }

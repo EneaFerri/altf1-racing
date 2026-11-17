@@ -137,11 +137,12 @@ export interface CircuitConfig {
 }
 
 /**
- * Game width = real width × WIDTH_FACTOR, the same for the real circuits so their differences stay.
- * Not multiplied by `scale`: that only fits the lap time. A circuit may set its own `widthFactor`:
- * Monaco keeps the real car-to-road ratio so that overtaking stays as hard as in reality.
+ * Game width = real width × WIDTH_FACTOR, the default of every new circuit (owner, 2026-11-17: was
+ * 1.6), so their differences stay. Not multiplied by `scale`: that only fits the lap time. A circuit
+ * may set its own `widthFactor`: Monza and Barcelona keep 1.6 (built with it); Monaco and Singapore
+ * keep the real car-to-road ratio (1.2) so that overtaking stays as hard as in reality.
  */
-export const WIDTH_FACTOR = 1.6;
+export const WIDTH_FACTOR = 1.4;
 
 /** A circuit's game width / real width. */
 export function widthFactorOf(circuit: CircuitConfig): number {
@@ -162,6 +163,12 @@ const CATALUNYA = 'motogp.com (12 m), gedlich-racing.com (12–14 m)';
  * from aerial imagery) across the centreline, the median of each stretch (01_docs/circuits.md).
  */
 const OSM_AREAS = 'OSM area:highway=raceway, measured across the centreline';
+/**
+ * No published widths for Singapore, and no asphalt areas in OSM: estimated from the lane counts of
+ * the public roads it runs on (OSM `lanes` × 3.3 m, kept within 10–15 m); the purpose-built
+ * stretches by the pits and the bay set by hand (01_docs/circuits.md).
+ */
+const OSM_LANES = 'OSM lanes × 3.3 m (within 10–15 m)';
 const ILLMAN = 'kymillman.com, "Why overtaking is nearly impossible at the Monaco Grand Prix"';
 
 const MONACO: CircuitConfig = {
@@ -241,6 +248,8 @@ export const CIRCUITS: readonly CircuitConfig[] = [
       { at: 5150, width: 12, place: 'Curva Alboreto (Parabolica)' },
     ],
     scale: 0.948,
+    // Built with the old default (1.6): kept as it is (owner).
+    widthFactor: 1.6,
     lineDirection: 180,
     runoffWidth: 10,
     kerbs: 'corners',
@@ -269,6 +278,8 @@ export const CIRCUITS: readonly CircuitConfig[] = [
       { at: 4300, width: 12, place: 'turn 14 (New Holland)' },
     ],
     scale: 1.011,
+    // Built with the old default (1.6): kept as it is (owner).
+    widthFactor: 1.6,
     lineDirection: 180,
     runoffWidth: 10,
     kerbs: 'corners',
@@ -299,8 +310,6 @@ export const CIRCUITS: readonly CircuitConfig[] = [
       { at: 4000, width: 14.6, place: 'turns 16–17 (Peraltada exit)', source: OSM_AREAS },
       { at: 4200, width: 14.7, place: 'main straight', source: OSM_AREAS },
     ],
-    // Owner's choice: real widths × 1.4, not WIDTH_FACTOR's 1.6.
-    widthFactor: 1.4,
     scale: 0.9858,
     lineDirection: 20,
     // 10 m (Monza, Barcelona) leaves the walls no room in the tight corners (real radii 14–20 m:
@@ -336,6 +345,45 @@ export const CIRCUITS: readonly CircuitConfig[] = [
       { name: 'Grada Peraltada', at: 4120, length: 120, depth: 16, side: 'left' },
     ],
     surroundings: { reach: 500, domes: ['Palacio de los Deportes', 'Velódromo CNAR'] },
+  },
+  {
+    id: 'singapore',
+    constName: 'SINGAPORE',
+    name: 'Singapore',
+    qualifying: 9892,
+    osmRelation: 421263,
+    widthRange: [10, 15],
+    widthSource: OSM_LANES,
+    widths: [
+      { at: 0, width: 14, place: 'start/finish straight (purpose-built)' },
+      { at: 350, width: 13, place: 'turns 1–2 (purpose-built)' },
+      { at: 600, width: 11, place: 'Republic Boulevard, turn 3', source: OSM_LANES },
+      { at: 1000, width: 13.2, place: 'Raffles Boulevard', source: OSM_LANES },
+      { at: 1100, width: 10, place: 'Raffles Boulevard, turn 5', source: OSM_LANES },
+      { at: 1300, width: 15, place: 'Raffles Boulevard straight', source: OSM_LANES },
+      { at: 1800, width: 13.2, place: 'Nicoll Highway, turn 7', source: OSM_LANES },
+      { at: 2100, width: 15, place: 'Stamford Road', source: OSM_LANES },
+      { at: 2200, width: 13.2, place: "Saint Andrew's Road", source: OSM_LANES },
+      { at: 2400, width: 10, place: 'the Padang, Connaught Drive', source: OSM_LANES },
+      { at: 2900, width: 10, place: 'Anderson Bridge (narrowest)', source: OSM_LANES },
+      { at: 3050, width: 13.2, place: 'Esplanade Drive', source: OSM_LANES },
+      { at: 3450, width: 11, place: 'turn 13 hairpin' },
+      { at: 3620, width: 11, place: 'turn 13 hairpin (exit)' },
+      { at: 3800, width: 13.2, place: 'Raffles Avenue, turn 14', source: OSM_LANES },
+      { at: 4250, width: 10, place: 'Raffles Avenue, turn 16', source: OSM_LANES },
+      { at: 4400, width: 11, place: 'Bay section (purpose-built)' },
+      { at: 4700, width: 11, place: 'last corner, under the grandstand' },
+      { at: 4891, width: 14, place: 'start/finish straight (purpose-built)' },
+    ],
+    // Owner's choice: a narrow street circuit, the real car-to-road ratio like Monaco.
+    widthFactor: 1.2,
+    scale: 1.048,
+    lineDirection: 95,
+    runoffWidth: 3,
+    kerbs: 'corners',
+    pitSpeedLimit: 60,
+    // Its real exit runs into turns 1–2: joined at the track's edge, as Monaco's (no folded walls).
+    pitLaneAtEdge: true,
   },
 ];
 

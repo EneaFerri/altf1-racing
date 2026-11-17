@@ -9,12 +9,19 @@
  */
 import { writeFileSync } from 'node:fs';
 import { circuitById } from './circuits.ts';
-import { osmPath, rawPath, type RawLap, type RawOsmCircuit, type RawPoleLap } from './openf1.ts';
+import {
+  osmPath,
+  PIT_LANE_ROLES,
+  rawPath,
+  type RawLap,
+  type RawOsmCircuit,
+  type RawPoleLap,
+} from './openf1.ts';
 
 const API = 'https://api.openf1.org/v1';
 const OVERPASS = 'https://overpass-api.de/api/interpreter';
 /** Relation members that are not the racing line. */
-const NOT_THE_TRACK = new Set(['pit_lane', 'penalty']);
+const NOT_THE_TRACK = new Set([...PIT_LANE_ROLES, 'penalty']);
 /** Extra data either side of the lap, so its ends can be interpolated (ms). */
 const MARGIN = 2000;
 

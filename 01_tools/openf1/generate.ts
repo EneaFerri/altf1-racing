@@ -113,8 +113,15 @@ export function generate(
   for (;;) {
     const folded = foldedStations(buildTrack(definition), spacing, n);
     if (folded.length === 0) break;
-    if (++foldRounds === 100) throw new Error(`${circuit.name}: walls still fold`);
-    points = smoothAround(points, folded);
+    if (++foldRounds === 100) {
+      const at = [...new Set(folded.map((i) => Math.round((i * profile.spacing) / 10) * 10))];
+      throw new Error(
+        `${circuit.name}: walls still fold at ${at.join(', ')} m (real, from the line)`,
+      );
+    }
+    // A folded wall is reported at its nearest sample, which in a hairpin can be on the other leg
+    // (Singapore's turn 13): when it lasts, the smoothing reaches further.
+    points = smoothAround(points, folded, 4 + 2 * Math.floor(foldRounds / 10));
     definition = toDefinition(points);
   }
 
@@ -275,12 +282,15 @@ function openTightCorners(
   return { points: smoothAround(points, tight), changed: true };
 }
 
-/** One smoothing pass over the stations within 4 of each of `centres`: opens a corner up a bit. */
-function smoothAround(points: readonly Point[], centres: readonly number[]): Point[] {
+/**
+ * One smoothing pass over the stations within `reach` (default 4) of each of `centres`: opens a
+ * corner up a bit.
+ */
+function smoothAround(points: readonly Point[], centres: readonly number[], reach = 4): Point[] {
   const n = points.length;
   const out = [...points];
   const touched = new Set<number>();
-  for (const i of centres) for (let k = -4; k <= 4; k++) touched.add((i + k + n) % n);
+  for (const i of centres) for (let k = -reach; k <= reach; k++) touched.add((i + k + n) % n);
   for (const i of touched) {
     const a = points[(i - 1 + n) % n]!;
     const c = points[(i + 1) % n]!;
