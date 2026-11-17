@@ -54,8 +54,11 @@ export class CarView {
   private damage: CarDamage | undefined;
   private firstPerson = false;
 
-  /** `opacity` < 1 draws a see-through car (time trial's ghost) that never hides what's behind it. */
-  constructor(colors: Livery, opacity = 1) {
+  /**
+   * `opacity` < 1 draws a see-through car (time trial's ghost) that never hides what's behind it.
+   * `rearLights`: the red lights of a night race, lit (01_docs/themes.md).
+   */
+  constructor(colors: Livery, opacity = 1, rearLights = false) {
     const see = opacity < 1 ? { transparent: true, opacity, depthWrite: false } : {};
     const livery = new THREE.MeshLambertMaterial({ map: createLiveryTexture(colors), ...see });
     const carbon = new THREE.MeshLambertMaterial({ color: '#1c1c1c', ...see });
@@ -90,6 +93,38 @@ export class CarView {
       }
     }
 
+    // A night race: the rear crash structure's red light and the two on the rear wing's endplates
+    // (as on a real F1), lit through the fog.
+    if (rearLights) {
+      const red = new THREE.MeshBasicMaterial({ color: '#ff2a1f', fog: false, ...see });
+      const lights: [number, number, number, number, number, number, THREE.Material][] = [
+        [0.3, 0.2, 0.4, 0, 0.5, 1.95, carbon], // crash structure
+        [0.24, 0.12, 0.04, 0, 0.5, 2.17, red],
+        [0.07, 0.14, 0.04, -0.7, 0.75, 2.17, red],
+        [0.07, 0.14, 0.04, 0.7, 0.75, 2.17, red],
+      ];
+      // A soft glow round each light: twice its size, see-through, adding to what is behind.
+      const glow = new THREE.MeshBasicMaterial({
+        color: '#ff3b2e',
+        fog: false,
+        transparent: true,
+        opacity: 0.35 * opacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      for (const [w, h, l, x, y, z, material] of lights) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), material);
+        mesh.position.set(x, y, z);
+        this.object.add(mesh);
+        this.body.push(mesh);
+        if (material !== red) continue;
+        const halo = new THREE.Mesh(new THREE.BoxGeometry(w * 2.2, h * 2.2, 0.01), glow);
+        halo.position.set(x, y, z + 0.04);
+        this.object.add(halo);
+        this.body.push(halo);
+      }
+    }
+
     // Front wing ('tip': seen in first person too): two halves hinged at the nose, so damage can
     // bend one down or break it off.
     const half = (side: -1 | 1): THREE.Group => {
@@ -115,7 +150,7 @@ export class CarView {
         new THREE.CylinderGeometry(WHEEL_RADIUS, WHEEL_RADIUS, width, 8),
         tyre,
       );
-      wheel.rotation.order = 'ZXY';
+      // Default order XYZ: tipped onto X first (Z), then the spin (X) turns it round the axle.
       wheel.rotation.z = Math.PI / 2; // cylinder axis along X = the axle
       const pivot = new THREE.Group();
       pivot.position.set(side, WHEEL_RADIUS, -ahead);

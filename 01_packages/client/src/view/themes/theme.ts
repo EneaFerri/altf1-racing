@@ -38,6 +38,8 @@ export interface TrackTheme {
   readonly kerb: { readonly colors: readonly [string, string]; readonly block: number };
   /** The white edge line sits this far inside the asphalt edge (m): on Kruncar, inside the kerb. */
   readonly edgeLineInset: number;
+  /** The cars' red rear lights lit (a night race). */
+  readonly carLights?: boolean;
   /** Paint the starting grid's boxes (real circuits; the frozen test maps have none). */
   readonly gridBoxes?: boolean;
   /** Style of wall segment `index` (`track.walls`: the left side's segments, then the right's). */

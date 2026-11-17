@@ -140,29 +140,40 @@ every real circuit:
 - **Town** layers when the layout has them (see below); the look can turn the trees in the open
   off (`parkTrees`).
 
-### Town circuits (`CircuitConfig.town`: Monaco)
+### Town circuits (`CircuitConfig.town`: Monaco, Singapore)
 
 Extra OSM layers, absolute in game coordinates (only for town circuits: Monza and Barcelona are
 unchanged):
 
-- **City**: every building (ways and multipolygon relations) within 200 m of the centreline, with
+- **City**: every building (ways and multipolygon relations) within 200 m of the centreline
+  (`townReach`: Singapore 700 m, its financial district across the bay), with
   its height (`height`, else `building:levels` × 3.2 m + 1, else by type: house 8, church 16, …,
   18 m), simplified to 0.5 m. Vertices closer than 1.5 m to the wall are pushed out along the
-  track's normal (the street canyon stays); dropped where the footprint straddles the track,
+  track's normal (the street canyon stays); dropped where a wall still cuts inside the walls or
+  the footprint covers the road with every corner beyond them (Singapore: a building bridging
+  Raffles Boulevard; Monaco's committed layout predates the rule and is left as it is: one block
+  on the Quai Kennedy would go if it were regenerated), dropped where it straddles the track,
   except **over the tunnel**, where it stands on the roof (`base` = 8 m: the Fairmont), and where
   it would stand on the stands, the pits or the pit lane.
 - **Sea**: the coastline chained into lines; OSM draws it with the land on its left, the game's
   z = −y mirrors that, so the water is on the left of the line in game coordinates. Lines are cut
   by a box 700 m around the track and closed along its edges; closed loops are lakes or islands.
-  Resampled every 5 m and kept 2 m beyond the wall.
+  Resampled every 5 m and kept 2 m beyond the wall. **Inland water** (`natural=water`: Singapore's
+  Marina Bay, the river) is sea too; where the track crosses it on a bridge the ring is cut into
+  one piece per side (`splitAtTrack`): the water is drawn above the asphalt, so it never reaches
+  under the road.
 - **Piers** (lines or areas) and **pools** at least 1 m beyond the wall; **palms** (OSM tree
   nodes) at least 4 m, never inside a building.
 - **Tunnel**: the lap fractions of the relation's ways tagged `tunnel` (the street ways, not only
-  `raceway`s).
+  `raceway`s); a `building_passage` (a road under a building's bridge: Singapore's Raffles
+  Boulevard) is not a tunnel.
 - **Landmarks** (`CircuitConfig.landmarks`: name → kind): the building of that name, or the one
   holding an OSM POI of it (else the nearest within 40 m), is marked (`landmark`) and drawn with
-  its own model instead of a plain block. Monaco: the Casino (POI "Casino de Monte Carlo") and the
-  Chapelle Sainte-Dévote (the Hôtel de Paris's building is left out by grandstand B).
+  its own model instead of a plain block. A landmark whose own building is left out passes to the
+  nearest kept one within 40 m, else stands alone on its POI (a 20 m square base). Monaco: the
+  Casino (POI "Casino de Monte Carlo") and the Chapelle Sainte-Dévote (the Hôtel de Paris's
+  building is left out by grandstand B). Singapore: the Flyer (alone on its POI: its terminal
+  straddles the pits), Marina Bay Sands' three towers (`sands`), the Esplanade's two `durian`s.
 - **Pit garages**: a row of temporary boxes (10 m real deep, ~60 m long) just beyond the pit lane
   where it runs, over its middle (15% at each end are entry and exit), shallower where another
   stretch is close behind, left out where none fits; OSM's apartments are never used as garages.
@@ -176,8 +187,14 @@ side facing the track; `createChapel`: ochre walls, tiled pyramid roof, bell tow
 superstructure with dark windows, a second deck above 26 m), `scenery/tunnel.ts`
 (`createTunnel`: walls past the run-off, a 6.5 m ceiling with glowing strip lights every 6 m, the
 roof's top at 8 m, portals). The sea sits 15 cm above the ground with a polygon offset: big flat
-triangles fight with it far away. Behind the town, hills (`createMountains` on an arc of 2.4 rad
-on the side away from the sea, green-grey).
+triangles fight with it far away. Behind the town, hills when the theme asks (`town.hills`:
+Monaco; `createMountains` on an arc of 2.4 rad on the side away from the sea, green-grey). At night
+(a night race) the city has dark walls with lit windows (`createNightFacadeTexture`: 8 × 8 bays
+per repeat, a share lit at random, an unlit material so they glow), dark roofs and darker water.
+Singapore's landmarks: `createFlyer` (a 150 m wheel on its hub 90 m up, facing the track, spokes,
+28 capsules, a lit rim that shows through the fog, A-frame legs), `createSkyPark` (the deck across
+Marina Bay Sands' towers, drawn as town buildings, running 35 m past the end ones, its edge lit),
+`createDurian` (a tall steel-grey faceted shell over the footprint).
 
 `mooredBoats` (`scenery/placement.ts`, pure, tested) moors yachts stern-to, Monaco's way: along
 both sides of pier lines and the outer side of each edge of pier areas (all of Port Hercule's are
@@ -189,7 +206,9 @@ the pit lane, pit lane behind the wall on the inside of the main straight and ru
 lap, buildings behind it, trees in the woods off the track (Monza also: the oval never on the
 track, on a bridge where it crosses; Monaco: hundreds of buildings, every vertex beyond the walls
 except on the tunnel roof, the tunnel where it really is, sea, pools, piers and palms off the
-track, the Casino and the chapel, hundreds of yachts on the water and off the track).
+track, the Casino and the chapel, hundreds of yachts on the water and off the track; Singapore: a
+thousand buildings beyond the walls, towers over 150 m, the water never on the track even under
+its bridges, its landmarks).
 
 ## Monza theme (`themes/monza.ts`)
 
@@ -263,9 +282,13 @@ hazy ridges round the rest of the valley.
 
 ## Singapore theme (`themes/singapore.ts`, step 2.4c)
 
-A night race (c.2, below): park grass darkened, broadleaf trees in OSM's parks, guard rails with
-catch fences (a street circuit), the real pit lane and the pit buildings OSM maps beside it
-(`singaporeLayout.ts`, generated). Next: the town around the bay, its water and landmarks (c.3).
+A night race (c.2, below) in its town (c.3): ~1200 OSM buildings within 700 m with their real
+heights (the financial district's towers across the bay, up to 220 m) and lit windows, Marina Bay
+and the river (dark water, cut at the bridges), 400 palms, the Singapore Flyer, Marina Bay Sands
+with its SkyPark, the Esplanade's durians; six grandstands placed by hand (Pit, Turn 1, Stamford,
+Padang, Esplanade Waterfront, Bay; on the side the city leaves free); park grass darkened, guard
+rails with catch fences, the real pit lane (on the left) and its garages (`singaporeLayout.ts`,
+generated).
 
 ## Night races (`RealCircuitLook.night`, step 2.4c.2)
 
@@ -282,3 +305,7 @@ made of what the theme already has, plus emissive props.
   `floodlightSpacing` m (Singapore 30) per side; `floodlightSpots` in `placement.ts` (pure, tested)
   leaves out spots nearer another stretch (behind a hairpin's other leg).
 - **Stars**: 600 fixed-size pixels on a dome above the track, inside the camera's far plane.
+- **Cars' rear lights** (`TrackTheme.carLights`, set by `night`): the red light on the rear crash
+  structure and two on the rear wing's endplates, as on a real F1, unlit material through the fog
+  with a soft additive glow (`CarView`); the ghost too.
+- **Town**: dark walls with lit windows, dark roofs and water (above).

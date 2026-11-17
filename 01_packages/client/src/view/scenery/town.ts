@@ -3,6 +3,8 @@ import type { Vec2 } from '@altf1/shared';
 import {
   createFacadeTexture,
   createGlassFacadeTexture,
+  createNightFacadeTexture,
+  NIGHT_WINDOWS,
   createPavingTexture,
   createPlankTexture,
   createPoolTexture,
@@ -30,6 +32,15 @@ const FACADES: readonly (readonly [string, string])[] = [
 ];
 const ROOF_LOW = '#b4593b'; // terracotta tiles
 const ROOF_HIGH = '#cdc8bd'; // flat concrete roofs
+/** A night race's town: dark walls (low buildings, towers) with lit windows, dark roofs, the water. */
+const NIGHT_WALLS: readonly (readonly [wall: string, lit: number])[] = [
+  ['#2a2f3a', 0.45],
+  ['#33302c', 0.4],
+  ['#262b36', 0.55],
+];
+const NIGHT_TOWER: readonly [string, number] = ['#1c2433', 0.6];
+const NIGHT_ROOF = '#2b2f38';
+const NIGHT_WATER = '#3b4a68';
 // Well above the ground: big flat triangles lose depth precision far away (the sea never reaches
 // the track, see scenery.ts).
 const Y_SEA = 0.15;
@@ -52,17 +63,29 @@ export interface TownBuilding {
 
 /**
  * Every building as walls and a flat roof, merged into one mesh per material (few draw calls):
- * pastel facades picked per building (seeded), glass for towers, terracotta or concrete roofs.
+ * pastel facades picked per building (seeded), glass for towers, terracotta or concrete roofs. At
+ * `night`: dark walls with lit windows (unlit material: they glow by themselves), dark roofs.
  */
-export function createCity(buildings: readonly TownBuilding[], seed: number): THREE.Group {
+export function createCity(
+  buildings: readonly TownBuilding[],
+  seed: number,
+  night = false,
+): THREE.Group {
   const random = seededRandom(seed);
-  const walls = [
-    ...FACADES.map(([wall, shutter]) => new Builder(lit(createFacadeTexture(wall, shutter)))),
-    new Builder(lit(createGlassFacadeTexture())),
-  ];
-  const roofs = [new Builder(flat(ROOF_LOW)), new Builder(flat(ROOF_HIGH))];
+  const walls = night
+    ? [...NIGHT_WALLS, NIGHT_TOWER].map(
+        ([wall, share], i) =>
+          new Builder(glowing(createNightFacadeTexture(wall, share, seed + i)), NIGHT_WINDOWS),
+      )
+    : [
+        ...FACADES.map(([wall, shutter]) => new Builder(lit(createFacadeTexture(wall, shutter)))),
+        new Builder(lit(createGlassFacadeTexture())),
+      ];
+  const roofs = night
+    ? [new Builder(flat(NIGHT_ROOF)), new Builder(flat(NIGHT_ROOF))]
+    : [new Builder(flat(ROOF_LOW)), new Builder(flat(ROOF_HIGH))];
   for (const b of buildings) {
-    const facade = b.height > TOWER ? walls.length - 1 : Math.floor(random() * FACADES.length);
+    const facade = b.height > TOWER ? walls.length - 1 : Math.floor(random() * (walls.length - 1));
     const top = b.base + b.height;
     walls[facade]!.walls(b.points, b.base, top);
     roofs[b.height > 20 ? 1 : 0]!.polygon(b.points, top, null);
@@ -95,15 +118,17 @@ export function extrude(
   return group;
 }
 
-/** The sea (polygons), with land patches in it drawn as paving. */
+/** The sea (polygons), with land patches in it drawn as paving; darker at `night`. */
 export function createSea(
   sea: readonly (readonly Vec2[])[],
   islands: readonly (readonly Vec2[])[],
+  night = false,
 ): THREE.Group {
   // Pulled towards the camera in depth: far away its big triangles would still fight the ground.
   const water = new Builder(
     new THREE.MeshLambertMaterial({
       map: createSeaTexture(),
+      color: night ? NIGHT_WATER : '#ffffff',
       side: THREE.DoubleSide,
       polygonOffset: true,
       polygonOffsetFactor: -2,
@@ -194,6 +219,11 @@ function lit(texture: THREE.Texture): THREE.Material {
   return new THREE.MeshLambertMaterial({ map: texture, side: THREE.DoubleSide });
 }
 
+/** Unlit: its texture's colours as they are, whatever the light (a facade's lit windows at night). */
+function glowing(texture: THREE.Texture): THREE.Material {
+  return new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+}
+
 function flat(color: string): THREE.Material {
   return new THREE.MeshLambertMaterial({ color, flatShading: true, side: THREE.DoubleSide });
 }
@@ -204,17 +234,21 @@ class Builder {
   private readonly positions: number[] = [];
   private readonly uvs: number[] = [];
 
-  constructor(material: THREE.Material) {
+  /** `cells`: bays (and floors) per repeat of the walls' texture. */
+  constructor(
+    material: THREE.Material,
+    private readonly cells = 1,
+  ) {
     this.material = material;
   }
 
-  /** Walls along a closed ring from `bottom` to `top`, textured one bay × one floor per repeat. */
+  /** Walls along a closed ring from `bottom` to `top`, textured `cells` bays × floors per repeat. */
   walls(ring: readonly Vec2[], bottom: number, top: number): void {
-    const v = (top - bottom) / FLOOR;
+    const v = (top - bottom) / FLOOR / this.cells;
     ring.forEach((a, i) => {
       const b = ring[(i + 1) % ring.length]!;
       // Whole bays per wall, so windows don't get cut at the corners.
-      const u = Math.max(1, Math.round(Math.hypot(b.x - a.x, b.z - a.z) / BAY));
+      const u = Math.max(1, Math.round(Math.hypot(b.x - a.x, b.z - a.z) / BAY)) / this.cells;
       this.positions.push(a.x, bottom, a.z, b.x, bottom, b.z, a.x, top, a.z);
       this.positions.push(a.x, top, a.z, b.x, bottom, b.z, b.x, top, b.z);
       this.uvs.push(0, 0, u, 0, 0, v, 0, v, u, 0, u, v);

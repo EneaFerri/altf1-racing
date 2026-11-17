@@ -46,6 +46,8 @@ export class SceneView {
   /** Time trial's ghost, in the followed car's colours; created when first shown. */
   private ghostView: CarView | null = null;
   private ghost: GhostPose | null = null;
+  /** A night race: every car (the ghost too) with its red rear lights lit. */
+  private readonly carLights: boolean;
 
   /**
    * `followId`: the car the camera follows (the local player; `follow` changes it). `liveries`: colour per car id, others
@@ -60,6 +62,7 @@ export class SceneView {
     theme: TrackTheme,
   ) {
     this.liveries = { ...liveries };
+    this.carLights = theme.carLights ?? false;
     this.cameraRig = new CameraRig(cameraParams);
     this.cameraRig.camera.far = theme.viewDistance;
     this.cameraRig.camera.updateProjectionMatrix();
@@ -185,7 +188,11 @@ export class SceneView {
       return;
     }
     if (!this.ghostView) {
-      this.ghostView = new CarView(this.liveries[this.followId] ?? LIVERIES.grey, GHOST_OPACITY);
+      this.ghostView = new CarView(
+        this.liveries[this.followId] ?? LIVERIES.grey,
+        GHOST_OPACITY,
+        this.carLights,
+      );
       this.scene.add(this.ghostView.object);
     }
     const { before, after, alpha } = this.ghost;
@@ -216,7 +223,7 @@ export class SceneView {
   private carView(id: CarId): CarView {
     let view = this.cars.get(id);
     if (!view) {
-      view = new CarView(this.liveries[id] ?? LIVERIES.grey);
+      view = new CarView(this.liveries[id] ?? LIVERIES.grey, 1, this.carLights);
       this.cars.set(id, view);
       this.scene.add(view.object);
     }

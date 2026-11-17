@@ -5,7 +5,8 @@ import { clearance } from './placement';
 import { extrude, type TownBuilding } from './town';
 
 // Landmarks around a real circuit, each on its real OSM footprint (Monaco's Casino and chapel,
-// Mexico City's domes: see 01_docs/themes.md).
+// Mexico City's domes, Singapore's Flyer, Marina Bay Sands' SkyPark and the Esplanade's durians:
+// see 01_docs/themes.md).
 
 const COPPER = '#6f9a8a';
 const TERRACOTTA = '#b4593b';
@@ -19,6 +20,20 @@ const SPIRE = 7;
 const CHAPEL_HEIGHT = 9;
 const BELFRY_SIZE = 3;
 const BELFRY_HEIGHT = 16;
+
+/** The Singapore Flyer: wheel radius, hub height, capsules (m, count); lit rim colour. */
+const FLYER_RADIUS = 75;
+const FLYER_HUB = 90;
+const FLYER_CAPSULES = 28;
+const FLYER_SPOKES = 16;
+const FLYER_LIGHT = '#bfe6ff';
+/** Marina Bay Sands' SkyPark: deck width and depth, how far it runs past the end towers (m). */
+const SKYPARK_WIDTH = 44;
+const SKYPARK_DEPTH = 10;
+const SKYPARK_OVERHANG = 35;
+/** The Esplanade's durians: steel grey, their height as a share of their half-width. */
+const DURIAN = '#8d949b';
+const DURIAN_RISE = 0.75;
 
 const flat = (color: string): THREE.Material =>
   new THREE.MeshLambertMaterial({ color, flatShading: true, side: THREE.DoubleSide });
@@ -121,4 +136,122 @@ export function createDome(building: TownBuilding): THREE.Group {
   dome.position.set(c.x, top, c.z);
   group.add(dome);
   return group;
+}
+
+/**
+ * The Singapore Flyer: a 150 m wheel on its hub 90 m up, facing the track (so the whole circle is
+ * seen from it), spokes, capsules round the rim and a lit rim that shows through the fog at night,
+ * on two A-frame legs. `building`: its base (the wheel's POI when its own building was left out).
+ */
+export function createFlyer(track: Track, building: TownBuilding): THREE.Group {
+  const c = centroid(building.points);
+  const near = nearestOnTrack(track, c);
+  const group = new THREE.Group();
+  // Built in the X–Y plane round the hub, then turned so its face looks at the track.
+  const wheel = new THREE.Group();
+  const steel = flat('#cfd6dc');
+  const rim = new THREE.Mesh(
+    new THREE.TorusGeometry(FLYER_RADIUS, 1.4, 6, 48),
+    new THREE.MeshBasicMaterial({ color: FLYER_LIGHT, fog: false }),
+  );
+  wheel.add(rim);
+  for (let i = 0; i < FLYER_SPOKES; i++) {
+    const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.5, FLYER_RADIUS, 0.5), steel);
+    const angle = (i / FLYER_SPOKES) * Math.PI * 2;
+    spoke.position.set(
+      (Math.cos(angle) * FLYER_RADIUS) / 2,
+      (Math.sin(angle) * FLYER_RADIUS) / 2,
+      0,
+    );
+    spoke.rotation.z = angle - Math.PI / 2;
+    wheel.add(spoke);
+  }
+  const capsule = flat('#e8eef2');
+  for (let i = 0; i < FLYER_CAPSULES; i++) {
+    const angle = (i / FLYER_CAPSULES) * Math.PI * 2;
+    const box = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 6), capsule);
+    box.position.set(Math.cos(angle) * (FLYER_RADIUS + 3), Math.sin(angle) * (FLYER_RADIUS + 3), 0);
+    wheel.add(box);
+  }
+  wheel.add(new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 8, 8).rotateX(Math.PI / 2), steel));
+  // Two legs either side of the wheel, from the ground to the hub.
+  for (const side of [-1, 1]) {
+    for (const lean of [-1, 1]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(2, FLYER_HUB * 1.05, 2), steel);
+      leg.position.set(lean * 12, -FLYER_HUB / 2, side * 6);
+      leg.rotation.z = lean * 0.13;
+      wheel.add(leg);
+    }
+  }
+  wheel.position.set(c.x, building.base + FLYER_HUB, c.z);
+  // The wheel's face (+Z) towards the track.
+  wheel.rotation.y = Math.atan2(near.x - c.x, near.z - c.z);
+  group.add(wheel);
+  return group;
+}
+
+/**
+ * Marina Bay Sands' SkyPark: the long deck across the tops of its three towers (drawn with the
+ * town), running past the end ones, its edge lit.
+ */
+export function createSkyPark(towers: readonly TownBuilding[]): THREE.Group {
+  const centres = towers.map((t) => centroid(t.points));
+  // The deck runs along the line through the two towers furthest apart.
+  let [a, b] = [centres[0]!, centres[0]!];
+  for (const p of centres) {
+    for (const q of centres) {
+      if (Math.hypot(p.x - q.x, p.z - q.z) > Math.hypot(a.x - b.x, a.z - b.z)) [a, b] = [p, q];
+    }
+  }
+  const length = Math.hypot(b.x - a.x, b.z - a.z) + 2 * SKYPARK_OVERHANG;
+  const top = Math.max(...towers.map((t) => t.base + t.height));
+  const group = new THREE.Group();
+  const deck = new THREE.Mesh(
+    new THREE.BoxGeometry(SKYPARK_WIDTH, SKYPARK_DEPTH, length),
+    flat('#4a5560'),
+  );
+  const edge = new THREE.Mesh(
+    new THREE.BoxGeometry(SKYPARK_WIDTH + 0.6, 2.5, length + 0.6),
+    new THREE.MeshBasicMaterial({ color: '#d8f0ff', fog: false }),
+  );
+  edge.position.y = -SKYPARK_DEPTH / 2;
+  group.add(deck, edge);
+  group.position.set((a.x + b.x) / 2, top + SKYPARK_DEPTH / 2, (a.z + b.z) / 2);
+  group.rotation.y = Math.atan2(b.x - a.x, b.z - a.z);
+  return group;
+}
+
+/**
+ * One of the Esplanade's "durians": low walls under a tall steel-grey shell over the footprint,
+ * faceted like its spiky sunshades.
+ */
+export function createDurian(building: TownBuilding): THREE.Group {
+  const { points, base } = building;
+  const c = centroid(points);
+  const along = points.map((p) => p.x - c.x);
+  const across = points.map((p) => p.z - c.z);
+  const rx = (Math.max(...along) - Math.min(...along)) / 2;
+  const rz = (Math.max(...across) - Math.min(...across)) / 2;
+  const group = new THREE.Group();
+  const shell = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshLambertMaterial({ color: DURIAN, flatShading: true }),
+  );
+  shell.scale.set(rx, Math.min(rx, rz) * DURIAN_RISE * 2, rz);
+  shell.position.set(c.x, base, c.z);
+  group.add(shell);
+  return group;
+}
+
+/** The point of the track's centreline nearest to `p`. */
+function nearestOnTrack(track: Track, p: Vec2): Vec2 {
+  let best = track.samples[0]!.position;
+  for (const s of track.samples) {
+    if (
+      Math.hypot(s.position.x - p.x, s.position.z - p.z) < Math.hypot(best.x - p.x, best.z - p.z)
+    ) {
+      best = s.position;
+    }
+  }
+  return best;
 }

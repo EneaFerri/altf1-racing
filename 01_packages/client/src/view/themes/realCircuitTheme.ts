@@ -1,7 +1,14 @@
 import type * as THREE from 'three';
 import { dot, locateOnTrack, type Track, type TrackSide, type Vec2 } from '@altf1/shared';
 import { createGrandstand, createPitBuilding, face, GRANDSTAND_REACH } from '../scenery/buildings';
-import { createCasino, createChapel, createDome } from '../scenery/landmarks';
+import {
+  createCasino,
+  createChapel,
+  createDome,
+  createDurian,
+  createFlyer,
+  createSkyPark,
+} from '../scenery/landmarks';
 import { createMountains } from '../scenery/nature';
 import { createFloodlights, createStars } from '../scenery/night';
 import {
@@ -77,8 +84,12 @@ export interface RealCircuitScenery {
     readonly lakes: readonly (readonly Vec2[])[];
     readonly north: Vec2;
   };
-  /** A town circuit (Monaco): every building, the sea, piers, pools, palms and the tunnel. */
+  /**
+   * A town circuit (Monaco, Singapore): every building, the sea, piers, pools, palms and the
+   * tunnel; `hills` behind it on the side away from the sea (Monaco).
+   */
   readonly town?: {
+    readonly hills?: boolean;
     /** `landmark`: drawn with its own model ('casino', 'chapel'), else a plain building. */
     readonly city: readonly (TownBuilding & { readonly landmark: string })[];
     readonly sea: readonly (readonly Vec2[])[];
@@ -117,9 +128,10 @@ export function realCircuitTheme(scenery: RealCircuitScenery, look: RealCircuitL
   return {
     ...theme,
     gridBoxes: true,
+    ...(night ? { carLights: true } : {}),
     wallStyle: (track) => wallsByPlace(track, scenery, barrier),
     scenery: (track, ground) => [
-      ...buildScenery(track, scenery, trees, parkTrees, backdrop, ground),
+      ...buildScenery(track, scenery, trees, parkTrees, backdrop, ground, night !== undefined),
       ...(night ? nightScenery(track, night.floodlightSpacing, theme.viewDistance, ground) : []),
     ],
   };
@@ -214,6 +226,7 @@ function buildScenery(
   parkTrees: number,
   backdrop: RealCircuitLook['backdrop'],
   ground: Ground,
+  night: boolean,
 ): THREE.Object3D[] {
   const objects: THREE.Object3D[] = [];
   const keepClear: Circle[] = [];
@@ -285,9 +298,10 @@ function buildScenery(
       createCity(
         surroundings.buildings.filter((b) => !b.dome),
         23,
+        night,
       ),
       ...surroundings.buildings.filter((b) => b.dome).map(createDome),
-      createSea(surroundings.lakes, []),
+      createSea(surroundings.lakes, [], night),
     );
     if (backdrop) {
       const bounds = trackBounds(track);
@@ -317,11 +331,20 @@ function buildScenery(
         }
       : flatTown;
   if (town) {
-    const landmarks = { casino: createCasino, chapel: createChapel } as const;
+    // Drawn by their own model instead of a plain building; Marina Bay Sands' towers stay plain
+    // buildings, joined on top by the SkyPark.
+    const landmarks = {
+      casino: createCasino,
+      chapel: createChapel,
+      flyer: createFlyer,
+      durian: (_track: Track, b: TownBuilding) => createDurian(b),
+    } as const;
     for (const b of town.city) {
       const build = landmarks[b.landmark as keyof typeof landmarks];
       if (build) objects.push(build(track, b));
     }
+    const sands = town.city.filter((b) => b.landmark === 'sands');
+    if (sands.length > 1) objects.push(createSkyPark(sands));
     const boats = mooredBoats(
       town.piers,
       town.sea,
@@ -332,19 +355,21 @@ function buildScenery(
       createCity(
         town.city.filter((b) => !(b.landmark in landmarks)),
         11,
+        night,
       ),
       createYachts(boats, 19),
-      createHills(track, town.sea),
-      createSea(town.sea, town.islands),
+      createSea(town.sea, town.islands, night),
       createPiers(town.piers),
       draped(createPools(town.pools)),
       lifted(createPalms(town.palms, 13)),
     );
+    if (town.hills) objects.push(createHills(track, town.sea));
     if (town.tunnel) objects.push(createTunnel(track, town.tunnel));
   }
-  // Trees grow in the gardens and the park, never inside a building, a lake or a stadium.
+  // Trees grow in the gardens and the park, never inside a building, the water or a stadium.
   const blocked = [
     ...(town?.city.map((b) => b.points) ?? []),
+    ...(town?.sea ?? []),
     ...(surroundings?.buildings.map((b) => b.points) ?? []),
     ...(surroundings?.lakes ?? []),
     ...(scenery.stadiums ?? []),

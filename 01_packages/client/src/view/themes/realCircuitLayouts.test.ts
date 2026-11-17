@@ -6,6 +6,7 @@ import {
   MEXICO,
   MONACO,
   MONZA,
+  SINGAPORE,
   type TrackDefinition,
 } from '@altf1/shared';
 import {
@@ -17,6 +18,7 @@ import {
   fromTrack,
   insidePolygon,
   mooredBoats,
+  polygonBounds,
   scatter,
   standPieces,
 } from '../scenery/placement';
@@ -64,6 +66,19 @@ import {
   MONZA_WOODS,
 } from './monzaLayout';
 import { STAND_PIECE, type RealCircuitScenery } from './realCircuitTheme';
+import {
+  SINGAPORE_CITY,
+  SINGAPORE_OVAL,
+  SINGAPORE_OVAL_WIDTH,
+  SINGAPORE_PALMS,
+  SINGAPORE_PIERS,
+  SINGAPORE_PIT_BUILDINGS,
+  SINGAPORE_PIT_LANE,
+  SINGAPORE_POOLS,
+  SINGAPORE_SEA,
+  SINGAPORE_STANDS,
+  SINGAPORE_WOODS,
+} from './singaporeLayout';
 
 /** Every real circuit's generated scenery, with what it must contain. */
 const CIRCUITS: readonly {
@@ -128,6 +143,20 @@ const CIRCUITS: readonly {
     minStands: 8,
     mainStand: 'Grada Curva 1',
   },
+  {
+    definition: SINGAPORE,
+    scenery: {
+      stands: SINGAPORE_STANDS,
+      pitLane: SINGAPORE_PIT_LANE,
+      pitBuildings: SINGAPORE_PIT_BUILDINGS,
+      woods: SINGAPORE_WOODS,
+      oval: SINGAPORE_OVAL,
+      ovalWidth: SINGAPORE_OVAL_WIDTH,
+    },
+    // Placed by hand (temporary stands are not in OSM).
+    minStands: 5,
+    mainStand: 'Pit Grandstand',
+  },
 ];
 
 describe.each(CIRCUITS.map((c) => [c.definition.name, c] as const))(
@@ -160,10 +189,11 @@ describe.each(CIRCUITS.map((c) => [c.definition.name, c] as const))(
     });
 
     it('has the pit lane behind the wall on the inside of the main straight, buildings behind it', () => {
+      // Inside of the lap: the driver's right on a clockwise one, the left at Singapore.
+      const side = Math.sign(locateOnTrack(track, pitLane[0]!).lateral);
       for (const p of pitLane) {
         expect(clearance(track, p)).toBeGreaterThan(scenery.pitLane.width / 2);
-        // Inside of a clockwise lap = the driver's right.
-        expect(locateOnTrack(track, p).lateral).toBeGreaterThan(0);
+        expect(Math.sign(locateOnTrack(track, p).lateral)).toBe(side);
       }
       expect(scenery.pitBuildings.length).toBeGreaterThan(0);
       for (const building of scenery.pitBuildings) {
@@ -318,5 +348,56 @@ describe('Mexico City scenery', () => {
     for (const ring of [...buildings.map((b) => b.points), ...lakes]) {
       for (const p of ring) expect(clearance(track, p)).toBeGreaterThan(3.9);
     }
+  });
+});
+
+describe('Singapore town (generated from OpenStreetMap)', () => {
+  const track = buildTrack(SINGAPORE);
+
+  it('has its city up to the financial district: a thousand buildings, towers over 150 m', () => {
+    expect(SINGAPORE_CITY.length).toBeGreaterThan(800);
+    expect(Math.max(...SINGAPORE_CITY.map((b) => b.height))).toBeGreaterThan(150);
+  });
+
+  it('keeps every building beyond the walls, none bridging the road', () => {
+    for (const b of SINGAPORE_CITY) {
+      for (const p of b.points) expect(clearance(track, p)).toBeGreaterThan(0.9);
+      // Every wall too, not only the corners (one cutting across a bend).
+      b.points.forEach((p, i) => {
+        const q = b.points[(i + 1) % b.points.length]!;
+        const middle = { x: (p.x + q.x) / 2, z: (p.z + q.z) / 2 };
+        expect(clearance(track, middle)).toBeGreaterThan(-0.1);
+      });
+    }
+    const boxes = SINGAPORE_CITY.map((b) => ({ b, box: polygonBounds(b.points) }));
+    for (const { position: p } of track.samples) {
+      const over = boxes.some(
+        ({ b, box }) =>
+          p.x >= box.minX &&
+          p.x <= box.maxX &&
+          p.z >= box.minZ &&
+          p.z <= box.maxZ &&
+          insidePolygon(p, b.points),
+      );
+      expect(over).toBe(false);
+    }
+  });
+
+  it('never puts the bay, the river or a pool on the track, even under its bridges, nor palms', () => {
+    for (const s of track.samples) {
+      for (const ring of [...SINGAPORE_SEA, ...SINGAPORE_POOLS]) {
+        expect(insidePolygon(s.position, ring)).toBe(false);
+      }
+    }
+    for (const pier of SINGAPORE_PIERS)
+      for (const p of pier.points) expect(clearance(track, p)).toBeGreaterThan(0.9);
+    for (const p of SINGAPORE_PALMS) expect(clearance(track, p)).toBeGreaterThanOrEqual(3.9);
+    expect(SINGAPORE_PALMS.length).toBeGreaterThan(100);
+  });
+
+  it('has its landmarks: the Flyer, Marina Bay Sands (three towers) and the two durians', () => {
+    expect(SINGAPORE_CITY.filter((b) => b.landmark === 'flyer')).toHaveLength(1);
+    expect(SINGAPORE_CITY.filter((b) => b.landmark === 'sands')).toHaveLength(3);
+    expect(SINGAPORE_CITY.filter((b) => b.landmark === 'durian')).toHaveLength(2);
   });
 });

@@ -554,6 +554,36 @@ export function createFacadeTexture(wall: string, shutter: string, size = 16): T
   );
 }
 
+/** Windows per side of a night facade texture: lit ones picked at random, repeating every 8. */
+export const NIGHT_WINDOWS = 8;
+
+/**
+ * A facade at night (a night race): `NIGHT_WINDOWS` × `NIGHT_WINDOWS` bays and floors of dark
+ * `wall`, about `share` of the windows lit in warm or cool white, the rest dark glass. Seeded.
+ * Meant for an unlit material: the colours are the night's own.
+ */
+export function createNightFacadeTexture(wall: string, share: number, seed: number): THREE.Texture {
+  const cell = 16;
+  let state = seed;
+  const random = (): number => (state = (state * 16807) % 2147483647) / 2147483647;
+  const lights = ['#ffd98a', '#fff1c4', '#ffe7a8', '#d8e8ff'];
+  return createPixelTexture(
+    cell * NIGHT_WINDOWS,
+    (ctx, size) => {
+      ctx.fillStyle = wall;
+      ctx.fillRect(0, 0, size, size);
+      for (let row = 0; row < NIGHT_WINDOWS; row++) {
+        for (let col = 0; col < NIGHT_WINDOWS; col++) {
+          const lit = random() < share;
+          ctx.fillStyle = lit ? lights[Math.floor(random() * lights.length)]! : '#141b28';
+          ctx.fillRect(col * cell + 3, row * cell + 4, 10, 8);
+        }
+      }
+    },
+    true,
+  );
+}
+
 /** Modern tower (the tall apartment blocks): blue-grey glass in bands, white floor slabs. */
 export function createGlassFacadeTexture(size = 16): THREE.Texture {
   return createPixelTexture(

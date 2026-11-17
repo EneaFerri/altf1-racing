@@ -37,6 +37,7 @@ const MONACO_SCENERY: RealCircuitScenery = {
   oval: MONACO_OVAL,
   ovalWidth: MONACO_OVAL_WIDTH,
   town: {
+    hills: true,
     city: MONACO_CITY,
     sea: MONACO_SEA,
     islands: MONACO_ISLANDS,

@@ -46,7 +46,7 @@ export interface HandStand {
 /** A landmark drawn with its own model: the OSM building of that name, or holding a POI of it. */
 export interface Landmark {
   readonly name: string;
-  readonly kind: 'casino' | 'chapel';
+  readonly kind: 'casino' | 'chapel' | 'flyer' | 'sands' | 'durian';
 }
 
 /**
@@ -124,6 +124,11 @@ export interface CircuitConfig {
   readonly town?: boolean;
   /** Grandstands placed by hand where OSM has none. */
   readonly stands?: readonly HandStand[];
+  /**
+   * Town circuits: buildings within this of the centreline are drawn (m, real; default 200), the
+   * skyline beyond the track's own streets (Singapore's financial district across the bay).
+   */
+  readonly townReach?: number;
   /** Town circuits: buildings drawn with their own model. */
   readonly landmarks?: readonly Landmark[];
   /** Stadiums beside or around the track (Mexico City's Foro Sol and ballpark). */
@@ -384,6 +389,29 @@ export const CIRCUITS: readonly CircuitConfig[] = [
     pitSpeedLimit: 60,
     // Its real exit runs into turns 1–2: joined at the track's edge, as Monaco's (no folded walls).
     pitLaneAtEdge: true,
+    town: true,
+    townReach: 700,
+    // Temporary stands (not in OSM), on the side the city leaves free: the pits are on the left of
+    // the start straight, the old City Hall and Supreme Court on the right of St Andrew's Road,
+    // the Esplanade and NS Square on the right of Raffles Avenue.
+    stands: [
+      { name: 'Pit Grandstand', at: 120, length: 220, depth: 16, side: 'right' },
+      { name: 'Turn 1 Grandstand', at: 420, length: 90, depth: 14, side: 'right' },
+      { name: 'Stamford Grandstand', at: 2030, length: 80, depth: 12, side: 'right' },
+      { name: 'Padang Grandstand', at: 2420, length: 170, depth: 20, side: 'left' },
+      { name: 'Esplanade Waterfront Grandstand', at: 3850, length: 120, depth: 12, side: 'left' },
+      { name: 'Bay Grandstand', at: 4500, length: 150, depth: 18, side: 'left' },
+    ],
+    landmarks: [
+      { name: 'Singapore Flyer', kind: 'flyer' },
+      // Marina Bay Sands: its three towers, joined on top by the SkyPark.
+      { name: 'Marina Bay Sands Tower 1', kind: 'sands' },
+      { name: 'Marina Bay Sands Tower 2', kind: 'sands' },
+      { name: 'Marina Bay Sands Tower 3', kind: 'sands' },
+      // The Esplanade's two "durians".
+      { name: 'Esplanade Concert Hall', kind: 'durian' },
+      { name: 'Esplanade Theatre', kind: 'durian' },
+    ],
   },
 ];
 

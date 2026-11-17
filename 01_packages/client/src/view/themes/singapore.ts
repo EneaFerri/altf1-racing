@@ -1,11 +1,18 @@
 import { createAsphaltTexture, createParkGrassTexture } from '../pixelTexture';
 import { createTrees } from '../scenery/nature';
 import {
+  SINGAPORE_CITY,
+  SINGAPORE_ISLANDS,
   SINGAPORE_OVAL,
   SINGAPORE_OVAL_WIDTH,
+  SINGAPORE_PALMS,
+  SINGAPORE_PIERS,
   SINGAPORE_PIT_BUILDINGS,
   SINGAPORE_PIT_LANE,
+  SINGAPORE_POOLS,
+  SINGAPORE_SEA,
   SINGAPORE_STANDS,
+  SINGAPORE_TUNNEL,
   SINGAPORE_WOODS,
 } from './singaporeLayout';
 import { realCircuitTheme } from './realCircuitTheme';
@@ -25,6 +32,15 @@ export const SINGAPORE_THEME = realCircuitTheme(
     woods: SINGAPORE_WOODS,
     oval: SINGAPORE_OVAL,
     ovalWidth: SINGAPORE_OVAL_WIDTH,
+    town: {
+      city: SINGAPORE_CITY,
+      sea: SINGAPORE_SEA,
+      islands: SINGAPORE_ISLANDS,
+      piers: SINGAPORE_PIERS,
+      pools: SINGAPORE_POOLS,
+      palms: SINGAPORE_PALMS,
+      tunnel: SINGAPORE_TUNNEL,
+    },
   },
   {
     sky: '#0b1430',

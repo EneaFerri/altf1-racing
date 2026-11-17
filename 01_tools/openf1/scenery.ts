@@ -139,9 +139,9 @@ relation(${circuit.osmRelation})->.circuit;
   way["highway"="raceway"](${bbox});${(circuit.stadiums ?? [])
     .map((st) => `\n  way(${st.osmWay});`)
     .join('')}${
-    circuit.surroundings
+    circuit.surroundings || circuit.town
       ? `\n  way["natural"="water"](${bbox});\n  relation["natural"="water"](${bbox});` +
-        `\n  relation["building"](${bbox});`
+        (circuit.surroundings ? `\n  relation["building"](${bbox});` : '')
       : ''
   }${town}
 );
@@ -161,7 +161,10 @@ out geom;`;
     }[];
   }
   const { elements } = (await response.json()) as { elements: Element[] };
-  const near = nearCircuit(track, circuit.surroundings?.reach ?? BUILDING_REACH);
+  const near = nearCircuit(
+    track,
+    circuit.surroundings?.reach ?? circuit.townReach ?? BUILDING_REACH,
+  );
   const geometry = (g: readonly { lat: number; lon: number }[]): [number, number][] =>
     g.map((p) => [Math.round(p.lat * 1e7) / 1e7, Math.round(p.lon * 1e7) / 1e7]);
   const features: SceneryFeature[] = [];
@@ -180,7 +183,7 @@ out geom;`;
       continue;
     }
     if (e.type === 'relation') {
-      if (tags.natural === 'water' && circuit.surroundings) {
+      if (tags.natural === 'water' && (circuit.surroundings || circuit.town)) {
         const outer = (e.members ?? [])
           .filter((m) => m.type === 'way' && m.role === 'outer' && m.geometry)
           .map((m) => geometry(m.geometry!));
@@ -214,9 +217,11 @@ out geom;`;
     const points = geometry(e.geometry);
     const stadium = circuit.stadiums?.find((st) => st.osmWay === e.id);
     if (stadium) features.push({ kind: 'stadium', name: stadium.name, points });
-    else if (tags.natural === 'water' && circuit.surroundings) {
+    else if (tags.natural === 'water' && (circuit.surroundings || circuit.town)) {
       if (points.some(near)) features.push({ kind: 'water', name, points });
-    } else if (circuit.town && tags.tunnel && tags.highway) {
+    } else if (circuit.town && tags.tunnel && tags.tunnel !== 'building_passage' && tags.highway) {
+      // A real tunnel (Monaco's); a passage under a building's bridge (Singapore's Raffles
+      // Boulevard) is left open.
       features.push({ kind: 'tunnel', name, points });
     } else if (tags.building === 'grandstand') features.push({ kind: 'grandstand', name, points });
     else if (tags.building) {
@@ -532,6 +537,7 @@ function writeLayout(): void {
         (PIT_LANE_WIDTH * circuit.scale) / 2 + GARAGE_DEPTH * circuit.scale + 2,
         tunnelSpan(raw.features.filter((f) => f.kind === 'tunnel').flatMap(real), relative),
         circuit.landmarks ?? [],
+        circuit.townReach !== undefined ? circuit.townReach * circuit.scale : CITY_REACH,
       )
     : null;
 
@@ -786,11 +792,12 @@ interface Town {
 }
 
 /**
- * A town circuit's layers in game coordinates. Buildings within CITY_REACH, pushed out to CITY_GAP
+ * A town circuit's layers in game coordinates. Buildings within `reach`, pushed out to CITY_GAP
  * beyond the wall (the street canyon stays); dropped where they straddle the track, except over
  * the tunnel (they stand on its roof) and where they'd stand on the stands, pits or pit lane
  * (`occupied` footprints, plus `laneReach` around their points). The sea from the coastline
- * (OSM: land on the left), kept SEA_GAP beyond the wall; piers, pools and trees clear of it.
+ * (OSM: land on the left) and the inland water, kept SEA_GAP beyond the wall; piers, pools and
+ * trees clear of it.
  */
 function townLayers(
   raw: RawScenery,
@@ -800,6 +807,7 @@ function townLayers(
   laneReach: number,
   tunnel: { from: number; to: number } | null,
   landmarks: readonly Landmark[],
+  reach: number,
 ): Town {
   const world = (f: SceneryFeature): Point[] => f.points.map((p) => toWorld(p));
   const loc = ([x, z]: Point) => locateOnTrack(track, vec2(x, z));
@@ -819,6 +827,20 @@ function townLayers(
     // The normal: the tangent turned right.
     return [p[0] - l.tangent.z * s * missing, p[1] + l.tangent.x * s * missing];
   };
+  const road = track.samples.map((s): Point => [s.position.x, s.position.z]);
+  const overTrack = (ring: readonly Point[]): boolean => {
+    const xs = ring.map((p) => p[0]);
+    const zs = ring.map((p) => p[1]);
+    const [minX, maxX, minZ, maxZ] = [
+      Math.min(...xs),
+      Math.max(...xs),
+      Math.min(...zs),
+      Math.max(...zs),
+    ];
+    return road.some(
+      (p) => p[0] >= minX && p[0] <= maxX && p[1] >= minZ && p[1] <= maxZ && insidePolygon(p, ring),
+    );
+  };
   const onOccupied = (p: Point): boolean =>
     occupied.some(
       (f) =>
@@ -833,13 +855,20 @@ function townLayers(
     landmarks.find(
       (l) => l.name === f.name || pois.some((p) => p.name === l.name && insidePolygon(p.at, ring)),
     )?.kind ?? '';
+  const centre = (ps: readonly Point[]): Point => [
+    ps.reduce((sum, q) => sum + q[0], 0) / ps.length,
+    ps.reduce((sum, q) => sum + q[1], 0) / ps.length,
+  ];
   const city: Town['city'] = [];
+  // Where each landmark's own building is, even when it is left out (beside the pits: the Flyer).
+  const landmarkAt = new Map<string, Point>();
   for (const f of raw.features.filter((g) => g.kind === 'townBuilding')) {
     const ring = simplify(world(f).slice(0, -1), SIMPLIFY);
     if (ring.length < 3) continue;
     const landmark = landmarkOf(f, ring);
+    if (landmark && !landmarkAt.has(f.name)) landmarkAt.set(f.name, centre(ring));
     const locs = ring.map(loc);
-    if (locs.every((l) => Math.abs(l.lateral) > CITY_REACH)) continue;
+    if (locs.every((l) => Math.abs(l.lateral) > reach)) continue;
     if (ring.some(onOccupied)) continue;
     const near = locs.filter(
       (l) => Math.abs(l.lateral) - l.halfWidth - track.runoffWidth < CITY_GAP,
@@ -861,33 +890,65 @@ function townLayers(
     }
     const pushed = ring.map((p) => pushOut(p, CITY_GAP));
     if (pushed.some((p) => clearance(track, p) < CITY_GAP - 0.5)) continue; // between two stretches
+    // Over the track with every corner beyond the walls (a building bridging the road: Singapore's
+    // Raffles Boulevard): it would stand on it.
+    if (overTrack(pushed)) continue;
+    // A wall cutting across a bend between two corners beyond it.
+    if (resample([...pushed, pushed[0]!], 2).some((p) => clearance(track, p) < 0)) continue;
     city.push({ points: pushed, height: f.height ?? TOWN_HEIGHT, base: 0, name: f.name, landmark });
   }
 
-  // A POI outside every footprint (they're simplified and pushed): the nearest building.
+  // A POI outside every footprint (they're simplified and pushed), or a landmark whose own
+  // building was left out: the nearest building, else alone on its POI.
   for (const l of landmarks) {
     if (city.some((b) => b.landmark === l.kind)) continue;
-    const poi = pois.find((p) => p.name === l.name);
-    if (!poi) continue;
-    const centre = (ps: readonly Point[]): Point => [
-      ps.reduce((sum, q) => sum + q[0], 0) / ps.length,
-      ps.reduce((sum, q) => sum + q[1], 0) / ps.length,
-    ];
+    const poi = pois.find((p) => p.name === l.name) ?? {
+      name: l.name,
+      at: landmarkAt.get(l.name),
+    };
+    if (!poi.at) continue;
     const near = city
       .filter((b) => !b.landmark)
       .map((b) => ({
         b,
-        d: Math.hypot(centre(b.points)[0] - poi.at[0], centre(b.points)[1] - poi.at[1]),
+        d: Math.hypot(centre(b.points)[0] - poi.at![0], centre(b.points)[1] - poi.at![1]),
       }))
       .sort((x, y) => x.d - y.d)[0];
     if (near && near.d < LANDMARK_REACH) near.b.landmark = l.kind;
+    else if (clearance(track, poi.at) > LANDMARK_REACH / 2) {
+      // None near: the landmark stands alone on its POI (the Flyer's wheel), a small square base.
+      const h = LANDMARK_REACH / 4;
+      const [x, z] = poi.at;
+      city.push({
+        points: [
+          [x - h, z - h],
+          [x + h, z - h],
+          [x + h, z + h],
+          [x - h, z + h],
+        ],
+        height: 0,
+        base: 0,
+        name: l.name,
+        landmark: l.kind,
+      });
+    }
   }
 
   const bounds = trackBounds(track, SEA_REACH);
-  const { sea, islands } = seaPolygons(
+  const coast = seaPolygons(
     chain(raw.features.filter((f) => f.kind === 'coastline').map(world)),
     bounds,
   );
+  // Inland water drawn as sea too: a bay closed by a barrage, a river (Singapore's Marina Bay).
+  // Where the track crosses it on a bridge, cut into one piece per side: the water is drawn above
+  // the asphalt, so it must never reach under the road.
+  const inland = raw.features
+    .filter((f) => f.kind === 'water' && f.points.length > 3)
+    .flatMap((f) => splitAtTrack(resample([...world(f)], 5), loc, track.runoffWidth + SEA_GAP))
+    .map((ring) => simplify(ring, SIMPLIFY))
+    .filter((ring) => ring.length >= 3);
+  const sea = [...coast.sea, ...inland];
+  const { islands } = coast;
   const keepOff = (ring: Point[]): Point[] => resample(ring, 5).map((p) => pushOut(p, SEA_GAP));
 
   const clearBy =
@@ -998,7 +1059,7 @@ function townLines(constName: string, town: Town, pt: (p: readonly number[]) => 
     `  readonly height: number;`,
     `  readonly base: number;`,
     `  readonly name: string;`,
-    `  /** Drawn with its own model: 'casino', 'chapel' (empty: a plain building). */`,
+    `  /** Drawn with its own model: 'casino', 'chapel', 'flyer', 'sands', 'durian' (empty: a plain building). */`,
     `  readonly landmark: string;`,
     `}[] = [`,
     ...town.city.map(
@@ -1310,6 +1371,41 @@ function insidePolygon([x, z]: Point, polygon: readonly Point[]): boolean {
     if (az > z !== bz > z && x < ((bx - ax) * (z - az)) / (bz - az) + ax) inside = !inside;
   }
   return inside;
+}
+
+/**
+ * A ring cut where the track crosses it (consecutive points on opposite sides, near the road):
+ * one ring per run of points on the same side, each closed along that side of the track. A ring
+ * the track never crosses comes back whole.
+ */
+function splitAtTrack(
+  ring: readonly Point[],
+  loc: (p: Point) => { lateral: number; halfWidth: number },
+  margin: number,
+): Point[][] {
+  const side = (p: Point): number => Math.sign(loc(p).lateral) || 1;
+  const near = (p: Point): boolean => {
+    const l = loc(p);
+    return Math.abs(l.lateral) < l.halfWidth + margin + 10;
+  };
+  const n = ring.length;
+  const cuts: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = ring[i]!;
+    const b = ring[(i + 1) % n]!;
+    if (side(a) !== side(b) && (near(a) || near(b))) cuts.push(i + 1);
+  }
+  if (cuts.length < 2) return [[...ring]];
+  // Runs between cuts, the last one wrapping round to the first cut.
+  const runs: Point[][] = [];
+  for (let k = 0; k < cuts.length; k++) {
+    const from = cuts[k]!;
+    const to = cuts[(k + 1) % cuts.length]! + (k + 1 === cuts.length ? n : 0);
+    const run: Point[] = [];
+    for (let i = from; i < to; i++) run.push(ring[i % n]!);
+    if (run.length >= 3) runs.push(run);
+  }
+  return runs;
 }
 
 /** Points every `step` m along an open polyline. */
