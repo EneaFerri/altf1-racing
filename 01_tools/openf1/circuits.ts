@@ -534,6 +534,17 @@ export const CIRCUITS: readonly CircuitConfig[] = [
     // there folded the walls; smoothed and joined at the track's edge, as Monaco's.
     pitLaneAtEdge: true,
     pitLaneSmoothing: 16,
+    // OSM maps only the stands of the start straight: the others placed by hand, on the outside of
+    // the corners (the pits are on the left, inside the lap).
+    stands: [
+      { name: 'Setor A', at: 330, length: 160, depth: 16, side: 'right' },
+      { name: 'Arquibancada do Lago', at: 1380, length: 120, depth: 14, side: 'right' },
+      { name: 'Arquibancada Ferradura', at: 2050, length: 90, depth: 12, side: 'left' },
+      { name: 'Arquibancada Junção', at: 3200, length: 120, depth: 14, side: 'right' },
+      { name: 'Arquibancada da Subida', at: 3650, length: 180, depth: 16, side: 'right' },
+    ],
+    // The town round the park (Interlagos's houses and blocks) and the lakes inside the circuit.
+    surroundings: { reach: 400, domes: [] },
   },
 ];
 

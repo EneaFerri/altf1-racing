@@ -44,6 +44,7 @@ import {
   type TownBuilding,
 } from '../scenery/town';
 import { BOWL_PIECE, BOWL_REACH, createStadium } from '../scenery/stadium';
+import { lakeLevel, withLakes } from '../scenery/ground';
 import { boxCorners, drape, liftInstances, lowestGround, type Ground } from '../scenery/onGround';
 import { createTunnel, type TunnelSpan } from '../scenery/tunnel';
 import { createYachts } from '../scenery/yachts';
@@ -82,7 +83,10 @@ export interface RealCircuitScenery {
   readonly ovalWidth: number;
   /** Stadiums beside or around the track (Mexico City's Foro Sol and ballpark): bowls of stands. */
   readonly stadiums?: readonly (readonly Vec2[])[];
-  /** A park circuit's surroundings (Mexico City): buildings (some domed), lakes, and north. */
+  /**
+   * A park circuit's surroundings (Mexico City, São Paulo): buildings (some domed), lakes, and
+   * north. On an elevated track the buildings stand on the land and each lake lies at its own level.
+   */
   readonly surroundings?: {
     readonly buildings: readonly (TownBuilding & { readonly dome: boolean })[];
     readonly lakes: readonly (readonly Vec2[])[];
@@ -129,13 +133,20 @@ export type RealCircuitLook = Omit<TrackTheme, 'wallStyle' | 'scenery'> & {
  */
 export function realCircuitTheme(scenery: RealCircuitScenery, look: RealCircuitLook): TrackTheme {
   const { trees, parkTrees = PARK_TREES, barrier = 'armco', backdrop, night, ...theme } = look;
+  // On the real land (São Paulo), the park's lakes sunk into it; the water drawn at their levels.
+  const dry = theme.groundHeight;
+  const lakes = scenery.surroundings?.lakes ?? [];
+  const wet = dry && lakes.length > 0 ? dry : undefined;
   return {
     ...theme,
+    ...(wet ? { groundHeight: (track: Track) => withLakes(wet(track), lakes) } : {}),
     gridBoxes: true,
     ...(night ? { carLights: true } : {}),
     wallStyle: (track) => wallsByPlace(track, scenery, barrier),
     scenery: (track, ground) => [
-      ...buildScenery(track, scenery, trees, parkTrees, backdrop, ground, night !== undefined),
+      ...buildScenery(track, scenery, trees, parkTrees, backdrop, ground, night !== undefined, {
+        levels: wet ? lakes.map((ring) => lakeLevel(wet(track), ring)) : [],
+      }),
       ...(night ? nightScenery(track, night.floodlightSpacing, theme.viewDistance, ground) : []),
     ],
   };
@@ -231,6 +242,7 @@ function buildScenery(
   backdrop: RealCircuitLook['backdrop'],
   ground: Ground,
   night: boolean,
+  lakes: { readonly levels: readonly number[] },
 ): THREE.Object3D[] {
   const objects: THREE.Object3D[] = [];
   const keepClear: Circle[] = [];
@@ -298,15 +310,24 @@ function buildScenery(
 
   const { surroundings } = scenery;
   if (surroundings) {
+    const buildings = elevated
+      ? surroundings.buildings.map((b) => onSlope(b, ground))
+      : surroundings.buildings;
     objects.push(
       createCity(
-        surroundings.buildings.filter((b) => !b.dome),
+        buildings.filter((b) => !b.dome),
         23,
         night,
       ),
-      ...surroundings.buildings.filter((b) => b.dome).map(createDome),
-      createSea(surroundings.lakes, [], night),
+      ...buildings.filter((b) => b.dome).map(createDome),
     );
+    if (lakes.levels.length > 0) {
+      surroundings.lakes.forEach((ring, i) => {
+        const water = createSea([ring], [], night);
+        water.position.y = lakes.levels[i]!;
+        objects.push(water);
+      });
+    } else objects.push(createSea(surroundings.lakes, [], night));
     if (backdrop) {
       const bounds = trackBounds(track);
       const centre = { x: (bounds.minX + bounds.maxX) / 2, z: (bounds.minZ + bounds.maxZ) / 2 };
@@ -322,16 +343,11 @@ function buildScenery(
     flatTown && elevated
       ? {
           ...flatTown,
-          city: flatTown.city.map((b) => {
-            if (b.base > 0) return { ...b, base: b.base + roadHeightUnder(track, b.points) };
-            const under = b.points.map(ground);
-            const base = Math.min(...under);
-            return {
-              ...b,
-              base,
-              height: Math.max(b.height, Math.max(...under) - base + UPHILL_FLOOR),
-            };
-          }),
+          city: flatTown.city.map((b) =>
+            b.base > 0
+              ? { ...b, base: b.base + roadHeightUnder(track, b.points) }
+              : onSlope(b, ground),
+          ),
         }
       : flatTown;
   if (town) {
@@ -427,6 +443,16 @@ function nightScenery(
     track.elevated ? liftInstances(floodlights, ground) : floodlights,
     createStars(centre, radius, STARS, 29),
   ];
+}
+
+/**
+ * A building on an elevated track's ground: from the lowest ground under it, rising at least a
+ * floor above its uphill side (built into the slope, as Monaco's and São Paulo's are).
+ */
+function onSlope<B extends TownBuilding>(b: B, ground: Ground): B {
+  const under = b.points.map(ground);
+  const base = Math.min(...under);
+  return { ...b, base, height: Math.max(b.height, Math.max(...under) - base + UPHILL_FLOOR) };
 }
 
 /** The road's height under a footprint's middle (a building on the tunnel's roof). */

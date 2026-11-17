@@ -1,7 +1,7 @@
 import { locateOnTrack, vec2, type Track, type Vec2 } from '@altf1/shared';
-import { clearance, insidePolygon, trackBounds } from './placement';
+import { clearance, insidePolygon, polygonBounds, trackBounds } from './placement';
 
-// The ground's height around an elevated track (Phase 3: Monaco; 01_docs/elevation.md). Pure.
+// The ground's height around an elevated track (Phase 3: Monaco, São Paulo; 01_docs/elevation.md). Pure.
 // On a flat track it is 0 everywhere. Under the road it is always the road less GROUND_DROP.
 
 /** The ground sits this far under the road and its run-off, so it never shows through (m). */
@@ -117,6 +117,88 @@ export function landGroundHeight(
       const eased = f * f * (3 - 2 * f);
       return r.height + (landHeightAt(land, p) - r.height) * eased;
     };
+  };
+}
+
+/** On the real land, a lake's bed lies this far under its water (m). */
+export const LAKE_DEPTH = 2;
+/** A lake's shore is sampled this often to find its level (m). */
+const SHORE_STEP = 4;
+/** Past its shore, the land eases from the lake's level to its own over this far (m). */
+export const SHORE_BAND = 30;
+
+/** Points along a ring's edges, about SHORE_STEP m apart. */
+function shorePoints(ring: readonly Vec2[]): Vec2[] {
+  return ring.flatMap((a, i) => {
+    const b = ring[(i + 1) % ring.length]!;
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / SHORE_STEP));
+    return Array.from({ length: steps }, (_, k) => ({
+      x: a.x + ((b.x - a.x) * k) / steps,
+      z: a.z + ((b.z - a.z) * k) / steps,
+    }));
+  });
+}
+
+/**
+ * A lake's water level on the land (São Paulo's): the median of the dry ground along its shore.
+ * Not its lowest point: the DEM is a surface model (SRTM counts the trees on the bank), so the
+ * shore it gives is uneven by metres; `withLakes` eases the bank to this level instead.
+ */
+export function lakeLevel(dry: (p: Vec2) => number, ring: readonly Vec2[]): number {
+  const heights = shorePoints(ring)
+    .map(dry)
+    .sort((a, b) => a - b);
+  return heights[Math.floor(heights.length / 2)]!;
+}
+
+/** Distance from `p` to a ring's edges (m). */
+function distanceToRing(p: Vec2, ring: readonly Vec2[]): number {
+  let best = Infinity;
+  ring.forEach((a, i) => {
+    const b = ring[(i + 1) % ring.length]!;
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const t = Math.max(
+      0,
+      Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)),
+    );
+    best = Math.min(best, Math.hypot(p.x - a.x - dx * t, p.z - a.z - dz * t));
+  });
+  return best;
+}
+
+/**
+ * The ground with its lakes in it: inside each, LAKE_DEPTH under its level (`lakeLevel`); past the
+ * shore, eased from that level to the land over SHORE_BAND m, so the water lies flat between
+ * gentle banks and never floats above the ground nor sits in a pit.
+ */
+export function withLakes(
+  dry: (p: Vec2) => number,
+  lakes: readonly (readonly Vec2[])[],
+): (p: Vec2) => number {
+  const shores = lakes.map((ring) => ({
+    ring,
+    bounds: polygonBounds(ring),
+    level: lakeLevel(dry, ring),
+  }));
+  return (p) => {
+    const h = dry(p);
+    for (const { ring, bounds: b, level } of shores) {
+      if (
+        p.x < b.minX - SHORE_BAND ||
+        p.x > b.maxX + SHORE_BAND ||
+        p.z < b.minZ - SHORE_BAND ||
+        p.z > b.maxZ + SHORE_BAND
+      ) {
+        continue;
+      }
+      if (insidePolygon(p, ring)) return level - LAKE_DEPTH;
+      const d = distanceToRing(p, ring);
+      if (d >= SHORE_BAND) continue;
+      const f = d / SHORE_BAND;
+      return level + (h - level) * f * f * (3 - 2 * f);
+    }
+    return h;
   };
 }
 

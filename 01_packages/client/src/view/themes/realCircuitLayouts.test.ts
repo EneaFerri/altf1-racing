@@ -85,6 +85,7 @@ import {
   SAO_PAULO_PIT_BUILDINGS,
   SAO_PAULO_PIT_LANE,
   SAO_PAULO_STANDS,
+  SAO_PAULO_SURROUNDINGS,
   SAO_PAULO_WOODS,
 } from './saoPauloLayout';
 import {
@@ -202,8 +203,8 @@ const CIRCUITS: readonly {
       oval: SAO_PAULO_OVAL,
       ovalWidth: SAO_PAULO_OVAL_WIDTH,
     },
-    // OSM's, on the start straight (the stands round the lap come with the scenery, 2.4e.3).
-    minStands: 2,
+    // OSM's three on the start straight, five by hand round the lap.
+    minStands: 7,
     mainStand: 'Tribuna',
   },
 ];
@@ -397,6 +398,30 @@ describe('Mexico City scenery', () => {
     for (const ring of [...buildings.map((b) => b.points), ...lakes]) {
       for (const p of ring) expect(clearance(track, p)).toBeGreaterThan(3.9);
     }
+  });
+});
+
+describe('São Paulo scenery', () => {
+  const track = buildTrack(SAO_PAULO);
+
+  it('has the town round the park: thousands of buildings, all clear of the track', () => {
+    const { buildings } = SAO_PAULO_SURROUNDINGS;
+    expect(buildings.length).toBeGreaterThan(2000);
+    for (const b of buildings) {
+      for (const p of b.points) expect(clearance(track, p)).toBeGreaterThan(3.9);
+    }
+  });
+
+  it('has the lake beside the Descida do Lago (turn 4), clear of the track', () => {
+    const [lake] = SAO_PAULO_SURROUNDINGS.lakes;
+    for (const p of lake!) expect(clearance(track, p)).toBeGreaterThan(3.9);
+    const nearest = lake!.reduce((a, b) =>
+      locateOnTrack(track, a).lateral ** 2 < locateOnTrack(track, b).lateral ** 2 ? a : b,
+    );
+    // Turn 4 is ~1.4 km into the real lap (4288 m).
+    const at = (locateOnTrack(track, nearest).distance / track.length) * 4288;
+    expect(at).toBeGreaterThan(1250);
+    expect(at).toBeLessThan(1650);
   });
 });
 

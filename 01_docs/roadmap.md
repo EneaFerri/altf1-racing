@@ -232,7 +232,7 @@ the owner adds the circuit's PNG to `03_F1Circuits/` and picks its width factor.
     landmark is never too far (`osmWay` fetches it anywhere), a water area can be one
     ([themes.md](themes.md#town-circuits-circuitconfigtown-monaco-singapore-las-vegas)).
 - 2.4e **São Paulo** (Interlagos) — **with its real heights**, like Monaco
-  ([elevation.md](elevation.md)). Pole 2025 (Norris 1:09.511, to confirm on OpenF1).
+  ([elevation.md](elevation.md)). Pole 2025 (Norris 1:09.511, confirmed on OpenF1).
   - e.1 ✅ Tool: the land's dataset per circuit (`dem`: EU-DEM covers Europe only, SRTM 30 m for
     Brazil); data, elevation report: 43.0 m of height difference, as published
     ([elevation.md](elevation.md#são-paulo-24e)).
@@ -240,8 +240,10 @@ the owner adds the circuit's PNG to `03_F1Circuits/` and picks its width factor.
     69.50 s, every level clean; pit lane on the left, 1350 m, joined at the edge and smoothed
     (`pitLaneSmoothing`). In every mode, with a first day look on the real land
     ([circuits.md](circuits.md#são-paulo-layoutssaopaulots-step-24e)).
-  - e.3 Terrain and scenery on the real land (the lakes inside the circuit, the grandstands);
-    owner's test.
+  - e.3 ✅ Scenery on the real land: the town round the park (~3000 OSM buildings on the
+    slopes), the lake by the Descida do Lago at its own level (the only one OSM maps within
+    reach; it lies outside the lap), five grandstands by hand round the lap
+    ([themes.md](themes.md#são-paulo-theme-themessaopaulots-step-24e)). Awaiting the owner's test.
 
 After 2.4e: more circuits whenever the owner wants one.
 

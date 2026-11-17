@@ -206,5 +206,11 @@ comes from **SRTM 30 m** (NASA, public domain, via OpenTopoData's `srtm30m`; `de
 | Land for the client     | 170 × 135 heights, 12.5 m apart (`saoPauloLand.ts`) |                                                    |
 
 Real metres, like Monaco: the track is 1.048 × longer than the real one, so its gradients are that
-much gentler in the game. The look (2.4e.3: the lakes inside the circuit, the grandstands round the
-lap) comes next.
+much gentler in the game.
+
+**Lakes on the land** (2.4e.3): the lake beside the Descida do Lago lies at **747.2 m**, the median
+of the land along its shore, which SRTM gives from 738 to 753.5 m (its cells count the trees on the
+bank): at the lowest point the water lay in a pit up to 15 m deep. Its bed is 2 m under the water
+and the bank eases to its level over 30 m (`withLakes`); the lake is ≥ 19.6 m beyond the walls, so
+the run-off is untouched. The town's buildings stand on the slopes as Monaco's
+([themes.md](themes.md)).

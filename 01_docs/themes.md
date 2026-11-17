@@ -110,12 +110,17 @@ woods (`landuse=forest`, `natural=wood`) and old raceways (`highway=raceway`) in
   `scenery/placement.ts`, `scenery/stadium.ts`: 18 rows, ~22 m deep, in pieces ≤ 15 m, back on the
   outline, facing in), left out where a piece would not fit beside the track (it runs through the
   Foro Sol) or where a stand or the pits are; no trees inside.
-- **Surroundings** (`CircuitConfig.surroundings`, a park circuit: Mexico City): every building
-  within `reach` (500 m) of the centreline, ways and multipolygons, with its OSM height (else
+- **Surroundings** (`CircuitConfig.surroundings`, a park circuit: Mexico City, São Paulo): every building
+  within `reach` (Mexico City 500 m, São Paulo 400 m) of the centreline, ways and multipolygons, with its OSM height (else
   8 m), and the lakes (`natural=water`), all ≥ 4 m beyond the walls and off the stands, pits and
   stadiums; buildings named in `domes` (Palacio de los Deportes, the velodrome) get a copper dome
   (`createDome` in `scenery/landmarks.ts`), the others `createCity`'s blocks, the lakes
-  `createSea`'s water. `north` places the look's `backdrop` by compass.
+  `createSea`'s water. `north` places the look's `backdrop` by compass. **On an elevated track**
+  (São Paulo) the buildings stand on the land like Monaco's town (from the lowest ground under
+  them, a floor above their uphill side), and each lake lies flat at its own level: the median of
+  the land along its shore (`lakeLevel`), its bed 2 m under the water and the bank eased to that
+  level over 30 m (`withLakes`, `scenery/ground.ts`, applied by `realCircuitTheme` to the look's
+  ground): the DEM's shore is uneven by metres (SRTM counts the trees), its lowest point made a pit.
 - **Old oval** (Monza's _sopraelevata_): kept as scenery. Dropped where it runs along the GP track,
   raised on a bridge (8 m deck, 70 m ramps, piers) where it crosses it, banked in its curves
   (≤ 0.45 rad), cut where its deck would touch the GP walls on the ground.
@@ -335,6 +340,9 @@ with catch fences, floodlights every 30 m, the real pit lane (on the left) and i
 
 A day race under a warm hazy sky, on the real land (the generated `saoPauloLand.ts`, SRTM:
 [elevation.md](elevation.md#são-paulo-24e)): park grass, broadleaf trees in OSM's woods, OSM's
-three grandstands on the start straight, the real pit lane (on the left) and its buildings
-(`saoPauloLayout.ts`, generated). Next (e.3): the lakes inside the circuit, the grandstands round
-the lap, the town around.
+grandstands (OSM's three on the start straight; five placed by hand on the outside of the corners,
+where OSM has none: Setor A at the Senna S, the Lago, the Ferradura, the Junção and the climb to
+the line; none fits at the Bico de Pato), the real pit lane (on the left) and its buildings; the
+town round the park (~3000 OSM buildings within 400 m: houses and blocks on the slopes) and the
+lake beside the Descida do Lago at its own level, 747 m (`saoPauloLayout.ts`, generated; step
+e.3). OSM maps only that one lake within reach.

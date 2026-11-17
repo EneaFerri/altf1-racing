@@ -4,8 +4,12 @@ import {
   gridHeightAt,
   GROUND_DROP,
   groundGrid,
+  LAKE_DEPTH,
+  lakeLevel,
   settleUnderRoad,
+  SHORE_BAND,
   trackGroundHeight,
+  withLakes,
 } from './ground';
 import { clearance, trackBounds } from './placement';
 
@@ -59,5 +63,46 @@ describe('settleUnderRoad', () => {
         expect(h).toBeLessThan(s.height);
       }
     }
+  });
+});
+
+describe('lakes on the land', () => {
+  // A square lake on a slope rising 0.1 m per metre towards +x: its shore from 700 to 710 m.
+  const dry = (p: { x: number; z: number }): number => 700 + p.x * 0.1;
+  const lake = [
+    { x: 0, z: 0 },
+    { x: 100, z: 0 },
+    { x: 100, z: 100 },
+    { x: 0, z: 100 },
+  ];
+  const level = lakeLevel(dry, lake);
+  const ground = withLakes(dry, [lake]);
+
+  it('puts the water at the median of its shore, not at its lowest point', () => {
+    expect(level).toBeGreaterThan(703);
+    expect(level).toBeLessThan(707);
+  });
+
+  it('lays the bed under the water inside the lake', () => {
+    for (const p of [
+      { x: 10, z: 50 },
+      { x: 90, z: 10 },
+    ]) {
+      expect(ground(p)).toBeCloseTo(level - LAKE_DEPTH, 5);
+    }
+  });
+
+  it('eases the bank to the water level, and leaves the land alone past the band', () => {
+    // At the shore, the water's level on either side (never above it, nor a pit under the bank).
+    expect(ground({ x: -0.01, z: 50 })).toBeCloseTo(level, 1);
+    expect(ground({ x: 100.01, z: 50 })).toBeCloseTo(level, 1);
+    // Continuous outwards, then the land itself.
+    for (let d = 0; d < SHORE_BAND + 10; d += 1) {
+      const step = ground({ x: 100 + d + 1, z: 50 }) - ground({ x: 100 + d, z: 50 });
+      expect(Math.abs(step)).toBeLessThan(1);
+    }
+    expect(ground({ x: 100 + SHORE_BAND + 5, z: 50 })).toBe(
+      dry({ x: 100 + SHORE_BAND + 5, z: 50 }),
+    );
   });
 });
