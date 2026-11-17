@@ -43,10 +43,24 @@ export interface HandStand {
   readonly side: 'left' | 'right';
 }
 
-/** A landmark drawn with its own model: the OSM building of that name, or holding a POI of it. */
+/**
+ * A landmark drawn with its own model: the OSM building of that name, or holding a POI of it, or a
+ * water area of that name (drawn on its middle: the Fountains of Bellagio). Never left out for
+ * being far: with `osmWay` it is fetched wherever it is (Las Vegas's Stratosphere, 2.5 km away).
+ */
 export interface Landmark {
   readonly name: string;
-  readonly kind: 'casino' | 'chapel' | 'flyer' | 'sands' | 'durian';
+  readonly kind:
+    | 'casino'
+    | 'chapel'
+    | 'flyer'
+    | 'sands'
+    | 'durian'
+    | 'sphere'
+    | 'eiffel'
+    | 'fountains'
+    | 'strat';
+  readonly osmWay?: number;
 }
 
 /**
@@ -445,6 +459,25 @@ export const CIRCUITS: readonly CircuitConfig[] = [
     // Its real lane steps sideways after the entry and exits inside the turn 1 hairpin: joined at
     // the track's edge, as Monaco's and Singapore's (no folded walls).
     pitLaneAtEdge: true,
+    // The Strip's hotels and casinos, their towers up to ~200 m.
+    town: true,
+    townReach: 500,
+    // Temporary stands (not in OSM), on the side the city leaves free: the pits are on the left of
+    // the pit straight, the Flamingo on the left of the Strip, the Carriage House on the right of
+    // Harmon Avenue.
+    stands: [
+      { name: 'Main Grandstand', at: 6000, length: 240, depth: 18, side: 'right' },
+      { name: 'Koval Zone', at: 900, length: 120, depth: 14, side: 'right' },
+      { name: 'Sphere Zone', at: 1900, length: 110, depth: 14, side: 'left' },
+      { name: 'Flamingo Zone', at: 4250, length: 150, depth: 14, side: 'right' },
+      { name: 'East Harmon Zone', at: 5450, length: 130, depth: 14, side: 'left' },
+    ],
+    landmarks: [
+      { name: 'Sphere', kind: 'sphere' },
+      { name: 'Eiffel Tower', kind: 'eiffel' },
+      { name: 'Fountains of Bellagio', kind: 'fountains' },
+      { name: 'Stratosphere Tower', kind: 'strat', osmWay: 135457469 },
+    ],
   },
 ];
 

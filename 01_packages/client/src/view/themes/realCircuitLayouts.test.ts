@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BARCELONA,
   buildTrack,
+  LAS_VEGAS,
   locateOnTrack,
   MEXICO,
   MONACO,
@@ -65,6 +66,17 @@ import {
   MONZA_STANDS,
   MONZA_WOODS,
 } from './monzaLayout';
+import {
+  LAS_VEGAS_CITY,
+  LAS_VEGAS_OVAL,
+  LAS_VEGAS_OVAL_WIDTH,
+  LAS_VEGAS_PIT_BUILDINGS,
+  LAS_VEGAS_PIT_LANE,
+  LAS_VEGAS_POOLS,
+  LAS_VEGAS_SEA,
+  LAS_VEGAS_STANDS,
+  LAS_VEGAS_WOODS,
+} from './lasVegasLayout';
 import { STAND_PIECE, type RealCircuitScenery } from './realCircuitTheme';
 import {
   SINGAPORE_CITY,
@@ -156,6 +168,20 @@ const CIRCUITS: readonly {
     // Placed by hand (temporary stands are not in OSM).
     minStands: 5,
     mainStand: 'Pit Grandstand',
+  },
+  {
+    definition: LAS_VEGAS,
+    scenery: {
+      stands: LAS_VEGAS_STANDS,
+      pitLane: LAS_VEGAS_PIT_LANE,
+      pitBuildings: LAS_VEGAS_PIT_BUILDINGS,
+      woods: LAS_VEGAS_WOODS,
+      oval: LAS_VEGAS_OVAL,
+      ovalWidth: LAS_VEGAS_OVAL_WIDTH,
+    },
+    // Placed by hand (temporary stands are not in OSM).
+    minStands: 4,
+    mainStand: 'Main Grandstand',
   },
 ];
 
@@ -399,5 +425,52 @@ describe('Singapore town (generated from OpenStreetMap)', () => {
     expect(SINGAPORE_CITY.filter((b) => b.landmark === 'flyer')).toHaveLength(1);
     expect(SINGAPORE_CITY.filter((b) => b.landmark === 'sands')).toHaveLength(3);
     expect(SINGAPORE_CITY.filter((b) => b.landmark === 'durian')).toHaveLength(2);
+  });
+});
+
+describe('Las Vegas town (generated from OpenStreetMap)', () => {
+  const track = buildTrack(LAS_VEGAS);
+
+  it("has the Strip's hotels: hundreds of buildings, towers over 150 m", () => {
+    expect(LAS_VEGAS_CITY.length).toBeGreaterThan(400);
+    expect(
+      Math.max(...LAS_VEGAS_CITY.filter((b) => !b.landmark).map((b) => b.height)),
+    ).toBeGreaterThan(150);
+  });
+
+  it('keeps every building beyond the walls, none over the road, and the water off it', () => {
+    for (const b of LAS_VEGAS_CITY) {
+      for (const p of b.points) expect(clearance(track, p)).toBeGreaterThan(0.9);
+    }
+    const boxes = LAS_VEGAS_CITY.map((b) => ({ b, box: polygonBounds(b.points) }));
+    for (const { position: p } of track.samples) {
+      const over = boxes.some(
+        ({ b, box }) =>
+          p.x >= box.minX &&
+          p.x <= box.maxX &&
+          p.z >= box.minZ &&
+          p.z <= box.maxZ &&
+          insidePolygon(p, b.points),
+      );
+      expect(over).toBe(false);
+      for (const ring of [...LAS_VEGAS_SEA, ...LAS_VEGAS_POOLS]) {
+        expect(insidePolygon(p, ring)).toBe(false);
+      }
+    }
+  });
+
+  it('has its landmarks: the Sphere, the Eiffel Tower, the Fountains of Bellagio, the Stratosphere', () => {
+    for (const kind of ['sphere', 'eiffel', 'fountains', 'strat']) {
+      expect(LAS_VEGAS_CITY.filter((b) => b.landmark === kind)).toHaveLength(1);
+    }
+    // The fountains stand in their lake.
+    const fountains = LAS_VEGAS_CITY.find((b) => b.landmark === 'fountains')!;
+    const middle = {
+      x: fountains.points.reduce((sum, p) => sum + p.x, 0) / fountains.points.length,
+      z: fountains.points.reduce((sum, p) => sum + p.z, 0) / fountains.points.length,
+    };
+    expect(LAS_VEGAS_SEA.some((ring) => insidePolygon(middle, ring))).toBe(true);
+    // The Stratosphere, far up the Strip, is its tallest.
+    expect(LAS_VEGAS_CITY.find((b) => b.landmark === 'strat')!.height).toBe(350);
   });
 });

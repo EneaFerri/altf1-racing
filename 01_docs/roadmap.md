@@ -218,15 +218,19 @@ the owner adds the circuit's PNG to `03_F1Circuits/` and picks its width factor.
     Marina Bay Sands with its SkyPark, the Esplanade's durians; six grandstands by hand. Owner's
     addition: the cars' red rear lights in night races (crash structure and endplates). Tool:
     inland water, `building_passage` is no tunnel, a landmark whose building is left out stands
-    on the nearest one or alone on its POI ([themes.md](themes.md#town-circuits-circuitconfigtown-monaco-singapore)).
-- 2.4d **Las Vegas** (Strip Circuit) — flat, at night (c.2's look).
+    on the nearest one or alone on its POI ([themes.md](themes.md#town-circuits-circuitconfigtown-monaco-singapore-las-vegas)).
+- 2.4d ✅ **Las Vegas** (Strip Circuit) — flat, at night (c.2's look).
   - d.1 ✅ Data and layout; target the **2024 pole** (Russell 1:32.312: the
     2025 qualifying was wet; `year` in `circuits.ts`); widths from OSM's lane counts × 1.4;
     scale 0.945, Hard bot 92.27 s, every level clean; pit lane on the left, joined at the edge.
     In every mode, with the night look already (no town yet)
     ([circuits.md](circuits.md#las-vegas-layoutslasvegasts-step-24d)).
-  - d.2 Scenery: the Strip's hotels with their real heights, landmarks chosen with the owner (the
-    Sphere, the pit building); owner's test.
+  - d.2 ✅ **The Strip and its landmarks** (owner's test: approved, 2026-11-17) — a town circuit from OSM within
+    500 m: ~600 hotels and casinos with real heights and lit windows; the owner's four landmarks:
+    the Sphere (a pixel Earth), Paris's Eiffel Tower, the Fountains of Bellagio, the Stratosphere
+    2.5 km to the north (lit pod and beacon over the fog); five grandstands by hand. Tool: a
+    landmark is never too far (`osmWay` fetches it anywhere), a water area can be one
+    ([themes.md](themes.md#town-circuits-circuitconfigtown-monaco-singapore-las-vegas)).
 - 2.4e **São Paulo** (Interlagos) — **with its real heights**, like Monaco
   ([elevation.md](elevation.md)). Pole 2025 (Norris 1:09.511, to confirm on OpenF1).
   - e.1 Tool: the land's dataset per circuit (EU-DEM covers Europe only: SRTM 30 m for Brazil);

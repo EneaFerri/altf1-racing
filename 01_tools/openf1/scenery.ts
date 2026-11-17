@@ -125,7 +125,11 @@ async function fetchScenery(): Promise<void> {
   way["leisure"="swimming_pool"](${b});
   node["natural"="tree"](${b});
   way(r.circuit)["tunnel"];${(circuit.landmarks ?? [])
-    .map((l) => `\n  node["name"=${JSON.stringify(l.name)}](${b});`)
+    .map(
+      (l) =>
+        `\n  node["name"=${JSON.stringify(l.name)}](${b});` +
+        (l.osmWay ? `\n  way(${l.osmWay});` : ''),
+    )
     .join('')}`;
       })()
     : '';
@@ -161,6 +165,8 @@ out geom;`;
     }[];
   }
   const { elements } = (await response.json()) as { elements: Element[] };
+  const isLandmark = (name: string): boolean =>
+    (circuit.landmarks ?? []).some((l) => l.name === name);
   const near = nearCircuit(
     track,
     circuit.surroundings?.reach ?? circuit.townReach ?? BUILDING_REACH,
@@ -218,14 +224,14 @@ out geom;`;
     const stadium = circuit.stadiums?.find((st) => st.osmWay === e.id);
     if (stadium) features.push({ kind: 'stadium', name: stadium.name, points });
     else if (tags.natural === 'water' && (circuit.surroundings || circuit.town)) {
-      if (points.some(near)) features.push({ kind: 'water', name, points });
+      if (points.some(near) || isLandmark(name)) features.push({ kind: 'water', name, points });
     } else if (circuit.town && tags.tunnel && tags.tunnel !== 'building_passage' && tags.highway) {
       // A real tunnel (Monaco's); a passage under a building's bridge (Singapore's Raffles
       // Boulevard) is left open.
       features.push({ kind: 'tunnel', name, points });
     } else if (tags.building === 'grandstand') features.push({ kind: 'grandstand', name, points });
     else if (tags.building) {
-      if (!points.some(near)) continue;
+      if (!points.some(near) && !isLandmark(name)) continue;
       if (circuit.town) {
         features.push({ kind: 'townBuilding', name, points, height: heightOf(tags) });
       } else if (circuit.surroundings) {
@@ -868,7 +874,7 @@ function townLayers(
     const landmark = landmarkOf(f, ring);
     if (landmark && !landmarkAt.has(f.name)) landmarkAt.set(f.name, centre(ring));
     const locs = ring.map(loc);
-    if (locs.every((l) => Math.abs(l.lateral) > reach)) continue;
+    if (!landmark && locs.every((l) => Math.abs(l.lateral) > reach)) continue;
     if (ring.some(onOccupied)) continue;
     const near = locs.filter(
       (l) => Math.abs(l.lateral) - l.halfWidth - track.runoffWidth < CITY_GAP,
@@ -902,18 +908,21 @@ function townLayers(
   // building was left out: the nearest building, else alone on its POI.
   for (const l of landmarks) {
     if (city.some((b) => b.landmark === l.kind)) continue;
-    const poi = pois.find((p) => p.name === l.name) ?? {
-      name: l.name,
-      at: landmarkAt.get(l.name),
-    };
+    // A water landmark stands alone on its water's middle (never on a building beside it).
+    const water = raw.features.find((f) => f.kind === 'water' && f.name === l.name);
+    const poi = water
+      ? { name: l.name, at: centre(world(water).slice(0, -1)) }
+      : (pois.find((p) => p.name === l.name) ?? { name: l.name, at: landmarkAt.get(l.name) });
     if (!poi.at) continue;
-    const near = city
-      .filter((b) => !b.landmark)
-      .map((b) => ({
-        b,
-        d: Math.hypot(centre(b.points)[0] - poi.at![0], centre(b.points)[1] - poi.at![1]),
-      }))
-      .sort((x, y) => x.d - y.d)[0];
+    const near = water
+      ? undefined
+      : city
+          .filter((b) => !b.landmark)
+          .map((b) => ({
+            b,
+            d: Math.hypot(centre(b.points)[0] - poi.at![0], centre(b.points)[1] - poi.at![1]),
+          }))
+          .sort((x, y) => x.d - y.d)[0];
     if (near && near.d < LANDMARK_REACH) near.b.landmark = l.kind;
     else if (clearance(track, poi.at) > LANDMARK_REACH / 2) {
       // None near: the landmark stands alone on its POI (the Flyer's wheel), a small square base.
@@ -1059,7 +1068,7 @@ function townLines(constName: string, town: Town, pt: (p: readonly number[]) => 
     `  readonly height: number;`,
     `  readonly base: number;`,
     `  readonly name: string;`,
-    `  /** Drawn with its own model: 'casino', 'chapel', 'flyer', 'sands', 'durian' (empty: a plain building). */`,
+    `  /** Drawn with its own model (\`Landmark\` kinds in circuits.ts; empty: a plain building). */`,
     `  readonly landmark: string;`,
     `}[] = [`,
     ...town.city.map(

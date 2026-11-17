@@ -6,8 +6,12 @@ import {
   createChapel,
   createDome,
   createDurian,
+  createEiffel,
   createFlyer,
+  createFountains,
   createSkyPark,
+  createSphere,
+  createStrat,
 } from '../scenery/landmarks';
 import { createMountains } from '../scenery/nature';
 import { createFloodlights, createStars } from '../scenery/night';
@@ -338,6 +342,10 @@ function buildScenery(
       chapel: createChapel,
       flyer: createFlyer,
       durian: (_track: Track, b: TownBuilding) => createDurian(b),
+      sphere: (_track: Track, b: TownBuilding) => createSphere(b),
+      eiffel: (_track: Track, b: TownBuilding) => createEiffel(b),
+      strat: (_track: Track, b: TownBuilding) => createStrat(b),
+      fountains: (_track: Track, b: TownBuilding) => createFountains(b, town.sea),
     } as const;
     for (const b of town.city) {
       const build = landmarks[b.landmark as keyof typeof landmarks];

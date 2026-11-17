@@ -140,13 +140,14 @@ every real circuit:
 - **Town** layers when the layout has them (see below); the look can turn the trees in the open
   off (`parkTrees`).
 
-### Town circuits (`CircuitConfig.town`: Monaco, Singapore)
+### Town circuits (`CircuitConfig.town`: Monaco, Singapore, Las Vegas)
 
 Extra OSM layers, absolute in game coordinates (only for town circuits: Monza and Barcelona are
 unchanged):
 
 - **City**: every building (ways and multipolygon relations) within 200 m of the centreline
-  (`townReach`: Singapore 700 m, its financial district across the bay), with
+  (`townReach`: Singapore 700 m, its financial district across the bay; Las Vegas 500 m, the
+  Strip's hotels), with
   its height (`height`, else `building:levels` × 3.2 m + 1, else by type: house 8, church 16, …,
   18 m), simplified to 0.5 m. Vertices closer than 1.5 m to the wall are pushed out along the
   track's normal (the street canyon stays); dropped where a wall still cuts inside the walls or
@@ -174,6 +175,10 @@ unchanged):
   Casino (POI "Casino de Monte Carlo") and the Chapelle Sainte-Dévote (the Hôtel de Paris's
   building is left out by grandstand B). Singapore: the Flyer (alone on its POI: its terminal
   straddles the pits), Marina Bay Sands' three towers (`sands`), the Esplanade's two `durian`s.
+  A landmark is never left out for being far, and with `osmWay` it is fetched wherever it is (Las
+  Vegas's Stratosphere, 2.5 km up the Strip); a water area may be one too, drawn alone on its
+  middle (the Fountains of Bellagio). Las Vegas: the Sphere, Paris's Eiffel Tower, the Fountains
+  of Bellagio, the Stratosphere.
 - **Pit garages**: a row of temporary boxes (10 m real deep, ~60 m long) just beyond the pit lane
   where it runs, over its middle (15% at each end are entry and exit), shallower where another
   stretch is close behind, left out where none fits; OSM's apartments are never used as garages.
@@ -194,7 +199,12 @@ per repeat, a share lit at random, an unlit material so they glow), dark roofs a
 Singapore's landmarks: `createFlyer` (a 150 m wheel on its hub 90 m up, facing the track, spokes,
 28 capsules, a lit rim that shows through the fog, A-frame legs), `createSkyPark` (the deck across
 Marina Bay Sands' towers, drawn as town buildings, running 35 m past the end ones, its edge lit),
-`createDurian` (a tall steel-grey faceted shell over the footprint).
+`createDurian` (a tall steel-grey faceted shell over the footprint). Las Vegas's: `createSphere`
+(a ball sunk to the building's height showing a pixel Earth, unlit, through the fog),
+`createEiffel` (three tapering see-through lattice stages, two platforms and an antenna, lit
+gold), `createFountains` (28 lit jets, 19–55 m, in a row along the lake through its middle),
+`createStrat` (a concrete shaft, the lit pod at 75% of its 350 m, a mast with a red beacon: from
+the track, lights high in the sky to the north).
 
 `mooredBoats` (`scenery/placement.ts`, pure, tested) moors yachts stern-to, Monaco's way: along
 both sides of pier lines and the outer side of each edge of pier areas (all of Port Hercule's are
@@ -208,7 +218,8 @@ track, on a bridge where it crosses; Monaco: hundreds of buildings, every vertex
 except on the tunnel roof, the tunnel where it really is, sea, pools, piers and palms off the
 track, the Casino and the chapel, hundreds of yachts on the water and off the track; Singapore: a
 thousand buildings beyond the walls, towers over 150 m, the water never on the track even under
-its bridges, its landmarks).
+its bridges, its landmarks; Las Vegas: hundreds of buildings beyond the walls and none over the
+road, the water off it, its four landmarks, the fountains in their lake).
 
 ## Monza theme (`themes/monza.ts`)
 
@@ -312,6 +323,10 @@ made of what the theme already has, plus emissive props.
 
 ## Las Vegas theme (`themes/lasVegas.ts`, step 2.4d)
 
-A night race from the start (the night look above): dark paving as the ground (car parks and
-sidewalks), guard rails with catch fences, floodlights every 30 m, the real pit lane (on the left)
-and its garages (`lasVegasLayout.ts`, generated). Next (d.2): the Strip's hotels and landmarks.
+A night race from the start (the night look above) in the Strip's town (d.2): 600 OSM buildings
+within 500 m with their real heights and lit windows (the hotels' towers up to ~200 m), the
+Sphere, Paris's Eiffel Tower, the Fountains of Bellagio in their lake, the Stratosphere far to the
+north; five grandstands placed by hand (Main Grandstand on the pit straight, Koval, Sphere,
+Flamingo and East Harmon zones); dark paving as the ground (car parks and sidewalks), guard rails
+with catch fences, floodlights every 30 m, the real pit lane (on the left) and its garages
+(`lasVegasLayout.ts`, generated).
