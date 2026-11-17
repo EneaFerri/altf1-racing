@@ -1,6 +1,7 @@
 import type { TrackDefinition } from '../types';
 import { BARCELONA } from './barcelona';
 import { KRUNCAR } from './kruncar';
+import { LAS_VEGAS } from './lasVegas';
 import { MEXICO } from './mexico';
 import { MONACO } from './monaco';
 import { MONZA } from './monza';
@@ -9,6 +10,7 @@ import { TEST_TRACK } from './testTrack';
 
 export * from './barcelona';
 export * from './kruncar';
+export * from './lasVegas';
 export * from './mexico';
 export * from './monaco';
 export * from './monza';
@@ -24,6 +26,7 @@ export const TRACKS: readonly TrackDefinition[] = [
   MONACO,
   MEXICO,
   SINGAPORE,
+  LAS_VEGAS,
 ];
 
 /**
@@ -31,4 +34,11 @@ export const TRACKS: readonly TrackDefinition[] = [
  * and drawn with a starting grid. Add a new circuit here and to `TRACKS` (01_docs/circuits.md).
  * Monaco has its real heights (Phase 3, 01_docs/elevation.md).
  */
-export const GP_TRACKS: readonly TrackDefinition[] = [MONZA, BARCELONA, MONACO, MEXICO, SINGAPORE];
+export const GP_TRACKS: readonly TrackDefinition[] = [
+  MONZA,
+  BARCELONA,
+  MONACO,
+  MEXICO,
+  SINGAPORE,
+  LAS_VEGAS,
+];

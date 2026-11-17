@@ -58,7 +58,7 @@ const lines = [
   ` * ${circuit.name}: the real circuit from open data, adapted to the game.`,
   ` * - Shape: road centreline from OpenStreetMap (© OpenStreetMap contributors, ODbL), relation`,
   ` *   ${circuit.osmRelation}, ordered and placed by the OpenF1 pole lap (https://openf1.org).`,
-  ` * - Target: the 2025 pole, ${time(pole.time)} (car #${source.driver}, lap ${source.lap}, OpenF1 session ${source.session}),`,
+  ` * - Target: the ${circuit.year ?? 2025} pole, ${time(pole.time)} (car #${source.driver}, lap ${source.lap}, OpenF1 session ${source.session}),`,
   ` *   sectors ${pole.sectors.map(time).join(' / ')}; the sectors start where they really do.`,
   ` * - Scale ${circuit.scale} (real ${Math.round(profile.length)} m), calibrated so the Hard bot laps in the pole time.`,
   ` * - Widths: the real ones (${circuit.widthRange.join('–')} m) × ${widthFactorOf(circuit)}.`,

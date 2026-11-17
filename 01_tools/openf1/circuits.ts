@@ -87,6 +87,8 @@ export interface CircuitConfig {
   readonly name: string;
   /** OpenF1 session key of the qualifying whose pole lap gives times, sectors and the lap's path. */
   readonly qualifying: number;
+  /** That qualifying's year, when not 2025 (Las Vegas: 2024). */
+  readonly year?: number;
   /** OpenStreetMap relation (type=circuit) whose centreline gives the exact road shape. */
   readonly osmRelation: number;
   /** Published width range of the whole circuit (m), and where it comes from. */
@@ -412,6 +414,37 @@ export const CIRCUITS: readonly CircuitConfig[] = [
       { name: 'Esplanade Concert Hall', kind: 'durian' },
       { name: 'Esplanade Theatre', kind: 'durian' },
     ],
+  },
+  {
+    id: 'lasVegas',
+    constName: 'LAS_VEGAS',
+    name: 'Las Vegas',
+    // 2024: the 2025 qualifying was wet (owner's choice, 01_docs/decisions.md).
+    qualifying: 9640,
+    year: 2024,
+    osmRelation: 16696508,
+    widthRange: [10, 15],
+    widthSource: OSM_LANES,
+    widths: [
+      { at: 0, width: 15, place: 'pit straight (purpose-built)' },
+      { at: 300, width: 13, place: 'turns 1–4 (purpose-built)' },
+      { at: 650, width: 10, place: 'Koval Lane', source: OSM_LANES },
+      { at: 1575, width: 10, place: 'Westchester Drive', source: OSM_LANES },
+      { at: 1825, width: 12, place: 'turns 7–9, by the Sphere' },
+      { at: 2225, width: 10, place: 'Sands Avenue', source: OSM_LANES },
+      { at: 2900, width: 13.2, place: 'Sands Avenue (east)', source: OSM_LANES },
+      { at: 3200, width: 15, place: 'Las Vegas Boulevard (the Strip)', source: OSM_LANES },
+      { at: 5000, width: 15, place: 'the Strip, braking for turn 14', source: OSM_LANES },
+      { at: 5150, width: 13, place: 'Harmon Avenue', source: OSM_LANES },
+      { at: 6000, width: 15, place: 'pit straight (purpose-built)' },
+    ],
+    scale: 0.945,
+    lineDirection: 140,
+    runoffWidth: 3,
+    kerbs: 'corners',
+    // Its real lane steps sideways after the entry and exits inside the turn 1 hairpin: joined at
+    // the track's edge, as Monaco's and Singapore's (no folded walls).
+    pitLaneAtEdge: true,
   },
 ];
 

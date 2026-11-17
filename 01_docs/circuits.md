@@ -1,6 +1,6 @@
 # Real circuits
 
-Monza (step 9b), Barcelona (9c), Monaco (9d), Mexico City (2.4a) and Singapore (2.4c) are the real circuits, built from open data by the
+Monza (step 9b), Barcelona (9c), Monaco (9d), Mexico City (2.4a), Singapore (2.4c) and Las Vegas (2.4d) are the real circuits, built from open data by the
 tool in `01_tools/openf1/` (how to run it: its [README](../01_tools/openf1/README.md)). Owner's
 rules: **shape** faithful to the real track (the PNGs in `03_F1Circuits/` are the visual
 reference), **real widths** (Monza wide, Monaco narrow, varying along the lap), and **lap times
@@ -87,9 +87,10 @@ the real one (4.4–6.5): overtaking stays as hard as in reality.
 | Monaco      | 3281 m      | 1.133  | 3.72 km     | 8–12           | 9.6–14.4       | 3 m     |
 | Mexico City | 4289 m      | 0.9858 | 4.25 km     | 10.8–15        | 15.1–21        | 4 m     |
 | Singapore   | 4895 m      | 1.048  | 5.10 km     | 10–15          | 12–18          | 3 m     |
+| Las Vegas   | 6154 m      | 0.945  | 5.81 km     | 10–15          | 14–21          | 3 m     |
 
 Real lengths are the OSM centreline's (official: Monza 5793 m, Barcelona 4657 m, Monaco 3337 m,
-Mexico City 4304 m, Singapore 4940 m).
+Mexico City 4304 m, Singapore 4940 m, Las Vegas 6201 m).
 
 ### Widths (published, then per section)
 
@@ -113,6 +114,10 @@ within that range unless marked with their own source there.
   the Padang and over Anderson Bridge (the narrowest). By hand: 14 m on the purpose-built start
   straight, 13 m at turns 1–2, 11 m through the turn 13 hairpin and along the bay (wider, its walls
   folded).
+- **Las Vegas**: nothing published, no asphalt areas in OSM: the same lane estimate. 10 m on Koval
+  Lane, Westchester Drive and the west end of Sands Avenue (2–3 lanes), 13.2–15 m on the east of
+  Sands Avenue, the Strip (Las Vegas Boulevard, 4–8 lanes a side) and Harmon Avenue; by hand: 15 m
+  on the purpose-built pit straight, 13 m through turns 1–4, 12 m by the Sphere (turns 7–9).
 
 ### Monza (`layouts/monza.ts`, step 9b)
 
@@ -262,13 +267,34 @@ radius ~13 m).
 Every sector within 3% of the real one. The scale is not monotonic near the pole (the game's
 limits move a few stations as it changes): 1.048 measured 89.20 s, 1.049 89.57 s.
 
+### Las Vegas (`layouts/lasVegas.ts`, step 2.4d)
+
+Las Vegas Strip Circuit. Shape from OSM relation 16696508; target: the **2024** pole, 1:32.312
+(car #63, OpenF1 session 9640): the 2025 qualifying was wet (Norris 1:47.934, far from the dry
+pace; owner's choice; `year: 2024` in `circuits.ts`). Anticlockwise; `lineDirection` 140 (the
+start line on the pit straight's last stretch, up-left into the turn 1 hairpin, as in the owner's
+`Las Vegas carbon.png`). Real widths × 1.4 (owner: the new default). Run-off 3 m (a street
+circuit). The pit lane (on the left, 426 m) joins at the track's edge (`pitLaneAtEdge`: the real
+lane steps sideways after the entry and exits inside the hairpin). The game's limits moved 8
+stations.
+
+| Lap (s)   | Lap    | S1    | S2    | S3    | Walls | Off |
+| --------- | ------ | ----- | ----- | ----- | ----- | --- |
+| Real pole | 92.31  | 25.74 | 30.92 | 35.66 |       |     |
+| Hard      | 92.27  | 25.42 | 29.72 | 37.13 | 0     | 0   |
+| Medium    | 93.83  | 25.82 | 30.08 | 37.93 | 0     | 0   |
+| Easy      | 112.23 | 31.38 | 38.65 | 42.20 | 0     | 0   |
+
+S3 is 4% slow: it is mostly the Strip, ~1.9 km flat out (our car tops out at ~283 km/h, an F1 at
+~340 there); S1 and S2 win it back in the corners.
+
 ## Adding a circuit
 
 One circuit per step (Phase 2.4, [roadmap.md](roadmap.md)). Every circuit is offered in every mode:
 
 1. The owner's PNG in `03_F1Circuits/` (shape and orientation).
 2. An entry in `CIRCUITS` (`01_tools/openf1/circuits.ts`): OpenF1 qualifying session
-   (`sessions?year=2025&country_name=…`), the OSM `type=circuit` relation of the GP layout, widths
+   (`sessions?year=2025&country_name=…`; another year: `year`), the OSM `type=circuit` relation of the GP layout, widths
    (published, else measured as Mexico City's), the width factor the owner chose, run-off,
    `lineDirection` from the PNG; sharp corners, stadiums, hand-placed grandstands, surroundings or
    town layers if it needs them.

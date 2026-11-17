@@ -19,6 +19,7 @@ import { locateOnTrack } from '../track/query';
 import {
   BARCELONA,
   KRUNCAR,
+  LAS_VEGAS,
   MEXICO,
   MONACO,
   MONZA,
@@ -97,11 +98,12 @@ const barcelona = runsByTrack.find((t) => t.name === BARCELONA.name)!.runs;
 const monaco = runsByTrack.find((t) => t.name === MONACO.name)!.runs;
 const mexico = runsByTrack.find((t) => t.name === MEXICO.name)!.runs;
 const singapore = runsByTrack.find((t) => t.name === SINGAPORE.name)!.runs;
+const lasVegas = runsByTrack.find((t) => t.name === LAS_VEGAS.name)!.runs;
 
 /**
- * Real 2025 pole laps (OpenF1, see 01_docs/circuits.md): the Hard bot's targets. `sectorTolerance`:
- * our car is slower on straights and faster in corners than an F1, so a sector mostly flat out
- * (Barcelona's S1: the main straight) drifts further from reality.
+ * Real pole laps (OpenF1, 2025; Las Vegas 2024; see 01_docs/circuits.md): the Hard bot's targets.
+ * `sectorTolerance`: our car is slower on straights and faster in corners than an F1, so a sector
+ * mostly flat out (Barcelona's S1: the main straight) drifts further from reality.
  */
 const REAL_POLES = [
   {
@@ -139,6 +141,15 @@ const REAL_POLES = [
     runs: singapore,
     lap: 89.158,
     sectors: [26.475, 37.329, 25.354],
+    sectorTolerance: 0.07,
+  },
+  {
+    // The 2024 pole (2025's qualifying was wet). S3 is mostly the Strip, flat out (our car is
+    // slower on straights).
+    name: LAS_VEGAS.name,
+    runs: lasVegas,
+    lap: 92.312,
+    sectors: [25.736, 30.916, 35.66],
     sectorTolerance: 0.07,
   },
 ];

@@ -220,8 +220,11 @@ the owner adds the circuit's PNG to `03_F1Circuits/` and picks its width factor.
     inland water, `building_passage` is no tunnel, a landmark whose building is left out stands
     on the nearest one or alone on its POI ([themes.md](themes.md#town-circuits-circuitconfigtown-monaco-singapore)).
 - 2.4d **Las Vegas** (Strip Circuit) — flat, at night (c.2's look).
-  - d.1 Data and layout; target the **2024 pole** (Russell 1:32.312: the 2025 qualifying was wet),
-    calibration, pit lane.
+  - d.1 ✅ Data and layout; target the **2024 pole** (Russell 1:32.312: the
+    2025 qualifying was wet; `year` in `circuits.ts`); widths from OSM's lane counts × 1.4;
+    scale 0.945, Hard bot 92.27 s, every level clean; pit lane on the left, joined at the edge.
+    In every mode, with the night look already (no town yet)
+    ([circuits.md](circuits.md#las-vegas-layoutslasvegasts-step-24d)).
   - d.2 Scenery: the Strip's hotels with their real heights, landmarks chosen with the owner (the
     Sphere, the pit building); owner's test.
 - 2.4e **São Paulo** (Interlagos) — **with its real heights**, like Monaco

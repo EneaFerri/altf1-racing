@@ -14,7 +14,7 @@ road only when asked (4f).
 
 | Field                    | What                                                                                                 |
 | ------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `side`                   | Side of the track it lies on (right on the clockwise circuits, left at Singapore)                    |
+| `side`                   | Side of the track it lies on (right on the clockwise circuits, left at Singapore and Las Vegas)      |
 | `fromPoint`, `toPoint`   | Main-loop control points it leaves after and rejoins before (`fromPoint` > `toPoint`: over the line) |
 | `points`                 | Its centreline between them, world x/z, the lane's width (and the road's height on Monaco)           |
 | `limit.from`, `limit.to` | The speed-limited stretch, between the pit entry and exit lines: **metres along the lane**           |
@@ -67,6 +67,7 @@ wall between its limit lines, no pit lane on the imaginary tracks.
 | Monaco      | 381 m | 50–361                    | 68 km/h      | spread (town)     | From the inside of La Rascasse, between the start straight and the Piscine (squeezed), back just after the line; at the edge |
 | Mexico City | 780 m | 135–573                   | 79 km/h      | spread            | From the Peraltada, along the main straight; OSM maps only the paddock                                                       |
 | Singapore   | 828 m | 259–792                   | 63 km/h      | spread            | Inside the start straight, from before the last corner to turns 1–2; joined at the edge (`pitLaneAtEdge`)                    |
+| Las Vegas   | 426 m | 83–438                    | 76 km/h      | spread            | Inside the pit straight, into the turn 1 hairpin; joined at the edge (`pitLaneAtEdge`)                                       |
 
 The ramps cross the run-off and the wall where they leave and rejoin the track: the walls open
 there (4f).

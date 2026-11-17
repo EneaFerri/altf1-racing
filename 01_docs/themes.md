@@ -8,7 +8,7 @@ the simulation never sees a theme. Code in `01_packages/client/src/view/themes/`
 
 - `themes/theme.ts`: the `TrackTheme` interface and `loadTheme(trackName)` (a dynamic import per
   theme: the generated scenery stays out of the first download). **Kruncar**, **Monza**,
-  **Barcelona**, **Monaco**, **Mexico City** and **Singapore** have their own theme; every other track gets **classic** (`themes/classic.ts`: the original look,
+  **Barcelona**, **Monaco**, **Mexico City**, **Singapore** and **Las Vegas** have their own theme; every other track gets **classic** (`themes/classic.ts`: the original look,
   Test Ring).
 - `SceneView` reads the theme for sky colour, fog, camera far plane (`viewDistance`), hemisphere light
   plus an optional directional "sun", the ground (texture, tile size, margin past the track; the
@@ -292,7 +292,7 @@ generated).
 
 ## Night races (`RealCircuitLook.night`, step 2.4c.2)
 
-Singapore now, Las Vegas next. No light source per lamp (hundreds would cost too much): the look is
+Singapore and Las Vegas. No light source per lamp (hundreds would cost too much): the look is
 made of what the theme already has, plus emissive props.
 
 - **Sky and fog** deep navy (`#0b1430`), fog from 250 to 1500 m: the distance fades into the dark.
@@ -309,3 +309,9 @@ made of what the theme already has, plus emissive props.
   structure and two on the rear wing's endplates, as on a real F1, unlit material through the fog
   with a soft additive glow (`CarView`); the ghost too.
 - **Town**: dark walls with lit windows, dark roofs and water (above).
+
+## Las Vegas theme (`themes/lasVegas.ts`, step 2.4d)
+
+A night race from the start (the night look above): dark paving as the ground (car parks and
+sidewalks), guard rails with catch fences, floodlights every 30 m, the real pit lane (on the left)
+and its garages (`lasVegasLayout.ts`, generated). Next (d.2): the Strip's hotels and landmarks.
