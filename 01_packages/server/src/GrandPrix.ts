@@ -14,7 +14,6 @@ import {
   type GrandPrixPhase,
   type QualifyingEntry,
   type RaceDriver,
-  type RaceLaps,
   type Weather,
 } from '@altf1/shared';
 import type { Room } from './Room.ts';
@@ -54,7 +53,7 @@ export class GrandPrix {
   private readonly results = new Map<CarId, QualifyingEntry>();
   /** The race by driver, in grid order, from the start on (a driver who left stays, DNF). */
   private readonly racers = new Map<CarId, RaceDriver>();
-  private raceLaps: RaceLaps | null = null;
+  private raceLaps: number | null = null;
   /** Chosen by the manager in the lobby (on a track that `offersRain`), kept for play again. */
   private weather: Weather = 'dry';
   /** The session's (phase's) best time of each sector over every driver; reset by `setPhase`. */
@@ -86,7 +85,12 @@ export class GrandPrix {
       manager: this.drivers[0] ?? null,
       drivers: [...this.drivers],
       qualifying: this.order(),
-      race: raceStandings([...this.racers.values()], this.room.hold?.until ?? 0),
+      // In the results every classified driver's pit penalty counts (01_docs/multiplayer.md).
+      race: raceStandings(
+        [...this.racers.values()],
+        this.room.hold?.until ?? 0,
+        this.phase === 'results',
+      ),
       raceLaps: this.raceLaps,
       hold: this.room.hold,
       boxes: Object.fromEntries(this.boxes),

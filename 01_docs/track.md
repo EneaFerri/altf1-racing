@@ -47,8 +47,8 @@ TrackDefinition (hand-written)  ──buildTrack()──►  Track (compiled, im
 | Sectors      | 3, equal or at `sectorPoints` | Timing sectors and anti-cut checkpoints (see [laps.md](laps.md)); `Track.sectorStarts`                 |
 
 So a new track only needs a shape; kerbs and gravel follow the corners automatically.
-A track can instead ask for low kerbs along **both edges everywhere** (`kerbs: 'everywhere'`, e.g.
-Kruncar); high kerbs and gravel stay as above.
+A track can instead ask for low kerbs along **both edges everywhere** (`kerbs: 'everywhere'`; no
+circuit of the game uses it since Kruncar was removed); high kerbs and gravel stay as above.
 
 **Fixed rule for every track (owner's decision):** each track must show its **sector detection
 points**. At the start of every timing sector there is a gantry visible from far away (posts behind
@@ -95,7 +95,8 @@ of every tick and **averages** their effects: two wheels on the grass give half 
 
 ## The test track (`track/layouts/testTrack.ts`)
 
-"Test Ring", ~1.94 km, clockwise seen from above, **24–32 m wide**, 10 m run-off. Designed from
+**A test fixture only** (step M.1): not in the game's menus, never offered online, no theme. The
+tests (sim, collisions, bot, server, prediction) drive on it. "Test Ring", ~1.94 km, clockwise seen from above, **24–32 m wide**, 10 m run-off. Designed from
 scratch for the wide asphalt: every corner radius stays above local half-width + run-off, and
 distant sections keep ≥ 30 m of clearance beyond their walls.
 
@@ -133,48 +134,11 @@ loop keeps the 24 m minimum.
   `distance` is **main-loop progress** (`routeProgress`: linear across the branch, offset after
   it). Surfaces, lap timing, resets and `placeCar` all go through it, so they work on a branch
   unchanged. `locateOnLoop` ignores branches (one road only).
-- The bot drives one road: see [bot.md](bot.md) (`shortcuts`).
+- The bot drives one road: see [bot.md](bot.md) (`shortcuts`). No circuit of the game has a
+  shortcut branch since Kruncar was removed; the pit lanes use the same machinery.
 
 The real circuits' pit lanes (Phase 4, Grand Prix only) are routes too, built on request and
 allowed over the start line: [pitlane.md](pitlane.md#drivable-4f).
-
-## Kruncar (`track/layouts/kruncar.ts`)
-
-"Kruncar", ~2.56 km (main loop; ~2.52 km through the shortcut), clockwise, **24–32 m wide** (14 m on
-the shortcut), **6 m run-off** and **kerbs along every edge** (`kerbs: 'everywhere'`), like the Krunker
-map (fence close to the track). Inspired by the Krunker.io map "KrunCar" by Keybi
-(https://krunker.io/?game=FRA:qtesb): the owner's description of the corner sequence plus 14
-screenshots (kept locally in `02_screen_krunkerMap/`, git-ignored). Not a 1:1 copy: Krunker's square
-90° corners become round ones (radius ≥ 45 m on the main loop) so the walls never fold, elevation is
-flattened (2D sim). Sized for the owner's target: **Hard bot ≈ 45 s a lap** with baseline v2 (the Krunker record is
-1:25.4 for 2 laps); an early test map, frozen as it is (~42 s with v3).
-
-Corners are circular arcs: with uneven spacing the spline tightens between points and the walls fold.
-The layout is drafted with a turtle script (straights + arcs), closed by solving two straight lengths
-(the barn straight and the final straight); the shortcut is solved to land exactly on point 50.
-
-| Points | Section (Krunker landmark)                                                                                                          | Width   |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| 0–2    | Main straight between the grandstands, start line at point 0                                                                        | 32 m    |
-| 3–9    | 90° right, immediately 90° left                                                                                                     | 30 m    |
-| 10–16  | Straight into the first hairpin (180° right), wide for braking                                                                      | 28→32 m |
-| 17     | Straight over the plank bridge (river)                                                                                              | 26 m    |
-| 18–22  | S-bend (left, immediately right), short straight                                                                                    | 26→28 m |
-| 23–26  | Right, a bit of straight                                                                                                            | 28 m    |
-| 27–32  | Second hairpin (180° left)                                                                                                          | 28 m    |
-| 33–35  | Straight along the barn and the hay bales                                                                                           | 28 m    |
-| 36–41  | Third hairpin (180° right)                                                                                                          | 32 m    |
-| 42–50  | **The fork** (42 → 50): wide road = comfortable left (R 60 m), south, comfortable right, over a plank bridge                        | 26 m    |
-| branch | **Wooden zigzag shortcut** (42 → 50): straight on, then six legs swinging ±12.5° around the diagonal, covered bridge over the river | 14 m    |
-| 51–60  | Straight, then left, right onto the main straight's line, left                                                                      | 28 m    |
-| 61     | Over the bridge to the line                                                                                                         | 30 m    |
-
-The shortcut is ~390 m against ~436 m for the wide road. Bot lap times: [bot.md](bot.md#kruncar).
-Its look and scenery (rivers, bridges, grandstands, barn, ...) are in [themes.md](themes.md); the
-plank decks (bridges and the whole shortcut) are view only (the physics sees asphalt there).
-Tests (`track/buildTrack.test.ts`): every track and route passes the generic layout checks; Kruncar
-also checks the fork: 24 m main loop, 14 m shortcut, shortcut shorter than the wide road, cars on
-the shortcut located there with progress running on, the island walled off.
 
 ## Real circuits (`track/layouts/monza.ts`, `barcelona.ts`, `monaco.ts`)
 
@@ -184,17 +148,17 @@ normal kerbs (no high kerbs), with a wider band (`kerbBand`). All in [circuits.m
 
 ## Making a new track
 
-For a real circuit, see [circuits.md](circuits.md). For an imaginary one:
+The game offers only the real F1 circuits (owner, 2026-11-19): see [circuits.md](circuits.md).
+For a new test fixture:
 
 1. Copy `layouts/testTrack.ts`, change `name` and `points` (driving order, closed loop, no crossings),
    giving each point a `width` ≥ 24 m (wider where you want overtaking room).
 2. Keep corner radii above the local half-width + `runoffWidth` (22–26 m here) plus a margin, or the
    inner wall folds back (the "walls never fold" test catches it). Keep distant sections apart by
    at least both half-widths + 2 × run-off.
-3. Optionally `kerbs: 'everywhere'`; give it a look in [themes.md](themes.md) (classic otherwise).
+3. Optionally `kerbs: 'everywhere'`.
 4. List chicanes or corners that need high kerbs in `highKerbs` (control point index ranges).
-5. Export it from `track/layouts/index.ts` and add it to `TRACKS` there (the track menu lists
-   that array, in order), then run the tests.
-6. Add a section for it in this doc, like the Test Ring table above.
+5. Export it from `track/layouts/index.ts` (not in `GP_TRACKS`: that list is the game's circuits),
+   then run the tests.
 
 Real circuits (Phase 1 step 9, see [roadmap.md](roadmap.md)): Monza, Barcelona and Monaco done.

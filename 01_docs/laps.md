@@ -31,7 +31,7 @@ the next one. There are no start lights and no finish (a race mode can come late
   stripes, readable from far away). S2 and S3 also get a yellow line on the asphalt; S1 is the
   chequered start line.
 
-On a track with branches (e.g. Kruncar's shortcut), progress on the branch is mapped onto the main
+On a track with branches (a shortcut, or the Grand Prix's pit lane), progress on the branch is mapped onto the main
 loop (`routeProgress`, see [track.md](track.md#branches-forks-and-shortcuts)): it runs on smoothly
 from the fork to the join, so sectors and lap times work the same on either road and both are valid.
 
@@ -99,4 +99,4 @@ BEST  28.100   30.950   22.871
   Colours are recomputed every frame (`gpSectorColor`, `gpBestColor` in `view/hud/format.ts`), so
   a purple beaten by another driver turns green at once.
 - The chip under the table keeps the gap to the best lap, in the sector's colour.
-- Single player, Free practice and Time trial keep the bars and their rules.
+- Single player and Free practice keep the bars and their rules.

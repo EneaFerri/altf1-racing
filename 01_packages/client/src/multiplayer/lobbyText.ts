@@ -50,7 +50,6 @@ export function lobbyProblemText(problem: LobbyProblem): string {
 /** How each online mode is called in the menus. */
 export const MODE_NAMES: Readonly<Record<OnlineMode, string>> = {
   practice: 'Free practice',
-  timeTrial: 'Time trial',
   grandPrix: 'Grand Prix',
 };
 

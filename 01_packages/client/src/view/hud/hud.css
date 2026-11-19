@@ -394,6 +394,17 @@
   letter-spacing: 0.06em;
 }
 
+/* Pit stops made / required in the race (M.5): red while short of them. */
+.gp-stops {
+  color: #9a9aa6;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.gp-stops-short {
+  color: #ff5a4e;
+}
+
 /* The session's fastest lap (F1's purple): a pixel stopwatch and the time. */
 .gp-fastest {
   display: inline-flex;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TICK_RATE } from '../config/sim';
 import { createLapState } from '../sim/laps';
 import { raceStandings, timingLinesPassed, type RaceDriver } from './standings';
 
@@ -52,5 +53,45 @@ describe('race standings', () => {
       ['p2', 2, 324, 14, 0],
       ['p3', 1, null, 50, 1],
     ]);
+  });
+
+  /** The 13 timing lines of 4 laps, from `first`, one every `step` ticks. */
+  const fourLaps = (first: number, step: number): number[] =>
+    Array.from({ length: 13 }, (_, k) => first + k * step);
+  const PENALTY = 25 * TICK_RATE;
+
+  it('adds 25 s per mandatory stop missing to a finisher, which can overturn the order', () => {
+    // 4 laps: one stop required. p1 is faster but never stopped.
+    const p1 = { ...driver('p1', fourLaps(50, 100), 'finished'), stops: 0 };
+    const p2 = { ...driver('p2', fourLaps(52, 110), 'finished'), stops: 1 };
+    const order = raceStandings([p1, p2], 0);
+    expect(order.map((s) => [s.id, s.time, s.gap, s.penalty])).toEqual([
+      ['p2', 1372, null, 0],
+      ['p1', 1250 + PENALTY, 1250 + PENALTY - 1372, PENALTY],
+    ]);
+  });
+
+  it('penalises a driver still racing only in the final result; a DNF never', () => {
+    const p1 = { ...driver('p1', fourLaps(50, 100)), stops: 0 };
+    const p2 = { ...driver('p2', fourLaps(52, 110)), stops: 1 };
+    const p3 = { ...driver('p3', fourLaps(51, 90), 'dnf'), stops: 0 };
+    const live = raceStandings([p1, p2, p3], 0);
+    expect(live.map((s) => [s.id, s.penalty])).toEqual([
+      ['p1', 0],
+      ['p2', 0],
+      ['p3', 0],
+    ]);
+    const final = raceStandings([p1, p2, p3], 0, true);
+    expect(final.map((s) => [s.id, s.penalty])).toEqual([
+      ['p2', 0],
+      ['p1', PENALTY],
+      ['p3', 0],
+    ]);
+  });
+
+  it('counts the stops required on the laps completed (a race ended early)', () => {
+    // 3 laps completed (10 lines): no stop required yet.
+    const p1 = { ...driver('p1', fourLaps(50, 100).slice(0, 10)), stops: 0 };
+    expect(raceStandings([p1], 0, true)[0]!.penalty).toBe(0);
   });
 });

@@ -1,4 +1,4 @@
-import { GRAND_PRIX, type RaceLaps } from '../config/grandPrix';
+import { isRaceLaps } from '../config/grandPrix';
 import { WEATHERS, type Weather } from '../config/weather';
 import type { StartHold } from '../race/hold';
 import type { QualifyingEntry } from '../race/qualifying';
@@ -11,7 +11,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 15;
+export const PROTOCOL_VERSION = 17;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -32,11 +32,11 @@ export interface PlayerInfo {
 }
 
 /** The online game modes, in menu order. See 01_docs/multiplayer.md#modes-23. */
-export const ONLINE_MODES = ['practice', 'timeTrial', 'grandPrix'] as const;
+export const ONLINE_MODES = ['practice', 'grandPrix'] as const;
 export type OnlineMode = (typeof ONLINE_MODES)[number];
 
 /** The modes whose laps go into the lap records. See 01_docs/multiplayer.md#lap-records-25a. */
-export const RECORD_MODES = ['timeTrial', 'grandPrix'] as const satisfies readonly OnlineMode[];
+export const RECORD_MODES = ['grandPrix'] as const satisfies readonly OnlineMode[];
 export type RecordMode = (typeof RECORD_MODES)[number];
 
 /** Lap records kept per mode and circuit (one per player, the fastest). */
@@ -64,7 +64,7 @@ export type RoomStatus = 'open' | 'running';
 /** A room the server offers: one per mode and track, live as soon as a player is in it. */
 export interface RoomInfo {
   readonly mode: OnlineMode;
-  /** The track's name (an entry of TRACKS). */
+  /** The track's name (an entry of GP_TRACKS). */
   readonly track: string;
   /** Players in it right now. */
   readonly players: number;
@@ -95,7 +95,7 @@ export interface GrandPrixInfo {
   /** The race classification, live (updated at every timing line); empty before the race. */
   readonly race: readonly RaceStanding[];
   /** Race distance chosen by the manager; null before the race. */
-  readonly raceLaps: RaceLaps | null;
+  readonly raceLaps: number | null;
   /** Cars held on the grid (and the start lights); null while they may drive. */
   readonly hold: StartHold | null;
   /** Each driver's pit box (an index into the pit lane's boxes), kept from joining to leaving. */
@@ -118,8 +118,8 @@ export type GrandPrixCommand =
   | { readonly action: 'weather'; readonly weather: Weather }
   /** Qualifying → grid, without waiting for everyone's laps. */
   | { readonly action: 'endQualifying' }
-  /** Grid → race over `laps` laps: the start lights begin. */
-  | { readonly action: 'startRace'; readonly laps: RaceLaps }
+  /** Grid → race over `laps` laps (`isRaceLaps`): the start lights begin. */
+  | { readonly action: 'startRace'; readonly laps: number }
   /** Race → results, without waiting for everyone to finish. */
   | { readonly action: 'endRace' }
   /**
@@ -223,8 +223,8 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       ) {
         return { type: 'gp', action };
       }
-      if (action !== 'startRace' || !GRAND_PRIX.raceLaps.includes(laps as RaceLaps)) return null;
-      return { type: 'gp', action, laps: laps as RaceLaps };
+      if (action !== 'startRace' || !isRaceLaps(laps)) return null;
+      return { type: 'gp', action, laps };
     }
     default:
       return null;

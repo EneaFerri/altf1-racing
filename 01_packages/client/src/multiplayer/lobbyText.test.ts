@@ -39,7 +39,6 @@ describe('mode menu', () => {
     ]);
     expect(items).toEqual([
       { name: 'Free practice', detail: '3 online', value: 'practice', disabled: false },
-      { name: 'Time trial', detail: 'Work in progress', value: 'timeTrial', disabled: true },
       { name: 'Grand Prix', detail: 'Work in progress', value: 'grandPrix', disabled: true },
     ]);
     expect(

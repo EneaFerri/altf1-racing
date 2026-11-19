@@ -71,20 +71,6 @@ describe('Ghost', () => {
     expect(ghostX(ghost, 400)).toBe(3310);
   });
 
-  it('records a tick the prediction redid again, and fills one it skipped', () => {
-    const ghost = new Ghost('p1');
-    const lap = timing(0, 0);
-    drive(ghost, 0, 6, lap);
-    ghost.record(state(3, 99, lap)); // a snapshot redid ticks 3…
-    ghost.record(state(5, 55, lap)); // …and the replay jumped one tick ahead
-    ghost.record(state(6, 66, lap));
-    drive(ghost, 7, 10, lap);
-    drive(ghost, 10, 11, timing(1, 10, 10));
-    expect([0, 1, 2, 3, 4, 5, 6, 7].map((t) => ghostX(ghost, 10 + t))).toEqual([
-      0, 1, 2, 99, 99, 55, 66, 7,
-    ]);
-  });
-
   it('replays a real lap: the ghost leaves the line with the car and crosses it in its time', () => {
     const track = buildTrack(TEST_TRACK);
     const ctx = onlineSimContext(track);

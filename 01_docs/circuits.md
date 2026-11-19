@@ -330,12 +330,12 @@ One circuit per step (Phase 2.4, [roadmap.md](roadmap.md)). Every circuit is off
 3. `fetch` → `profile` → `layout` → `calibrate` (scale back into `circuits.ts`) → `layout` →
    `scenery --fetch` → `layout` once more, now with the pit lane (README); check `preview/<id>.png`
    against the PNG and `preview/<id>-pitlane.png` ([pitlane.md](pitlane.md)).
-4. Shared: export the layout in `track/layouts/index.ts` and add it to `TRACKS` (single player)
-   and `GP_TRACKS` (online: Free practice, Time trial, Grand Prix; the server's rooms follow).
+4. Shared: export the layout in `track/layouts/index.ts` and add it to `GP_TRACKS` (the game's one
+   list of circuits: single player and online; the server's rooms follow).
 5. Client: `themes/<id>.ts` (`realCircuitTheme`), mapped in `themes/theme.ts`.
 6. Tests: the pole in `REAL_POLES` (`ai/bot.test.ts`), the scenery case in
    `themes/realCircuitLayouts.test.ts`; every-level bot laps, the grid fit and the room list follow
-   `TRACKS`/`GP_TRACKS` on their own.
+   `GP_TRACKS` on their own.
 7. Docs: this file (table, section), [themes.md](themes.md), the tool's README, `CLAUDE.md`.
 
 ## Re-tuning a circuit

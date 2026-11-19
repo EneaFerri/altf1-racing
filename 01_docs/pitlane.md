@@ -118,7 +118,7 @@ branches', `Track.pit` true), like a branch (01_docs/track.md#branches-forks-and
 - **No kerbs**; its width is the pit lane's (11–14 m: below the branches' minimum, checked apart).
 - **Only the Grand Prix builds it**: the server's Grand Prix rooms
   (`new Room(definition, { pitLane: true })` in `GameServer`) and the client's `OnlineGame` in that
-  mode. Free practice, Time trial and single player build the track as before (tested: the main
+  mode. Free practice and single player build the track as before (tested: the main
   loop's samples are the same either way).
 - **The bot never takes it** (`buildBotPlan` picks a shortcut that isn't the pit lane).
 - **The view**: drawn with the track like a branch (asphalt, edge lines, its walls in concrete,
@@ -177,7 +177,8 @@ like the server; the boxes handed out and kept.
   (`pitStatus` per car, `OnlineGrandPrix.render`), no message needed. Not in the results.
 - **Stops**: the server counts each driver's pit stops in the race, one when it begins
   (`RaceDriver.stops`, `RaceStanding.stops`; protocol v13); the classification card has a
-  `STOPS` column.
+  `STOPS` column. Since M.5 a stop is mandatory every 4 laps (at most 4), 25 s per one missing:
+  [multiplayer.md](multiplayer.md#grand-prix).
 - **Standings through the pits**: progress on the lane is the main loop's (`routeProgress`), so
   the timing lines are passed there as on the track; every real pit lane crosses the start line,
   and the lap is timed there (tested on every circuit). The timing tower orders at the timing

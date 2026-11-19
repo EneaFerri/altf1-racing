@@ -21,7 +21,7 @@ export interface BotParams {
   topSpeed: number;
   /** Multiplier on the bot car's `engineAccel` and `maxSpeed` vs the player's (1 = same car). */
   performance: number;
-  /** Takes the track's first branch (e.g. Kruncar's zigzag shortcut) instead of the main road. */
+  /** Takes the track's first branch (a shortcut) instead of the main road. */
   shortcuts: boolean;
 }
 

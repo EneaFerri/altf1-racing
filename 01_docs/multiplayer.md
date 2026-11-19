@@ -1,20 +1,25 @@
 # Multiplayer (Phase 2)
 
 Phase 2 (sub-steps in [roadmap.md](roadmap.md)): a start screen with **Singleplayer /
-Multiplayer**, a nickname lobby, then a choice of mode (2.3) and circuit (Monza, Barcelona,
-Monaco): everyone who picks the same mode and circuit drives together on it, the own car predicted
+Multiplayer**, a nickname lobby, then a choice of mode (2.3: Free practice or Grand Prix since M.3)
+and circuit (the F1 circuits of `GP_TRACKS`): everyone who picks the same mode and circuit drives together on it, the own car predicted
 by the client (2.2). Each
 section says which sub-step built it.
 
 ## Flow
 
 ```
-Start screen ── Singleplayer ──▶ Track menu (all tracks, bot) ──▶ single-player game
-             └─ Multiplayer ───▶ Nickname ──▶ connect ──▶ Mode menu ──▶ Track menu (Monza /
-                                  Barcelona / Monaco) ──▶ that room's circuit, with everyone in it
+Start screen ── Singleplayer ──▶ Mode menu (Free practice / Time trial / Test) ──▶ Track menu
+             │                    (the F1 circuits) ──▶ single-player game
+             └─ Multiplayer ───▶ Nickname ──▶ connect ──▶ Mode menu (Free practice / Grand Prix)
+                                  ──▶ Track menu (the F1 circuits) ──▶ that room, with everyone in it
 ```
 
-- **Singleplayer** is today's game, unchanged.
+- **Singleplayer** (M.2): **Free practice** alone on the circuit; **Time trial** alone, racing the
+  ghost of the session's best lap, with this browser's best lap per circuit shown in the track menu
+  (`singleplayer/localRecords.ts`, `localStorage`); **Test**, the game as it was: the bot (B), F3
+  telemetry open from the start, F2 tuning, F4 dummy, `?pitlane`, `?rain` (the last four in dev
+  only). See [architecture.md](architecture.md#startup--01_packagesclientsrcmaints).
 - **Multiplayer**: the player types a nickname; if the server accepts it they pick a mode (see
   [Modes](#modes-23)) and one of the F1 circuits (`GP_TRACKS`, each with how many players are on it) and
   are put in that room, where everyone else who picked it is already driving. Otherwise the reason
@@ -26,7 +31,7 @@ Start screen ── Singleplayer ──▶ Track menu (all tracks, bot) ──�
 
 The owner's rule: the two sections never mix. Enforced, not just by convention:
 
-- **Folders**: `client/src/singleplayer/` (`SinglePlayerGame`, `start.ts`: track menu → race)
+- **Folders**: `client/src/singleplayer/` (`SinglePlayerGame`, `start.ts`: mode menu → track menu → race, `ghost`, `localRecords`)
   and `client/src/multiplayer/` (`start.ts`, `NetClient`, `serverUrl`, `lobbyText`, `OnlineGame`,
   `Predictor`). The building blocks both use stay where they are: `GameLoop`, `SceneView`, `Hud`, `KeyboardController`, the menus' look.
 - **Loading**: `main.ts` imports a mode with a dynamic `import()` only once it is chosen. Choosing
@@ -50,7 +55,10 @@ The owner's rule: the two sections never mix. Enforced, not just by convention:
 ## Protocol (2.1b ✅)
 
 JSON over one WebSocket, typed unions in `shared/src/net/protocol.ts`, with a `PROTOCOL_VERSION`
-(a client with another version is rejected with `version`). Version **14** since 2.4b (no message changed shape: the circuit
+(a client with another version is rejected with `version`). Version **17** since M.4/M.5
+(`startRace` takes any `laps` from 1 to 24, `isRaceLaps`; a race standing carries its pit
+`penalty`); v16 = M.3 online Time trial removed; v15 = 2.7 W.3 the GP's weather and 2.3l the
+session's best sectors; v14 since 2.4b (no message changed shape: the circuit
 named "Monaco" became the elevated one, so an older client must not enter); v13 = 4h a race
 standing carries its pit `stops`; v12 = 4g a car in a snapshot may carry its `pitStop`, `grandPrix` carries
 each driver's pit `boxes`; v11 = 4d a car in a
@@ -67,7 +75,7 @@ snapshots carry each car's last input; v3 = 2.2a input `seq`, acks, ping; v2 = 2
 | client → server | `enter`     | `mode`, `track`: go into that room (once, after the welcome)                                                                 |
 | client → server | `input`     | `seq` + `InputCommand`, once per client tick (only once in a room)                                                           |
 | client → server | `ping`      | `t` (the client's clock), once a second in a room                                                                            |
-| client → server | `gp`        | `action`: `start` / `endQualifying` / `startRace` + `laps` (4, 8, 12) / `endRace` (manager only); `playAgain` (anyone)       |
+| client → server | `gp`        | `action`: `start` / `endQualifying` / `startRace` + `laps` (1–24) / `endRace` (manager only); `playAgain` (anyone)           |
 | server → client | `welcome`   | own `playerId`, the `rooms` offered (`mode`, `track`, `players`, `status`), the lap `records` (one board per mode × circuit) |
 | server → client | `rejected`  | `reason`: `taken` / `invalid` / `full` / `version`                                                                           |
 | server → client | `refused`   | `reason` `inProgress`: that circuit's Grand Prix has started                                                                 |
@@ -124,7 +132,7 @@ port is taken (a server already running) it says so and exits.
 - **Logs**: one line per join, rejection and leave, and per room opened, entered and closed, e.g.
   `[lobby] Enea joined as p1 (2 online)`, `[rooms] practice/Monza is live`,
   `[rooms] Enea entered practice/Monza (1 there)`, `[rooms] practice/Monza closed (empty)`, and one
-  per new lap record, `[records] timeTrial/Monza: Enea 81.000 s (P1)`.
+  per new lap record, `[records] grandPrix/Monza: Enea 81.000 s (P1)`.
 
 ## Rooms (2.1e ✅, 2.1f+ ✅)
 
@@ -133,9 +141,8 @@ port is taken (a server already running) it says so and exits.
   owner's choice; 2.1e had a single Test Ring room; 2.4 adds one circuit per step). Rooms are
   keyed `mode/track` (`roomKey`, e.g. `practice/Monza`); an `enter` for a mode not in
   `READY_MODES` is ignored.
-- **Private rooms** (2.3c): in a mode of `PRIVATE_MODES` (time trial) every player gets a room of
-  their own, keyed `mode/track/player` (`timeTrial/Monza/p3`): same `Room`, same snapshots, nobody
-  else in it. The `welcome` counts, per circuit, everyone driving that mode there. A room is created the moment its first player
+- Online Time trial (2.3c–d: a private room per player, keyed `mode/track/player`) was removed in
+  M.3: time trial is single player's now. A room is created the moment its first player
   enters (`[rooms] Monza is live`) and closed when its last one leaves, so the next player starts a
   fresh session. Rooms are fully apart: each has its own simulation, players list and snapshots.
 - Up to 8 players online in total for now (`MAX_PLAYERS`), no bots. Default tuning
@@ -232,7 +239,7 @@ simulation**: the server is the only one.
   car's telemetry, the last input sent, `rtt`, `ahead` (ticks predicted past the newest snapshot)
   and `corrected` (how far the last snapshot moved the own car, m); not in a Grand Prix (owner's
   choice, 2.3h), where the top-left corner belongs to the GP panel.
-- **Keys**: WASD/Space drive, R reset, V camera, Z look back, F3 overlay (not in a Grand Prix), Enter and 1/2/3 the GP
+- **Keys**: WASD/Space drive, R reset, V camera, Z look back, F3 overlay (not in a Grand Prix), Enter, 1/2/3 and 4 + ←/→ the GP
   manager's commands (Grand Prix), Esc back to the start screen (the reload closes the socket, which frees the nickname and removes the car). B, F2 and F4
   are single-player only.
 - **Disconnect** (server stopped, network lost): a DISCONNECTED menu over the race; Enter or Esc
@@ -289,20 +296,18 @@ Chosen after the nickname, before the circuit; plan and sub-steps in
 [roadmap.md](roadmap.md#23--online-game-modes-free-practice--time-trial--grand-prix), design
 choices in [decisions.md](decisions.md#2026-10-28--online-game-modes-step-23-plan).
 
-| Mode (`OnlineMode`)      | What it is                                                       | Status                                                                      |
-| ------------------------ | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Free practice `practice` | Everyone in the room laps freely (the 2.1–2.2 room)              | ✅ 2.3b                                                                     |
-| Time trial `timeTrial`   | Alone on the circuit, racing the ghost of the session's best lap | ✅ 2.3c, ghost ✅ 2.3d                                                      |
-| Grand Prix `grandPrix`   | Manager, qualifying Q1/Q2/Q3, grid, F1 lights, race, podium      | ✅ lobby 2.3e, qualifying 2.3f, grid and start 2.3g, race 2.3h; podium 2.3i |
+| Mode (`OnlineMode`)      | What it is                                                  | Status                                                                      |
+| ------------------------ | ----------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Free practice `practice` | Everyone in the room laps freely (the 2.1–2.2 room)         | ✅ 2.3b                                                                     |
+| ~~Time trial~~           | Removed in M.3 (protocol v16): single player's mode now     | was 2.3c, ghost 2.3d                                                        |
+| Grand Prix `grandPrix`   | Manager, qualifying Q1/Q2/Q3, grid, F1 lights, race, podium | ✅ lobby 2.3e, qualifying 2.3f, grid and start 2.3g, race 2.3h; podium 2.3i |
 
-### Time trial ghost (2.3d ✅)
+### Time trial ghost (2.3d; single player since M.2)
 
-Client only (the server just runs the private room): `multiplayer/ghost.ts` (`Ghost`, pure,
-tested also against a real lap driven by the bot).
+`singleplayer/ghost.ts` (`Ghost`, pure, tested also against a real lap driven by the bot).
 
-- **Recording**: every client tick, after the prediction moved, the own `CarState` is stored at its
-  tick within the current lap (`tick - lapStartTick`). A tick the prediction redid after a snapshot
-  overwrites what followed; a tick it skipped repeats the previous one. Nothing on the out-lap.
+- **Recording**: after every tick the own `CarState` is stored at its tick within the current lap.
+  Nothing on the out-lap.
 - **The ghost** = the recording of the fastest **valid** lap of the session: kept when a lap ends
   valid and faster than the ghost (or there is none yet). Slower or voided laps (R) never replace
   it. So the first timed lap has no ghost; from the second one on the player races it.
@@ -325,14 +330,15 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   what comes next: "Enter: start the GP" for the manager, "Waiting for <manager> to start the GP"
   for the others.
 - **Commands**: the manager's keys send `gp` (Enter: `start` in the lobby, `endQualifying` in
-  qualifying; 1/2/3 on the grid: `startRace` over 4/8/12 laps). The server applies a command only
+  qualifying; 1/2/3 on the grid: `startRace` over 4/8/12 laps; 4 then ←/→ (or −/+) and Enter:
+  any other distance, 1–24 laps, M.4). The server applies a command only
   from the manager and only in its phase, then sends the new `grandPrix` to the room (phase,
   manager, qualifying order, race laps, start hold). The rules' numbers are in
   `shared/src/config/grandPrix.ts` (`GRAND_PRIX`).
 - **Weather** (2.7 W.3, protocol v15): in the lobby of a track that `offersRain` (São Paulo), the
   manager's 1/2 send `gp` `weather` (`dry`/`rain`) for the whole GP; `GrandPrixInfo.weather` tells
   the room, the server's room and every prediction run the wet track (`onlineSimContext`'s
-  `weather`), the view switches to the rain. Kept after play again. Free practice and Time trial
+  `weather`), the view switches to the rain. Kept after play again. Free practice
   always dry. See [weather.md](weather.md#online-w3).
 - **Sector timing** (2.3l, protocol v15): `GrandPrixInfo.sectorBests`, each session's best time
   of every sector over all drivers, live at every sector done, sent whenever one improves; the HUD's sector table colours
@@ -356,7 +362,9 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   (`SceneView.follow`) and the timing strip is hidden. Client side of the GP:
   `multiplayer/OnlineGrandPrix.ts`.
 - **Grid** (2.3g ✅): every car (back) on the grid in qualifying order (P1 = pole), **held**: the
-  panel shows the grid with the times, the manager picks the distance with 1/2/3 (4/8/12 laps).
+  panel shows the grid with the times, the manager picks the distance with 1/2/3 (4/8/12 laps), or with 4 any other one from 1 to 24
+  (`GRAND_PRIX.customLaps`: starts at 12, ←/→ change it, Enter starts; the choice stays on the
+  manager's client until sent). The hint shows the mandatory pit stops of that distance.
 - **Start lights** (2.3g ✅): the race starts with an F1 start (`shared/src/race/hold.ts`): the
   first red light 1 s after the manager's choice, one more every second, lights out a random
   0.2–1 s after the fifth (drawn by the server). The `hold` (`lightsFrom`, `until`) travels in
@@ -373,6 +381,17 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   **gap** to the leader is taken at the last line both passed; a car a whole lap or more behind
   shows `+1 LAP`. So the order and gaps change at the lines, not between them. The lap counter
   starts at lights out from the grid (`LAP 1/8` already behind the line); resets are allowed.
+- **Mandatory pit stops** (M.5, owner): one per 4 laps of the race, rounded down, at most 4
+  (`requiredStops`, `shared/src/race/pitRule.ts`; numbers in `GRAND_PRIX.pitRule`): 4–7 laps 1,
+  8–11 laps 2, 12–15 laps 3, 16–24 laps 4; no limit on extra stops. A stop counts when the car
+  stops in its box (4h, `RaceDriver.stops`). Each one missing adds **25 s** to the driver's race
+  time (`pitPenaltyTicks`, `RaceStanding.penalty`): counted for a finisher as soon as they finish,
+  and in the results for everyone classified, on the laps they completed (a race ended early by
+  the manager asks only the stops of the laps driven); never for a DNF, never live for a driver
+  still racing (they can still stop). With the penalty in, finishers are ordered by their race
+  time, so the penalty can cost places. The tower shows each driver's stops made / required
+  (`1/2`, red while short), the hint the rule; the classification card has `STOPS` (`1/2`) and
+  `PENALTY` (`+25 s`) columns.
 - **Finish**: completing the last lap = the flag. The finisher's race time (lights out to the
   flag) is kept, the car leaves the track and its player spectates (the camera on the best-placed
   car still racing). A player who disconnects is **DNF**, kept by name (grey) at the back. The race
@@ -408,7 +427,7 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   (`damageInPhase`): every phase change goes through `GrandPrix.setPhase`, which turns the room's
   damage on or off (`Room.setDamage`; off repairs every car). The client's `Predictor` follows the
   phase of each `grandPrix` message (`setDamage`), and the snapshots carry each car's `damage`.
-  Free practice and Time trial never have it. Rules and numbers: [damage.md](damage.md).
+  Free practice never has it. Rules and numbers: [damage.md](damage.md).
 - **Chequered flag** (2.3k): from the first driver on the last lap (`chequeredFlag`) until the
   results, a flag marshal waves it at the finish line (`view/FlagMarshal.ts`: a pixel-art sprite,
   two frames from `view/flagMarshalArt.ts`, 2.4 m on a 1.2 m podium, on the run-off of the side
@@ -428,11 +447,12 @@ client still shows a mode the `welcome` has no rooms for as "Work in progress".
 ## Lap records (2.5a)
 
 The server keeps the best laps for good: one **board per record mode and circuit**
-(`RECORD_MODES` = Time trial and Grand Prix, × every circuit of `GP_TRACKS`), the
+(`RECORD_MODES` = the Grand Prix since M.3, × every circuit of `GP_TRACKS`; the old Time trial
+rows stay in the database, unread), the
 `RECORDS_PER_TRACK` = 10 fastest players, each with their best lap only.
 
 - **Which laps count**: a lap the server's own simulation finished **valid** (`finishedLaps`: the
-  car's lap count grew and `lastLap.valid`). Time trial: every such lap. Grand Prix: only in
+  car's lap count grew and `lastLap.valid`). Grand Prix: only in
   qualifying and in the race (`GrandPrix.isTimed`), not in its lobby or results; read before the
   GP handles the tick, so a car retired on its last lap still counts. Free practice: never.
   The server trusts no client time: it is its simulation's lap.

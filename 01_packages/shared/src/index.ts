@@ -22,6 +22,7 @@ export * from './net/quantize';
 export * from './net/simContext';
 export * from './race/damage';
 export * from './race/hold';
+export * from './race/pitRule';
 export * from './race/qualifying';
 export * from './race/standings';
 export * from './sim/car';

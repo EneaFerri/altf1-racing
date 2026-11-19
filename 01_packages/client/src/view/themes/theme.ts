@@ -36,7 +36,7 @@ export interface TrackTheme {
   readonly asphalt: () => THREE.Texture;
   /** Low-kerb colours and the length of one colour block (m). */
   readonly kerb: { readonly colors: readonly [string, string]; readonly block: number };
-  /** The white edge line sits this far inside the asphalt edge (m): on Kruncar, inside the kerb. */
+  /** The white edge line sits this far inside the asphalt edge (m). */
   readonly edgeLineInset: number;
   /** The cars' red rear lights lit (a night race). */
   readonly carLights?: boolean;
@@ -67,7 +67,6 @@ export interface TrackTheme {
  * (generated from OSM) is most of the client's code, so each one is its own chunk.
  */
 const THEMES: Readonly<Record<string, () => Promise<TrackTheme>>> = {
-  Kruncar: async () => (await import('./kruncar')).KRUNCAR_THEME,
   Monza: async () => (await import('./monza')).MONZA_THEME,
   Barcelona: async () => (await import('./barcelona')).BARCELONA_THEME,
   Monaco: async () => (await import('./monaco')).MONACO_THEME,
@@ -77,8 +76,9 @@ const THEMES: Readonly<Record<string, () => Promise<TrackTheme>>> = {
   'São Paulo': async () => (await import('./saoPaulo')).SAO_PAULO_THEME,
 };
 
-/** Loads the theme drawn for a track: its own when it has one, else the classic look. */
+/** Loads the theme drawn for a circuit (every one of `GP_TRACKS` has its own). */
 export async function loadTheme(trackName: string): Promise<TrackTheme> {
   const own = THEMES[trackName];
-  return own ? own() : (await import('./classic')).CLASSIC_THEME;
+  if (!own) throw new Error(`No theme for track "${trackName}"`);
+  return own();
 }

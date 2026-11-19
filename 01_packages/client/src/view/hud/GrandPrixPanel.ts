@@ -11,6 +11,8 @@ export interface GrandPrixRow {
   readonly pit?: PitBadge;
   /** The session's fastest lap is this driver's: its time, shown with a purple stopwatch. */
   readonly fastest?: string;
+  /** In a race with mandatory pit stops: made / required (`1/2`), red while short of them. */
+  readonly stops?: { readonly text: string; readonly short: boolean };
 }
 
 /** What the timing tower shows beside a driver in the pit lane. */
@@ -50,6 +52,11 @@ export class GrandPrixPanel {
         item.append(swatch, text('span', 'gp-name', row.name));
         if (row.fastest) item.append(fastestLap(row.fastest));
         if (row.pit) item.append(text('span', 'gp-pit', row.pit));
+        if (row.stops) {
+          const stops = text('span', 'gp-stops', row.stops.text);
+          stops.classList.toggle('gp-stops-short', row.stops.short);
+          item.append(stops);
+        }
         item.append(text('span', 'gp-note', row.note));
         return item;
       }),

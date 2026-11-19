@@ -1,16 +1,13 @@
 import type { TrackDefinition } from '../types';
 import { BARCELONA } from './barcelona';
-import { KRUNCAR } from './kruncar';
 import { LAS_VEGAS } from './lasVegas';
 import { MEXICO } from './mexico';
 import { MONACO } from './monaco';
 import { MONZA } from './monza';
 import { SAO_PAULO } from './saoPaulo';
 import { SINGAPORE } from './singapore';
-import { TEST_TRACK } from './testTrack';
 
 export * from './barcelona';
-export * from './kruncar';
 export * from './lasVegas';
 export * from './mexico';
 export * from './monaco';
@@ -19,23 +16,11 @@ export * from './saoPaulo';
 export * from './singapore';
 export * from './testTrack';
 
-/** Every single-player track, in the order the track menu lists them. */
-export const TRACKS: readonly TrackDefinition[] = [
-  TEST_TRACK,
-  KRUNCAR,
-  MONZA,
-  BARCELONA,
-  MONACO,
-  MEXICO,
-  SINGAPORE,
-  LAS_VEGAS,
-  SAO_PAULO,
-];
-
 /**
- * The real F1 circuits, in menu order: offered online in every mode (one room list on the server)
- * and drawn with a starting grid. Add a new circuit here and to `TRACKS` (01_docs/circuits.md).
- * Monaco has its real heights (Phase 3, 01_docs/elevation.md).
+ * The game's circuits, the real F1 ones, in menu order: offered in every mode, single player and
+ * online (one room list on the server), and drawn with a starting grid. Add a new circuit here
+ * (01_docs/circuits.md). Monaco and São Paulo have their real heights (Phase 3,
+ * 01_docs/elevation.md). The Test Ring (`TEST_TRACK`) is only the tests' fixture, never offered.
  */
 export const GP_TRACKS: readonly TrackDefinition[] = [
   MONZA,

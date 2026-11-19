@@ -257,7 +257,7 @@ describe('GrandPrix — start', () => {
 });
 
 /** A Grand Prix with `ids` on the grid in that order (qualifying ended at once), racing `laps`. */
-function racing(laps: 4 | 8 | 12, ...ids: CarId[]): { gp: GrandPrix; room: FakeRoom } {
+function racing(laps: number, ...ids: CarId[]): { gp: GrandPrix; room: FakeRoom } {
   const { gp, room } = grandPrix(...ids);
   gp.command(ids[0]!, { action: 'start' });
   gp.command(ids[0]!, { action: 'endQualifying' });
@@ -306,9 +306,9 @@ describe('GrandPrix — race', () => {
   });
 
   it('takes finishers off the track with their race time, and ends when nobody is racing', () => {
-    const { gp, room } = racing(4, 'p1', 'p2');
+    const { gp, room } = racing(3, 'p1', 'p2'); // no mandatory stop
     const until = gp.info.hold!.until;
-    room.line('p1', 4, 0, until + 20000, 4900);
+    room.line('p1', 3, 0, until + 20000, 4900);
     gp.afterTick();
     expect(room.retired).toEqual(['p1']);
     expect(gp.info.race[0]).toMatchObject({
@@ -318,12 +318,42 @@ describe('GrandPrix — race', () => {
       best: 4900,
     });
     expect(gp.info.phase).toBe('race');
-    room.line('p2', 4, 0, until + 20300);
+    room.line('p2', 3, 0, until + 20300);
     gp.afterTick();
     expect(gp.info.phase).toBe('results');
     expect(gp.info.race.map((s) => [s.id, s.gap])).toEqual([
       ['p1', null],
       ['p2', 300],
+    ]);
+  });
+
+  it('adds 25 s per mandatory stop missing: a finisher who never stopped can lose the win', () => {
+    const { gp, room } = racing(5, 'p1', 'p2'); // 5 laps: one stop required
+    const until = gp.info.hold!.until;
+    room.state = { ...room.state, cars: [{ id: 'p2', pitStop: { until: 900 } }] as never };
+    gp.afterTick(); // p2 stops once
+    room.state = { ...room.state, cars: [] };
+    room.line('p1', 5, 0, until + 20000);
+    gp.afterTick();
+    room.line('p2', 5, 0, until + 20300);
+    gp.afterTick();
+    expect(gp.info.phase).toBe('results');
+    expect(gp.info.race.map((s) => [s.id, s.stops, s.penalty, s.time, s.gap])).toEqual([
+      ['p2', 1, 0, 20300, null],
+      ['p1', 0, 25 * 60, 21500, 1200],
+    ]);
+  });
+
+  it('penalises whoever is still racing when the manager ends the race, on their laps', () => {
+    const { gp, room } = racing(8, 'p1', 'p2');
+    room.line('p1', 4, 0, 9000); // 4 laps done, no stop: 1 missing
+    room.line('p2', 3, 2, 9000); // 3 laps done: none required yet
+    gp.afterTick();
+    expect(gp.info.race.map((s) => s.penalty)).toEqual([0, 0]); // live: not yet
+    gp.command('p1', { action: 'endRace' });
+    expect(gp.info.race.map((s) => [s.id, s.penalty])).toEqual([
+      ['p1', 25 * 60],
+      ['p2', 0],
     ]);
   });
 

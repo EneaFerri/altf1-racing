@@ -112,7 +112,7 @@ Protocol v15. The Grand Prix's manager chooses the weather in the **lobby**, for
 - **Panel**: the title ends with `· RAIN` in a wet GP (`· DRY` in such a lobby while dry); the
   manager's hint in the lobby: `1: dry · 2: rain · Enter: start the GP`.
 - **Records**: wet laps go into the same lap records as dry ones (owner).
-- Free practice and Time trial are always dry.
+- Free practice is always dry (single player too, but for Test's `?rain` / F2 in dev).
 
 ## Dev
 

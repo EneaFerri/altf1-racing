@@ -7,10 +7,10 @@ const day = (n: number): Date => new Date(Date.UTC(2026, 10, n));
 describe('LapRecords', () => {
   it('keeps a board sorted by time, with nickname, time and date', () => {
     const records = new LapRecords(':memory:');
-    expect(records.submit('timeTrial', 'Monza', 'Enea', 5000, day(1))).toBe(1);
-    expect(records.submit('timeTrial', 'Monza', 'Kimi', 4900, day(2))).toBe(1);
-    expect(records.submit('timeTrial', 'Monza', 'Max', 5100, day(3))).toBe(3);
-    expect(records.board('timeTrial', 'Monza')).toEqual([
+    expect(records.submit('grandPrix', 'Monza', 'Enea', 5000, day(1))).toBe(1);
+    expect(records.submit('grandPrix', 'Monza', 'Kimi', 4900, day(2))).toBe(1);
+    expect(records.submit('grandPrix', 'Monza', 'Max', 5100, day(3))).toBe(3);
+    expect(records.board('grandPrix', 'Monza')).toEqual([
       { nickname: 'Kimi', ticks: 4900, setAt: '2026-11-02T00:00:00.000Z' },
       { nickname: 'Enea', ticks: 5000, setAt: '2026-11-01T00:00:00.000Z' },
       { nickname: 'Max', ticks: 5100, setAt: '2026-11-03T00:00:00.000Z' },
@@ -19,11 +19,11 @@ describe('LapRecords', () => {
 
   it('gives each player one spot, replaced only by a faster lap (nickname in any case)', () => {
     const records = new LapRecords(':memory:');
-    records.submit('timeTrial', 'Monza', 'Enea', 5000, day(1));
-    expect(records.submit('timeTrial', 'Monza', 'enea', 5200, day(2))).toBeNull();
-    expect(records.submit('timeTrial', 'Monza', 'ENEA', 5000, day(3))).toBeNull();
-    expect(records.submit('timeTrial', 'Monza', 'ENEA', 4800, day(4))).toBe(1);
-    expect(records.board('timeTrial', 'Monza')).toEqual([
+    records.submit('grandPrix', 'Monza', 'Enea', 5000, day(1));
+    expect(records.submit('grandPrix', 'Monza', 'enea', 5200, day(2))).toBeNull();
+    expect(records.submit('grandPrix', 'Monza', 'ENEA', 5000, day(3))).toBeNull();
+    expect(records.submit('grandPrix', 'Monza', 'ENEA', 4800, day(4))).toBe(1);
+    expect(records.board('grandPrix', 'Monza')).toEqual([
       { nickname: 'ENEA', ticks: 4800, setAt: '2026-11-04T00:00:00.000Z' },
     ]);
   });
@@ -43,22 +43,21 @@ describe('LapRecords', () => {
 
   it('ranks the earlier of two equal times first', () => {
     const records = new LapRecords(':memory:');
-    records.submit('timeTrial', 'Monza', 'Late', 5000, day(5));
-    expect(records.submit('timeTrial', 'Monza', 'Early', 5000, day(1))).toBe(1);
-    expect(records.board('timeTrial', 'Monza').map((r) => r.nickname)).toEqual(['Early', 'Late']);
+    records.submit('grandPrix', 'Monza', 'Late', 5000, day(5));
+    expect(records.submit('grandPrix', 'Monza', 'Early', 5000, day(1))).toBe(1);
+    expect(records.board('grandPrix', 'Monza').map((r) => r.nickname)).toEqual(['Early', 'Late']);
   });
 
-  it('keeps modes and circuits apart, one board each', () => {
+  it('keeps circuits apart, one board each per record mode', () => {
     const records = new LapRecords(':memory:');
-    records.submit('timeTrial', 'Monza', 'Enea', 5000, day(1));
-    records.submit('grandPrix', 'Monza', 'Kimi', 5100, day(1));
-    expect(records.board('timeTrial', 'Monaco')).toEqual([]);
+    records.submit('grandPrix', 'Monza', 'Enea', 5000, day(1));
+    records.submit('grandPrix', 'Monaco', 'Kimi', 5100, day(1));
+    expect(records.board('grandPrix', 'Barcelona')).toEqual([]);
     const boards = records.boards();
     expect(boards).toHaveLength(RECORD_MODES.length * GP_TRACKS.length);
-    const monza = boards.filter((b) => b.track === 'Monza');
-    expect(monza.map((b) => [b.mode, b.records.map((r) => r.nickname)])).toEqual([
-      ['timeTrial', ['Enea']],
-      ['grandPrix', ['Kimi']],
-    ]);
+    const names = (track: string) =>
+      boards.filter((b) => b.track === track).map((b) => b.records.map((r) => r.nickname));
+    expect(names('Monza')).toEqual([['Enea']]);
+    expect(names('Monaco')).toEqual([['Kimi']]);
   });
 });

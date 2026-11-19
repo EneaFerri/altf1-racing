@@ -1,6 +1,6 @@
 # Car damage (Phase 4)
 
-**Grand Prix only.** Free practice, Time trial and single player never have damage. Plan and
+**Grand Prix only.** Free practice and single player never have damage (Test mode: F2 in dev). Plan and
 steps: [roadmap.md](roadmap.md#phase-4--pit-lane-and-car-damage-grand-prix-only); choices:
 [decisions.md](decisions.md#2026-11-04--phase-4-plan-damage-and-pit-lane-grand-prix-only).
 
@@ -112,7 +112,7 @@ Client only, purely cosmetic; drawn only for cars that have damage (so only in a
     endplates and post stay);
   - tyres stay round up to 50% damage, then flatten (drawn up to 35% lower, onto the road).
 - `CarPose.damage` carries it from the state (`SceneView`); a car redraws its damage only when
-  it changes. The time trial's ghost never has any.
+  it changes. Single player's time trial ghost never has any.
 
 ## Online (4d)
 
@@ -130,4 +130,4 @@ damage)`); off also repairs every car (`repairCars`). `GrandPrix.setPhase`, the 
 - **Protocol v11**: a car in a snapshot may carry `damage` (absent = undamaged, so Free practice
   and Time trial snapshots are exactly as before).
 - The HUD damage panel and the damaged cars (4c) show by themselves: they read the cars'
-  `damage`. Free practice and Time trial rooms never have it (tested).
+  `damage`. Free practice rooms never have it (tested).

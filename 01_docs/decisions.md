@@ -631,3 +631,40 @@
   them. Most of the 1350 m lane is then driven at full speed.
 - Heights: the lane can't be level with both the top and the bottom of the Senna S. The step is
   ramped at 5%, half above one and half below the other.
+
+## 2026-11-19 — Only the F1 circuits; the Test Ring stays as a fixture (M.1)
+
+- Owner: only the real F1 circuits in every mode; Kruncar and the Test Ring out of the game.
+- The Test Ring stays in `shared` as the tests' fixture (owner's choice): dozens of sim, collision,
+  bot, server and prediction tests drive on it, with measured numbers; moving them to a real
+  circuit would change those numbers for nothing. It has no theme and is in no list.
+- Kruncar is deleted completely, with what only it used (rivers, bridges, barn, hay, chevron boards,
+  balloons, its textures, `cornerApexes`, `besideTrack`). The generic track features it was the
+  only user of (`kerbs: 'everywhere'`, shortcut branches and the bot's `shortcuts`) stay: the pit
+  lanes use the branch machinery, and removing the rest would touch the track compiler for every
+  circuit.
+
+## 2026-11-19 — Time trial moves to single player (M.2, M.3)
+
+- Owner: single player = Free practice, Time trial, Test; multiplayer = Free practice, Grand Prix.
+- Single player never touches the network, so its time trial records are this browser's own
+  (`localStorage`, owner's choice), one best lap per circuit; the server's boards stay for the
+  Grand Prix. Storage is never trusted to be there (private window, blocked): no records then.
+- The ghost moved to `singleplayer/` (its only user) and lost the prediction's redo/skip handling:
+  single player records every tick in order.
+- F2 tuning stays dev-only (owner): the Test mode is in every build, its dev tools only under
+  `npm run dev`.
+
+## 2026-11-19 — Custom race distance and mandatory pit stops (M.4, M.5)
+
+- Owner: the race over 4 / 8 / 12 laps or any number from 1 to 24; a mandatory stop every 4 laps
+  (rounded down, at most 4), 25 s for each one missing, no limit on extra stops.
+- Custom distance on the grid: 4, then ←/→ and Enter (owner's choice over a list menu): the race
+  is started from the driving screen like the presets, no menu over the grid.
+- The penalty counts for every classified driver (owner): at the flag for a finisher, and in the
+  results for anyone still racing when the manager ends the race, on the laps they completed (so
+  a race stopped after 3 laps asks no stop). A DNF never gets one. A driver still racing is never
+  penalised live: they can still stop, and the tower would otherwise jump around.
+- Every finisher drives the full distance (there is no "lapped cars finish with the leader"), so
+  ordering finishers by race time + penalty is exact; a penalised finisher can drop behind one who
+  finishes later.

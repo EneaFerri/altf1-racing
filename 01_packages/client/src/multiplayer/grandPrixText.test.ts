@@ -7,7 +7,7 @@ import {
   type RaceStanding,
 } from '@altf1/shared';
 import { LIVERIES, playerLivery } from '../view/pixelTexture';
-import { chequeredFlag, fastestLap, grandPrixContent, lapName } from './grandPrixText';
+import { chequeredFlag, fastestLap, grandPrixContent, stopsNote, lapName } from './grandPrixText';
 
 const PLAYERS: PlayerInfo[] = [
   { id: 'p1', nickname: 'Enea', livery: 0 },
@@ -43,6 +43,7 @@ const standing = (id: string, name: string, more: Partial<RaceStanding>): RaceSt
   lapsBehind: 0,
   best: null,
   stops: 0,
+  penalty: 0,
   ...more,
 });
 
@@ -123,8 +124,31 @@ describe('Grand Prix panel', () => {
       ['P1  Kimi', '1:30.000'],
       ['P2  Enea', 'no time'],
     ]);
-    expect(forEnea.hint).toBe('Start the race — 1: 4 laps · 2: 8 laps · 3: 12 laps');
+    expect(forEnea.hint).toBe('Start the race — 1: 4 laps · 2: 8 laps · 3: 12 laps · 4: other');
     expect(grandPrixContent(grid, PLAYERS, 'p2').hint).toBe('Waiting for Enea to start the race');
+  });
+
+  it('shows the manager’s own race distance (key 4) with its mandatory pit stops', () => {
+    const grid: GrandPrixInfo = { ...LOBBY, phase: 'grid', qualifying: QUALIFYING };
+    const hint = (laps: number) =>
+      grandPrixContent(grid, PLAYERS, 'p1', new Map(), false, laps).hint;
+    expect(hint(3)).toBe('Race over ◀ 3 laps ▶ (←/→) — Enter: start');
+    expect(hint(5)).toBe(
+      'Race over ◀ 5 laps ▶ (←/→) · 1 mandatory pit stop (+25 s each one missing) — Enter: start',
+    );
+    expect(hint(20)).toContain('4 mandatory pit stops');
+  });
+
+  it('counts the stops: none required under 4 laps, then 1 per 4 laps, at most 4', () => {
+    expect([1, 4, 5, 8, 11, 16, 24].map(stopsNote)).toEqual([
+      '',
+      '1 mandatory pit stop (+25 s each one missing)',
+      '1 mandatory pit stop (+25 s each one missing)',
+      '2 mandatory pit stops (+25 s each one missing)',
+      '2 mandatory pit stops (+25 s each one missing)',
+      '4 mandatory pit stops (+25 s each one missing)',
+      '4 mandatory pit stops (+25 s each one missing)',
+    ]);
   });
 
   it('shows the race order with the leader’s lap, gaps, laps down and DNFs', () => {
@@ -138,8 +162,19 @@ describe('Grand Prix panel', () => {
       ['4  Max', 'DNF'],
     ]);
     expect(forKimi.rows[3]!.color).toBe(LIVERIES.grey.body); // left: no livery any more
-    expect(forKimi.hint).toBe('');
-    expect(grandPrixContent(info, PLAYERS, 'p1').hint).toBe('Enter: end the race now');
+    // 8 laps: two mandatory stops, made / required beside every driver still classified.
+    expect(forKimi.rows.map((r) => r.stops)).toEqual([
+      { text: '0/2', short: true },
+      { text: '0/2', short: true },
+      { text: '0/2', short: true },
+      undefined,
+    ]);
+    const rule = '2 mandatory pit stops (+25 s each one missing)';
+    expect(forKimi.hint).toBe(rule);
+    expect(grandPrixContent(info, PLAYERS, 'p1').hint).toBe(`${rule} — Enter: end the race now`);
+    const short = grandPrixContent({ ...info, raceLaps: 3 }, PLAYERS, 'p1');
+    expect(short.rows.every((r) => r.stops === undefined)).toBe(true);
+    expect(short.hint).toBe('Enter: end the race now');
   });
 
   it('marks the drivers in the pit lane: PIT, or BOX while stopped (race and qualifying)', () => {

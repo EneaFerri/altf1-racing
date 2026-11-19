@@ -446,6 +446,33 @@ Details (numbers, look, rules) are decided in each step with the owner.
     apart by the start line and a 240 m limiter round them instead of 1032 m (`pitBoxesAtLine`)
     ([pitlane.md](pitlane.md#results)).
 
+## M — Menus and Grand Prix rules (owner, 2026-11-19)
+
+Singleplayer: Free practice, Time trial (ghost + local records), Test (the bot, F3 open, F2 tuning
+in dev). Multiplayer: Free practice and Grand Prix. Only the real F1 circuits everywhere. GP race
+over 4 / 8 / 12 laps or 1–24 chosen; a mandatory pit stop every 4 laps (at most 4), 25 s per one
+missing. One step at a time, each awaiting the owner's review.
+
+- M.1 (awaiting the owner's review) **F1 circuits only** — Kruncar removed (layout, theme, props,
+  Kruncar-only builders and textures); the Test Ring left only as the tests' fixture (no theme, the
+  classic look removed). `GP_TRACKS` is the game's one list of circuits (`TRACKS` gone).
+- M.2 (awaiting the owner's review) **Singleplayer menu** — mode menu (Free practice, Time trial,
+  Test) before the track menu. Free practice: alone. Time trial: alone with the ghost (moved to
+  `singleplayer/ghost.ts`) and this browser's best lap per circuit (`localRecords.ts`,
+  `localStorage`; shown in the track menu). Test: as before (bot, B) with F3 open from the start;
+  F2, F4, `?pitlane`, `?rain` in dev and in Test only.
+- M.3 (awaiting the owner's review) **Multiplayer = Free practice + Grand Prix** (protocol v16) —
+  online Time trial removed: no private rooms (`roomKey` is `mode/track`), no ghost online, lap
+  records for the Grand Prix only (old time-trial rows left in the database, unread).
+- M.4 (awaiting the owner's review) **Grand Prix laps: 4 / 8 / 12 or 1–24** (protocol v17) — on
+  the grid the manager's 1/2/3 start at once as before; 4 opens any other distance (from 12, ←/→
+  or −/+, Enter starts). The server accepts any whole number from 1 to 24 (`isRaceLaps`).
+- M.5 (awaiting the owner's review) **Mandatory pit stops** — one per 4 laps, rounded down, at
+  most 4 (`race/pitRule.ts`); 25 s per one missing, added to the race time of every classified
+  driver (finishers at the flag; the rest in the results, on their laps), never to a DNF; the
+  order follows. Tower: stops made / required; card: `STOPS` and `PENALTY` columns
+  ([multiplayer.md](multiplayer.md#grand-prix)).
+
 ## Later
 
 - Desktop packaging (Tauri/Electron), assets, audio.

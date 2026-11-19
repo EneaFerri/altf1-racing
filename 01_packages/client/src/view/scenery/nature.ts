@@ -1,18 +1,8 @@
 import * as THREE from 'three';
 import type { Vec2 } from '@altf1/shared';
-import { createBalloonTexture, createWaterTexture } from '../pixelTexture';
-import { polylineRibbon } from '../ribbon';
-import type { Circle } from './placement';
 import { seededRandom } from './placement';
 
-// Low-poly nature for themed tracks: mountains, trees, pines, water, balloons. Flat-shaded, Krunker-style.
-
-const Y_BANK = 0.004;
-const Y_WATER = 0.008;
-/** Metres per water texture repeat. */
-const WATER_TILE = 6;
-/** Dirt bank showing on each side of the water (m). */
-const BANK_WIDTH = 3;
+// Low-poly nature for themed tracks: mountains, trees, pines, volcanoes. Flat-shaded, Krunker-style.
 
 /**
  * A ring (or an `arc`) of big low-poly peaks around `center`, from `radius` outwards, grey unless
@@ -174,55 +164,5 @@ export function createPines(spots: readonly Vec2[], seed: number): THREE.Group {
   });
   const group = new THREE.Group();
   group.add(trunk, crown);
-  return group;
-}
-
-/** A river along `path` ending in a round pond, with dirt banks. Flat, just above the grass. */
-export function createRiver(path: readonly Vec2[], width: number, pond: Circle): THREE.Group {
-  const water = new THREE.MeshLambertMaterial({ map: createWaterTexture() });
-  const bank = new THREE.MeshLambertMaterial({ color: '#5e4a33' });
-  const group = new THREE.Group();
-  group.add(
-    polylineRibbon(path, width + BANK_WIDTH * 2, Y_BANK, bank, WATER_TILE),
-    polylineRibbon(path, width, Y_WATER, water, WATER_TILE),
-  );
-  // CircleGeometry's UVs span 0..1 across the disc: repeat so the pond's pixels match the river's.
-  const pondTexture = createWaterTexture();
-  pondTexture.repeat.set((pond.r * 2) / WATER_TILE, (pond.r * 2) / WATER_TILE);
-  const pondWater = new THREE.MeshLambertMaterial({ map: pondTexture });
-  for (const [radius, y, material] of [
-    [pond.r + BANK_WIDTH, Y_BANK, bank],
-    [pond.r, Y_WATER, pondWater],
-  ] as const) {
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 12), material);
-    disc.rotation.x = -Math.PI / 2;
-    disc.position.set(pond.x, y, pond.z);
-    group.add(disc);
-  }
-  return group;
-}
-
-/** Striped hot-air balloons floating high above the circuit. */
-export function createBalloons(spots: readonly Vec2[], seed: number): THREE.Group {
-  const random = seededRandom(seed);
-  const colours = ['#b9a2e6', '#9fb4e8', '#e8a2c8'];
-  const basket = new THREE.MeshLambertMaterial({ color: '#6b4a2f', flatShading: true });
-  const group = new THREE.Group();
-  spots.forEach((spot, i) => {
-    const balloon = new THREE.Group();
-    const envelope = new THREE.Mesh(
-      new THREE.SphereGeometry(9, 8, 6),
-      new THREE.MeshLambertMaterial({
-        map: createBalloonTexture(colours[i % colours.length]!),
-        flatShading: true,
-      }),
-    );
-    envelope.scale.set(1, 1.2, 1);
-    const box = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2, 2.4), basket);
-    box.position.y = -14;
-    balloon.add(envelope, box);
-    balloon.position.set(spot.x, 70 + random() * 70, spot.z);
-    group.add(balloon);
-  });
   return group;
 }

@@ -35,8 +35,12 @@ export interface ClassificationRow {
   /** Race time (winner), gap, laps down or DNF. */
   readonly gap: string;
   readonly bestLap: string;
-  /** Pit stops made (Phase 4). */
+  /** Pit stops made over the required ones (`1/2`; just `1` when none is required). */
   readonly stops: string;
+  /** Fewer stops than required: drawn red. */
+  readonly stopsShort: boolean;
+  /** The time penalty for the missing stops (`+25 s`), empty without one. */
+  readonly penalty: string;
   /** Holds the fastest lap of the race (purple, F1 style). */
   readonly fastest: boolean;
   /** This player's own row, highlighted. */
@@ -123,7 +127,7 @@ export class ResultsScreen {
 function table(rows: readonly ClassificationRow[]): HTMLElement {
   const root = element('div', 'results-table');
   root.append(
-    ...['POS', 'DRIVER', 'GAP', 'FASTEST LAP', 'STOPS'].map((head) =>
+    ...['POS', 'DRIVER', 'GAP', 'FASTEST LAP', 'STOPS', 'PENALTY'].map((head) =>
       element('span', 'results-head', head),
     ),
   );
@@ -138,7 +142,8 @@ function table(rows: readonly ClassificationRow[]): HTMLElement {
       name,
       element('span', `results-gap${own}`, row.gap),
       element('span', `results-best${own}${row.fastest ? ' results-fastest' : ''}`, row.bestLap),
-      element('span', `results-stops${own}`, row.stops),
+      element('span', `results-stops${own}${row.stopsShort ? ' results-short' : ''}`, row.stops),
+      element('span', 'results-penalty', row.penalty),
     );
   }
   return root;

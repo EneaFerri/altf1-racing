@@ -65,20 +65,6 @@ export function createWetSidewallTexture(size = 16): THREE.Texture {
   });
 }
 
-/** Grass tile with per-pixel colour noise and a darker border, so tiles read as a grid. */
-export function createGroundTexture(size = 16): THREE.Texture {
-  return createPixelTexture(
-    size,
-    (ctx) => {
-      fillNoise(ctx, size, ['#4f9a3a', '#56a540', '#4a9136'], 1);
-      ctx.fillStyle = '#3e7d2e';
-      ctx.fillRect(0, 0, size, 1);
-      ctx.fillRect(0, 0, 1, size);
-    },
-    true,
-  );
-}
-
 /** Body colour and the darker pixels sprinkled on it. */
 export interface Livery {
   readonly body: string;
@@ -248,42 +234,6 @@ export function createSectorBoardTexture(label: string): THREE.Texture {
   return texture;
 }
 
-// ---- Kruncar theme (Krunker-style): see 01_docs/themes.md ----
-
-/** Light grey asphalt with sparse darker and lighter specks, like Krunker's tracks. */
-export function createSpeckledAsphaltTexture(size = 32): THREE.Texture {
-  return createPixelTexture(
-    size,
-    (ctx) => {
-      ctx.fillStyle = '#7c7c80';
-      ctx.fillRect(0, 0, size, size);
-      sprinkle(ctx, size, '#66666b', 0.025, 5);
-      sprinkle(ctx, size, '#8a8a8f', 0.02, 9);
-    },
-    true,
-  );
-}
-
-/** Bright lime grass with blocky darker patches. */
-export function createLimeGrassTexture(size = 32): THREE.Texture {
-  return createPixelTexture(
-    size,
-    (ctx) => {
-      fillNoise(ctx, size, ['#8bbd45', '#86b842', '#8fc149'], 13);
-      const random = seededRandom(17);
-      for (let k = 0; k < 7; k++) {
-        const x = Math.floor(random() * size);
-        const y = Math.floor(random() * size);
-        ctx.fillStyle = k % 2 === 0 ? '#6f9e35' : '#9ccb55';
-        // Small L-shaped blots, like Krunker's grass.
-        ctx.fillRect(x, y, 3, 1);
-        ctx.fillRect(x, y, 1, 2);
-      }
-    },
-    true,
-  );
-}
-
 /** Two brown rails and a post on transparent pixels (use with `alphaTest`): a wooden fence tile. */
 export function createWoodFenceTexture(size = 16): THREE.Texture {
   return createPixelTexture(
@@ -354,18 +304,6 @@ export function createPlankTexture(size = 16): THREE.Texture {
   );
 }
 
-/** Dark teal water with a few lighter ripples. */
-export function createWaterTexture(size = 16): THREE.Texture {
-  return createPixelTexture(
-    size,
-    (ctx) => {
-      fillNoise(ctx, size, ['#2f5a63', '#2b545c', '#33606a'], 29);
-      sprinkle(ctx, size, '#4d7d86', 0.03, 31);
-    },
-    true,
-  );
-}
-
 /**
  * A puddle (wet track): a pale blob mirroring the sky (tint it with the sky's colour), a ragged
  * pixel edge, a few lighter glints and a darker rim; transparent outside the blob (use alphaTest).
@@ -392,27 +330,6 @@ export function createPuddleTexture(size = 16): THREE.Texture {
       }
     }
   });
-}
-
-/** Corner warning board: white chevrons pointing right on red (mirror it for left turns). */
-export function createChevronTexture(): THREE.Texture {
-  const width = 16;
-  return createPixelTexture(
-    width,
-    (ctx) => {
-      ctx.fillStyle = '#c8282a';
-      ctx.fillRect(0, 0, width, 8);
-      ctx.fillStyle = '#f4f4f4';
-      for (const start of [1, 6, 11]) {
-        for (let y = 0; y < 8; y++) {
-          const x = start + (y < 4 ? y : 7 - y);
-          ctx.fillRect(x, y, 2, 1);
-        }
-      }
-    },
-    false,
-    8,
-  );
 }
 
 /** Grandstand seats with a pixel crowd: rows of red seats and people in assorted colours. */
@@ -451,41 +368,6 @@ export function createRoofTexture(size = 16): THREE.Texture {
     },
     true,
   );
-}
-
-/** Weathered vertical wood boards (barn walls). */
-export function createBarnWallTexture(size = 16): THREE.Texture {
-  return createPixelTexture(
-    size,
-    (ctx) => {
-      const boards = ['#6e5338', '#5f4630', '#765a3d'];
-      for (let x = 0; x < size; x += 2) {
-        ctx.fillStyle = boards[(x / 2) % boards.length]!;
-        ctx.fillRect(x, 0, 2, size);
-      }
-      sprinkle(ctx, size, '#4a3624', 0.05, 41);
-    },
-    true,
-  );
-}
-
-/** Hay bale: straw yellow with darker stalks. */
-export function createHayTexture(size = 8): THREE.Texture {
-  return createPixelTexture(size, (ctx) => {
-    fillNoise(ctx, size, ['#e2c97a', '#d8bd6c', '#ead38a'], 43);
-    ctx.fillStyle = '#b89a50';
-    ctx.fillRect(0, size / 2, size, 1);
-  });
-}
-
-/** Hot-air balloon envelope: vertical stripes of `color` and white. */
-export function createBalloonTexture(color: string, size = 8): THREE.Texture {
-  return createPixelTexture(size, (ctx) => {
-    for (let x = 0; x < size; x++) {
-      ctx.fillStyle = x % 2 === 0 ? color : '#f4f4f8';
-      ctx.fillRect(x, 0, 1, size);
-    }
-  });
 }
 
 /** Park grass (Monza): deep green with mown stripes, so the long straights read speed. */

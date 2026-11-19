@@ -1,4 +1,11 @@
-import type { CarId, GrandPrixInfo, PlayerInfo, RaceStanding } from '@altf1/shared';
+import {
+  requiredStops,
+  TICK_RATE,
+  type CarId,
+  type GrandPrixInfo,
+  type PlayerInfo,
+  type RaceStanding,
+} from '@altf1/shared';
 import type { ListMenuItem } from '../view/menu/ListMenu';
 import type { ClassificationRow, PodiumContent, ResultsChoice } from '../view/hud/ResultsScreen';
 import { formatLapTime } from '../view/hud/format';
@@ -34,7 +41,8 @@ export function podiumContent({ race, raceLaps, players }: RaceResult): PodiumCo
 
 /**
  * The classification card for player `ownId`: every driver in race order, gap to the winner (the
- * winner's race time), fastest lap each and who holds the race's fastest one.
+ * winner's race time, the pit penalties included), fastest lap each and who holds the race's
+ * fastest one, stops made / required on the laps each completed and the penalty for any missing.
  */
 export function classificationRows(
   { race, raceLaps, players }: RaceResult,
@@ -43,16 +51,21 @@ export function classificationRows(
   const livery = liveryOf(players);
   const times = race.flatMap((standing) => (standing.best === null ? [] : [standing.best]));
   const fastest = times.length ? Math.min(...times) : null;
-  return race.map((standing, i) => ({
-    position: standing.status === 'dnf' ? '—' : String(i + 1),
-    name: standing.name,
-    color: livery(standing.id).body,
-    gap: raceNote(standing, i, raceLaps),
-    bestLap: standing.best === null ? '—' : formatLapTime(standing.best),
-    stops: String(standing.stops),
-    fastest: standing.best !== null && standing.best === fastest,
-    own: standing.id === ownId,
-  }));
+  return race.map((standing, i) => {
+    const required = requiredStops(standing.laps);
+    return {
+      position: standing.status === 'dnf' ? '—' : String(i + 1),
+      name: standing.name,
+      color: livery(standing.id).body,
+      gap: raceNote(standing, i, raceLaps),
+      bestLap: standing.best === null ? '—' : formatLapTime(standing.best),
+      stops: required > 0 ? `${standing.stops}/${required}` : String(standing.stops),
+      stopsShort: standing.status !== 'dnf' && standing.stops < required,
+      penalty: standing.penalty > 0 ? `+${standing.penalty / TICK_RATE} s` : '',
+      fastest: standing.best !== null && standing.best === fastest,
+      own: standing.id === ownId,
+    };
+  });
 }
 
 /**

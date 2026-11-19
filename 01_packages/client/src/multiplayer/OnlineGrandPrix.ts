@@ -24,8 +24,8 @@ import { classificationRows, playAgainItem, podiumContent, type RaceResult } fro
 
 /**
  * This player's side of a Grand Prix: the panel and the start lights, the manager's keys (Enter:
- * start / end qualifying / end the race; 1–3: race laps; in the lobby of a track with rain, 1/2:
- * dry / rain), the weather handed to the prediction and the view, the start hold handed to the prediction,
+ * start / end qualifying / end the race; on the grid 1–3: race over 4 / 8 / 12 laps, 4: any other
+ * distance, ←/→ to set it, Enter to start; in the lobby of a track with rain, 1/2: dry / rain), the weather handed to the prediction and the view, the start hold handed to the prediction,
  * which car to watch while the own one is off the track, and the results screen (podium, then
  * classification with Play again / Exit). See 01_docs/multiplayer.md#grand-prix.
  */
@@ -38,6 +38,8 @@ export class OnlineGrandPrix {
   /** The Grand Prix as last told by the server; null until then. */
   private info: GrandPrixInfo | null = null;
   private players: readonly PlayerInfo[] = [];
+  /** The manager's own race distance on the grid (key 4, then ←/→); null = not chosen. */
+  private customLaps: number | null = null;
 
   constructor(
     private readonly client: NetClient,
@@ -55,7 +57,9 @@ export class OnlineGrandPrix {
       if (this.onResults) return;
       if (this.info?.phase === 'lobby') this.command({ action: 'start' });
       else if (this.info?.phase === 'qualifying') this.command({ action: 'endQualifying' });
-      else if (this.info?.phase === 'race') this.command({ action: 'endRace' });
+      else if (this.info?.phase === 'grid' && this.customLaps !== null) {
+        this.command({ action: 'startRace', laps: this.customLaps });
+      } else if (this.info?.phase === 'race') this.command({ action: 'endRace' });
     });
     (['choice1', 'choice2', 'choice3'] as const).forEach((key, i) =>
       controller.onAction(key, () => {
@@ -67,6 +71,24 @@ export class OnlineGrandPrix {
         }
       }),
     );
+    controller.onAction('choice4', () => {
+      if (this.onResults || !this.choosingLaps) return;
+      this.customLaps ??= GRAND_PRIX.customLaps.start;
+      this.show();
+    });
+    (['lapsDown', 'lapsUp'] as const).forEach((key, i) =>
+      controller.onAction(key, () => {
+        if (this.onResults || !this.choosingLaps || this.customLaps === null) return;
+        const { min, max } = GRAND_PRIX.customLaps;
+        this.customLaps = Math.min(max, Math.max(min, this.customLaps + (i === 0 ? -1 : 1)));
+        this.show();
+      }),
+    );
+  }
+
+  /** Whether this player is the manager with the cars on the grid: the race distance is theirs. */
+  private get choosingLaps(): boolean {
+    return this.info?.phase === 'grid' && this.info.manager === this.playerId;
   }
 
   /** Whether this circuit's GP may be run in the rain (the manager's 1/2 in the lobby). */
@@ -82,6 +104,7 @@ export class OnlineGrandPrix {
       info.drivers.includes(this.playerId);
     if (info.weather !== this.info?.weather) this.scene.setWeather(info.weather);
     this.info = info;
+    if (!this.choosingLaps) this.customLaps = null; // a new grid starts from the presets
     this.predictor.hold = info.hold;
     this.predictor.setDamage(damageInPhase(info.phase));
     this.predictor.setPitBoxes(info.boxes);
@@ -157,7 +180,14 @@ export class OnlineGrandPrix {
   private show(): void {
     if (this.info) {
       this.panel.show(
-        grandPrixContent(this.info, this.players, this.playerId, this.pits, this.canRain),
+        grandPrixContent(
+          this.info,
+          this.players,
+          this.playerId,
+          this.pits,
+          this.canRain,
+          this.customLaps,
+        ),
       );
     }
   }

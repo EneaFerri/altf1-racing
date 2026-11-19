@@ -43,6 +43,11 @@ export const ACTION_KEYS = {
   choice1: ['Digit1', 'Numpad1'],
   choice2: ['Digit2', 'Numpad2'],
   choice3: ['Digit3', 'Numpad3'],
+  /** Grand Prix manager on the grid: choose any other race distance (then ←/→ and Enter). */
+  choice4: ['Digit4', 'Numpad4'],
+  /** Grand Prix manager on the grid, choosing the distance: one lap fewer / more. */
+  lapsDown: ['ArrowLeft', 'Minus', 'NumpadSubtract'],
+  lapsUp: ['ArrowRight', 'Equal', 'NumpadAdd'],
   /** Leave the race and go back to the track menu. */
   backToMenu: ['Escape'],
   /** Dev only: park the dummy car in front of the player. */

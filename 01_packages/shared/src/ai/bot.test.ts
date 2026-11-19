@@ -18,7 +18,6 @@ import { buildTrack } from '../track/buildTrack';
 import { locateOnTrack } from '../track/query';
 import {
   BARCELONA,
-  KRUNCAR,
   LAS_VEGAS,
   MEXICO,
   MONACO,
@@ -26,7 +25,7 @@ import {
   SAO_PAULO,
   SINGAPORE,
   TEST_TRACK,
-  TRACKS,
+  GP_TRACKS,
 } from '../track/layouts';
 import type { Track } from '../track/types';
 import { botInput, NEW_BOT_MEMORY } from './driver';
@@ -47,7 +46,7 @@ interface Run {
   readonly wallHits: number;
   /** Ticks with a wheel on grass or gravel. */
   readonly offTicks: number;
-  /** Ticks spent on a branch (e.g. Kruncar's shortcut). */
+  /** Ticks spent on a branch (e.g. a pit lane). */
   readonly branchTicks: number;
 }
 
@@ -85,7 +84,7 @@ function drive(
 const bestLapSeconds = (run: Run): number => findLap(run.state, 'bot')!.bestLap!.ticks / TICK_RATE;
 
 /** Every level on every track, long enough for at least two timed laps on Easy. */
-const runsByTrack = TRACKS.map((definition) => {
+const runsByTrack = [TEST_TRACK, ...GP_TRACKS].map((definition) => {
   const on = buildTrack(definition);
   const seconds = (on.length / track.length) * 130;
   const runs = Object.fromEntries(
@@ -93,7 +92,6 @@ const runsByTrack = TRACKS.map((definition) => {
   ) as Record<BotLevel, Run>;
   return { name: definition.name, runs };
 });
-const kruncar = runsByTrack.find((t) => t.name === KRUNCAR.name)!.runs;
 const monza = runsByTrack.find((t) => t.name === MONZA.name)!.runs;
 const barcelona = runsByTrack.find((t) => t.name === BARCELONA.name)!.runs;
 const monaco = runsByTrack.find((t) => t.name === MONACO.name)!.runs;
@@ -206,12 +204,6 @@ describe('bot', () => {
     expect(run.branchTicks).toBe(0);
     expect(run.wallHits).toBe(0);
     expect(findLap(run.state, 'bot')!.laps).toBeGreaterThanOrEqual(1);
-  });
-
-  it('takes the Kruncar shortcut on hard only', () => {
-    expect(kruncar.hard.branchTicks).toBeGreaterThan(20 * TICK_RATE);
-    expect(kruncar.medium.branchTicks).toBeLessThan(TICK_RATE);
-    expect(kruncar.easy.branchTicks).toBeLessThan(TICK_RATE);
   });
 
   it('keeps its racing line inside the asphalt', () => {

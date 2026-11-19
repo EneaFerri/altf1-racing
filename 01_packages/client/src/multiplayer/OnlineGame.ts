@@ -4,7 +4,7 @@ import {
   NEUTRAL_INPUT,
   onlineSimContext,
   TICK_RATE,
-  TRACKS,
+  GP_TRACKS,
   type InputCommand,
   type OnlineMode,
   type PlayerInfo,
@@ -20,7 +20,6 @@ import { Minimap } from '../view/hud/Minimap';
 import { playerLivery } from '../view/pixelTexture';
 import { SceneView } from '../view/SceneView';
 import type { TrackTheme } from '../view/themes/theme';
-import { Ghost } from './ghost';
 import type { NetClient } from './NetClient';
 import { OnlineGrandPrix } from './OnlineGrandPrix';
 import { Predictor } from './Predictor';
@@ -32,7 +31,7 @@ const PING_EVERY_TICKS = TICK_RATE;
 
 /** A track by the name the server uses; null if this game doesn't know it. */
 export function trackByName(name: string): TrackDefinition | null {
-  return TRACKS.find((track) => track.name === name) ?? null;
+  return GP_TRACKS.find((track) => track.name === name) ?? null;
 }
 
 /**
@@ -48,8 +47,6 @@ export class OnlineGame {
   private readonly minimap: Minimap;
   /** F3 telemetry; none in a Grand Prix, where its corner belongs to the race panel. */
   private readonly debugOverlay: DebugOverlay | null;
-  /** Time trial only: the own best lap, raced as a see-through car. */
-  private readonly ghost: Ghost | null;
   /** Grand Prix only: panel, lights, the manager's keys, spectating. */
   private readonly grandPrix: OnlineGrandPrix | null;
   private lastInput: InputCommand = NEUTRAL_INPUT;
@@ -72,7 +69,6 @@ export class OnlineGame {
     theme: TrackTheme,
   ) {
     this.playerId = playerId;
-    this.ghost = mode === 'timeTrial' ? new Ghost(playerId) : null;
     // Only the Grand Prix drives the pit lane (Phase 4), like the server's room.
     const built = buildTrack(track, { pitLane: mode === 'grandPrix' });
     this.predictor = new Predictor(playerId, onlineSimContext(built));
@@ -126,7 +122,6 @@ export class OnlineGame {
     }
     this.client.send({ type: 'input', seq: this.nextSeq, input: this.lastInput });
     this.predictor.step(this.nextSeq++, this.lastInput);
-    if (this.ghost && this.predictor.current) this.ghost.record(this.predictor.current);
   }
 
   private render(alpha: number, frameSeconds: number): void {
@@ -140,8 +135,6 @@ export class OnlineGame {
     this.hud.setVisible(car !== undefined);
     this.grandPrix?.render(curr);
     this.view.setLookBack(this.controller.isHeld('lookBack'));
-    // The ghost runs on the lap's clock, at the same in-between tick as the cars.
-    this.view.setGhost(this.ghost?.frameAt(prev.tick + (curr.tick - prev.tick) * alpha) ?? null);
     this.view.render(prev, curr, alpha, frameSeconds);
     this.hud.update(curr, this.playerId, performance.now());
     this.minimap.update(curr.cars, this.playerId);

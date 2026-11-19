@@ -64,8 +64,7 @@ between them, so motion is smooth at any refresh rate even though the Model tick
   gantries from the same compiled `Track` the physics uses.
 - **Themes** (`view/themes/`): sky, light, ground, asphalt, kerb colours, wall style and scenery per
   track (`loadTheme(track.name)`, loaded on demand: each theme is its own chunk of the production
-  build, fetched once the track is chosen; Kruncar and the real circuits have their own, other
-  tracks the classic look). Scenery builders in `view/scenery/`. Details: [themes.md](themes.md).
+  build, fetched once the track is chosen; every circuit has its own). Scenery builders in `view/scenery/`. Details: [themes.md](themes.md).
 - **HUD** (`view/hud/Hud.ts` + `hud.css`): F1-style timing strip at the top centre (lap, running time,
   sector bars, last/best, speed, SLIP bar + % of slipstream, bot level) with a sector-gap chip; always on. The F3 debug overlay stays top left.
   Details: [laps.md](laps.md#hud-top-centre).
@@ -106,11 +105,16 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 
 - `main.ts` shows the **start screen** (`view/menu/ModeMenu.ts`): **Singleplayer / Multiplayer**,
   then loads only the chosen mode with a dynamic `import()`:
-  - `singleplayer/start.ts` → the **track menu** (`view/menu/TrackMenu.ts`): every entry of
-    `TRACKS` (`shared/src/track/layouts/index.ts`) with its length. The chosen `TrackDefinition` goes
-    to `new SinglePlayerGame(track)`, which builds the `Track` and everything that depends on it.
-  - `multiplayer/start.ts` → the **nickname screen**, then the **circuit choice** (Monza,
-    Barcelona, Monaco) and the **online race** (`OnlineGame`) in that circuit's room, over a WebSocket to the multiplayer server
+  - `singleplayer/start.ts` → the **mode menu** (M.2: Free practice, Time trial, Test), then the
+    **track menu** (`view/menu/TrackMenu.ts`): every circuit of `GP_TRACKS`
+    (`shared/src/track/layouts/index.ts`: the real F1 circuits only) with its length, or in time
+    trial this browser's best lap there (`singleplayer/localRecords.ts`). The chosen
+    `TrackDefinition` and mode go to `new SinglePlayerGame(track, theme, mode, records)`, which
+    builds the `Track` and everything that depends on it. Free practice and time trial: the
+    player's car alone (time trial: `singleplayer/ghost.ts`, valid laps saved as records). Test:
+    the bot (B), F3 open, and in dev the F2 panel, the F4 dummy, `?pitlane`, `?rain`.
+  - `multiplayer/start.ts` → the **nickname screen**, then the **mode** (Free practice, Grand
+    Prix) and **circuit choice** and the **online race** (`OnlineGame`) in that circuit's room, over a WebSocket to the multiplayer server
     (`01_packages/server`). Details: [multiplayer.md](multiplayer.md).
 - Every menu is a `ListMenu` (`view/menu/ListMenu.ts` + `menu.css`): mouse, or W/S (↑/↓) + Enter;
   Esc in the track menu goes back to the start screen. Optional `content` above the rows and

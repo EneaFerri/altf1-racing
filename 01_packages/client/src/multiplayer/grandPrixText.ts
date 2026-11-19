@@ -1,5 +1,6 @@
 import {
   GRAND_PRIX,
+  requiredStops,
   type CarId,
   type GrandPrixInfo,
   type LapState,
@@ -14,9 +15,11 @@ import { LIVERIES, playerLivery } from '../view/pixelTexture';
  * The Grand Prix panel for player `ownId`, by phase: the drivers (arrival order in the lobby, then
  * the qualifying order, which becomes the starting grid, then the race order with the gaps) and
  * what this player can do or is waiting for. The manager's keys: Enter (start, end qualifying,
- * end the race), 1/2/3 (race laps); in the lobby of a track that offers the rain (`canRain`), 1/2
- * (dry, rain). `pits`: the drivers in the pit lane now (PIT, BOX while stopped), shown beside them
- * in qualifying and the race. The title says RAIN in a wet GP (and DRY in such a lobby).
+ * end the race), 1/2/3 (race laps), on the grid 4 then ←/→ and Enter (any other distance:
+ * `customLaps`, the manager's choice so far, null until 4); in the lobby of a track that offers
+ * the rain (`canRain`), 1/2 (dry, rain). `pits`: the drivers in the pit lane now (PIT, BOX while
+ * stopped), shown beside them in qualifying and the race; in a race with mandatory pit stops each
+ * driver's stops made / required. The title says RAIN in a wet GP (and DRY in such a lobby).
  */
 export function grandPrixContent(
   info: GrandPrixInfo,
@@ -24,8 +27,9 @@ export function grandPrixContent(
   ownId: CarId,
   pits: ReadonlyMap<CarId, PitBadge> = new Map(),
   canRain = false,
+  customLaps: number | null = null,
 ): GrandPrixContent {
-  const content = phaseContent(info, players, ownId, pits, canRain);
+  const content = phaseContent(info, players, ownId, pits, canRain, customLaps);
   const weather =
     info.weather === 'rain' ? ' · RAIN' : canRain && info.phase === 'lobby' ? ' · DRY' : '';
   return leftOut(info, ownId) ? content : { ...content, title: content.title + weather };
@@ -42,6 +46,7 @@ function phaseContent(
   ownId: CarId,
   pits: ReadonlyMap<CarId, PitBadge>,
   canRain: boolean,
+  customLaps: number | null,
 ): GrandPrixContent {
   const byId = new Map(players.map((p) => [p.id, p]));
   const pitOf = (id: CarId) => {
@@ -114,13 +119,20 @@ function phaseContent(
         rows: info.qualifying.flatMap((entry, i) =>
           row(entry.id, `P${i + 1}  ${byId.get(entry.id)?.nickname ?? ''}`, time(entry.best)),
         ),
-        hint: isManager
-          ? `Start the race — ${choices}`
-          : `Waiting for ${manager} to start the race`,
+        hint: !isManager
+          ? `Waiting for ${manager} to start the race`
+          : customLaps === null
+            ? `Start the race — ${choices} · 4: other`
+            : [`Race over ◀ ${customLaps} laps ▶ (←/→)`, stopsNote(customLaps)]
+                .filter(Boolean)
+                .join(' · ') + ' — Enter: start',
       };
     }
     case 'race':
     case 'results': {
+      const required = requiredStops(info.raceLaps!);
+      const stopsOf = (stops: number) =>
+        required > 0 ? { stops: { text: `${stops}/${required}`, short: stops < required } } : {};
       const own = info.race.find((standing) => standing.id === ownId);
       const done = own?.status === 'finished' ? 'Finished — watching the others' : '';
       // A driver who left is no longer in `players`: drawn grey, by the name the server kept.
@@ -132,17 +144,31 @@ function phaseContent(
           note: raceNote(standing, i, info.raceLaps!),
           own: standing.id === ownId,
           ...(info.phase === 'race' && pitOf(standing.id)),
+          ...(standing.status !== 'dnf' && stopsOf(standing.stops)),
           ...fastestOf(standing.id),
         };
       });
       if (info.phase === 'results') return { title: 'GRAND PRIX · RESULTS', rows, hint: '' };
+      const rule = stopsNote(info.raceLaps!);
       return {
         title: `GRAND PRIX · RACE · ${info.raceLaps} LAPS`,
         rows,
-        hint: isManager ? [done, 'Enter: end the race now'].filter(Boolean).join(' — ') : done,
+        hint: [done, rule, isManager ? 'Enter: end the race now' : ''].filter(Boolean).join(' — '),
       };
     }
   }
+}
+
+/**
+ * The mandatory pit stops of a race over `laps` laps, as `2 mandatory pit stops (+25 s each one
+ * missing)`; empty when none is required.
+ */
+export function stopsNote(laps: number): string {
+  const required = requiredStops(laps);
+  if (required === 0) return '';
+  const plural = required > 1 ? 's' : '';
+  const penalty = GRAND_PRIX.pitRule.penaltySeconds;
+  return `${required} mandatory pit stop${plural} (+${penalty} s each one missing)`;
 }
 
 /**

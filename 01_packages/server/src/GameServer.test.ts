@@ -60,7 +60,7 @@ function inRoom(
   return conn;
 }
 
-const MONZA_PRACTICE = roomKey('practice', 'Monza', 'p1');
+const MONZA_PRACTICE = roomKey('practice', 'Monza');
 
 /** One second of real time (four calls: advance never simulates more than 0.25 s at once). */
 function oneSecond(server: GameServer): void {
@@ -75,7 +75,7 @@ describe('GameServer — lobby', () => {
       {
         type: 'welcome',
         playerId: 'p2',
-        rooms: ['practice', 'timeTrial', 'grandPrix'].flatMap((mode) =>
+        rooms: ['practice', 'grandPrix'].flatMap((mode) =>
           GP_TRACKS.map(({ name: track }) => ({
             mode,
             track,
@@ -83,9 +83,7 @@ describe('GameServer — lobby', () => {
             status: 'open',
           })),
         ),
-        records: ['timeTrial', 'grandPrix'].flatMap((mode) =>
-          GP_TRACKS.map(({ name: track }) => ({ mode, track, records: [] })),
-        ),
+        records: GP_TRACKS.map(({ name: track }) => ({ mode: 'grandPrix', track, records: [] })),
       },
     ]);
   });
@@ -183,37 +181,13 @@ describe('GameServer — rooms', () => {
     server.close(new FakeConnection()); // a socket that never joined: nothing happens
   });
 
-  it('gives every time-trial player a private room, counted together per circuit', () => {
-    const server = new GameServer();
-    const enea = inRoom(server, 'Enea', 'Monza', 'timeTrial');
-    const kimi = inRoom(server, 'Kimi', 'Monza', 'timeTrial');
-    inRoom(server, 'Lewis', 'Monza'); // practice: another room again
-    expect([...server.rooms.keys()]).toEqual([
-      roomKey('timeTrial', 'Monza', 'p1'),
-      roomKey('timeTrial', 'Monza', 'p2'),
-      MONZA_PRACTICE,
-    ]);
-    expect(kimi.last('entered')).toMatchObject({ players: [{ nickname: 'Kimi' }] });
-    expect(enea.count('players')).toBe(0); // nobody joins a private room
-    oneSecond(server);
-    const snapshot = kimi.last('snapshot');
-    expect(snapshot?.type === 'snapshot' && snapshot.state.cars.map((c) => c.id)).toEqual(['p2']);
-    expect(joined(server, 'Max').last('welcome')).toMatchObject({
-      rooms: expect.arrayContaining([
-        { mode: 'timeTrial', track: 'Monza', players: 2, status: 'open' },
-      ]),
-    });
-    server.close(enea);
-    expect(server.rooms.has(roomKey('timeTrial', 'Monza', 'p1'))).toBe(false);
-  });
-
   it('simulates each live room at 60 Hz with a snapshot every other tick', () => {
     const server = new GameServer();
     const enea = inRoom(server, 'Enea', 'Barcelona');
     const waiting = joined(server, 'Kimi'); // joined, no room yet: no snapshots
     server.message(enea, input(1));
     oneSecond(server);
-    expect(server.rooms.get(roomKey('practice', 'Barcelona', 'p1'))!.state.tick).toBe(60);
+    expect(server.rooms.get(roomKey('practice', 'Barcelona'))!.state.tick).toBe(60);
     expect(enea.count('snapshot')).toBe(60 / SNAPSHOT_EVERY_TICKS);
     expect(waiting.count('snapshot')).toBe(0);
     const snapshot = enea.last('snapshot');
@@ -224,7 +198,7 @@ describe('GameServer — rooms', () => {
     expect(snapshot.inputs).toEqual({ [car.id]: { ...NEUTRAL_INPUT, throttle: 1 } }); // repeated
     // Rounded, and the very state the room goes on from (the client predicts from it).
     expect(snapshot.state).toEqual(quantizeState(snapshot.state));
-    expect(snapshot.state).toEqual(server.rooms.get(roomKey('practice', 'Barcelona', 'p1'))!.state);
+    expect(snapshot.state).toEqual(server.rooms.get(roomKey('practice', 'Barcelona'))!.state);
   });
 
   it('answers a ping with a pong, only once joined', () => {
@@ -281,7 +255,7 @@ describe('GameServer — Grand Prix', () => {
     });
     server.message(late, enter('Monza', 'grandPrix'));
     expect(late.received.at(-1)).toEqual({ type: 'refused', reason: 'inProgress' });
-    expect(server.rooms.get(roomKey('grandPrix', 'Monza', 'p3'))!.has('p3')).toBe(false);
+    expect(server.rooms.get(roomKey('grandPrix', 'Monza'))!.has('p3')).toBe(false);
     server.message(late, enter('Monaco', 'grandPrix')); // still free to go elsewhere
     expect(late.last('entered')).toMatchObject({ track: 'Monaco' });
   });
@@ -293,11 +267,11 @@ describe('GameServer — Grand Prix', () => {
     inRoom(server, 'Max', 'São Paulo'); // free practice there: no Grand Prix, no manager
     const rain = encodeMessage({ type: 'gp', action: 'weather', weather: 'rain' });
     server.message(kimi, rain); // not the manager
-    expect(server.rooms.get(roomKey('grandPrix', 'São Paulo', 'p1'))!.weather).toBe('dry');
+    expect(server.rooms.get(roomKey('grandPrix', 'São Paulo'))!.weather).toBe('dry');
     server.message(enea, rain);
     expect(kimi.last('grandPrix')).toMatchObject({ phase: 'lobby', weather: 'rain' });
-    expect(server.rooms.get(roomKey('grandPrix', 'São Paulo', 'p1'))!.weather).toBe('rain');
-    expect(server.rooms.get(roomKey('practice', 'São Paulo', 'p3'))!.weather).toBe('dry');
+    expect(server.rooms.get(roomKey('grandPrix', 'São Paulo'))!.weather).toBe('rain');
+    expect(server.rooms.get(roomKey('practice', 'São Paulo'))!.weather).toBe('dry');
   });
 
   it('never rains on a Grand Prix whose track does not offer it', () => {
@@ -305,7 +279,7 @@ describe('GameServer — Grand Prix', () => {
     const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
     server.message(enea, encodeMessage({ type: 'gp', action: 'weather', weather: 'rain' }));
     expect(enea.last('grandPrix')).toMatchObject({ weather: 'dry' });
-    expect(server.rooms.get(roomKey('grandPrix', 'Monza', 'p1'))!.weather).toBe('dry');
+    expect(server.rooms.get(roomKey('grandPrix', 'Monza'))!.weather).toBe('dry');
   });
 
   it('hands the manager role on when the manager leaves, and resets with the room', () => {
@@ -324,7 +298,7 @@ describe('GameServer — Grand Prix', () => {
     const server = new GameServer();
     const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
     const kimi = inRoom(server, 'Kimi', 'Monza', 'grandPrix');
-    const room = server.rooms.get(roomKey('grandPrix', 'Monza', 'p1'))!;
+    const room = server.rooms.get(roomKey('grandPrix', 'Monza'))!;
     server.message(kimi, input(1));
     oneSecond(server); // lobby: free driving
     server.message(enea, start);
@@ -343,7 +317,7 @@ describe('GameServer — Grand Prix', () => {
     const server = new GameServer();
     const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
     const kimi = inRoom(server, 'Kimi', 'Monza', 'grandPrix');
-    const room = server.rooms.get(roomKey('grandPrix', 'Monza', 'p1'))!;
+    const room = server.rooms.get(roomKey('grandPrix', 'Monza'))!;
     const gp = (action: 'endQualifying' | 'endRace' | 'playAgain'): string =>
       encodeMessage({ type: 'gp', action });
     server.message(enea, start);
@@ -352,7 +326,7 @@ describe('GameServer — Grand Prix', () => {
     server.message(enea, gp('endRace'));
     expect(kimi.last('grandPrix')).toMatchObject({ phase: 'results' });
     server.message(joined(server, 'Max'), enter('Monza', 'grandPrix'));
-    expect(server.rooms.get(roomKey('grandPrix', 'Monza', 'p1'))!.has('p3')).toBe(false);
+    expect(server.rooms.get(roomKey('grandPrix', 'Monza'))!.has('p3')).toBe(false);
     server.message(kimi, gp('playAgain'));
     expect(enea.last('grandPrix')).toMatchObject({
       phase: 'lobby',
@@ -402,15 +376,16 @@ function recordsServer(): { server: GameServer; records: LapRecords; log: string
 }
 
 describe('GameServer — lap records', () => {
-  it('records a valid time-trial lap and sends the boards in the welcome', () => {
+  it('records a valid Grand Prix lap and sends the boards in the welcome', () => {
     const { server, log } = recordsServer();
-    inRoom(server, 'Enea', 'Monza', 'timeTrial');
-    lapOnNextTick(server.rooms.get(roomKey('timeTrial', 'Monza', 'p1'))!, 'p1', 4860);
+    const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
+    server.message(enea, encodeMessage({ type: 'gp', action: 'start' }));
+    lapOnNextTick(server.rooms.get(roomKey('grandPrix', 'Monza'))!, 'p1', 4860);
     server.advance(FIXED_DT);
-    expect(log.at(-1)).toBe('[records] timeTrial/Monza: Enea 81.000 s (P1)');
+    expect(log.at(-1)).toBe('[records] grandPrix/Monza: Enea 81.000 s (P1)');
     const welcome = joined(server, 'Kimi').last('welcome');
     expect(welcome?.type === 'welcome' && welcome.records).toContainEqual({
-      mode: 'timeTrial',
+      mode: 'grandPrix',
       track: 'Monza',
       records: [{ nickname: 'Enea', ticks: 4860, setAt: SET_AT.toISOString() }],
     });
@@ -418,14 +393,15 @@ describe('GameServer — lap records', () => {
 
   it('ignores invalid laps, Free practice and the Grand Prix lobby', () => {
     const { server, records } = recordsServer();
-    inRoom(server, 'Enea', 'Monza', 'timeTrial');
-    lapOnNextTick(server.rooms.get(roomKey('timeTrial', 'Monza', 'p1'))!, 'p1', 4860, false);
+    const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
+    server.message(enea, encodeMessage({ type: 'gp', action: 'start' }));
+    lapOnNextTick(server.rooms.get(roomKey('grandPrix', 'Monza'))!, 'p1', 4860, false);
     server.advance(FIXED_DT);
     inRoom(server, 'Kimi', 'Monaco');
-    lapOnNextTick(server.rooms.get(roomKey('practice', 'Monaco', 'p2'))!, 'p2', 4860);
+    lapOnNextTick(server.rooms.get(roomKey('practice', 'Monaco'))!, 'p2', 4860);
     server.advance(FIXED_DT);
     inRoom(server, 'Max', 'Barcelona', 'grandPrix');
-    lapOnNextTick(server.rooms.get(roomKey('grandPrix', 'Barcelona', 'p3'))!, 'p3', 4860);
+    lapOnNextTick(server.rooms.get(roomKey('grandPrix', 'Barcelona'))!, 'p3', 4860);
     server.advance(FIXED_DT);
     expect(records.boards().every((board) => board.records.length === 0)).toBe(true);
   });
@@ -434,12 +410,11 @@ describe('GameServer — lap records', () => {
     const { server, records } = recordsServer();
     const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
     server.message(enea, encodeMessage({ type: 'gp', action: 'start' }));
-    lapOnNextTick(server.rooms.get(roomKey('grandPrix', 'Monza', 'p1'))!, 'p1', 4900);
+    lapOnNextTick(server.rooms.get(roomKey('grandPrix', 'Monza'))!, 'p1', 4900);
     server.advance(FIXED_DT);
     expect(records.board('grandPrix', 'Monza')).toEqual([
       { nickname: 'Enea', ticks: 4900, setAt: SET_AT.toISOString() },
     ]);
-    expect(records.board('timeTrial', 'Monza')).toEqual([]);
   });
 });
 
@@ -460,12 +435,11 @@ describe('finishedLaps', () => {
 });
 
 describe('GameServer — damage (Phase 4)', () => {
-  it('has damage only in a Grand Prix, from qualifying on; Free practice and Time trial never', () => {
+  it('has damage only in a Grand Prix, from qualifying on; Free practice never', () => {
     const server = new GameServer();
     inRoom(server, 'Enea', 'Monza');
-    inRoom(server, 'Kimi', 'Monza', 'timeTrial');
     const max = inRoom(server, 'Max', 'Monza', 'grandPrix');
-    const grandPrix = server.rooms.get(roomKey('grandPrix', 'Monza', 'p3'))!;
+    const grandPrix = server.rooms.get(roomKey('grandPrix', 'Monza'))!;
     server.advance(FIXED_DT);
     expect(grandPrix.damage).toBe(false); // the lobby
     server.message(max, encodeMessage({ type: 'gp', action: 'start' }));

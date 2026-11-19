@@ -30,15 +30,9 @@ export interface Connection {
 /** Close code for a rejected hello (WebSocket "policy violation"). */
 export const REJECT_CLOSE_CODE = 1008;
 
-/** Modes where every player drives alone: a private room each (time trial). */
-const PRIVATE_MODES: readonly OnlineMode[] = ['timeTrial'];
-
-/**
- * Key of `player`'s room for `mode` on `track` in `GameServer.rooms`: shared by everyone on that
- * circuit (`practice/Monza`), or the player's own in a private mode (`timeTrial/Monza/p3`).
- */
-export function roomKey(mode: OnlineMode, track: string, player: CarId): string {
-  return PRIVATE_MODES.includes(mode) ? `${mode}/${track}/${player}` : `${mode}/${track}`;
+/** Key of the room of `mode` on `track` in `GameServer.rooms`, shared by everyone there (`practice/Monza`). */
+export function roomKey(mode: OnlineMode, track: string): string {
+  return `${mode}/${track}`;
 }
 
 /** Longest stretch of real time simulated at once; after a stall we skip time, like the client. */
@@ -54,8 +48,8 @@ interface Member {
 
 /**
  * The multiplayer server's logic: the lobby (nicknames), one room per mode and track in
- * `GP_TRACKS`, or one per player in a private mode (created when its first player enters, closed
- * when its last one leaves) and the messages between
+ * `GP_TRACKS` (created when its first player enters, closed when its last one leaves) and the
+ * messages between
  * them and the clients. No sockets and no timers, so it is fully testable.
  * See 01_docs/multiplayer.md#server.
  */
@@ -148,10 +142,7 @@ export class GameServer {
     }
   }
 
-  /**
-   * Every offered room (modes × tracks) with how many players are in it now; for a private
-   * mode, how many are driving it on that circuit, each alone.
-   */
+  /** Every offered room (modes × tracks) with how many players are in it now. */
   roomList(): RoomInfo[] {
     const members = [...this.members.values()];
     return ONLINE_MODES.flatMap((mode) =>
@@ -159,8 +150,7 @@ export class GameServer {
         mode,
         track,
         players: members.filter((m) => m.room?.mode === mode && m.room.track === track).length,
-        // A Grand Prix room is shared, so its key needs no player.
-        status: this.grandPrix.get(roomKey(mode, track, ''))?.isOpen === false ? 'running' : 'open',
+        status: this.grandPrix.get(roomKey(mode, track))?.isOpen === false ? 'running' : 'open',
       })),
     );
   }
@@ -191,7 +181,7 @@ export class GameServer {
     const definition = GP_TRACKS.find((t) => t.name === track);
     // Not offered (unknown track): ignored, like any malformed message.
     if (!definition) return;
-    const key = roomKey(mode, track, member.id);
+    const key = roomKey(mode, track);
     if (this.grandPrix.get(key)?.isOpen === false) {
       conn.send(encodeMessage({ type: 'refused', reason: 'inProgress' }));
       return;

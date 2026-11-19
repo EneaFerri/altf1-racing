@@ -4,9 +4,8 @@ import type { GhostPose } from '../view/SceneView';
 /**
  * Time trial's ghost: the own car's best valid lap of the session, replayed in step with the
  * current lap. Records the car at every tick of the lap being driven; when a valid lap ends faster
- * than the ghost (or there is none yet), that recording becomes the ghost. Fed with the predicted
- * world, re-recording a tick the prediction redid. Pure: no view, no clock.
- * See 01_docs/multiplayer.md#modes-23.
+ * than the ghost (or there is none yet), that recording becomes the ghost. Fed the world after
+ * every tick. Pure: no view, no clock. Single player's time trial (01_docs/architecture.md).
  */
 export class Ghost {
   /** The best lap: the car at each of its ticks from the start; null before the first valid lap. */
@@ -20,7 +19,7 @@ export class Ghost {
 
   constructor(private readonly carId: CarId) {}
 
-  /** Takes the newest predicted state: records the car, and keeps a finished lap if it's the best. */
+  /** Takes the world after a tick: records the car, and keeps a finished lap if it's the best. */
   record(state: GameState): void {
     const lap = findLap(state, this.carId);
     const car = findCar(state, this.carId);
@@ -37,11 +36,6 @@ export class Ghost {
       this.recording = [];
     }
     if (this.lapStart === null) return;
-    const index = state.tick - this.lapStart;
-    if (index < 0) return;
-    // A tick the prediction skipped repeats the last one; a tick it redid replaces what followed.
-    while (this.recording.length < index) this.recording.push(this.recording.at(-1) ?? car);
-    this.recording.length = index;
     this.recording.push(car);
   }
 

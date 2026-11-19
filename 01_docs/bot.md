@@ -54,15 +54,14 @@ the simulation through `SimContext.carParamsById` (any car can drive its own `Ca
 | `lineCut`     | 0.4  | 1      | 1    | Share of the usable width the racing line may use            |
 | `topSpeed`    | 0.75 | 1      | 1    | × `maxSpeed` allowed anywhere                                |
 | `performance` | 1    | 1      | 1.03 | × the car's `engineAccel` and `maxSpeed` vs the player's     |
-| `shortcuts`   | no   | no     | yes  | Drives the track's first branch (Kruncar's zigzag shortcut)  |
+| `shortcuts`   | no   | no     | yes  | Drives the track's first branch (no circuit has one now)     |
 
 - `cornerSpeed` above 1 is fine: the estimate ignores slip, so the car can really carry more.
 
 ## Measured behaviour (bot alone)
 
-**Test Ring and Kruncar** are early test maps: measured with baseline v2 and frozen as they are
-(owner's rule: their track, bots and look are never re-tuned). With v3 (`maxSpeed` 95) the Hard bot
-laps them faster (Kruncar ~42 s, Test Ring Medium ~29.6 s); no test checks their lap times.
+**Test Ring** is the tests' fixture (not in the game since step M.1): measured with baseline v2 and
+frozen as it is; with v3 (`maxSpeed` 95) Medium laps it in ~29.6 s; no test checks its lap times.
 
 ### Test Ring
 
@@ -71,17 +70,6 @@ laps them faster (Kruncar ~42 s, Test Ring Medium ~29.6 s); no test checks their
 | Hard   | 31.35 s | Medium's driving with the +3% car                                |
 | Medium | 31.95 s | The whole width                                                  |
 | Easy   | 38.15 s | +19% on Medium (`cornerSpeed` 0.5 since `maxYawRate` became 2.7) |
-
-### Kruncar
-
-| Level  | Lap     | Road                                                      |
-| ------ | ------- | --------------------------------------------------------- |
-| Hard   | 44.55 s | Zigzag shortcut (owner's target ~45 s); never a wheel off |
-| Medium | 44.98 s | Wide road                                                 |
-| Easy   | 56.58 s | Wide road                                                 |
-
-Without drift the zigzag shortcut barely pays off for the bot: Hard is only 0.4 s ahead of Medium
-on the wide road (its line keeps to the middle of the narrow zigzag).
 
 ### Real circuits
 
@@ -97,8 +85,8 @@ all levels' laps and sectors vs reality: [circuits.md](circuits.md).
 When editing a track, re-run the bot tests: they catch a layout the bots can't lap cleanly (wheels on
 the grass, walls) and the real circuits' lap times.
 
-Tests (`ai/bot.test.ts`): clean laps on every level of every track in `TRACKS`, Hard alone on the
-Kruncar shortcut, real circuits' lap times (Hard within 1.5% of the pole, sectors within 7%, Barcelona 10%), Hard never off the asphalt, line inside the asphalt, recovery from a car parked on its line, stuck → reset,
+Tests (`ai/bot.test.ts`): clean laps on every level of the Test Ring and every circuit of
+`GP_TRACKS`, real circuits' lap times (Hard within 1.5% of the pole, sectors within 7%, Barcelona 10%), Hard never off the asphalt, line inside the asphalt, recovery from a car parked on its line, stuck → reset,
 determinism.
 
 ## In the rain

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MAX_PLAYERS } from '../../net/protocol';
 import { buildTrack } from '../buildTrack';
 import type { WallSegment } from '../types';
-import { GP_TRACKS, KRUNCAR, SAO_PAULO, TEST_TRACK } from '.';
+import { GP_TRACKS, SAO_PAULO, TEST_TRACK } from '.';
 
 function wallDistance(p: { x: number; z: number }, wall: WallSegment): number {
   const dx = wall.b.x - wall.a.x;
@@ -63,9 +63,8 @@ describe.each(GP_TRACKS.map((d) => [d.name, d] as const))('pit lane of %s', (_na
 });
 
 describe('pit lanes', () => {
-  it('only the real circuits have one', () => {
+  it('every circuit has one, the Test Ring none', () => {
     expect(TEST_TRACK.pitLane).toBeUndefined();
-    expect(KRUNCAR.pitLane).toBeUndefined();
   });
 });
 
