@@ -1,36 +1,34 @@
-import {
-  damageInPhase,
-  GRAND_PRIX,
-  HELD,
-  offersRain,
-  qualifyingOrder,
-  raceStandings,
-  startHold,
-  timingLinesPassed,
-  TRACK_RULES,
-  type CarId,
-  type GrandPrixCommand,
-  type GrandPrixInfo,
-  type GrandPrixPhase,
-  type QualifyingEntry,
-  type RaceDriver,
-  type Weather,
-} from '@altf1/shared';
-import type { Room } from './Room.ts';
+import { GRAND_PRIX } from '../config/grandPrix';
+import { TRACK_RULES } from '../config/track';
+import { offersRain, type Weather } from '../config/weather';
+import type { GrandPrixCommand, GrandPrixInfo, GrandPrixPhase } from '../net/protocol';
+import type { CarId } from '../sim/car';
+import type { GameState } from '../sim/game';
+import type { TrackDefinition } from '../track/types';
+import { damageInPhase } from './damage';
+import { HELD, startHold, type StartHold } from './hold';
+import { qualifyingOrder, type QualifyingEntry } from './qualifying';
+import { raceStandings, timingLinesPassed, type RaceDriver } from './standings';
 
-/** What the Grand Prix needs from its room's simulation. */
-export type GrandPrixRoom = Pick<
-  Room,
-  | 'definition'
-  | 'state'
-  | 'restart'
-  | 'retire'
-  | 'spawn'
-  | 'hold'
-  | 'setDamage'
-  | 'setPitBoxes'
-  | 'setWeather'
->;
+/**
+ * What the Grand Prix needs from its room's simulation: the server's `Room` online, single
+ * player's own room offline (both modes run the same rules).
+ */
+export interface GrandPrixRoom {
+  readonly definition: TrackDefinition;
+  readonly state: GameState;
+  /** Cars held on the grid (and the start lights); null while they may drive. */
+  hold: StartHold | null;
+  /** Every car in `order` back on the grid (the others off the track), timing reset. */
+  restart(order: readonly CarId[]): void;
+  /** Takes a car off the track (its driver is done). */
+  retire(id: CarId): void;
+  /** Puts a car back on the track. */
+  spawn(id: CarId): void;
+  setDamage(on: boolean): void;
+  setPitBoxes(boxes: Readonly<Record<CarId, number>>): void;
+  setWeather(weather: Weather): void;
+}
 
 /**
  * The rules of one circuit's Grand Prix, driving its room through the phases: lobby (free driving)
@@ -58,6 +56,8 @@ export class GrandPrix {
   private weather: Weather = 'dry';
   /** The session's (phase's) best time of each sector over every driver; reset by `setPhase`. */
   private sectorBests: (number | null)[] = noSectorBests();
+  /** Drivers with a given qualifying time (`addSimulated`), by id. */
+  private readonly simulated = new Map<CarId, number>();
   /** The race's last counted pit stop of each driver (its end tick). */
   private readonly stopsCounted = new Map<CarId, number>();
   private readonly room: GrandPrixRoom;
@@ -105,12 +105,23 @@ export class GrandPrix {
     this.giveBox(id);
   }
 
+  /**
+   * A driver whose qualifying is given instead of driven (single player's bots: their time
+   * simulated, `best` in ticks): in qualifying it is already done with that time and stays off the
+   * track; from the grid on it races like everyone.
+   */
+  addSimulated(id: CarId, name: string, best: number): void {
+    this.add(id, name);
+    this.simulated.set(id, best);
+  }
+
   /** A player left: out of the Grand Prix (a disconnected driver doesn't come back; racing: DNF). */
   remove(id: CarId): void {
     const index = this.drivers.indexOf(id);
     if (index >= 0) this.drivers.splice(index, 1);
     if (this.boxes.delete(id)) this.room.setPitBoxes(Object.fromEntries(this.boxes));
     this.results.delete(id);
+    this.simulated.delete(id);
     if (this.drivers.length === 0) return; // nobody left to move the GP on
     if (this.phase === 'qualifying' && this.allDone()) this.toGrid();
     const racer = this.racers.get(id);
@@ -134,9 +145,16 @@ export class GrandPrix {
     if (command.action === 'start' && this.phase === 'lobby') {
       this.setPhase('qualifying');
       for (const driver of this.drivers) {
-        this.results.set(driver, { id: driver, best: null, setAt: null, laps: 0, done: false });
+        const given = this.simulated.get(driver);
+        this.results.set(
+          driver,
+          given === undefined
+            ? { id: driver, best: null, setAt: null, laps: 0, done: false }
+            : { id: driver, best: given, setAt: 0, laps: GRAND_PRIX.qualifyingLaps, done: true },
+        );
       }
-      this.room.restart(this.drivers);
+      // Only those who drive their qualifying go out on track.
+      this.room.restart(this.drivers.filter((driver) => !this.simulated.has(driver)));
       return true;
     }
     if (command.action === 'endQualifying' && this.phase === 'qualifying') {
@@ -210,6 +228,7 @@ export class GrandPrix {
       this.boxes.clear();
       this.giveBox(id);
       this.results.clear();
+      this.simulated.clear();
       this.racers.clear();
       this.stopsCounted.clear();
       this.raceLaps = null;

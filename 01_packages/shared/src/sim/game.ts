@@ -120,7 +120,7 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
     ? resolved.cars.map((car) => ({ ...car, damage: stepDamage(car, impacts, FIXED_DT, damage) }))
     : resolved.cars;
   const { pit } = ctx;
-  const cars = pit ? damaged.map((car) => pitStep(car, ctx.track, tick, pit)) : damaged;
+  const cars = pit ? damaged.map((car) => pitStep(car, ctx.track, tick, pit, damaged)) : damaged;
   const laps = state.laps.map((lap, i) =>
     stepLap(
       lap,

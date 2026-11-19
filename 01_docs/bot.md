@@ -97,7 +97,121 @@ planning only, the simulation applies the wet itself). With the owner's `WET_PAR
 Paulo: Hard 69.50 s dry, 86.28 s wet (+24%), no walls, no resets; Medium and Hard slide wide onto
 the grass now and then ([weather.md](weather.md#physics-w2)).
 
+- **The race** (S.5, `singleplayer/SinglePlayerGrandPrix.ts`): Singleplayer → Grand Prix → team
+  → circuit → weather (only where it may rain). The online Grand Prix's own rules
+  (`race/GrandPrix.ts`) on an `OfflineRoom` (the same simulation as online, the pit lane, damage
+  from qualifying on): qualifying with the player alone (3 timed laps, Enter ends it), the bots
+  already done with their class's flying lap measured on this circuit and weather
+  (`botLapTicks`, ~0.4 s at load: Hard = the calibrated pole) × a random 1.000–1.010; the grid
+  in that order with the same keys as online (1/2/3 = 4/8/12 laps, 4 + ←/→ + Enter), the F1
+  start, the race with the mandatory stops and their penalty for everyone, then the podium and
+  the classification (Race again: same team and circuit; Exit). The player is the only manager.
+- **The bots** (`BotSquad`, `ai/squad.ts`): each drives in traffic (below) on its race plan and
+  through the pit lane to its team's box when a stop is owed; held on the grid they don't count as
+  stuck. **Boxes** (`teamBoxes`): one per team (teammates share it, as in F1) and one of the
+  player's own, 6 of the 8 every circuit has; the second bot of a box stops a lap later (or
+  earlier, never on the last two laps: `squadBots`), and a car never stops in a box still taken
+  (`sim/pit.ts`: it drives on and comes back next lap). Measured (`race/offlineRace.test.ts`):
+  10 cars, 4 laps of Monza, all finish, each with its stop and no penalty.
+- **Points** (S.6, `race/points.ts`): F1's 25-18-15-12-10-8-6-4-2-1 to the first ten classified
+  (`GRAND_PRIX.points`; a DNF none), also when the player ends the race early; the
+  **constructors' standings** of that race add up each team's two drivers (a tie goes to the team
+  with the better placed driver). At the end: podium → classification (with TEAM and PTS) →
+  Constructors (each team's drivers and points, the player's team highlighted) → Race again /
+  Exit. One race only: nothing is saved.
+- **On screen**: the team colours, the bots' names above their cars and in the minimap legend,
+  the GP panel (team colour, gaps, PIT/BOX, stops made/required), the start lights, the chequered
+  flag; once the player is done the camera follows the best placed car still racing.
+
+## In traffic
+
+Step S.2 (for the single-player Grand Prix's 9 bots; the Test mode's bot sees the player too).
+`botInput` also takes every car on track (`others`); alone on the track it drives exactly as
+before (every measured lap time unchanged). Numbers in `BOT_DRIVER` (`config/bot.ts`).
+
+- **Who is around**: the other cars within `trafficRange` (150 m) along the bot's road, with their
+  gap along it, their offset from the centreline and their speed along it; a car off the road (in
+  the pit lane) is not traffic.
+- **Following** (`trafficSpeed`): a car ahead is in the way when it is closer sideways than
+  `carWidth` (3.5 m: cars angled in a corner take more room) to the bot now, or to where the bot's
+  line takes it by that car (a line sweeping across into a corner). The bot then carries at most
+  the speed it can still brake from (`trafficDecel`, 22 m/s²) to that car's, counting on the car
+  ahead slowing to the line's speed where it is (it is about to brake for a corner), before the gap
+  shrinks to `followGap` + `followTime` × speed (6 m + 0.04 s); closer, slower than that car.
+- **Passing** (`passOffset`): a car in the way within `passLookAhead` (18 m: the bot stays in the
+  tow until then) and slower than the bot would go there on its own makes it move off its line
+  (`passRate`, 4 m/s sideways) to the side with more room, one `carWidth` beside that car and
+  `passEdgeMargin` (2 m) from the edge, unless a car alongside takes that side. Back to the line
+  once nothing is in the way. A pass not done before a braking zone (the line's speed
+  `passAbortTime` = 1.2 s ahead lower by `passAbortDrop` = 8 m/s) is given up.
+- **Side by side** (`sideRoom`): the bot never aims into a car alongside (within `alongside`, 9 m):
+  it keeps to its side, at least `carWidth` away, using the asphalt up to `squeezeEdgeMargin`
+  (1 m) from the edge if squeezed. Into a braking zone the one just behind gives way
+  (`yieldDrop`: 3 m/s slower than the other) and tucks in.
+
+Measured (`ai/traffic.test.ts`): the 9 bots (4 Medium on the grid ahead of 5 Hard) over 3 laps.
+Blind to traffic they touch tens of thousands of times (Monza ~80,000); now:
+
+| Circuit   | Contacts strong enough to damage (> 8 m/s) | Overtakes                |
+| --------- | ------------------------------------------ | ------------------------ |
+| Test Ring | 0                                          | Hard past Medium         |
+| Monza     | 2                                          | Hard past Medium         |
+| Barcelona | 0                                          | Hard past Medium         |
+| Monaco    | 5                                          | none (like the real one) |
+| Mexico    | 11                                         | Hard past Medium         |
+| Singapore | 3                                          | Hard past Medium         |
+| Las Vegas | 5                                          | Hard past Medium         |
+| São Paulo | 1                                          | none in 3 laps           |
+
+A car held in its pit box (S.3) is still and off to the garages' side: it may be passed closer
+(`parkedWidth`, 2.6 m), even into a braking zone, and a bot close behind it creeps on
+(`creepSpeed`, 3 m/s) to steer round it.
+
+Nobody gets stuck or resets. What is left is mostly lap 1 (the pack still together) and cars
+sliding in the tightest hairpins (Mexico City's stadium).
+
+## Pit stops
+
+Step S.3, for the single-player Grand Prix's mandatory stops (`race/pitRule.ts`). The track is
+built with its pit lane (`buildTrack(…, { pitLane: true })`) and the race's pit rules in
+`SimContext.pit`, each bot with its own box.
+
+- **The pit plan** (`buildPitPlan`, `ai/plan.ts`): the same racing line and speed profile, on the
+  pit lane's route, with two more limits: `speedLimit` − 0.5 m/s between the limit lines, and half
+  `PIT_PARAMS.boxSpeed` over the last metres before its box, so it is slow enough there for the
+  stop to begin by itself (`sim/pit.ts`: held, then released as new). The braking pass makes it
+  slow down in time for both, like for a corner.
+- **When** (`ai/pitPlan.ts`): `pitSchedule(raceLaps)` spreads the `requiredStops` evenly, stop `j`
+  due once `floor(j · laps / (stops + 1))` laps are done (5 laps: after lap 2; 8 laps: 2 and 5;
+  24 laps: 4, 9, 14, 19); `pitDue` says whether one is owed now. The caller drives the bot on its
+  pit plan while a stop is owed and on its race plan otherwise, switching only where both roads
+  are the same (`canSwitchPlan`: not between the pit entry and exit, 30 m either side), so the
+  bot takes the pit lane at the next entry and comes back to its line after the exit.
+- Held in its box (or still in the lane after the stop) a bot is never "stuck" (no reset).
+
+Measured (`ai/pitPlan.test.ts`): a Hard bot over 5 laps stops on lap 2 and finishes on every
+circuit, without touching a wall or resetting; three Hard bots in a row (boxes 7, 0, 3) pitting
+on the same lap all stop once and finish, at most grazing the lane's wall while getting round a
+car in its box.
+
 ## Limits (for now)
 
-No racecraft: it doesn't plan overtakes or avoid the player beyond following its line,
-contacts are handled by the normal collisions. One bot; the code doesn't prevent more.
+No defending, no dive-bombs: a bot passes only where it is clearly faster, and gives way side by
+side into a corner. Contacts are handled by the normal collisions.
+
+## Single-player Grand Prix
+
+Plan (owner, 2026-11-19; roadmap section S): single player's Grand Prix against 9 bots in 5 teams.
+
+- **Teams** (`config/teams.ts`, `TEAMS`, strongest first): Mercedes (Russell, Antonelli), Ferrari
+  (Leclerc, Hamilton), Red Bull (Verstappen, Hadjar), McLaren (Norris, Piastri), Polimi (IngConti,
+  Margara: the university's team). Real line-ups, owner's choice; correct them there.
+- **Lineup** (`race/teams.ts`, `teamLineup`, S.1): the player picks a team and takes the seat of
+  one of its two drivers, drawn at random; the teammate stays. The 9 bots, ranked by team strength
+  (Mercedes > Ferrari > Red Bull > McLaren > Polimi) then driver order, are **Hard** for the first
+  5 and **Medium** for the other 4 (`BOT_CLASS_COUNTS`): so Red Bull has Verstappen Hard and Hadjar
+  Medium unless the player is at Mercedes, Ferrari or Red Bull.
+- **Colours** (`TEAM_LIVERIES`, `view/pixelTexture.ts`): the body colour with the team's stripe
+  colour (`Livery.accent`): Mercedes silver and teal, Ferrari red and yellow, Red Bull dark blue and
+  red, McLaren papaya and black, Polimi blue and white with its sponsor "OF" in pixel letters under
+  the stripe (`Livery.sponsor`, `sponsorPixels`).

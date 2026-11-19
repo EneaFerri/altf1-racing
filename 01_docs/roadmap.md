@@ -473,6 +473,38 @@ missing. One step at a time, each awaiting the owner's review.
   order follows. Tower: stops made / required; card: `STOPS` and `PENALTY` columns
   ([multiplayer.md](multiplayer.md#grand-prix)).
 
+## S — Single-player Grand Prix against 9 bots (owner, 2026-11-19)
+
+Free practice in single player becomes a Grand Prix against 9 bots (5 Hard, 4 Medium) in 5 teams
+(Mercedes, Ferrari, Red Bull, McLaren, Polimi): the player takes a seat in the team they choose;
+qualifying alone (the bots' times measured for their class), laps as online, damage, weather choice,
+mandatory stops for everyone; podium, classification with F1 points and the constructors' standings
+of that race. One step at a time, each awaiting the owner's review.
+
+- S.1 (awaiting the owner's review) **Teams, drivers and liveries** — `TEAMS`, `teamLineup`
+  (5 Hard / 4 Medium by team strength, the player replaces a random driver of their team),
+  `TEAM_LIVERIES` with stripe colour and Polimi's "OF" sponsor ([bot.md](bot.md#single-player-grand-prix)).
+- S.2 (awaiting the owner's review) **Bots that race in traffic** — they follow without running
+  into the car ahead, pass a slower one from its tow on the side with more room, give up a pass
+  before a braking zone and keep to their side of a car alongside; alone they drive as before
+  ([bot.md](bot.md#in-traffic)). The Test mode's bot sees the player too.
+- S.3 (awaiting the owner's review) **Bots that pit** — a pit plan through the lane to their own
+  box (limiter, slow at the box: the stop starts by itself), the mandatory stops spread evenly over
+  the race, switching plans only outside the pit lane's stretch; cars in their box passed and
+  crept round ([bot.md](bot.md#pit-stops)).
+- S.4 (awaiting the owner's review) **One GP engine for both modes** — `GrandPrix` moved to
+  `shared/src/race/` on a `GrandPrixRoom` interface (the server's `Room` implements it; online
+  unchanged), with drivers whose qualifying time is given (`addSimulated`: only the player drives
+  qualifying); the GP panel and results texts moved to `client/src/race/`, taking a `DriverLook`
+  instead of the online player.
+- S.5 (awaiting the owner's review) **Single-player Grand Prix** — Free practice replaced: team →
+  circuit → weather, qualifying alone (bots' times measured for their class), grid and keys as
+  online, race against the 9 bots with stops and damage, podium and classification, Race again
+  ([bot.md](bot.md#single-player-grand-prix)). Team boxes (a busy box is skipped).
+- S.6 (awaiting the owner's review) **Points and constructors' standings** — F1 points to the
+  first ten (`racePoints`), the constructors' standings of the race (`constructorStandings`); the
+  classification card gets TEAM and PTS, then a constructors' card ([bot.md](bot.md#single-player-grand-prix)).
+
 ## Later
 
 - Desktop packaging (Tauri/Electron), assets, audio.

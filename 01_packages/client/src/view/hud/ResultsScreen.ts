@@ -45,9 +45,25 @@ export interface ClassificationRow {
   readonly fastest: boolean;
   /** This player's own row, highlighted. */
   readonly own: boolean;
+  /** Single player's Grand Prix (S.6): the driver's team and the race's points (TEAM, PTS columns). */
+  readonly team?: string;
+  readonly points?: string;
 }
 
-export type ResultsChoice = 'playAgain' | 'exit';
+/** A line of the constructors' card (single player's Grand Prix, S.6). */
+export interface ConstructorRow {
+  readonly position: string;
+  readonly name: string;
+  readonly color: string;
+  /** Its drivers with their points (`Russell 25 · Antonelli 12`). */
+  readonly drivers: string;
+  readonly points: string;
+  /** The player's team, highlighted. */
+  readonly own: boolean;
+}
+
+/** `next`: on to the constructors' card (single player); else play again or leave. */
+export type ResultsChoice = 'playAgain' | 'exit' | 'next';
 
 /**
  * The end of a Grand Prix, over the scene: the podium (three steps, each driver a pixel figure in
@@ -102,16 +118,36 @@ export class ResultsScreen {
     });
   }
 
-  /** Shows the classification card; resolves with the player's choice (the card closes). */
+  /**
+   * Shows the classification card; resolves with the player's choice (the card closes). `first`:
+   * the row above Exit (Play again online; on to the constructors in single player).
+   */
   classification(
     title: string,
     rows: readonly ClassificationRow[],
-    playAgain: ListMenuItem<ResultsChoice>,
+    first: ListMenuItem<ResultsChoice>,
+  ): Promise<ResultsChoice> {
+    return this.card(title, table(rows), first);
+  }
+
+  /** Shows the constructors' card (single player's Grand Prix); resolves with the choice. */
+  constructors(
+    title: string,
+    rows: readonly ConstructorRow[],
+    first: ListMenuItem<ResultsChoice>,
+  ): Promise<ResultsChoice> {
+    return this.card(title, constructorTable(rows), first);
+  }
+
+  private card(
+    title: string,
+    content: HTMLElement,
+    first: ListMenuItem<ResultsChoice>,
   ): Promise<ResultsChoice> {
     this.menu = new ListMenu<ResultsChoice>({
       label: title,
-      content: table(rows),
-      items: [playAgain, { name: 'Exit', detail: 'Back to the start', value: 'exit' }],
+      content,
+      items: [first, { name: 'Exit', detail: 'Back to the start', value: 'exit' }],
       hint: 'W/S · Enter — Esc: back to the start',
       escGoesBack: true,
     });
@@ -125,26 +161,53 @@ export class ResultsScreen {
 }
 
 function table(rows: readonly ClassificationRow[]): HTMLElement {
+  // Single player's Grand Prix adds the team and the points.
+  const scored = rows.some((row) => row.points !== undefined);
+  const heads = scored
+    ? ['POS', 'DRIVER', 'TEAM', 'GAP', 'FASTEST LAP', 'STOPS', 'PENALTY', 'PTS']
+    : ['POS', 'DRIVER', 'GAP', 'FASTEST LAP', 'STOPS', 'PENALTY'];
   const root = element('div', 'results-table');
-  root.append(
-    ...['POS', 'DRIVER', 'GAP', 'FASTEST LAP', 'STOPS', 'PENALTY'].map((head) =>
-      element('span', 'results-head', head),
-    ),
-  );
+  if (scored) root.classList.add('results-scored');
+  root.append(...heads.map((head) => element('span', 'results-head', head)));
   for (const row of rows) {
     const own = row.own ? ' results-own' : '';
-    const name = element('span', `results-name${own}`);
-    const swatch = element('span', 'results-swatch');
-    swatch.style.background = row.color;
-    name.append(swatch, row.name);
     root.append(
       element('span', `results-pos${own}`, row.position),
-      name,
+      nameCell(row.name, row.color, own),
+      ...(scored ? [element('span', `results-team${own}`, row.team ?? '')] : []),
       element('span', `results-gap${own}`, row.gap),
       element('span', `results-best${own}${row.fastest ? ' results-fastest' : ''}`, row.bestLap),
       element('span', `results-stops${own}${row.stopsShort ? ' results-short' : ''}`, row.stops),
       element('span', 'results-penalty', row.penalty),
+      ...(scored ? [element('span', `results-points${own}`, row.points ?? '')] : []),
     );
   }
   return root;
+}
+
+/** The constructors' card: POS · TEAM · DRIVERS · PTS. */
+function constructorTable(rows: readonly ConstructorRow[]): HTMLElement {
+  const root = element('div', 'results-table results-constructors');
+  root.append(
+    ...['POS', 'TEAM', 'DRIVERS', 'PTS'].map((head) => element('span', 'results-head', head)),
+  );
+  for (const row of rows) {
+    const own = row.own ? ' results-own' : '';
+    root.append(
+      element('span', `results-pos${own}`, row.position),
+      nameCell(row.name, row.color, own),
+      element('span', `results-team${own}`, row.drivers),
+      element('span', `results-points${own}`, row.points),
+    );
+  }
+  return root;
+}
+
+/** A name with its colour swatch. */
+function nameCell(text: string, color: string, own: string): HTMLElement {
+  const name = element('span', `results-name${own}`);
+  const swatch = element('span', 'results-swatch');
+  swatch.style.background = color;
+  name.append(swatch, text);
+  return name;
 }

@@ -29,7 +29,7 @@ export class NicknameScreen {
     this.field.autocomplete = 'off';
     this.field.spellcheck = false;
     this.field.placeholder = 'Your nickname';
-    this.field.value = readStored();
+    this.field.value = rememberedNickname();
     panel.append(
       element('h1', 'menu-title', 'AltF1 Racing'),
       element('p', 'menu-label', 'MULTIPLAYER · NICKNAME'),
@@ -85,7 +85,8 @@ export class NicknameScreen {
   };
 }
 
-function readStored(): string {
+/** The nickname last used on this browser; '' if none (single player names its driver with it). */
+export function rememberedNickname(): string {
   try {
     return localStorage.getItem(STORAGE_KEY) ?? '';
   } catch {

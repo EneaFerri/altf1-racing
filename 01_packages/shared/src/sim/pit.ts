@@ -90,9 +90,16 @@ export function limitedSpeed(car: CarState, track: Track): CarState {
 /**
  * `car`'s pit stop at the end of the step to `tick`: released (repaired: as new) when its stop
  * ends; its stop forgotten once it has left the lane; else, slow enough at its own box, stopped
- * there for `stopTicks`.
+ * there for `stopTicks`, unless another of `cars` is still stopped in that box (teammates sharing
+ * one, single player's Grand Prix: the second drives on and comes back next lap).
  */
-export function pitStep(car: CarState, track: Track, tick: number, pit: PitRules): CarState {
+export function pitStep(
+  car: CarState,
+  track: Track,
+  tick: number,
+  pit: PitRules,
+  cars: readonly CarState[] = [],
+): CarState {
   if (car.pitStop) {
     if (tick === car.pitStop.until) return car.damage ? { ...car, damage: NO_DAMAGE } : car;
     if (tick > car.pitStop.until && !pitLanePlace(track, car.position)) return withoutStop(car);
@@ -102,8 +109,17 @@ export function pitStep(car: CarState, track: Track, tick: number, pit: PitRules
   if (box === undefined || length(car.velocity) > pit.params.boxSpeed) return car;
   const place = pitLanePlace(track, car.position);
   if (!place) return car;
-  const at = place.rules.boxes[box % place.rules.boxes.length]!;
+  const count = place.rules.boxes.length;
+  const at = place.rules.boxes[box % count]!;
   if (Math.abs(place.distance - at) > pit.params.boxReach) return car;
+  const busy = cars.some(
+    (other) =>
+      other.id !== car.id &&
+      pit.boxes[other.id] !== undefined &&
+      pit.boxes[other.id]! % count === box % count &&
+      inBox(other, tick),
+  );
+  if (busy) return car;
   const { position, heading } = boxSpot(place.road, box, pit.params);
   return {
     ...heldInBox(car),

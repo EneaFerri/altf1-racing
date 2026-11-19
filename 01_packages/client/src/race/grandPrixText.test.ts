@@ -2,16 +2,22 @@ import { describe, expect, it } from 'vitest';
 import {
   createLapState,
   type GrandPrixInfo,
-  type PlayerInfo,
   type QualifyingEntry,
   type RaceStanding,
 } from '@altf1/shared';
 import { LIVERIES, playerLivery } from '../view/pixelTexture';
-import { chequeredFlag, fastestLap, grandPrixContent, stopsNote, lapName } from './grandPrixText';
+import {
+  chequeredFlag,
+  fastestLap,
+  grandPrixContent,
+  lapName,
+  stopsNote,
+  type DriverLook,
+} from './grandPrixText';
 
-const PLAYERS: PlayerInfo[] = [
-  { id: 'p1', nickname: 'Enea', livery: 0 },
-  { id: 'p2', nickname: 'Kimi', livery: 1 },
+const DRIVERS: DriverLook[] = [
+  { id: 'p1', name: 'Enea', livery: playerLivery(0) },
+  { id: 'p2', name: 'Kimi', livery: playerLivery(1) },
 ];
 
 const LOBBY: GrandPrixInfo = {
@@ -57,7 +63,7 @@ const RACE: RaceStanding[] = [
 
 describe('Grand Prix panel', () => {
   it('lists the drivers with the manager marked and tells the manager how to start', () => {
-    expect(grandPrixContent(LOBBY, PLAYERS, 'p1')).toEqual({
+    expect(grandPrixContent(LOBBY, DRIVERS, 'p1')).toEqual({
       title: 'GRAND PRIX · WAITING',
       rows: [
         { name: 'Enea', color: playerLivery(0).body, note: 'manager', own: true },
@@ -65,32 +71,32 @@ describe('Grand Prix panel', () => {
       ],
       hint: 'You are the GP manager — Enter: start the GP',
     });
-    expect(grandPrixContent(LOBBY, PLAYERS, 'p2').hint).toBe('Waiting for Enea to start the GP');
+    expect(grandPrixContent(LOBBY, DRIVERS, 'p2').hint).toBe('Waiting for Enea to start the GP');
   });
 
   it('offers the manager the weather in the lobby of a track with rain, and shows it', () => {
-    const lobby = grandPrixContent(LOBBY, PLAYERS, 'p1', new Map(), true);
+    const lobby = grandPrixContent(LOBBY, DRIVERS, 'p1', new Map(), true);
     expect(lobby.title).toBe('GRAND PRIX · WAITING · DRY');
     expect(lobby.hint).toBe('You are the GP manager — 1: dry · 2: rain · Enter: start the GP');
     const wet: GrandPrixInfo = { ...LOBBY, weather: 'rain' };
-    expect(grandPrixContent(wet, PLAYERS, 'p2', new Map(), true).title).toBe(
+    expect(grandPrixContent(wet, DRIVERS, 'p2', new Map(), true).title).toBe(
       'GRAND PRIX · WAITING · RAIN',
     );
     const race: GrandPrixInfo = { ...wet, phase: 'race', race: RACE, raceLaps: 8 };
-    expect(grandPrixContent(race, PLAYERS, 'p1', new Map(), true).title).toBe(
+    expect(grandPrixContent(race, DRIVERS, 'p1', new Map(), true).title).toBe(
       'GRAND PRIX · RACE · 8 LAPS · RAIN',
     );
     const grid: GrandPrixInfo = { ...LOBBY, phase: 'grid', qualifying: QUALIFYING };
-    expect(grandPrixContent(grid, PLAYERS, 'p1', new Map(), true).title).toBe(
+    expect(grandPrixContent(grid, DRIVERS, 'p1', new Map(), true).title).toBe(
       'GRAND PRIX · STARTING GRID',
     );
   });
 
   it('lists only the drivers of a new lobby, and says when it has no manager', () => {
     const playAgain: GrandPrixInfo = { ...LOBBY, manager: 'p2', drivers: ['p2'] };
-    expect(grandPrixContent(playAgain, PLAYERS, 'p2').rows.map((r) => r.name)).toEqual(['Kimi']);
+    expect(grandPrixContent(playAgain, DRIVERS, 'p2').rows.map((r) => r.name)).toEqual(['Kimi']);
     const empty: GrandPrixInfo = { ...LOBBY, manager: null, drivers: [] };
-    expect(grandPrixContent(empty, PLAYERS, 'p1')).toMatchObject({
+    expect(grandPrixContent(empty, DRIVERS, 'p1')).toMatchObject({
       rows: [],
       hint: 'Waiting for a driver: the next one in is the manager',
     });
@@ -98,7 +104,7 @@ describe('Grand Prix panel', () => {
 
   it('tells a player left out of a new GP that started that they can only leave', () => {
     const info: GrandPrixInfo = { ...LOBBY, phase: 'qualifying', drivers: ['p2'] };
-    expect(grandPrixContent(info, PLAYERS, 'p1')).toEqual({
+    expect(grandPrixContent(info, DRIVERS, 'p1')).toEqual({
       title: 'GRAND PRIX · IN PROGRESS',
       rows: [],
       hint: 'The new GP started without you — Esc: back to the start',
@@ -107,31 +113,31 @@ describe('Grand Prix panel', () => {
 
   it('shows qualifying as a timing tower: best time and which lap each driver is on', () => {
     const info: GrandPrixInfo = { ...LOBBY, phase: 'qualifying', qualifying: QUALIFYING };
-    const forKimi = grandPrixContent(info, PLAYERS, 'p2');
+    const forKimi = grandPrixContent(info, DRIVERS, 'p2');
     expect(forKimi.title).toBe('GRAND PRIX · QUALIFYING');
     expect(forKimi.rows.map((r) => [r.name, r.note])).toEqual([
       ['1  Kimi', '1:30.000 · done'],
       ['2  Enea', 'no time · Q2'],
     ]);
     expect(forKimi.hint).toBe('Your laps are done — watching the others');
-    expect(grandPrixContent(info, PLAYERS, 'p1').hint).toBe('Enter: end qualifying now');
+    expect(grandPrixContent(info, DRIVERS, 'p1').hint).toBe('Enter: end qualifying now');
   });
 
   it('shows the grid with the manager’s lap choices, then the race distance', () => {
     const grid: GrandPrixInfo = { ...LOBBY, phase: 'grid', qualifying: QUALIFYING };
-    const forEnea = grandPrixContent(grid, PLAYERS, 'p1');
+    const forEnea = grandPrixContent(grid, DRIVERS, 'p1');
     expect(forEnea.rows.map((r) => [r.name, r.note])).toEqual([
       ['P1  Kimi', '1:30.000'],
       ['P2  Enea', 'no time'],
     ]);
     expect(forEnea.hint).toBe('Start the race — 1: 4 laps · 2: 8 laps · 3: 12 laps · 4: other');
-    expect(grandPrixContent(grid, PLAYERS, 'p2').hint).toBe('Waiting for Enea to start the race');
+    expect(grandPrixContent(grid, DRIVERS, 'p2').hint).toBe('Waiting for Enea to start the race');
   });
 
   it('shows the manager’s own race distance (key 4) with its mandatory pit stops', () => {
     const grid: GrandPrixInfo = { ...LOBBY, phase: 'grid', qualifying: QUALIFYING };
     const hint = (laps: number) =>
-      grandPrixContent(grid, PLAYERS, 'p1', new Map(), false, laps).hint;
+      grandPrixContent(grid, DRIVERS, 'p1', new Map(), false, laps).hint;
     expect(hint(3)).toBe('Race over ◀ 3 laps ▶ (←/→) — Enter: start');
     expect(hint(5)).toBe(
       'Race over ◀ 5 laps ▶ (←/→) · 1 mandatory pit stop (+25 s each one missing) — Enter: start',
@@ -153,7 +159,7 @@ describe('Grand Prix panel', () => {
 
   it('shows the race order with the leader’s lap, gaps, laps down and DNFs', () => {
     const info: GrandPrixInfo = { ...LOBBY, phase: 'race', raceLaps: 8, race: RACE };
-    const forKimi = grandPrixContent(info, PLAYERS, 'p2');
+    const forKimi = grandPrixContent(info, DRIVERS, 'p2');
     expect(forKimi.title).toBe('GRAND PRIX · RACE · 8 LAPS');
     expect(forKimi.rows.map((r) => [r.name, r.note])).toEqual([
       ['1  Enea', 'LAP 4/8'],
@@ -171,8 +177,8 @@ describe('Grand Prix panel', () => {
     ]);
     const rule = '2 mandatory pit stops (+25 s each one missing)';
     expect(forKimi.hint).toBe(rule);
-    expect(grandPrixContent(info, PLAYERS, 'p1').hint).toBe(`${rule} — Enter: end the race now`);
-    const short = grandPrixContent({ ...info, raceLaps: 3 }, PLAYERS, 'p1');
+    expect(grandPrixContent(info, DRIVERS, 'p1').hint).toBe(`${rule} — Enter: end the race now`);
+    const short = grandPrixContent({ ...info, raceLaps: 3 }, DRIVERS, 'p1');
     expect(short.rows.every((r) => r.stops === undefined)).toBe(true);
     expect(short.hint).toBe('Enter: end the race now');
   });
@@ -184,21 +190,21 @@ describe('Grand Prix panel', () => {
     ]);
     const race = grandPrixContent(
       { ...LOBBY, phase: 'race', raceLaps: 8, race: RACE },
-      PLAYERS,
+      DRIVERS,
       'p1',
       pits,
     );
     expect(race.rows.map((r) => r.pit)).toEqual(['BOX', 'PIT', undefined, undefined]);
     const qualifying = grandPrixContent(
       { ...LOBBY, phase: 'qualifying', qualifying: QUALIFYING },
-      PLAYERS,
+      DRIVERS,
       'p1',
       pits,
     );
     expect(qualifying.rows.map((r) => r.pit)).toEqual(['PIT', 'BOX']);
     const results = grandPrixContent(
       { ...LOBBY, phase: 'results', raceLaps: 8, race: RACE },
-      PLAYERS,
+      DRIVERS,
       'p1',
       pits,
     );
@@ -209,7 +215,7 @@ describe('Grand Prix panel', () => {
     const finished = RACE.slice(0, 2).map((s) => ({ ...s, status: 'finished' as const }));
     const results: RaceStanding[] = [{ ...finished[0]!, time: 30000 }, finished[1]!];
     const info: GrandPrixInfo = { ...LOBBY, phase: 'results', raceLaps: 8, race: results };
-    const content = grandPrixContent(info, PLAYERS, 'p2');
+    const content = grandPrixContent(info, DRIVERS, 'p2');
     expect(content.title).toBe('GRAND PRIX · RESULTS');
     expect(content.rows.map((r) => r.note)).toEqual(['8:20.000', '+1.250']);
   });
@@ -255,7 +261,7 @@ describe('fastestLap', () => {
 
   it("marks its driver in the panel with the lap's time, in qualifying and the race", () => {
     const qualifying: GrandPrixInfo = { ...LOBBY, phase: 'qualifying', qualifying: QUALIFYING };
-    const rows = grandPrixContent(qualifying, PLAYERS, 'p1').rows;
+    const rows = grandPrixContent(qualifying, DRIVERS, 'p1').rows;
     expect(rows.map((r) => r.fastest)).toEqual(['1:30.000', undefined]);
     const race: GrandPrixInfo = {
       ...LOBBY,
@@ -266,10 +272,10 @@ describe('fastestLap', () => {
         { ...RACE[1]!, best: 5550 },
       ],
     };
-    expect(grandPrixContent(race, PLAYERS, 'p1').rows.map((r) => r.fastest)).toEqual([
+    expect(grandPrixContent(race, DRIVERS, 'p1').rows.map((r) => r.fastest)).toEqual([
       undefined,
       '1:32.500',
     ]);
-    expect(grandPrixContent(LOBBY, PLAYERS, 'p1').rows.every((r) => !r.fastest)).toBe(true);
+    expect(grandPrixContent(LOBBY, DRIVERS, 'p1').rows.every((r) => !r.fastest)).toBe(true);
   });
 });

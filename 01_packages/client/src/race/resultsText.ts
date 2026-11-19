@@ -1,28 +1,35 @@
 import {
   requiredStops,
+  TEAMS,
   TICK_RATE,
+  type ConstructorStanding,
+  type TeamId,
   type CarId,
   type GrandPrixInfo,
-  type PlayerInfo,
   type RaceStanding,
 } from '@altf1/shared';
 import type { ListMenuItem } from '../view/menu/ListMenu';
-import type { ClassificationRow, PodiumContent, ResultsChoice } from '../view/hud/ResultsScreen';
+import type {
+  ClassificationRow,
+  ConstructorRow,
+  PodiumContent,
+  ResultsChoice,
+} from '../view/hud/ResultsScreen';
 import { formatLapTime } from '../view/hud/format';
-import { LIVERIES, playerLivery, type Livery } from '../view/pixelTexture';
-import { raceNote } from './grandPrixText';
+import { LIVERIES, TEAM_LIVERIES, type Livery } from '../view/pixelTexture';
+import { raceNote, type DriverLook } from './grandPrixText';
 
 /** The finished race as the results screen shows it: frozen when the results come in. */
 export interface RaceResult {
   readonly race: readonly RaceStanding[];
   readonly raceLaps: number;
-  /** The players in the room then (a driver who left since is drawn grey). */
-  readonly players: readonly PlayerInfo[];
+  /** How the drivers are shown (a driver who left since, not in it, is drawn grey). */
+  readonly drivers: readonly DriverLook[];
 }
 
 /** The podium: the first three classified (DNFs never), each with their race time or gap. */
-export function podiumContent({ race, raceLaps, players }: RaceResult): PodiumContent {
-  const livery = liveryOf(players);
+export function podiumContent({ race, raceLaps, drivers }: RaceResult): PodiumContent {
+  const livery = liveryOf(drivers);
   return {
     title: 'GRAND PRIX · PODIUM',
     places: race.slice(0, 3).flatMap((standing, i) =>
@@ -39,16 +46,24 @@ export function podiumContent({ race, raceLaps, players }: RaceResult): PodiumCo
   };
 }
 
+/** Single player's Grand Prix (S.6): each driver's team and points, for the card's extra columns. */
+export interface Scoring {
+  readonly points: Readonly<Record<CarId, number>>;
+  readonly teamOf: (id: CarId) => string;
+}
+
 /**
  * The classification card for player `ownId`: every driver in race order, gap to the winner (the
  * winner's race time, the pit penalties included), fastest lap each and who holds the race's
- * fastest one, stops made / required on the laps each completed and the penalty for any missing.
+ * fastest one, stops made / required on the laps each completed and the penalty for any missing;
+ * with `scoring`, each one's team and points too.
  */
 export function classificationRows(
-  { race, raceLaps, players }: RaceResult,
+  { race, raceLaps, drivers }: RaceResult,
   ownId: CarId,
+  scoring?: Scoring,
 ): ClassificationRow[] {
-  const livery = liveryOf(players);
+  const livery = liveryOf(drivers);
   const times = race.flatMap((standing) => (standing.best === null ? [] : [standing.best]));
   const fastest = times.length ? Math.min(...times) : null;
   return race.map((standing, i) => {
@@ -64,8 +79,30 @@ export function classificationRows(
       penalty: standing.penalty > 0 ? `+${standing.penalty / TICK_RATE} s` : '',
       fastest: standing.best !== null && standing.best === fastest,
       own: standing.id === ownId,
+      ...(scoring && {
+        team: scoring.teamOf(standing.id),
+        points: String(scoring.points[standing.id] ?? 0),
+      }),
     };
   });
+}
+
+/**
+ * The constructors' card of one race (single player's Grand Prix, S.6): each team in order, in its
+ * colour, its drivers with their points and its total; `ownTeam` (the player's) highlighted.
+ */
+export function constructorRows(
+  standings: readonly ConstructorStanding[],
+  ownTeam: TeamId,
+): ConstructorRow[] {
+  return standings.map((standing, i) => ({
+    position: String(i + 1),
+    name: TEAMS.find((team) => team.id === standing.team)!.name,
+    color: TEAM_LIVERIES[standing.team].body,
+    drivers: standing.drivers.map((d) => `${d.name} ${d.points}`).join(' · '),
+    points: String(standing.points),
+    own: standing.team === ownTeam,
+  }));
 }
 
 /**
@@ -81,10 +118,7 @@ export function playAgainItem(info: GrandPrixInfo): ListMenuItem<ResultsChoice> 
   return { ...item, detail: 'The new GP has started', disabled: true };
 }
 
-function liveryOf(players: readonly PlayerInfo[]): (id: CarId) => Livery {
-  const byId = new Map(players.map((p) => [p.id, p]));
-  return (id) => {
-    const player = byId.get(id);
-    return player ? playerLivery(player.livery) : LIVERIES.grey;
-  };
+function liveryOf(drivers: readonly DriverLook[]): (id: CarId) => Livery {
+  const byId = new Map(drivers.map((d) => [d.id, d.livery]));
+  return (id) => byId.get(id) ?? LIVERIES.grey;
 }

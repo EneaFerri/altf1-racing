@@ -43,7 +43,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['01_packages/client/src/{core,controller,dev,view}/**/*.ts'],
+    files: ['01_packages/client/src/{core,controller,dev,race,view}/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',

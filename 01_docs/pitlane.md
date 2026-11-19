@@ -177,7 +177,8 @@ like the server; the boxes handed out and kept.
   (`pitStatus` per car, `OnlineGrandPrix.render`), no message needed. Not in the results.
 - **Stops**: the server counts each driver's pit stops in the race, one when it begins
   (`RaceDriver.stops`, `RaceStanding.stops`; protocol v13); the classification card has a
-  `STOPS` column. Since M.5 a stop is mandatory every 4 laps (at most 4), 25 s per one missing:
+  `STOPS` column. A car never stops in a box another car is still stopped in (S.5: single
+  player's teammates share a box; online every player has their own). Since M.5 a stop is mandatory every 4 laps (at most 4), 25 s per one missing:
   [multiplayer.md](multiplayer.md#grand-prix).
 - **Standings through the pits**: progress on the lane is the main loop's (`routeProgress`), so
   the timing lines are passed there as on the track; every real pit lane crosses the start line,

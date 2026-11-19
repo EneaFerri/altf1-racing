@@ -668,3 +668,70 @@
 - Every finisher drives the full distance (there is no "lapped cars finish with the leader"), so
   ordering finishers by race time + penalty is exact; a penalised finisher can drop behind one who
   finishes later.
+
+## 2026-11-19 — Single-player Grand Prix: teams and bot classes (S.1)
+
+- Owner: 5 teams with the real drivers (Polimi: IngConti, Margara), 5 Hard and 4 Medium bots,
+  strength Mercedes > Ferrari = Red Bull > McLaren > Polimi with Red Bull taking the Medium in the
+  tie; the player replaces a random driver of the chosen team.
+- Classes are given by rank, not per team: the 9 bot seats in strength order, the first 5 Hard. So
+  there are always 5 Hard and 4 Medium whichever seat the player takes (taking a Hard seat moves
+  the Hard one down the order).
+- Team colours are liveries with an optional stripe colour and sponsor letters: the multiplayer
+  and Test liveries stay exactly as they were (white stripe, no sponsor).
+
+## 2026-11-19 — Bots in traffic: simple rules, measured (S.2)
+
+- Rules in the driver, not in the plan: the racing line and speed profile stay the same (every
+  single-bot lap time unchanged); traffic only lowers the target speed and shifts the aim sideways.
+- The first version (pull out early to pass, follow with a wide safety margin) cut the contacts
+  but no Hard bot ever passed a Medium one: held behind with a margin the follower lost the tow and
+  only had its +3%. Following close and pulling out from the tow (18 m) gives real overtakes; the
+  contacts that came with it were removed by giving up passes before braking zones and keeping to
+  one's side of a car alongside.
+- Accepted: a few contacts per race on lap 1 and in the tightest hairpins (Mexico City), and no
+  overtakes at Monaco, like the real ones.
+
+## 2026-11-19 — Bots that pit: a second plan, not new driving (S.3)
+
+- A stop is just another plan: the pit lane's route with its speed limit and a stop at the box as
+  speed caps, so the driver, the traffic rules and the simulation's own pit stop work unchanged.
+- The caller picks the plan (race or pit), and only outside the pit lane's stretch: switching
+  there would locate the car on a road it isn't on.
+- Stops spread evenly (owner's rule: the required number, no strategy yet); the first fixes came
+  from queues in the lane: a car in its box was treated as a moving car in the way (bots waited
+  behind it until reset), so it is now narrower, passed even into the braking for one's own box,
+  and crept round.
+
+## 2026-11-19 — One Grand Prix engine for both modes (S.4)
+
+- The GP's rules move from the server to `shared` rather than being rewritten for single player:
+  one set of rules, already tested, for both modes. They needed only nine things from their room,
+  now an interface (`GrandPrixRoom`); the server's `Room` implements it unchanged.
+- The bots' simulated qualifying is an option of the same engine (`addSimulated`: done, with their
+  time, and kept off the track), so the grid, start, race and results stay shared too.
+- The panel and results texts move to a new client folder for what both modes show (`race/`),
+  like `view/` it imports neither mode; they take how a driver looks (`DriverLook`) instead of an
+  online player.
+
+## 2026-11-19 — Single-player Grand Prix (S.5)
+
+- One engine: the online `GrandPrix` runs on an `OfflineRoom` (the server's `Room` without its
+  network part), so qualifying, grid, lights, race, penalties and results are the same code.
+- The bots' qualifying is measured, not invented: each class drives a flying lap on this circuit
+  and weather at load (~0.4 s), then each bot gets it with up to 1% spread. So Hard bots qualify
+  on the calibrated pole and the player knows what to beat.
+- Boxes: 8 per circuit for 10 cars, so one per team as in F1 (plus the player's own, so they never
+  queue behind their teammate). Teammates stop on different laps; and the simulation never starts
+  a stop in a box still taken (it can't happen online: one box per player).
+- The custom race distance (key 4) is a small shared helper (`race/customLaps.ts`) for both modes.
+
+## 2026-11-19 — Points and constructors (S.6)
+
+- F1's points (25 to 1 for the top ten) in `GRAND_PRIX.points`; no fastest-lap point (owner).
+  Points are given on the final classification whatever the distance driven (a race ended early
+  by the player still scores, like the classification itself).
+- Constructors of one race only (owner): the sum of the two drivers, a tie to the better placed
+  driver, as F1 breaks ties by results. A season (points saved across races) would be a later step.
+- The results screen's classification card takes optional team and points columns (online keeps
+  its card as it was) and a new constructors' card follows it in single player.

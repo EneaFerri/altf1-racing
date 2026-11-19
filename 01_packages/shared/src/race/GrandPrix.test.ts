@@ -1,15 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createLapState,
-  HELD,
-  type CarId,
-  type GameState,
-  type LapState,
-  type StartHold,
-  type TrackDefinition,
-  type Weather,
-} from '@altf1/shared';
-import { GrandPrix, type GrandPrixRoom } from './GrandPrix.ts';
+import type { Weather } from '../config/weather';
+import type { CarId } from '../sim/car';
+import type { GameState } from '../sim/game';
+import { createLapState, type LapState } from '../sim/laps';
+import type { TrackDefinition } from '../track/types';
+import { GrandPrix, type GrandPrixRoom } from './GrandPrix';
+import { HELD, type StartHold } from './hold';
 
 /** A room whose lap timing the test writes by hand, recording what the Grand Prix does to it. */
 class FakeRoom implements GrandPrixRoom {
@@ -172,6 +168,31 @@ describe('GrandPrix — lobby', () => {
     gp.remove('p1');
     expect(gp.info.manager).toBe('p3');
     expect(gp.command('p3', { action: 'start' })).toBe(true);
+  });
+});
+
+describe('GrandPrix — simulated qualifying (single player)', () => {
+  it('gives the bots their time: only the player drives, then everyone is on the grid in order', () => {
+    const room = new FakeRoom();
+    const gp = new GrandPrix(room, () => 0.5);
+    gp.add('player', 'You');
+    gp.addSimulated('b1', 'Russell', 5300);
+    gp.addSimulated('b2', 'Norris', 5500);
+    gp.command('player', { action: 'start' });
+    expect(room.restarts).toEqual([['player']]);
+    expect(gp.info.qualifying.map((e) => [e.id, e.best, e.done])).toEqual([
+      ['b1', 5300, true],
+      ['b2', 5500, true],
+      ['player', null, false],
+    ]);
+    room.lap('player', 1, 5400, 900);
+    gp.afterTick();
+    room.lap('player', 2, 5600, 1800);
+    gp.afterTick();
+    room.lap('player', 3, 5600, 2700);
+    gp.afterTick(); // the player's last lap: everyone done
+    expect(gp.info.phase).toBe('grid');
+    expect(room.restarts.at(-1)).toEqual(['b1', 'player', 'b2']);
   });
 });
 

@@ -12,6 +12,8 @@ export const GRAND_PRIX = {
    * missing adds `penaltySeconds` to the driver's race time (see race/pitRule.ts).
    */
   pitRule: { lapsPerStop: 4, maxRequired: 4, penaltySeconds: 25 },
+  /** F1 points for the first ten classified (single player's GP, S.6); none below, none for a DNF. */
+  points: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1],
   /** F1 start: the red lights come on one by one, then all go out together. */
   lights: {
     count: 5,

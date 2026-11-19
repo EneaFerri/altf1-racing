@@ -68,6 +68,40 @@ export const BOT_DRIVER = {
   lineSpan: 8,
   /** Relaxation passes for the racing line; enough for it to settle on the longest straights. */
   lineIterations: 80,
+  /** Other cars within this many metres along the road are traffic (S.2). */
+  trafficRange: 150,
+  /** Two cars closer sideways than this (m, centre to centre) are on the same path. */
+  carWidth: 3.5,
+  /** A car held in its pit box may be passed this close sideways (m, centre to centre). */
+  parkedWidth: 2.6,
+  /** Close behind a car held in its pit box the bot creeps on at this speed (m/s) to get round it. */
+  creepSpeed: 3,
+  /** A car ahead and on the path is followed at least this far back (m, centre to centre) ... */
+  followGap: 6,
+  /** ... plus this many seconds of its speed. */
+  followTime: 0.04,
+  /** Braking the bot counts on to slow to a car ahead's speed (m/s²; `brakeDecel` is 30). */
+  trafficDecel: 22,
+  /** A slower car this far ahead (m) ... */
+  passLookAhead: 18,
+  /** ... plus this many seconds of travel makes the bot move aside to pass it. */
+  passLookAheadTime: 0,
+  /** A car ahead this much slower (m/s) than the bot would go is worth passing. */
+  passMargin: 0.5,
+  /** A pass not done when the line ahead (this many seconds of travel) ... */
+  passAbortTime: 1.2,
+  /** ... drops by more than this (m/s: a braking zone) is given up. */
+  passAbortDrop: 8,
+  /** Giving way to a car alongside into a braking zone: this much slower than it (m/s). */
+  yieldDrop: 3,
+  /** How fast the bot moves off or back to its line (m/s sideways). */
+  passRate: 4,
+  /** Room kept between a passing bot and the asphalt edge (m) ... */
+  passEdgeMargin: 2,
+  /** ... and with a car alongside leaving it less room. */
+  squeezeEdgeMargin: 1,
+  /** A car closer than this along the road (m) is alongside. */
+  alongside: 9,
   /** Slower than this (m/s) for `stuckSeconds` = stuck: the bot resets like a player would (R). */
   stuckSpeed: 2,
   stuckSeconds: 2,

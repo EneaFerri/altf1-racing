@@ -115,6 +115,15 @@ describe('stepGame — pit lane (Grand Prix)', () => {
     ).toBeUndefined();
   });
 
+  it('never stops a car in a box another car is still stopped in (teammates sharing one)', () => {
+    const shared = { ...ctx.pit!, boxes: { p1: 0, p2: 0 } };
+    const arriving = onLane(rules.boxes[0]! - 3, 5).cars[0]!;
+    const stopped = { ...arriving, id: 'p2', pitStop: { until: 100 } };
+    expect(pitStep(arriving, track, 50, shared, [arriving, stopped]).pitStop).toBeUndefined();
+    // Once the other has left the box, it stops.
+    expect(pitStep(arriving, track, 100, shared, [arriving, stopped]).pitStop).toBeDefined();
+  });
+
   it('forgets a stop once the car has left the lane', () => {
     const car = { ...createGame(track, ['p1']).cars[0]!, pitStop: { until: 10 } };
     expect(pitStep(car, track, 50, ctx.pit!).pitStop).toBeUndefined();

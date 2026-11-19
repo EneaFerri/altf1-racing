@@ -1,10 +1,11 @@
 import { BOT_DRIVER, type BotParams } from '../config/bot';
 import type { CarParams } from '../config/car';
+import type { PitParams } from '../config/pit';
 import { SLOPE_PARAMS, type SlopeParams } from '../config/slope';
 import type { WetParams } from '../config/weather';
 import { wrapAngle } from '../math/angle';
 import { add, distance, dot, headingOf, scale, sub, type Vec2 } from '../math/vec2';
-import type { Track } from '../track/types';
+import type { Track, TrackSample } from '../track/types';
 
 /**
  * What a bot aims for at each centreline sample of the road it drives. Pure data, rebuilt when
@@ -48,11 +49,45 @@ export function buildBotPlan(
   slope: SlopeParams = SLOPE_PARAMS,
   wet?: WetParams,
 ): BotPlan {
-  // A shortcut, never the pit lane (the bot doesn't stop).
+  // A shortcut, never the pit lane (that is `buildPitPlan`'s).
   const shortcut = track.routes.find((route) => !route.pit);
   const car = wet ? wetPlanCar(player, wet) : player;
   return planRoad(bot.shortcuts ? (shortcut ?? track) : track, car, bot, slope);
 }
+
+/**
+ * A bot's plan for a lap through the pit lane (`track` built with its pit lane) to stop in box
+ * `box`: the same racing line and speeds on the pit lane's route, no faster than the speed limit
+ * between the limit lines and slow enough to stop (`pit.boxSpeed`) as it reaches its box, where the
+ * stop starts by itself (`sim/pit.ts`); it brakes in time for both like for a corner.
+ * See 01_docs/bot.md#pit-stops.
+ */
+export function buildPitPlan(
+  track: Track,
+  player: CarParams,
+  bot: BotParams,
+  box: number,
+  pit: PitParams,
+  slope: SlopeParams = SLOPE_PARAMS,
+  wet?: WetParams,
+): BotPlan {
+  const road = track.routes.find((route) => route.pit);
+  if (!road) throw new Error(`${track.name}: no pit lane to plan a stop through`);
+  const rules = road.pitRules!;
+  const at = rules.boxes[box % rules.boxes.length]!;
+  const car = wet ? wetPlanCar(player, wet) : player;
+  return planRoad(road, car, bot, slope, ({ distance: d }) => {
+    // Just before the box: slow enough for the stop to begin.
+    if (d >= at - pit.boxReach + PIT_STOP_MARGIN && d <= at) return pit.boxSpeed / 2;
+    if (d >= rules.limitFrom && d <= rules.limitTo) return rules.speedLimit - PIT_LIMIT_MARGIN;
+    return Infinity;
+  });
+}
+
+/** The bot aims to be this far (m) inside its box's reach when it gets slow enough to stop. */
+const PIT_STOP_MARGIN = 1;
+/** The bot keeps this much (m/s) under the pit lane's speed limit. */
+const PIT_LIMIT_MARGIN = 0.5;
 
 /**
  * The car as a bot plans it on a wet track: the brakes as weak as the wet makes them, the yaw it
@@ -73,7 +108,17 @@ const WET_YAW_SHARE = 0.5;
 /** Braking never counts on less than this share of the planned deceleration (steep descents). */
 const MIN_BRAKING = 0.25;
 
-function planRoad(track: Track, player: CarParams, bot: BotParams, slope: SlopeParams): BotPlan {
+/**
+ * The plan on `track`; `cap`, if given, limits the speed at each sample (the pit lane's limit and
+ * the stop in the box), and the braking pass makes the bot slow down in time for it.
+ */
+function planRoad(
+  track: Track,
+  player: CarParams,
+  bot: BotParams,
+  slope: SlopeParams,
+  cap?: (sample: TrackSample) => number,
+): BotPlan {
   const car = botCarParams(player, bot);
   const n = track.samples.length;
   const at = <T>(list: readonly T[], i: number): T => list[((i % n) + n) % n]!;
@@ -83,7 +128,9 @@ function planRoad(track: Track, player: CarParams, bot: BotParams, slope: SlopeP
 
   const topSpeed = bot.topSpeed * car.maxSpeed;
   const curvature = line.map((_, i) => lineCurvature(line, i, at));
-  const speed = curvature.map((k) => Math.min(topSpeed, cornerSpeed(Math.abs(k), car, bot)));
+  const speed = curvature.map((k, i) =>
+    Math.min(topSpeed, cornerSpeed(Math.abs(k), car, bot), cap ? cap(track.samples[i]!) : Infinity),
+  );
 
   // Braking: going backwards round the loop (twice, so the start line wraps), no point may need
   // more deceleration than planned to reach the next one's speed.

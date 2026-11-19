@@ -4,15 +4,24 @@ import {
   type CarId,
   type GrandPrixInfo,
   type LapState,
-  type PlayerInfo,
   type RaceStanding,
 } from '@altf1/shared';
 import { defaultLapName, formatDelta, formatLapTime } from '../view/hud/format';
 import type { GrandPrixContent, GrandPrixRow, PitBadge } from '../view/hud/GrandPrixPanel';
-import { LIVERIES, playerLivery } from '../view/pixelTexture';
+import { LIVERIES, type Livery } from '../view/pixelTexture';
 
 /**
- * The Grand Prix panel for player `ownId`, by phase: the drivers (arrival order in the lobby, then
+ * How a driver of a Grand Prix is shown: name and car colours (online: the player's nickname and
+ * livery; single player: the team's driver or the player, in the team's colours).
+ */
+export interface DriverLook {
+  readonly id: CarId;
+  readonly name: string;
+  readonly livery: Livery;
+}
+
+/**
+ * The Grand Prix panel for player `ownId` (`drivers`: how everyone is shown), by phase: the drivers (arrival order in the lobby, then
  * the qualifying order, which becomes the starting grid, then the race order with the gaps) and
  * what this player can do or is waiting for. The manager's keys: Enter (start, end qualifying,
  * end the race), 1/2/3 (race laps), on the grid 4 then ←/→ and Enter (any other distance:
@@ -23,13 +32,13 @@ import { LIVERIES, playerLivery } from '../view/pixelTexture';
  */
 export function grandPrixContent(
   info: GrandPrixInfo,
-  players: readonly PlayerInfo[],
+  drivers: readonly DriverLook[],
   ownId: CarId,
   pits: ReadonlyMap<CarId, PitBadge> = new Map(),
   canRain = false,
   customLaps: number | null = null,
 ): GrandPrixContent {
-  const content = phaseContent(info, players, ownId, pits, canRain, customLaps);
+  const content = phaseContent(info, drivers, ownId, pits, canRain, customLaps);
   const weather =
     info.weather === 'rain' ? ' · RAIN' : canRain && info.phase === 'lobby' ? ' · DRY' : '';
   return leftOut(info, ownId) ? content : { ...content, title: content.title + weather };
@@ -42,13 +51,13 @@ function leftOut(info: GrandPrixInfo, ownId: CarId): boolean {
 
 function phaseContent(
   info: GrandPrixInfo,
-  players: readonly PlayerInfo[],
+  drivers: readonly DriverLook[],
   ownId: CarId,
   pits: ReadonlyMap<CarId, PitBadge>,
   canRain: boolean,
   customLaps: number | null,
 ): GrandPrixContent {
-  const byId = new Map(players.map((p) => [p.id, p]));
+  const byId = new Map(drivers.map((d) => [d.id, d]));
   const pitOf = (id: CarId) => {
     const badge = pits.get(id);
     return badge ? { pit: badge } : {};
@@ -60,12 +69,12 @@ function phaseContent(
   const fastestOf = (id: CarId) =>
     fastest?.id === id ? { fastest: formatLapTime(fastest.best) } : {};
   const row = (id: CarId, name: string, note: string): GrandPrixRow[] => {
-    const player = byId.get(id);
-    if (!player) return [];
+    const driver = byId.get(id);
+    if (!driver) return [];
     return [
       {
         name,
-        color: playerLivery(player.livery).body,
+        color: driver.livery.body,
         note,
         own: id === ownId,
         ...pitOf(id),
@@ -74,7 +83,7 @@ function phaseContent(
     ];
   };
   const isManager = info.manager === ownId;
-  const manager = (info.manager !== null && byId.get(info.manager)?.nickname) || 'the manager';
+  const manager = (info.manager !== null && byId.get(info.manager)?.name) || 'the manager';
   if (leftOut(info, ownId)) {
     return {
       title: 'GRAND PRIX · IN PROGRESS',
@@ -89,7 +98,7 @@ function phaseContent(
       return {
         title: 'GRAND PRIX · WAITING',
         rows: info.drivers.flatMap((id) =>
-          row(id, byId.get(id)?.nickname ?? '', id === info.manager ? 'manager' : ''),
+          row(id, byId.get(id)?.name ?? '', id === info.manager ? 'manager' : ''),
         ),
         hint: isManager
           ? `You are the GP manager — ${canRain ? '1: dry · 2: rain · ' : ''}Enter: start the GP`
@@ -104,8 +113,8 @@ function phaseContent(
         title: 'GRAND PRIX · QUALIFYING',
         rows: info.qualifying.flatMap((entry, i) => {
           const lap = entry.done ? 'done' : `Q${entry.laps + 1}`;
-          const nickname = byId.get(entry.id)?.nickname ?? '';
-          return row(entry.id, `${i + 1}  ${nickname}`, `${time(entry.best)} · ${lap}`);
+          const name = byId.get(entry.id)?.name ?? '';
+          return row(entry.id, `${i + 1}  ${name}`, `${time(entry.best)} · ${lap}`);
         }),
         hint: isManager
           ? [done, 'Enter: end qualifying now'].filter(Boolean).join(' — ')
@@ -117,7 +126,7 @@ function phaseContent(
       return {
         title: 'GRAND PRIX · STARTING GRID',
         rows: info.qualifying.flatMap((entry, i) =>
-          row(entry.id, `P${i + 1}  ${byId.get(entry.id)?.nickname ?? ''}`, time(entry.best)),
+          row(entry.id, `P${i + 1}  ${byId.get(entry.id)?.name ?? ''}`, time(entry.best)),
         ),
         hint: !isManager
           ? `Waiting for ${manager} to start the race`
@@ -135,12 +144,12 @@ function phaseContent(
         required > 0 ? { stops: { text: `${stops}/${required}`, short: stops < required } } : {};
       const own = info.race.find((standing) => standing.id === ownId);
       const done = own?.status === 'finished' ? 'Finished — watching the others' : '';
-      // A driver who left is no longer in `players`: drawn grey, by the name the server kept.
+      // A driver who left is no longer in `drivers`: drawn grey, by the name the server kept.
       const rows = info.race.map((standing, i) => {
-        const player = byId.get(standing.id);
+        const driver = byId.get(standing.id);
         return {
           name: `${i + 1}  ${standing.name}`,
-          color: (player ? playerLivery(player.livery) : LIVERIES.grey).body,
+          color: (driver?.livery ?? LIVERIES.grey).body,
           note: raceNote(standing, i, info.raceLaps!),
           own: standing.id === ownId,
           ...(info.phase === 'race' && pitOf(standing.id)),

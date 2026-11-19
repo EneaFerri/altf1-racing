@@ -52,10 +52,11 @@ import { Ghost } from './ghost';
 import type { LocalRecords } from './localRecords';
 
 /**
- * Single player's modes: free practice (alone), time trial (alone, with the ghost of the own best
- * lap and this browser's records) and test (the bot, telemetry open, the dev tools in dev).
+ * The single-player modes this game runs (the Grand Prix is `SinglePlayerGrandPrix`): time trial
+ * (alone, with the ghost of the own best lap and this browser's records) and test (the bot,
+ * telemetry open, the dev tools in dev).
  */
-export type SinglePlayerMode = 'practice' | 'timeTrial' | 'test';
+export type SinglePlayerMode = 'timeTrial' | 'test';
 
 /** Id of the car driven by this machine's keyboard. */
 const PLAYER_ID = 'player';
@@ -242,7 +243,9 @@ export class SinglePlayerGame {
     const inputs: Record<CarId, InputCommand> = { [PLAYER_ID]: this.lastInput };
     const bot = findCar(this.state, BOT_ID);
     if (bot && this.botLevel) {
-      const result = botInput(bot, this.currentBotPlan(this.botLevel), this.botMemory);
+      // The bot races the player: it sees the other cars (01_docs/bot.md#in-traffic).
+      const plan = this.currentBotPlan(this.botLevel);
+      const result = botInput(bot, plan, this.botMemory, this.state.cars);
       this.botMemory = result.memory;
       inputs[BOT_ID] = result.input;
     }

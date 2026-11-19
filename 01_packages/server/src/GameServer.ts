@@ -2,6 +2,7 @@ import {
   encodeMessage,
   FIXED_DT,
   GP_TRACKS,
+  GrandPrix,
   ONLINE_MODES,
   parseClientMessage,
   RECORD_MODES,
@@ -16,7 +17,6 @@ import {
   type RoomInfo,
   type ServerMessage,
 } from '@altf1/shared';
-import { GrandPrix } from './GrandPrix.ts';
 import { finishedLaps, LapRecords } from './LapRecords.ts';
 import { Lobby } from './Lobby.ts';
 import { Room } from './Room.ts';

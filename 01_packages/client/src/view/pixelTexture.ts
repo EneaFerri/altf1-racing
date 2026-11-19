@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { TeamId } from '@altf1/shared';
 
 type Draw = (ctx: CanvasRenderingContext2D, size: number) => void;
 
@@ -65,10 +66,14 @@ export function createWetSidewallTexture(size = 16): THREE.Texture {
   });
 }
 
-/** Body colour and the darker pixels sprinkled on it. */
+/** Body colour and the darker pixels sprinkled on it; optionally a stripe colour and a sponsor. */
 export interface Livery {
   readonly body: string;
   readonly shade: string;
+  /** The racing stripe's colour; white if left out. */
+  readonly accent?: string;
+  /** Sponsor letters under the stripe, in the stripe's colour (letters of `SPONSOR_FONT`). */
+  readonly sponsor?: string;
 }
 
 /** Car liveries: the local player is red, the bot blue, anything else (dev dummy) grey. */
@@ -90,13 +95,53 @@ export const PLAYER_LIVERIES: readonly Livery[] = [
   { body: '#ff4fa3', shade: '#d63d86' }, // pink
 ];
 
+/**
+ * The single-player Grand Prix's team colours (owner: the teams' own): Mercedes silver and teal,
+ * Ferrari red and yellow, Red Bull dark blue and red, McLaren papaya and black, Polimi blue and
+ * white with its "OF" sponsor.
+ */
+export const TEAM_LIVERIES: Readonly<Record<TeamId, Livery>> = {
+  mercedes: { body: '#c3c7cc', shade: '#9ea3a9', accent: '#00d2be' },
+  ferrari: { body: '#dc0000', shade: '#b00000', accent: '#fff200' },
+  redBull: { body: '#1b2a6b', shade: '#121d4d', accent: '#e10600' },
+  mclaren: { body: '#ff8000', shade: '#d16a00', accent: '#151515' },
+  polimi: { body: '#1d4f9c', shade: '#163d7a', accent: '#ffffff', sponsor: 'OF' },
+};
+
+/** 3 × 5 pixel letters for sponsors: rows top to bottom, `#` = lit. Only the letters in use. */
+const SPONSOR_FONT: Readonly<Record<string, readonly string[]>> = {
+  O: ['###', '#.#', '#.#', '#.#', '###'],
+  F: ['###', '#..', '##.', '#..', '#..'],
+};
+
+/**
+ * The lit pixels `[x, y]` of `text` in `SPONSOR_FONT`, centred in a `size` texture under the
+ * stripe (from row `top`), one pixel between letters. Throws on a letter the font lacks.
+ */
+export function sponsorPixels(text: string, size: number, top: number): [number, number][] {
+  const width = text.length * 4 - 1;
+  const left = Math.floor((size - width) / 2);
+  return [...text].flatMap((letter, i) => {
+    const glyph = SPONSOR_FONT[letter];
+    if (!glyph) throw new Error(`No sponsor pixels for "${letter}"`);
+    return glyph.flatMap((row, y) =>
+      [...row].flatMap((pixel, x): [number, number][] =>
+        pixel === '#' ? [[left + i * 4 + x, top + y]] : [],
+      ),
+    );
+  });
+}
+
 /** Livery for a server livery index; wraps around past the last one. */
 export function playerLivery(index: number): Livery {
   const n = PLAYER_LIVERIES.length;
   return PLAYER_LIVERIES[((index % n) + n) % n]!;
 }
 
-/** Car livery: body colour with a white racing stripe and subtle pixel shading. */
+/**
+ * Car livery: body colour with a racing stripe (white unless `accent`), subtle pixel shading and
+ * the sponsor's letters under the stripe, if any.
+ */
 export function createLiveryTexture(livery: Livery, size = 16): THREE.Texture {
   return createPixelTexture(size, (ctx) => {
     for (let y = 0; y < size; y++) {
@@ -106,8 +151,12 @@ export function createLiveryTexture(livery: Livery, size = 16): THREE.Texture {
       }
     }
     const stripe = Math.floor(size / 2) - 1;
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = livery.accent ?? '#ffffff';
     ctx.fillRect(0, stripe, size, 2);
+    if (livery.sponsor) {
+      for (const [x, y] of sponsorPixels(livery.sponsor, size, stripe + 3))
+        ctx.fillRect(x, y, 1, 1);
+    }
   });
 }
 

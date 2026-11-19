@@ -12,6 +12,7 @@ import {
   type BuildOptions,
   type CarId,
   type GameState,
+  type GrandPrixRoom,
   type InputCommand,
   type SimContext,
   type StartHold,
@@ -96,7 +97,7 @@ function newTimeline(): InputTimeline {
  * tick runs exactly one queued input per player, the one its client simulated for that tick.
  * Pure (no sockets, no timers). See 01_docs/multiplayer.md#rooms.
  */
-export class Room {
+export class Room implements GrandPrixRoom {
   readonly definition: TrackDefinition;
   private readonly track: Track;
   private ctx: SimContext;

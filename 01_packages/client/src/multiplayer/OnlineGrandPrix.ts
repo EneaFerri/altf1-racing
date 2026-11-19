@@ -13,14 +13,21 @@ import {
 } from '@altf1/shared';
 import type { KeyboardController } from '../controller/KeyboardController';
 import { GrandPrixPanel, type PitBadge } from '../view/hud/GrandPrixPanel';
+import { playerLivery } from '../view/pixelTexture';
 import type { Hud } from '../view/hud/Hud';
 import { ResultsScreen } from '../view/hud/ResultsScreen';
 import { StartLights } from '../view/hud/StartLights';
 import type { SceneView } from '../view/SceneView';
-import { chequeredFlag, grandPrixContent, lapName } from './grandPrixText';
+import { CustomLaps } from '../race/customLaps';
+import { chequeredFlag, grandPrixContent, lapName, type DriverLook } from '../race/grandPrixText';
 import type { NetClient } from './NetClient';
 import type { Predictor } from './Predictor';
-import { classificationRows, playAgainItem, podiumContent, type RaceResult } from './resultsText';
+import {
+  classificationRows,
+  playAgainItem,
+  podiumContent,
+  type RaceResult,
+} from '../race/resultsText';
 
 /**
  * This player's side of a Grand Prix: the panel and the start lights, the manager's keys (Enter:
@@ -37,9 +44,10 @@ export class OnlineGrandPrix {
   private onResults = false;
   /** The Grand Prix as last told by the server; null until then. */
   private info: GrandPrixInfo | null = null;
-  private players: readonly PlayerInfo[] = [];
+  /** Everyone in the room, as the panel and the results show them. */
+  private drivers: readonly DriverLook[] = [];
   /** The manager's own race distance on the grid (key 4, then ←/→); null = not chosen. */
-  private customLaps: number | null = null;
+  private readonly customLaps = new CustomLaps();
 
   constructor(
     private readonly client: NetClient,
@@ -57,8 +65,8 @@ export class OnlineGrandPrix {
       if (this.onResults) return;
       if (this.info?.phase === 'lobby') this.command({ action: 'start' });
       else if (this.info?.phase === 'qualifying') this.command({ action: 'endQualifying' });
-      else if (this.info?.phase === 'grid' && this.customLaps !== null) {
-        this.command({ action: 'startRace', laps: this.customLaps });
+      else if (this.info?.phase === 'grid' && this.customLaps.value !== null) {
+        this.command({ action: 'startRace', laps: this.customLaps.value });
       } else if (this.info?.phase === 'race') this.command({ action: 'endRace' });
     });
     (['choice1', 'choice2', 'choice3'] as const).forEach((key, i) =>
@@ -73,14 +81,13 @@ export class OnlineGrandPrix {
     );
     controller.onAction('choice4', () => {
       if (this.onResults || !this.choosingLaps) return;
-      this.customLaps ??= GRAND_PRIX.customLaps.start;
+      this.customLaps.open();
       this.show();
     });
     (['lapsDown', 'lapsUp'] as const).forEach((key, i) =>
       controller.onAction(key, () => {
-        if (this.onResults || !this.choosingLaps || this.customLaps === null) return;
-        const { min, max } = GRAND_PRIX.customLaps;
-        this.customLaps = Math.min(max, Math.max(min, this.customLaps + (i === 0 ? -1 : 1)));
+        if (this.onResults || !this.choosingLaps) return;
+        this.customLaps.step(i === 0 ? -1 : 1);
         this.show();
       }),
     );
@@ -104,7 +111,7 @@ export class OnlineGrandPrix {
       info.drivers.includes(this.playerId);
     if (info.weather !== this.info?.weather) this.scene.setWeather(info.weather);
     this.info = info;
-    if (!this.choosingLaps) this.customLaps = null; // a new grid starts from the presets
+    if (!this.choosingLaps) this.customLaps.reset(); // a new grid starts from the presets
     this.predictor.hold = info.hold;
     this.predictor.setDamage(damageInPhase(info.phase));
     this.predictor.setPitBoxes(info.boxes);
@@ -120,7 +127,11 @@ export class OnlineGrandPrix {
 
   /** Everyone in the room (names and colours for the panel). */
   setPlayers(players: readonly PlayerInfo[]): void {
-    this.players = players;
+    this.drivers = players.map((p) => ({
+      id: p.id,
+      name: p.nickname,
+      livery: playerLivery(p.livery),
+    }));
     this.show();
   }
 
@@ -160,7 +171,7 @@ export class OnlineGrandPrix {
   private async showResults(info: GrandPrixInfo): Promise<void> {
     this.onResults = true;
     this.panel.setVisible(false);
-    const result: RaceResult = { race: info.race, raceLaps: info.raceLaps!, players: this.players };
+    const result: RaceResult = { race: info.race, raceLaps: info.raceLaps!, drivers: this.drivers };
     await this.results.podium(podiumContent(result));
     const choice = await this.results.classification(
       `GRAND PRIX · CLASSIFICATION · ${result.raceLaps} LAPS`,
@@ -182,11 +193,11 @@ export class OnlineGrandPrix {
       this.panel.show(
         grandPrixContent(
           this.info,
-          this.players,
+          this.drivers,
           this.playerId,
           this.pits,
           this.canRain,
-          this.customLaps,
+          this.customLaps.value,
         ),
       );
     }

@@ -135,7 +135,8 @@
   height: 70px;
 }
 
-/* Classification card: POS · DRIVER · GAP · FASTEST LAP · STOPS. */
+/* Classification card: POS · DRIVER · GAP · FASTEST LAP · STOPS · PENALTY (single player's
+   Grand Prix: TEAM after DRIVER and PTS last; its constructors' card: POS · TEAM · DRIVERS · PTS). */
 
 .results-table {
   display: grid;
@@ -145,6 +146,24 @@
   margin: 4px 0 10px;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+
+.results-table.results-scored {
+  grid-template-columns: auto minmax(120px, 1fr) auto auto auto auto auto auto;
+  column-gap: 14px;
+}
+
+.results-table.results-constructors {
+  grid-template-columns: auto minmax(120px, 1fr) minmax(200px, auto) auto;
+}
+
+.results-team {
+  color: #9a9aa6;
+}
+
+.results-points {
+  text-align: right;
+  font-weight: 800;
 }
 
 .results-table > span {

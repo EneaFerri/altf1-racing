@@ -105,13 +105,14 @@ between them, so motion is smooth at any refresh rate even though the Model tick
 
 - `main.ts` shows the **start screen** (`view/menu/ModeMenu.ts`): **Singleplayer / Multiplayer**,
   then loads only the chosen mode with a dynamic `import()`:
-  - `singleplayer/start.ts` → the **mode menu** (M.2: Free practice, Time trial, Test), then the
+  - `singleplayer/start.ts` → the **mode menu** (Grand Prix since S.5, Time trial, Test). Grand
+    Prix: the **team menu**, the track menu, the weather where it may rain, then
+    `SinglePlayerGrandPrix` ([bot.md](bot.md#single-player-grand-prix)). The others: the
     **track menu** (`view/menu/TrackMenu.ts`): every circuit of `GP_TRACKS`
     (`shared/src/track/layouts/index.ts`: the real F1 circuits only) with its length, or in time
     trial this browser's best lap there (`singleplayer/localRecords.ts`). The chosen
     `TrackDefinition` and mode go to `new SinglePlayerGame(track, theme, mode, records)`, which
-    builds the `Track` and everything that depends on it. Free practice and time trial: the
-    player's car alone (time trial: `singleplayer/ghost.ts`, valid laps saved as records). Test:
+    builds the `Track` and everything that depends on it. Time trial: the player's car alone (time trial: `singleplayer/ghost.ts`, valid laps saved as records). Test:
     the bot (B), F3 open, and in dev the F2 panel, the F4 dummy, `?pitlane`, `?rain`.
   - `multiplayer/start.ts` → the **nickname screen**, then the **mode** (Free practice, Grand
     Prix) and **circuit choice** and the **online race** (`OnlineGame`) in that circuit's room, over a WebSocket to the multiplayer server
@@ -121,7 +122,7 @@ between them, so motion is smooth at any refresh rate even though the Model tick
   `setItem` for a live row (the Grand Prix classification card).
 - The two modes never mix (owner's rule): separate folders, loaded on demand (the production build
   emits a chunk per mode), and an ESLint boundary forbids imports between them and from the shared
-  building blocks (`core`, `controller`, `dev`, `view`) into either. Details:
+  building blocks (`core`, `controller`, `dev`, `race`, `view`) into either. Details:
   [multiplayer.md](multiplayer.md#separation-of-the-two-modes-21a-).
 - **Esc** in a race (`backToMenu` action) reloads the page, which brings the start screen back.
 

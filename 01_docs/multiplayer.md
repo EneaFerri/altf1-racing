@@ -9,13 +9,14 @@ section says which sub-step built it.
 ## Flow
 
 ```
-Start screen ── Singleplayer ──▶ Mode menu (Free practice / Time trial / Test) ──▶ Track menu
+Start screen ── Singleplayer ──▶ Mode menu (Grand Prix / Time trial / Test) ──▶ (GP: Team) ──▶ Track menu
              │                    (the F1 circuits) ──▶ single-player game
              └─ Multiplayer ───▶ Nickname ──▶ connect ──▶ Mode menu (Free practice / Grand Prix)
                                   ──▶ Track menu (the F1 circuits) ──▶ that room, with everyone in it
 ```
 
-- **Singleplayer** (M.2): **Free practice** alone on the circuit; **Time trial** alone, racing the
+- **Singleplayer** (M.2, S.5): **Grand Prix** against 9 bots in the team the player picks (the
+  same GP rules as online, [bot.md](bot.md#single-player-grand-prix)); **Time trial** alone, racing the
   ghost of the session's best lap, with this browser's best lap per circuit shown in the track menu
   (`singleplayer/localRecords.ts`, `localStorage`); **Test**, the game as it was: the bot (B), F3
   telemetry open from the start, F2 tuning, F4 dummy, `?pitlane`, `?rain` (the last four in dev
@@ -33,7 +34,7 @@ The owner's rule: the two sections never mix. Enforced, not just by convention:
 
 - **Folders**: `client/src/singleplayer/` (`SinglePlayerGame`, `start.ts`: mode menu → track menu → race, `ghost`, `localRecords`)
   and `client/src/multiplayer/` (`start.ts`, `NetClient`, `serverUrl`, `lobbyText`, `OnlineGame`,
-  `Predictor`). The building blocks both use stay where they are: `GameLoop`, `SceneView`, `Hud`, `KeyboardController`, the menus' look.
+  `Predictor`). The building blocks both use stay where they are: `GameLoop`, `SceneView`, `Hud`, `KeyboardController`, the menus' look, the Grand Prix texts (`race/`, S.4).
 - **Loading**: `main.ts` imports a mode with a dynamic `import()` only once it is chosen. Choosing
   Singleplayer never loads or opens any network code; choosing Multiplayer never builds a bot.
 - **Lint**: an ESLint `no-restricted-imports` rule (`eslint.config.js`) forbids `singleplayer/**` ↔
@@ -320,12 +321,13 @@ choices in [decisions.md](decisions.md#2026-10-28--online-game-modes-step-23-pla
 
 ### Grand Prix
 
-One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/GrandPrix.ts`
-(pure, tested), kept by `GameServer` beside the room's `Room` and dropped with it.
+One shared room per circuit (`grandPrix/Monza`) with its rules in `shared/src/race/GrandPrix.ts`
+(pure, tested; in shared since S.4, so single player's Grand Prix runs the same rules on its own
+room, any `GrandPrixRoom`), kept by `GameServer` beside the room's `Room` and dropped with it.
 
 - **Lobby** (2.3e ✅): the first player in is the **GP manager**; if they leave, whoever has been
   there longest takes over. While waiting everyone drives freely on the circuit. A top-left panel
-  (`view/hud/GrandPrixPanel.ts`, texts from `multiplayer/grandPrixText.ts`) shows the phase, the
+  (`view/hud/GrandPrixPanel.ts`, texts from `race/grandPrixText.ts`) shows the phase, the
   drivers in arrival order with their livery colour (manager marked, own row highlighted) and
   what comes next: "Enter: start the GP" for the manager, "Waiting for <manager> to start the GP"
   for the others.
@@ -399,7 +401,7 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   is classified where they are.
 - **Results** (2.3i ✅, owner's design): phase `results`. Each driver's client freezes the
   classification and covers the screen (`view/hud/ResultsScreen.ts` + `results.css`, texts from
-  `multiplayer/resultsText.ts`): first the **podium** for 20 s (Enter skips) — three steps (2–1–3),
+  `race/resultsText.ts`): first the **podium** for 20 s (Enter skips) — three steps (2–1–3),
   on each a pixel driver in the car's livery (`view/hud/pixelFigure.ts`) swaying, with nickname and
   race time or gap, the winner jumping with the cup raised; DNFs never on it, empty steps if fewer
   than three are classified. Then the **classification card**, a `ListMenu` with the table as its
