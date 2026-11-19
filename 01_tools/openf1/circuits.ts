@@ -139,6 +139,18 @@ export interface CircuitConfig {
    * bends tighter than its walls allow (São Paulo's, round the inside of the Senna S).
    */
   readonly pitLaneSmoothing?: number;
+  /**
+   * The pit lane's heights: those of the track nearest each point, smoothed and never steeper than
+   * this grade (São Paulo's: by the lap fraction they stepped and plunged). Default: the track's
+   * height at each point's lap fraction. See pitLane.ts.
+   */
+  readonly pitLaneMaxGrade?: number;
+  /**
+   * The boxes `spacing` m apart, centred where the lane passes the start line, and the limiter only
+   * `margin` m before the first and after the last (São Paulo's lane is 1350 m long). Default: the
+   * limit lines where the lane is fully beside the track, the boxes over the garages or spread.
+   */
+  readonly pitBoxesAtLine?: { readonly spacing: number; readonly margin: number };
   /** Corners made sharper than the real ones, sorted by `at`. */
   readonly sharpCorners?: readonly SharpCorner[];
 
@@ -534,6 +546,9 @@ export const CIRCUITS: readonly CircuitConfig[] = [
     // there folded the walls; smoothed and joined at the track's edge, as Monaco's.
     pitLaneAtEdge: true,
     pitLaneSmoothing: 16,
+    // Owner (2026-11-18): the lane's heights stepped and plunged (30%), and its limiter ran 1 km.
+    pitLaneMaxGrade: 0.05,
+    pitBoxesAtLine: { spacing: 20, margin: 50 },
     // OSM maps only the stands of the start straight: the others placed by hand, on the outside of
     // the corners (the pits are on the left, inside the lap).
     stands: [

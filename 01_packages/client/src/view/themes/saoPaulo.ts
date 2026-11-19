@@ -43,5 +43,6 @@ export const SAO_PAULO_THEME = realCircuitTheme(
     edgeLineInset: 0,
     trees: createTrees,
     groundHeight: landGroundHeight(SAO_PAULO_LAND, []),
+    groundUnderRoutes: true,
   },
 );

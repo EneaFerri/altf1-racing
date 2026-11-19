@@ -41,11 +41,22 @@ const MIN_ALIGN_SPEED = 3;
 /** Hits more head-on than this (rad, ~70°) get no alignment: the car bounces back and you reverse. */
 const MAX_ALIGN_ANGLE = 1.22;
 
+/** How far behind a wall's line (m) a circle may have started its tick and still count as in front. */
+const FROM_TOLERANCE = 0.25;
+
 /**
  * Deepest wall contact of a circle, if any. Walls are one-sided: a circle up to WALL_CATCH_DEPTH
- * behind a wall is still pushed back to the track side, so a fast car can't tunnel through.
+ * behind a wall is still pushed back to the track side, so a fast car can't tunnel through. With
+ * `from` (the circle's centre at the start of the tick), only if it started in front of that wall:
+ * a wall behind the car never pulls it through to its own side, however thin the wall between
+ * two roads (the pit wall: 01_docs/collisions.md#walls).
  */
-export function wallContact(walls: WallSet, center: Vec2, radius: number): WallContact | undefined {
+export function wallContact(
+  walls: WallSet,
+  center: Vec2,
+  radius: number,
+  from?: Vec2,
+): WallContact | undefined {
   let best: WallContact | undefined;
   for (const index of walls.wallGrid.query(center, radius + WALL_CATCH_DEPTH)) {
     const wall = walls.walls[index]!;
@@ -59,6 +70,7 @@ export function wallContact(walls: WallSet, center: Vec2, radius: number): WallC
     let normal: Vec2;
     if (along >= 0 && along <= 1) {
       if (signed < -WALL_CATCH_DEPTH) continue;
+      if (signed < 0 && from && dot(sub(from, wall.a), wall.normal) < -FROM_TOLERANCE) continue;
       distance = signed;
       normal = wall.normal;
     } else {
@@ -73,17 +85,22 @@ export function wallContact(walls: WallSet, center: Vec2, radius: number): WallC
   return best;
 }
 
-/** Pushes every circle of the car out of the walls and applies the wall response. */
+/**
+ * Pushes every circle of the car out of the walls and applies the wall response. `before` is the
+ * car at the start of the tick: a wall only catches a circle from behind if it started in front.
+ */
 export function resolveWalls(
   car: CarState,
   walls: WallSet,
   p: CollisionParams,
+  before?: CarState,
 ): { car: CarState; impact?: ImpactEvent } {
   let result = car;
   let impact: ImpactEvent | undefined;
   for (const ahead of CAR_COLLIDER.circles) {
     const center = toWorld(result.position, result.heading, ahead, 0);
-    const contact = wallContact(walls, center, CAR_COLLIDER.radius);
+    const from = before && toWorld(before.position, before.heading, ahead, 0);
+    const contact = wallContact(walls, center, CAR_COLLIDER.radius, from);
     if (!contact) continue;
     result = { ...result, position: add(result.position, scale(contact.normal, contact.depth)) };
     const hit = wallHit(result, contact.normal, p);

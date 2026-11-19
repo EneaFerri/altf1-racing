@@ -329,6 +329,18 @@ One shared room per circuit (`grandPrix/Monza`) with its rules in `server/src/Gr
   from the manager and only in its phase, then sends the new `grandPrix` to the room (phase,
   manager, qualifying order, race laps, start hold). The rules' numbers are in
   `shared/src/config/grandPrix.ts` (`GRAND_PRIX`).
+- **Weather** (2.7 W.3, protocol v15): in the lobby of a track that `offersRain` (São Paulo), the
+  manager's 1/2 send `gp` `weather` (`dry`/`rain`) for the whole GP; `GrandPrixInfo.weather` tells
+  the room, the server's room and every prediction run the wet track (`onlineSimContext`'s
+  `weather`), the view switches to the rain. Kept after play again. Free practice and Time trial
+  always dry. See [weather.md](weather.md#online-w3).
+- **Sector timing** (2.3l, protocol v15): `GrandPrixInfo.sectorBests`, each session's best time
+  of every sector over all drivers, live at every sector done, sent whenever one improves; the HUD's sector table colours
+  against it ([laps.md](laps.md#grand-prix-sector-table-23l)).
+- **Fastest lap** (2.3l): in the panel top left, a purple pixel stopwatch and the lap's time beside
+  the driver with the session's fastest valid lap (qualifying and the grid: the qualifying times;
+  the race and the results: each racer's best lap, updated at every timing line; none in the
+  lobby). `fastestLap` in `grandPrixText.ts`; a tie goes to the first in the order.
 - **Qualifying** (2.3f ✅): everyone back on the grid in arrival order with fresh timing
   (`Room.restart`, the tick count goes on), free to go at once (an out-lap: no start needed).
   Out-lap, then three timed laps named **Q1, Q2, Q3** in the HUD; the best valid one counts (a

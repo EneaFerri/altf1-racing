@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildTrack, locateOnTrack, MONACO, MONZA } from '@altf1/shared';
+import { buildTrack, locateOnTrack, MONACO, MONZA, SAO_PAULO } from '@altf1/shared';
+import { SAO_PAULO_THEME } from '../themes/saoPaulo';
 import {
+  elevatedGround,
   gridHeightAt,
   GROUND_DROP,
   groundGrid,
@@ -10,6 +12,7 @@ import {
   SHORE_BAND,
   trackGroundHeight,
   withLakes,
+  type GroundGrid,
 } from './ground';
 import { clearance, trackBounds } from './placement';
 
@@ -63,6 +66,28 @@ describe('settleUnderRoad', () => {
         expect(h).toBeLessThan(s.height);
       }
     }
+  });
+});
+
+describe('settleUnderRoad under the routes', () => {
+  it("leaves no ground above São Paulo's pit lane (its land rose up to 4 m through it)", () => {
+    const track = buildTrack(SAO_PAULO, { pitLane: true });
+    const height = SAO_PAULO_THEME.groundHeight!(track);
+    const lane = track.routes.find((road) => road.pit)!;
+    const above = (grid: GroundGrid): number =>
+      lane.samples
+        .filter((s) => s.distance >= lane.branch!.from && s.distance <= lane.branch!.to)
+        .flatMap((s) => [-1, -0.5, 0, 0.5, 1].map((o) => ({ s, o: o * s.halfWidth })))
+        .filter(({ s, o }) => {
+          const h = gridHeightAt(
+            grid,
+            s.position.x + s.normal.x * o,
+            s.position.z + s.normal.z * o,
+          );
+          return h !== null && h >= s.height;
+        }).length;
+    expect(above(elevatedGround(track, height))).toBeGreaterThan(0);
+    expect(above(elevatedGround(track, height, true))).toBe(0);
   });
 });
 

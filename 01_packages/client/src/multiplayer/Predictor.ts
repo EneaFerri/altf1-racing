@@ -5,9 +5,11 @@ import {
   findCar,
   heldInputs,
   length,
+  placePuddles,
   scale,
   stepGame,
   sub,
+  WET_PARAMS,
   wrapAngle,
   type CarId,
   type GameState,
@@ -17,6 +19,7 @@ import {
   type SimContext,
   type StartHold,
   type Vec2,
+  type Weather,
 } from '@altf1/shared';
 
 export type Snapshot = Extract<ServerMessage, { type: 'snapshot' }>;
@@ -93,8 +96,19 @@ export class Predictor {
     this.rebuild();
   }
 
+  /**
+   * The weather the server's room runs (a Grand Prix's, chosen by its manager): the rain makes
+   * the predicted track wet, with the same puddles (`onlineSimContext`).
+   */
+  setWeather(weather: Weather): void {
+    if (weather === this.weather) return;
+    this.weather = weather;
+    this.rebuild();
+  }
+
   private damage = false;
   private boxes: Readonly<Record<CarId, number>> = {};
+  private weather: Weather = 'dry';
 
   private rebuild(): void {
     const { pit } = this.ctx;
@@ -102,6 +116,9 @@ export class Predictor {
       ...this.ctx,
       ...(this.damage && { damage: DAMAGE_PARAMS }),
       ...(pit && { pit: { ...pit, boxes: this.boxes } }),
+      ...(this.weather === 'rain' && {
+        weather: { params: WET_PARAMS, puddles: placePuddles(this.ctx.track) },
+      }),
     };
   }
 

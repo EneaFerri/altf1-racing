@@ -48,6 +48,23 @@ export function createCheckerTexture(size: number, colorA: string, colorB: strin
   });
 }
 
+/**
+ * A wet-weather tyre's sidewall, for a wheel's flat ends (a cylinder cap: a disc centred in the
+ * texture): black rubber with the blue band of F1's full wets round it, a dark hub in the middle.
+ */
+export function createWetSidewallTexture(size = 16): THREE.Texture {
+  return createPixelTexture(size, (ctx) => {
+    const c = (size - 1) / 2;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const r = Math.hypot(x - c, y - c) / (size / 2);
+        ctx.fillStyle = r < 0.3 ? '#3a3a3e' : r >= 0.6 && r < 0.8 ? '#1e6fe0' : '#1a1a1a';
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  });
+}
+
 /** Grass tile with per-pixel colour noise and a darker border, so tiles read as a grid. */
 export function createGroundTexture(size = 16): THREE.Texture {
   return createPixelTexture(
@@ -347,6 +364,34 @@ export function createWaterTexture(size = 16): THREE.Texture {
     },
     true,
   );
+}
+
+/**
+ * A puddle (wet track): a pale blob mirroring the sky (tint it with the sky's colour), a ragged
+ * pixel edge, a few lighter glints and a darker rim; transparent outside the blob (use alphaTest).
+ */
+export function createPuddleTexture(size = 16): THREE.Texture {
+  return createPixelTexture(size, (ctx) => {
+    const random = seededRandom(43);
+    const c = (size - 1) / 2;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const r = Math.hypot((x - c) / c, (y - c) / c);
+        const edge = 0.8 + random() * 0.2; // ragged outline
+        if (r > edge) continue;
+        const glint = random();
+        ctx.fillStyle =
+          r > edge - 0.18
+            ? '#9aa1a8'
+            : glint < 0.06
+              ? '#ffffff'
+              : glint < 0.5
+                ? '#e2e6ea'
+                : '#d3d8dd';
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  });
 }
 
 /** Corner warning board: white chevrons pointing right on red (mirror it for left turns). */

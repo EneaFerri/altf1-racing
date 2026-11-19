@@ -4,7 +4,8 @@
   --hud-bg: rgba(12, 12, 16, 0.72);
   --hud-text: #f4f4f6;
   --hud-dim: #9a9aa6;
-  --hud-purple: #b44cff;
+  /* F1's purple: a fuchsia. */
+  --hud-purple: #d63af9;
   --hud-green: #2fd25a;
   --hud-yellow: #f5c518;
   --hud-red: #e10600;
@@ -95,6 +96,55 @@
 
 .hud-bar.hud-c-invalid {
   background: var(--hud-dim);
+}
+
+/* Grand Prix: the sectors as a table under the strip (this lap, the own bests). */
+.hud-gp-sectors {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  gap: 3px 4px;
+  padding: 5px 8px;
+  background: var(--hud-bg);
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+}
+
+.hud-gp-sectors[hidden],
+.hud-sectors[hidden] {
+  display: none;
+}
+
+.hud-cell {
+  width: 100%;
+  padding: 3px 0;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--hud-dim);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.hud-cell.hud-c-purple {
+  background: var(--hud-purple);
+  color: #ffffff;
+}
+
+.hud-cell.hud-c-green {
+  background: var(--hud-green);
+  color: #08140c;
+}
+
+.hud-cell.hud-c-yellow {
+  background: var(--hud-yellow);
+  color: #1a1400;
+}
+
+.hud-cell.hud-c-invalid {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--hud-dim);
+  text-decoration: line-through;
 }
 
 .hud-label {
@@ -277,7 +327,7 @@
   left: 10px;
   top: 10px;
   min-width: 180px;
-  max-width: 240px;
+  max-width: 290px;
   padding: 8px 10px;
   background: rgba(12, 12, 16, 0.72);
   border-radius: 4px;
@@ -342,6 +392,21 @@
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.06em;
+}
+
+/* The session's fastest lap (F1's purple): a pixel stopwatch and the time. */
+.gp-fastest {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #d63af9;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.gp-stopwatch {
+  width: 9px;
+  height: 10px;
 }
 
 .gp-note {

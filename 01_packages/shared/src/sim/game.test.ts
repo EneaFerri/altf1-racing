@@ -4,8 +4,9 @@ import { COLLISION_PARAMS } from '../config/collision';
 import { DAMAGE_PARAMS } from '../config/damage';
 import { SLIPSTREAM_PARAMS } from '../config/slipstream';
 import { SURFACE_PARAMS } from '../config/surfaces';
-import { distance, dot, forward, headingOf, right, scale, sub, add } from '../math/vec2';
+import { distance, dot, forward, headingOf, right, scale, sub, add, type Vec2 } from '../math/vec2';
 import { buildTrack } from '../track/buildTrack';
+import type { Track } from '../track/types';
 import { GP_TRACKS } from '../track/layouts';
 import { createLapState } from './laps';
 import { TEST_TRACK } from '../track/layouts/testTrack';
@@ -330,6 +331,15 @@ describe('stepGame — damage', () => {
   });
 });
 
+/** Whether a car's centre going from `a` to `b` crossed one of the track's walls. */
+function crossesWall(track: Track, a: Vec2, b: Vec2): boolean {
+  const side = (p: Vec2, from: Vec2, to: Vec2): number =>
+    Math.sign((to.x - from.x) * (p.z - from.z) - (to.z - from.z) * (p.x - from.x));
+  return track.walls.some(
+    (w) => side(a, w.a, w.b) !== side(b, w.a, w.b) && side(w.a, a, b) !== side(w.b, a, b),
+  );
+}
+
 describe.each(GP_TRACKS.map((d) => [d.name, d] as const))(
   'stepGame — pit lane of %s',
   (_n, def) => {
@@ -379,6 +389,54 @@ describe.each(GP_TRACKS.map((d) => [d.name, d] as const))(
       expect(contacts).toBe(0);
       // Every real pit lane crosses the start line: the lap starts there, timed as on the track.
       expect(state.laps[0]!.lapStartTick).not.toBeNull();
+    });
+
+    it('never lets a car scraping the pit wall through it, from the track or from the lane', () => {
+      const pits = buildTrack(def, { pitLane: true });
+      const lane = pits.routes.findIndex((route) => route.pit);
+      const road = pits.routes[lane]!;
+      const { garageSide } = road.pitRules!;
+      const { from, to } = road.branch!;
+      const pitCtx: SimContext = { ...ctx, track: pits };
+      const wallSide = -garageSide; // the pit wall: the lane's side towards the track
+      let scraped = 0;
+      // Along the lane, away from its ramps (where it leaves and rejoins the track).
+      const spots = road.samples.filter((s) => s.distance > from + 100 && s.distance < to - 100);
+      for (const s of spots.filter((_, i) => i % 20 === 0)) {
+        // From the lane, nose into the pit wall (6–29°, 30–70 m/s); from the run-off beyond it too.
+        for (const [across, into, inLane] of [
+          [s.halfWidth - 1.3, wallSide, true],
+          [s.halfWidth + 1 + 1.3, -wallSide, false],
+        ] as const) {
+          const position = add(s.position, scale(s.normal, wallSide * across));
+          if ((locateOnTrack(pits, position).route === lane) !== inLane) continue;
+          for (const [angle, speed] of [
+            [0.1, 30],
+            [0.25, 50],
+            [0.5, 70],
+          ] as const) {
+            const aim = add(
+              scale(s.tangent, Math.cos(angle)),
+              scale(s.normal, into * Math.sin(angle)),
+            );
+            const heading = headingOf(aim);
+            let state = createGame(pits, ['p1']);
+            state = {
+              ...state,
+              cars: [
+                { ...state.cars[0]!, position, heading, velocity: scale(forward(heading), speed) },
+              ],
+            };
+            for (let tick = 0; tick < 60; tick++) {
+              const before = state.cars[0]!.position;
+              state = stepGame(state, { p1: THROTTLE }, pitCtx);
+              expect(crossesWall(pits, before, state.cars[0]!.position)).toBe(false);
+            }
+          }
+          scraped++;
+        }
+      }
+      expect(scraped).toBeGreaterThanOrEqual(4);
     });
   },
 );

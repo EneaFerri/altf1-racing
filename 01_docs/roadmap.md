@@ -169,6 +169,13 @@ leaderboards, bots online.
   last lap until the results, a pixel-art flag marshal (team jacket, ponytail) waves the
   chequered flag on a small podium at the finish line, on the side away from the pits; Grand Prix
   only.
+- 2.3l (awaiting the owner's test) **Grand Prix sector timing, F1 style** (owner, 2026-11-18;
+  protocol v15) — the server keeps each session's (lobby, qualifying, race) best time of every
+  sector over all drivers, live at every sector done (`GrandPrixInfo.sectorBests`); the HUD shows a table under the strip:
+  this lap's sector times and the own bests, purple (fuchsia) = the session's best of everyone
+  (live: beaten by another, it turns green), green = own best, yellow = slower
+  ([laps.md](laps.md#grand-prix-sector-table-23l)). The panel top left marks the session's fastest
+  lap: a purple stopwatch and its time beside its driver. Other modes unchanged.
 
 ### 2.4 — More circuits
 
@@ -274,6 +281,37 @@ packets, little bandwidth). Design: [multiplayer.md](multiplayer.md#rooms-21e--2
 - 2.6c ✅ **Smoother opponents** — the other cars' corrections glide unless bigger than what the
   car covers in 0.35 s (was a fixed 4 m: a late snapshot made a car at speed teleport), and fade
   slower (6/s instead of 10/s); the own car unchanged.
+
+### 2.7 — Weather: rain
+
+Goal (owner, 2026-11-18): a rain mode any track can have, tried on **São Paulo**: the Grand
+Prix's manager chooses dry or rain in the lobby (keys 1/2), for the whole GP. No raindrops: grey
+sky, haze, wet road, puddles that take grip; a little less grip in corners and a little less
+braking everywhere. Wet laps count in the same lap records. Rain in single player: dev only.
+Later (owner): wet tyres and light falling rain after all (W.2b).
+Design: [weather.md](weather.md).
+
+- 2.7 W.1 ✅ **Wet look, dev only** — `placePuddles` (shared, pure,
+  deterministic: the same puddles for the simulation and the view, 42 on São Paulo), the rain's
+  look from any theme (overcast sky, near haze, dim light, darker wet road, puddles mirroring the
+  sky), switched live by `SceneView.setWeather`. Dev: F2 → Weather, or `?rain`. Physics still dry.
+  Owner's test: fine; added the cars' red rear lights in the rain, for visibility.
+- 2.7 W.2 ✅ **Wet physics, dev only** — `SimContext.weather`: lateral grip, traction and brakes
+  scaled (`SurfaceEffect.brake`), puddles under each wheel taking far more; dry unchanged. The
+  owner's values (`WET_PARAMS`: grip 0.3, brakes at 56%, a puddle 3% grip): braking 300→80 km/h
+  +61%, the car slides much wider, Hard bot on São Paulo +24% (it plans for the wet). F2 sliders,
+  F3 puddle wheels ([weather.md](weather.md#physics-w2)).
+- 2.7 W.2b ✅ **Wet tyres and falling rain** — in the rain every car on
+  wets (the blue band on the sidewalls, whatever the livery); falling rain (the owner's look: 2 m
+  streaks at 80% opacity, 22 m/s, slanted), 1500 streaks
+  round the camera moved in the vertex shader (one draw call), none in the face; N switches the
+  drops off on the own screen ([weather.md](weather.md#wet-tyres-and-falling-rain-w2b)).
+- 2.7 W.3 (awaiting the owner's test) **Rain in the online Grand Prix** (protocol v15) — in the
+  lobby of a track in `RAIN_TRACKS` (São Paulo) the manager's 1/2 choose dry or rain for the whole
+  GP (kept after play again); `GrandPrixInfo.weather`, the server's room and every prediction run
+  the same wet track, the view switches live, the panel says RAIN. Practice and Time trial always
+  dry; wet laps in the same records ([weather.md](weather.md#online-w3)).
+- 2.7 W.4 **Spray** — pixel water spray behind the wheels in the rain, growing with speed.
 
 ## Phase 3 — Elevation (Monaco v2) ✅
 
@@ -400,6 +438,13 @@ Details (numbers, look, rules) are decided in each step with the owner.
   - Cars sturdier (owner, 2026-11-04: damaged too easily): impacts from 8 m/s instead of 4 and
     0.018 per m/s instead of 0.025; grass and gravel wear halved / −40%
     ([damage.md](damage.md#impacts)).
+  - P.1 (awaiting the owner's test) **Solid pit wall** (owner, 2026-11-18: scraping it threw the
+    car into or out of the lane): a wall catches a car from behind only if it started the tick in
+    front of it ([collisions.md](collisions.md#walls--wallsts)).
+  - P.2 (awaiting the owner's test) **São Paulo's pit lane**: no grass through it
+    (`groundUnderRoutes`), heights never steeper than 5% (`pitLaneMaxGrade`), the 8 boxes 20 m
+    apart by the start line and a 240 m limiter round them instead of 1032 m (`pitBoxesAtLine`)
+    ([pitlane.md](pitlane.md#results)).
 
 ## Later
 

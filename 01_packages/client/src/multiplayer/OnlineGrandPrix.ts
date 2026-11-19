@@ -1,5 +1,6 @@
 import {
   damageInPhase,
+  offersRain,
   pitStatus,
   type Track,
   GRAND_PRIX,
@@ -23,7 +24,8 @@ import { classificationRows, playAgainItem, podiumContent, type RaceResult } fro
 
 /**
  * This player's side of a Grand Prix: the panel and the start lights, the manager's keys (Enter:
- * start / end qualifying / end the race; 1–3: race laps), the start hold handed to the prediction,
+ * start / end qualifying / end the race; 1–3: race laps; in the lobby of a track with rain, 1/2:
+ * dry / rain), the weather handed to the prediction and the view, the start hold handed to the prediction,
  * which car to watch while the own one is off the track, and the results screen (podium, then
  * classification with Play again / Exit). See 01_docs/multiplayer.md#grand-prix.
  */
@@ -43,8 +45,8 @@ export class OnlineGrandPrix {
     private readonly predictor: Predictor,
     private readonly hud: Hud,
     controller: KeyboardController,
-    /** The view: the own pit box marked, the flag marshal at the line on the last lap. */
-    private readonly scene: Pick<SceneView, 'markPitBox' | 'showFlagMarshal'>,
+    /** The view: the own pit box marked, the flag marshal at the line, the weather. */
+    private readonly scene: Pick<SceneView, 'markPitBox' | 'showFlagMarshal' | 'setWeather'>,
     /** The room's track, with its pit lane: who is in it is shown in the panel. */
     private readonly track: Track,
   ) {
@@ -57,11 +59,19 @@ export class OnlineGrandPrix {
     });
     (['choice1', 'choice2', 'choice3'] as const).forEach((key, i) =>
       controller.onAction(key, () => {
-        if (this.info?.phase === 'grid' && !this.onResults) {
+        if (this.onResults) return;
+        if (this.info?.phase === 'grid') {
           this.command({ action: 'startRace', laps: GRAND_PRIX.raceLaps[i]! });
+        } else if (this.info?.phase === 'lobby' && this.canRain && i < 2) {
+          this.command({ action: 'weather', weather: i === 0 ? 'dry' : 'rain' });
         }
       }),
     );
+  }
+
+  /** Whether this circuit's GP may be run in the rain (the manager's 1/2 in the lobby). */
+  private get canRain(): boolean {
+    return offersRain(this.track.name);
   }
 
   /** The server's news about the Grand Prix. */
@@ -70,10 +80,13 @@ export class OnlineGrandPrix {
       info.phase === 'results' &&
       this.info?.phase !== 'results' &&
       info.drivers.includes(this.playerId);
+    if (info.weather !== this.info?.weather) this.scene.setWeather(info.weather);
     this.info = info;
     this.predictor.hold = info.hold;
     this.predictor.setDamage(damageInPhase(info.phase));
     this.predictor.setPitBoxes(info.boxes);
+    this.predictor.setWeather(info.weather);
+    this.hud.setSessionBests(info.sectorBests);
     this.scene.markPitBox(info.boxes[this.playerId] ?? null);
     this.scene.showFlagMarshal(chequeredFlag(info));
     this.hud.setLapName(lapName(info, this.playerId));
@@ -143,7 +156,9 @@ export class OnlineGrandPrix {
 
   private show(): void {
     if (this.info) {
-      this.panel.show(grandPrixContent(this.info, this.players, this.playerId, this.pits));
+      this.panel.show(
+        grandPrixContent(this.info, this.players, this.playerId, this.pits, this.canRain),
+      );
     }
   }
 }

@@ -123,7 +123,7 @@ export interface PitLane {
   /** Metres along the lane of each of `definition.points`. */
   readonly along: readonly number[];
   /** Where the boxes come from: the real pit buildings, or spread over the limited stretch. */
-  readonly boxesFrom: 'pit buildings' | 'spread';
+  readonly boxesFrom: 'pit buildings' | 'spread' | 'start line';
 }
 
 /**
@@ -263,13 +263,6 @@ export function pitLaneOf(
     const d = wrapped(p.at - atOf(fromPoint));
     return d > 0 && d < span && !near(p, fromPoint) && !near(p, toPoint);
   });
-  const width = round(2 * laneHalf, 1);
-  const points: TrackPoint[] = inside.map((p) => ({
-    at: vec2(round(p.x, 2), round(p.z, 2)),
-    width,
-    ...(elevated && { height: round(p.height, 2) }),
-  }));
-
   // Metres along the lane: from where it leaves the main loop, through its points.
   const start = definition.points[fromPoint]!.at;
   const along: number[] = [];
@@ -278,15 +271,33 @@ export function pitLaneOf(
     along.push((i === 0 ? 0 : along[i - 1]!) + Math.hypot(p.x - prev.x, p.z - prev.z));
   });
 
+  const heights =
+    elevated && circuit.pitLaneMaxGrade !== undefined
+      ? gentleHeights(track, definition, inside, along, fromPoint, toPoint, circuit.pitLaneMaxGrade)
+      : inside.map((p) => p.height);
+  const width = round(2 * laneHalf, 1);
+  const points: TrackPoint[] = inside.map((p, i) => ({
+    at: vec2(round(p.x, 2), round(p.z, 2)),
+    width,
+    ...(elevated && { height: round(heights[i]!, 2) }),
+  }));
+
   // The speed-limited stretch: where the real lane runs fully beside the track.
   const besideIndices = inside.flatMap((p, i) => (p.beside ? [i] : []));
   if (besideIndices.length < 2) {
     throw new Error(`${circuit.name}: the pit lane is never beside the track`);
   }
-  const limit = {
-    from: along[besideIndices[0]!]!,
-    to: along[besideIndices[besideIndices.length - 1]!]!,
-  };
+  // At the start line instead (`pitBoxesAtLine`): the boxes close together round where the lane
+  // passes it, the limit lines just beyond the first and last.
+  const atLine = circuit.pitBoxesAtLine;
+  const line = atLine && alongAtLine(track, inside, along);
+  const lineSpan = atLine ? (MAX_PLAYERS - 1) * atLine.spacing : 0;
+  const limit = atLine
+    ? { from: line! - lineSpan / 2 - atLine.margin, to: line! + lineSpan / 2 + atLine.margin }
+    : {
+        from: along[besideIndices[0]!]!,
+        to: along[besideIndices[besideIndices.length - 1]!]!,
+      };
   /** Metres along the lane where it is beside lap fraction `at` (along its limited stretch). */
   const alongAt = (at: number): number => {
     const ats = besideIndices.map((i) => wrapped(inside[i]!.at - inside[besideIndices[0]!]!.at));
@@ -322,7 +333,9 @@ export function pitLaneOf(
     ? [Math.min(...garages), Math.max(...garages)]
     : [limit.from + BOX_ENDS * limitLength, limit.to - BOX_ENDS * limitLength];
   const boxes = Array.from({ length: MAX_PLAYERS }, (_, i) =>
-    round(boxFrom + ((i + 0.5) / MAX_PLAYERS) * (boxTo - boxFrom), 1),
+    atLine
+      ? round(line! - lineSpan / 2 + i * atLine.spacing, 1)
+      : round(boxFrom + ((i + 0.5) / MAX_PLAYERS) * (boxTo - boxFrom), 1),
   );
 
   // Checks: every ~2 m of the lane, its edge stays clear of every other stretch's wall.
@@ -347,8 +360,98 @@ export function pitLaneOf(
     conflicts,
     length: polylineLength(inside.map((p) => [p.x, p.z] as const)),
     along,
-    boxesFrom: fromReal ? 'pit buildings' : 'spread',
+    boxesFrom: atLine ? 'start line' : fromReal ? 'pit buildings' : 'spread',
   };
+}
+
+/**
+ * Metres along the lane where it passes the start line: where its points, located on the track,
+ * go over lap fraction 0 (the points' own `at` lag behind on a smoothed lane).
+ */
+function alongAtLine(
+  track: Track,
+  inside: readonly { x: number; z: number }[],
+  along: readonly number[],
+): number {
+  const ats = inside.map((p) =>
+    wrapped(locateOnTrack(track, vec2(p.x, p.z)).distance / track.length),
+  );
+  const k = ats.findIndex((a, i) => {
+    const b = ats[i + 1];
+    return b !== undefined && a <= 0 && b > 0 && b - a < 0.1;
+  });
+  if (k < 0) throw new Error('the pit lane never passes the start line');
+  const [a, b] = [ats[k]!, ats[k + 1]!];
+  return along[k]! + ((along[k + 1]! - along[k]!) * -a) / (b - a);
+}
+
+/** Smoothing passes over the lane's heights, each averaging a point with its neighbours. */
+const HEIGHT_SMOOTHING = 12;
+/** A lane point's own stretch: the track this far either way along the lap of its fraction (m). */
+const OWN_STRETCH = 150;
+
+/**
+ * The lane's heights (`pitLaneMaxGrade`): each point at the height of its own stretch's nearest
+ * sample (within OWN_STRETCH m along the lap of its lap fraction: never the stretch on its other
+ * side), so it runs level with the track beside it; smoothed, then never steeper than `maxGrade`
+ * (a pass each way), its ends at the heights of the main-loop points it leaves and rejoins.
+ */
+function gentleHeights(
+  track: Track,
+  definition: TrackDefinition,
+  inside: readonly { at: number; x: number; z: number }[],
+  along: readonly number[],
+  fromPoint: number,
+  toPoint: number,
+  maxGrade: number,
+): number[] {
+  const from = definition.points[fromPoint]!;
+  const to = definition.points[toPoint]!;
+  const end =
+    along[along.length - 1]! +
+    Math.hypot(to.at.x - inside[inside.length - 1]!.x, to.at.z - inside[inside.length - 1]!.z);
+  const d = [0, ...along, end];
+  let h = [from.height ?? 0, ...inside.map((p) => ownStretchHeight(track, p)), to.height ?? 0];
+  for (let k = 0; k < HEIGHT_SMOOTHING; k++) {
+    h = h.map((v, i) => (i === 0 || i === h.length - 1 ? v : (h[i - 1]! + 2 * v + h[i + 1]!) / 4));
+  }
+  // Grade-limited from either end, then the two averaged (still within the grade): a step between
+  // two stretches (São Paulo's, between the top and the bottom of the Senna S) is ramped across
+  // evenly, the lane half above one and half below the other, not all on one side.
+  const limited = (order: 'forward' | 'back'): number[] => {
+    const out = [...h];
+    const clamp = (i: number, j: number): void => {
+      const rise = maxGrade * Math.abs(d[i]! - d[j]!);
+      out[i] = Math.min(out[j]! + rise, Math.max(out[j]! - rise, out[i]!));
+    };
+    const forward = (): void => {
+      for (let i = 1; i < out.length - 1; i++) clamp(i, i - 1);
+    };
+    const back = (): void => {
+      for (let i = out.length - 2; i > 0; i--) clamp(i, i + 1);
+    };
+    if (order === 'forward') {
+      forward();
+      back();
+    } else {
+      back();
+      forward();
+    }
+    return out;
+  };
+  const [a, b] = [limited('forward'), limited('back')];
+  return a.slice(1, -1).map((v, i) => (v + b[i + 1]!) / 2);
+}
+
+/** Height of the sample of `p`'s own stretch nearest it (see OWN_STRETCH). */
+function ownStretchHeight(track: Track, p: { at: number; x: number; z: number }): number {
+  let best = { gap: Infinity, height: 0 };
+  for (const s of track.samples) {
+    if (Math.abs(wrapped(s.distance / track.length - p.at)) * track.length > OWN_STRETCH) continue;
+    const gap = Math.hypot(s.position.x - p.x, s.position.z - p.z);
+    if (gap < best.gap) best = { gap, height: s.height };
+  }
+  return best.height;
 }
 
 /** 0 → 0, 1 → 1, smooth at both ends; clamped. */

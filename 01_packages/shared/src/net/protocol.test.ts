@@ -28,6 +28,8 @@ describe('client messages', () => {
       { type: 'gp', action: 'startRace', laps: 8 },
       { type: 'gp', action: 'endRace' },
       { type: 'gp', action: 'playAgain' },
+      { type: 'gp', action: 'weather', weather: 'rain' },
+      { type: 'gp', action: 'weather', weather: 'dry' },
     ];
     for (const message of messages) {
       expect(parseClientMessage(encodeMessage(message))).toEqual(message);
@@ -55,6 +57,8 @@ describe('client messages', () => {
       '{"type":"gp","action":"win"}',
       '{"type":"gp","action":"startRace"}',
       '{"type":"gp","action":"startRace","laps":5}',
+      '{"type":"gp","action":"weather"}',
+      '{"type":"gp","action":"weather","weather":"snow"}',
       '{"type":"input"}',
       '{"type":"input","seq":1,"input":{"throttle":1,"brake":0,"reverse":0,"steer":0}}',
       '{"type":"input","seq":1,"input":{"throttle":"1","brake":0,"reverse":0,"steer":0,"reset":false}}',
@@ -135,6 +139,8 @@ describe('server messages', () => {
         raceLaps: 4,
         hold: { lightsFrom: 100, until: 412 },
         boxes: { p1: 0, p2: 1 },
+        weather: 'rain',
+        sectorBests: [1700, null, 1650],
       },
       { type: 'players', players },
       {

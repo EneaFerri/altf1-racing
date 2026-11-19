@@ -40,7 +40,7 @@ server agrees, like the smoothed steering):
 - Pressed: the pressure jumps to `brakeInitialPressure` (0.3), so a tap already slows the car, then
   ramps to 1 over `brakeRampTime` (0.6 s).
 - Released: it drops to 0 over `brakeReleaseTime` (0.1 s).
-- Deceleration = `brakeDecel · brakePressure` (× surface traction). The brake stops the car whichever
+- Deceleration = `brakeDecel · brakePressure` (× surface traction × the wet's `brake` in the rain, [weather.md](weather.md)). The brake stops the car whichever
   way it rolls and **never reverses**.
 - **S** (reverse key) asks for the same pressure while the car still rolls forward (> 0.3 m/s), then
   drives backwards (`reverseAccel`, up to `maxReverseSpeed`).
@@ -75,7 +75,7 @@ lateral on the next tick and grip pulls it back in line: a natural slip in turns
 ## Surfaces, spin and reset
 
 - **Surface effect** (`sim/surface.ts`): before each `stepCar`, the four wheels' surfaces are averaged
-  into `{ grip, traction, drag, spinKick }`. Values and rules: [track.md](track.md#surfaces-configsurfacests--surface_params).
+  into `{ grip, traction, brake, drag, spinKick }` (`brake` is 1 on every dry surface; a wet track scales all but `spinKick`, [weather.md](weather.md#physics-w2)). Values and rules: [track.md](track.md#surfaces-configsurfacests--surface_params).
 - **Spin**: `spin = (spin + spinKick) · exp(−spinDamping · dt)`. It rotates the heading on top of
   steering; velocity is unchanged, so the car is knocked off-line and grip pulls it back. Impacts add
   spin too, bounded and non-stacking: see [collisions.md](collisions.md).

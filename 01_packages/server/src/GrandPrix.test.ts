@@ -6,11 +6,22 @@ import {
   type GameState,
   type LapState,
   type StartHold,
+  type TrackDefinition,
+  type Weather,
 } from '@altf1/shared';
 import { GrandPrix, type GrandPrixRoom } from './GrandPrix.ts';
 
 /** A room whose lap timing the test writes by hand, recording what the Grand Prix does to it. */
 class FakeRoom implements GrandPrixRoom {
+  constructor(track = 'São Paulo') {
+    this.definition = { name: track } as TrackDefinition;
+  }
+  readonly definition: TrackDefinition;
+  /** The weather, as the Grand Prix last set it. */
+  weather: Weather = 'dry';
+  setWeather(weather: Weather): void {
+    this.weather = weather;
+  }
   state: GameState = { tick: 0, cars: [], impacts: [], laps: [] };
   hold: StartHold | null = null;
   restarts: CarId[][] = [];
@@ -37,6 +48,18 @@ class FakeRoom implements GrandPrixRoom {
   spawn(id: CarId): void {
     this.spawned.push(id);
     this.state = { ...this.state, laps: [...this.state.laps, createLapState(id, 0)] };
+  }
+  /** `id` has done `sectors` of the lap it is on, still `valid` or not (`currentSectors`). */
+  sectors(id: CarId, sectors: readonly number[], valid = true): void {
+    const timing = (lap: LapState): LapState =>
+      lap.carId === id ? { ...lap, currentSectors: sectors, valid } : lap;
+    this.state = { ...this.state, laps: this.state.laps.map(timing) };
+  }
+  /** `id`'s best valid time of each sector so far (`LapState.bestSectors`). */
+  bests(id: CarId, sectors: readonly (number | null)[]): void {
+    const timing = (lap: LapState): LapState =>
+      lap.carId === id ? { ...lap, bestSectors: sectors } : lap;
+    this.state = { ...this.state, laps: this.state.laps.map(timing) };
   }
   /** `id` has completed `laps` timed laps, the last one `ticks` long (`valid` or not), at `tick`. */
   lap(id: CarId, laps: number, ticks: number, tick: number, valid = true): void {
@@ -88,6 +111,8 @@ describe('GrandPrix — lobby', () => {
       raceLaps: null,
       hold: null,
       boxes: { p1: 1, p3: 0 },
+      weather: 'dry',
+      sectorBests: [null, null, null],
     });
     expect(gp.isOpen).toBe(true);
   });
@@ -352,6 +377,8 @@ describe('GrandPrix — play again', () => {
       raceLaps: null,
       hold: null,
       boxes: { p2: 0 },
+      weather: 'dry',
+      sectorBests: [null, null, null],
     });
     expect(room.restarts.at(-1)).toEqual(['p2']);
     expect(gp.isOpen).toBe(true);
@@ -376,5 +403,115 @@ describe('GrandPrix — play again', () => {
     expect(gp.info.manager).toBeNull();
     gp.command('p2', { action: 'playAgain' });
     expect(gp.info.manager).toBe('p2');
+  });
+});
+
+describe('GrandPrix — weather', () => {
+  it('is dry until the manager chooses the rain in the lobby, for the room too', () => {
+    const { gp, room } = grandPrix('p1', 'p2');
+    expect(gp.info.weather).toBe('dry');
+    expect(gp.command('p1', { action: 'weather', weather: 'rain' })).toBe(true);
+    expect(gp.info.weather).toBe('rain');
+    expect(room.weather).toBe('rain');
+    expect(gp.command('p1', { action: 'weather', weather: 'dry' })).toBe(true);
+    expect(room.weather).toBe('dry');
+  });
+
+  it('ignores anyone but the manager, and a choice that changes nothing', () => {
+    const { gp, room } = grandPrix('p1', 'p2');
+    expect(gp.command('p2', { action: 'weather', weather: 'rain' })).toBe(false);
+    expect(gp.command('p1', { action: 'weather', weather: 'dry' })).toBe(false);
+    expect(room.weather).toBe('dry');
+  });
+
+  it('never rains on a track that does not offer it', () => {
+    const room = new FakeRoom('Monza');
+    const gp = new GrandPrix(room, () => 0.5);
+    gp.add('p1', 'P1');
+    expect(gp.command('p1', { action: 'weather', weather: 'rain' })).toBe(false);
+    expect(gp.info.weather).toBe('dry');
+    expect(room.weather).toBe('dry');
+  });
+
+  it('keeps it through qualifying and the race, fixed once the GP has started', () => {
+    const { gp, room } = grandPrix('p1');
+    gp.command('p1', { action: 'weather', weather: 'rain' });
+    gp.command('p1', { action: 'start' });
+    expect(gp.command('p1', { action: 'weather', weather: 'dry' })).toBe(false);
+    gp.command('p1', { action: 'endQualifying' });
+    gp.command('p1', { action: 'startRace', laps: 4 });
+    expect(gp.info).toMatchObject({ phase: 'race', weather: 'rain' });
+    expect(room.weather).toBe('rain');
+  });
+
+  it('keeps it after play again, where the new manager may change it', () => {
+    const { gp, room } = grandPrix('p1', 'p2');
+    gp.command('p1', { action: 'weather', weather: 'rain' });
+    gp.command('p1', { action: 'start' });
+    gp.command('p1', { action: 'endQualifying' });
+    gp.command('p1', { action: 'startRace', laps: 4 });
+    gp.command('p1', { action: 'endRace' });
+    gp.command('p2', { action: 'playAgain' });
+    expect(gp.info).toMatchObject({ phase: 'lobby', manager: 'p2', weather: 'rain' });
+    expect(gp.command('p2', { action: 'weather', weather: 'dry' })).toBe(true);
+    expect(room.weather).toBe('dry');
+  });
+});
+
+describe('GrandPrix — session best sectors', () => {
+  it('keeps the best of every driver, sector by sector, and tells when one improves', () => {
+    const { gp, room } = grandPrix('p1', 'p2');
+    gp.command('p1', { action: 'start' });
+    expect(gp.info.sectorBests).toEqual([null, null, null]);
+    room.bests('p1', [1800, 1900, null]);
+    room.bests('p2', [1850, 1700, null]);
+    expect(gp.afterTick()).toBe(true);
+    expect(gp.info.sectorBests).toEqual([1800, 1700, null]);
+    expect(gp.afterTick()).toBe(false); // nothing new
+    room.bests('p2', [1750, 1700, 2000]);
+    expect(gp.afterTick()).toBe(true);
+    expect(gp.info.sectorBests).toEqual([1750, 1700, 2000]);
+  });
+
+  it('times the lobby too, and starts over with every session', () => {
+    const { gp, room } = grandPrix('p1');
+    room.restart(['p1']);
+    room.bests('p1', [1800, 1900, 2000]);
+    expect(gp.afterTick()).toBe(true);
+    expect(gp.info.sectorBests).toEqual([1800, 1900, 2000]);
+    gp.command('p1', { action: 'start' });
+    expect(gp.info.sectorBests).toEqual([null, null, null]);
+    room.bests('p1', [1810, 1910, 2010]);
+    gp.afterTick();
+    expect(gp.info.sectorBests).toEqual([1810, 1910, 2010]);
+    gp.command('p1', { action: 'endQualifying' });
+    expect(gp.info).toMatchObject({ phase: 'grid', sectorBests: [null, null, null] });
+  });
+
+  it('takes each sector as soon as it is done, on a valid lap only', () => {
+    const { gp, room } = grandPrix('p1', 'p2');
+    gp.command('p1', { action: 'start' });
+    room.sectors('p1', [1800]);
+    expect(gp.afterTick()).toBe(true);
+    expect(gp.info.sectorBests).toEqual([1800, null, null]);
+    room.sectors('p1', [1800, 1700]);
+    expect(gp.afterTick()).toBe(true);
+    expect(gp.info.sectorBests).toEqual([1800, 1700, null]);
+    room.sectors('p2', [1500], false); // a reset voided p2's lap: not timed
+    expect(gp.afterTick()).toBe(false);
+    room.sectors('p1', [1800, 1700], false); // voided later: what was taken stays
+    gp.afterTick();
+    expect(gp.info.sectorBests).toEqual([1800, 1700, null]);
+  });
+
+  it('keeps a best after its driver leaves the track', () => {
+    const { gp, room } = grandPrix('p1', 'p2');
+    gp.command('p1', { action: 'start' });
+    room.bests('p2', [1700, 1600, 1500]);
+    room.lap('p2', 3, 4800, 9000); // p2's last timed lap: off the track
+    gp.afterTick();
+    expect(room.retired).toContain('p2');
+    expect(gp.afterTick()).toBe(false);
+    expect(gp.info.sectorBests).toEqual([1700, 1600, 1500]);
   });
 });

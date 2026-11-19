@@ -50,6 +50,14 @@ ambiguous.
 5. **Boxes**: spread evenly over the real pit buildings beside the lane (OSM, within 80 m, at least
    12 m long), else (a town circuit, or none mapped) over the limited stretch but 15% at each end.
 6. **Width**: the real 12 m × scale, like the decorative lane.
+7. **Heights** (elevated circuits): the track's height at each point's lap fraction. With
+   `pitLaneMaxGrade` (São Paulo, 5%) instead: the height of the nearest sample of the point's own
+   stretch (within 150 m along the lap, never the stretch on its other side), smoothed, then
+   grade-limited from either end and the two averaged, ends at the main-loop points' heights.
+8. **At the start line** (`pitBoxesAtLine`, São Paulo: `{ spacing: 20, margin: 50 }`): the boxes
+   `spacing` m apart, centred where the lane passes the start line (found from the points'
+   positions on the track), and the limit lines `margin` m before the first and after the last,
+   instead of 4–5.
 
 Checks: the tool reports any lane point too close to another stretch (none now) and any of its
 walls folding back (a turn tighter than its half-width: none now), and draws
@@ -68,10 +76,25 @@ wall between its limit lines, no pit lane on the imaginary tracks.
 | Mexico City | 780 m  | 135–573                   | 79 km/h      | spread            | From the Peraltada, along the main straight; OSM maps only the paddock                                                                                |
 | Singapore   | 828 m  | 259–792                   | 63 km/h      | spread            | Inside the start straight, from before the last corner to turns 1–2; joined at the edge (`pitLaneAtEdge`)                                             |
 | Las Vegas   | 426 m  | 83–438                    | 76 km/h      | spread            | Inside the pit straight, into the turn 1 hairpin; joined at the edge (`pitLaneAtEdge`)                                                                |
-| São Paulo   | 1350 m | 134–1165                  | 84 km/h      | spread            | From the Subida dos Boxes, along the start straight, round the inside of the Senna S and Curva do Sol; at the edge, smoothed 16× (`pitLaneSmoothing`) |
+| São Paulo   | 1350 m | 340–580                   | 84 km/h      | at the line, 20 m | From the Subida dos Boxes, along the start straight, round the inside of the Senna S and Curva do Sol; at the edge, smoothed 16× (`pitLaneSmoothing`) |
 
 The ramps cross the run-off and the wall where they leave and rejoin the track: the walls open
 there (4f).
+
+**São Paulo, after the owner's test (2026-11-18)**:
+
+- **Heights**: the lane stepped up 7 m in 64 m and plunged 10 m in 33 m (30%). Its points' lap
+  fractions lag behind on a lane smoothed 16 times, so they took the heights of the wrong spot;
+  and round the Senna S the lane lies between the S's top and its bottom, 9 m lower. Now
+  `pitLaneMaxGrade`: never steeper than 5%. It is level with the start straight and ramps down
+  across the step, at most about 4 m below the straight's end and 2 m above the S beside it.
+- **Boxes and limiter**: the 1350 m lane was limited for 1032 m, with boxes 90 m apart into the
+  Senna S. Now `pitBoxesAtLine`: the 8 boxes 20 m apart along the start straight (390–530 m), and
+  a limiter of 240 m (340–580 m). The rest of the lane is driven at full speed.
+- **No grass through it**: the land rose up to 4 m through the lane. The ground was settled under
+  the main loop only; São Paulo's theme now settles it under the routes too
+  (`groundUnderRoutes`). Other circuits keep their ground (Monaco's would change by up to 2 m under
+  its lane, unseen: left as it is, rule 5).
 
 ## Drivable (4f)
 
@@ -83,7 +106,10 @@ branches', `Track.pit` true), like a branch (01_docs/track.md#branches-forks-and
   `BranchSpan` carries that `start` and the main loop's length, so `routeProgress` wraps: progress
   on the lane goes forward over the line, and laps and sectors are timed there as on the track.
 - **Its own walls**: no run-off, so its walls stand at its edges: the pit wall on the track's side
-  (1 m beyond the track's own wall), the garages' on the other. The walls of every road are one
+  (1 m beyond the track's own wall), the garages' on the other. The pit wall is solid from both
+  sides: a wall only catches a car from behind if it started the tick in front of it, so scraping
+  it never throws a car into or out of the lane
+  ([collisions.md](collisions.md#walls--wallsts), owner 2026-11-18). The walls of every road are one
   outline, as with branches: the track's wall opens where the lane leaves and rejoins it.
 - **The track stays the track**: on the main loop's asphalt the pit lane never wins
   (`locateOnTrack`), so where they meet the surface, timing and edge lines are the track's; the

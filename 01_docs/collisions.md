@@ -43,6 +43,13 @@ and sounds later; for now the F3 overlay shows the last one.
   Past the end of a segment, it is pushed radially away from the polyline corner.
 - **Anti-tunnelling**: a circle up to `WALL_CATCH_DEPTH` (2 m) behind a wall is still pushed back to the
   track side. At 250 km/h a car moves 1.2 m per tick, so it can never slip through.
+- **Only from the front** (owner, 2026-11-18): a wall catches a circle from behind only if that
+  circle started the tick in front of it (within 0.25 m; `stepGame` passes the cars before the
+  step to `resolveCollisions`). A wall at your back never pulls you through to its side, however
+  thin the wall between two roads: the pit wall is the track's wall and the lane's, back to back
+  about 1 m apart, and a car scraping one used to be caught by the other and thrown into (or out
+  of) the pit lane. Tested on two walls 1 m apart and on every real circuit's pit wall, from both
+  sides (`walls.test.ts`, `game.test.ts`).
 - **Response** (only while moving into the wall), with `vn` = speed into the wall:
   1. bounce: `vn' = wallRestitution · vn` (tiny, no pinball);
   2. Coulomb friction along the wall: loses `wallFriction · (1 + e) · vn`. A shallow scrape has a small

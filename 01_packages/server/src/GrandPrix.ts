@@ -2,10 +2,12 @@ import {
   damageInPhase,
   GRAND_PRIX,
   HELD,
+  offersRain,
   qualifyingOrder,
   raceStandings,
   startHold,
   timingLinesPassed,
+  TRACK_RULES,
   type CarId,
   type GrandPrixCommand,
   type GrandPrixInfo,
@@ -13,13 +15,22 @@ import {
   type QualifyingEntry,
   type RaceDriver,
   type RaceLaps,
+  type Weather,
 } from '@altf1/shared';
 import type { Room } from './Room.ts';
 
 /** What the Grand Prix needs from its room's simulation. */
 export type GrandPrixRoom = Pick<
   Room,
-  'state' | 'restart' | 'retire' | 'spawn' | 'hold' | 'setDamage' | 'setPitBoxes'
+  | 'definition'
+  | 'state'
+  | 'restart'
+  | 'retire'
+  | 'spawn'
+  | 'hold'
+  | 'setDamage'
+  | 'setPitBoxes'
+  | 'setWeather'
 >;
 
 /**
@@ -28,7 +39,8 @@ export type GrandPrixRoom = Pick<
  * order, held) → race (start lights, timing at every line, finishers off the track) → results →
  * (play again) a new lobby on the same circuit, for whoever asks for it.
  * The first player in is the manager; if they leave, the one who has been there longest takes
- * over. Only the manager's commands count, apart from play again.
+ * over. Only the manager's commands count, apart from play again. In the lobby the manager also
+ * chooses the weather (the rain only where `offersRain`), kept for the whole GP and play again.
  * Pure apart from `random` (lights out). See 01_docs/multiplayer.md#grand-prix.
  */
 export class GrandPrix {
@@ -43,6 +55,10 @@ export class GrandPrix {
   /** The race by driver, in grid order, from the start on (a driver who left stays, DNF). */
   private readonly racers = new Map<CarId, RaceDriver>();
   private raceLaps: RaceLaps | null = null;
+  /** Chosen by the manager in the lobby (on a track that `offersRain`), kept for play again. */
+  private weather: Weather = 'dry';
+  /** The session's (phase's) best time of each sector over every driver; reset by `setPhase`. */
+  private sectorBests: (number | null)[] = noSectorBests();
   /** The race's last counted pit stop of each driver (its end tick). */
   private readonly stopsCounted = new Map<CarId, number>();
   private readonly room: GrandPrixRoom;
@@ -74,6 +90,8 @@ export class GrandPrix {
       raceLaps: this.raceLaps,
       hold: this.room.hold,
       boxes: Object.fromEntries(this.boxes),
+      weather: this.weather,
+      sectorBests: [...this.sectorBests],
     };
   }
 
@@ -102,6 +120,13 @@ export class GrandPrix {
   command(id: CarId, command: GrandPrixCommand): boolean {
     if (command.action === 'playAgain') return this.playAgain(id);
     if (id !== this.drivers[0]) return false;
+    if (command.action === 'weather' && this.phase === 'lobby') {
+      const allowed = command.weather === 'dry' || offersRain(this.room.definition.name);
+      if (!allowed || command.weather === this.weather) return false;
+      this.weather = command.weather;
+      this.room.setWeather(command.weather);
+      return true;
+    }
     if (command.action === 'start' && this.phase === 'lobby') {
       this.setPhase('qualifying');
       for (const driver of this.drivers) {
@@ -138,15 +163,17 @@ export class GrandPrix {
   }
 
   /**
-   * Reads the room after a tick: in qualifying, records finished timed laps, takes off the track
+   * Reads the room after a tick: in every phase, the session's best sectors; in qualifying, records finished timed laps, takes off the track
    * whoever has driven all of theirs and ends qualifying once everyone has; in the race, records
    * every timing line passed, takes finishers off the track and ends the race once nobody is
    * racing. Whether the GP changed.
    */
   afterTick(): boolean {
-    if (this.phase === 'race') return this.raceTick();
-    if (this.phase !== 'qualifying') return false;
-    let changed = false;
+    // Before anyone is retired: a best set on a driver's last lap still counts.
+    const bests = this.newSectorBests();
+    if (this.phase === 'race') return this.raceTick() || bests;
+    if (this.phase !== 'qualifying') return bests;
+    let changed = bests;
     for (const lap of this.room.state.laps) {
       const entry = this.results.get(lap.carId);
       if (!entry || entry.done || lap.laps === entry.laps) continue;
@@ -224,6 +251,27 @@ export class GrandPrix {
     return changed;
   }
 
+  /**
+   * Takes every car's sector times into the session's bests, live: each sector as soon as it is
+   * done on a lap still valid (`currentSectors`; read every tick, so one voided later still
+   * counted), and the bests of finished valid laps (`bestSectors`: the last sector, at the line).
+   * Whether any improved.
+   */
+  private newSectorBests(): boolean {
+    let improved = false;
+    const take = (time: number | null, i: number): void => {
+      const best = this.sectorBests[i] ?? null;
+      if (time === null || (best !== null && time >= best)) return;
+      this.sectorBests[i] = time;
+      improved = true;
+    };
+    for (const lap of this.room.state.laps) {
+      lap.bestSectors.forEach(take);
+      if (lap.valid) lap.currentSectors.forEach(take);
+    }
+    return improved;
+  }
+
   /** `id`'s pit box: the lowest no driver has, told to the room. */
   private giveBox(id: CarId): void {
     const taken = new Set(this.boxes.values());
@@ -236,6 +284,7 @@ export class GrandPrix {
   /** Every phase change goes through here: the room's damage follows the phase (`damageInPhase`). */
   private setPhase(phase: GrandPrixPhase): void {
     this.phase = phase;
+    this.sectorBests = noSectorBests(); // a new session, with its own bests
     this.room.setDamage(damageInPhase(phase));
   }
 
@@ -259,4 +308,9 @@ export class GrandPrix {
     this.room.restart(this.order().map((entry) => entry.id));
     this.room.hold = HELD;
   }
+}
+
+/** No sector timed yet: one null per sector. */
+function noSectorBests(): (number | null)[] {
+  return Array<number | null>(TRACK_RULES.sectorCount).fill(null);
 }

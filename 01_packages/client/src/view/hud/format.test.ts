@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { damageLevel, formatDelta, formatLapTime, sectorColor, slipstreamPercent } from './format';
+import {
+  damageLevel,
+  formatDelta,
+  formatLapTime,
+  gpBestColor,
+  gpSectorColor,
+  sectorColor,
+  slipstreamPercent,
+} from './format';
 
 describe('slipstreamPercent', () => {
   it('rounds the tow to a whole percentage, clamped to 0..100', () => {
@@ -53,5 +61,25 @@ describe('damageLevel', () => {
       'critical',
       'critical',
     ]);
+  });
+});
+
+describe('gpSectorColor', () => {
+  it("purple for the session's best of everyone, green for an own best, else yellow", () => {
+    expect(gpSectorColor(100, null, null)).toBe('purple'); // nobody timed yet
+    expect(gpSectorColor(90, 95, 92)).toBe('purple');
+    expect(gpSectorColor(92, 95, 92)).toBe('purple'); // it is the session's best (set by it)
+    expect(gpSectorColor(93, 95, 92)).toBe('green'); // own best, someone else faster
+    expect(gpSectorColor(93, null, 92)).toBe('green'); // own first time
+    expect(gpSectorColor(96, 95, 92)).toBe('yellow');
+    expect(gpSectorColor(95, 95, 92)).toBe('yellow');
+  });
+});
+
+describe('gpBestColor', () => {
+  it("purple while the own best is the session's best, green once beaten", () => {
+    expect(gpBestColor(92, null)).toBe('purple');
+    expect(gpBestColor(92, 92)).toBe('purple');
+    expect(gpBestColor(93, 92)).toBe('green');
   });
 });

@@ -105,7 +105,7 @@ export class DebugOverlay {
       `tuning    ${tuningLabel()}`,
       ...(extra.length > 0 ? ['', ...extra] : []),
       '',
-      `R reset · V camera · Z look back · B bot · F3 overlay${import.meta.env.DEV ? ' · F2 tuning · F4 dummy' : ''}`,
+      `R reset · V camera · Z look back · N rain · B bot · F3 overlay${import.meta.env.DEV ? ' · F2 tuning · F4 dummy' : ''}`,
     ].join('\n');
   }
 

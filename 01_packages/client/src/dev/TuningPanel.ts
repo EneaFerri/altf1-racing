@@ -8,6 +8,7 @@ import {
   SLOPE_PARAMS,
   SURFACE_PARAMS,
   tuningLabel,
+  WET_PARAMS,
   type BotLevel,
   type BotParams,
   type CarDamage,
@@ -18,8 +19,10 @@ import {
   type SlopeParams,
   type Surface,
   type SurfaceParams,
+  type WetParams,
 } from '@altf1/shared';
 import { CAMERA_PARAMS, type CameraParams } from '../view/cameras/params';
+import { RAINDROP_PARAMS, type RaindropParams } from '../view/weather/Raindrops';
 
 type Range = readonly [min: number, max: number, step: number];
 
@@ -153,6 +156,40 @@ export interface DevPitLane {
   readonly set: (on: boolean) => void;
 }
 
+/** The rain in single player (a Grand Prix's weather, tried here): on or off, live, and its params. */
+export interface DevWeather {
+  readonly on: boolean;
+  readonly set: (rain: boolean) => void;
+  /** The live wet params (edited in place, like every other group). */
+  readonly params: WetParams;
+  /** How the falling rain looks, live (but the count). */
+  readonly drops: RaindropParams;
+}
+
+/** Slider ranges of the falling rain's look. */
+const RAINDROP_RANGES: Record<Exclude<keyof RaindropParams, 'count'>, Range> = {
+  width: [20, 120, 1],
+  height: [10, 60, 1],
+  below: [0, 20, 0.5],
+  speed: [5, 40, 0.5],
+  windX: [-0.5, 0.5, 0.01],
+  windZ: [-0.5, 0.5, 0.01],
+  length: [0.2, 3, 0.05],
+  opacity: [0, 1, 0.01],
+  nearClear: [0, 15, 0.5],
+  fadeIn: [0, 20, 0.5],
+};
+
+/** Slider ranges of the wet params. */
+const WET_RANGES: Record<keyof WetParams, Range> = {
+  grip: [0.3, 1, 0.01],
+  traction: [0.3, 1, 0.01],
+  brake: [0.3, 1, 0.01],
+  puddleGrip: [0.1, 1, 0.01],
+  puddleTraction: [0.1, 1, 0.01],
+  puddleDrag: [0, 10, 0.1],
+};
+
 /**
  * Dev-only live tuning (F2). Mutates the params objects the Game feeds to the simulation,
  * so changes apply on the next tick. Loaded via dynamic import only when import.meta.env.DEV.
@@ -170,6 +207,7 @@ export class TuningPanel {
     private readonly botParams: Record<BotLevel, BotParams>,
     private readonly damage: DevDamage,
     pitLane: DevPitLane,
+    private readonly weather: DevWeather,
   ) {
     for (const [title, ranges] of Object.entries(CAR_GROUPS)) {
       const folder = this.gui.addFolder(title);
@@ -239,6 +277,24 @@ export class TuningPanel {
       .add({ on: pitLane.on }, 'on')
       .name('drivable (reloads)')
       .onChange((on: boolean) => pitLane.set(on));
+    const rain = this.gui.addFolder('Weather (Grand Prix)').close();
+    rain
+      .add({ rain: weather.on }, 'rain')
+      .name('rain (or ?rain)')
+      .onChange((on: boolean) => weather.set(on));
+    for (const [key, [min, max, step]] of Object.entries(WET_RANGES) as [
+      keyof WetParams,
+      Range,
+    ][]) {
+      rain.add(weather.params, key, min, max, step);
+    }
+    const drops = rain.addFolder('Falling rain (look)').close();
+    for (const [key, [min, max, step]] of Object.entries(RAINDROP_RANGES) as [
+      keyof typeof RAINDROP_RANGES,
+      Range,
+    ][]) {
+      drops.add(weather.drops, key, min, max, step);
+    }
 
     this.gui.add({ copy: () => this.copyAsCode() }, 'copy').name('Copy as code');
     this.gui.add({ reset: () => this.reset() }, 'reset').name('Reset to defaults');
@@ -297,6 +353,8 @@ export class TuningPanel {
     Object.assign(this.slipstreamParams, SLIPSTREAM_PARAMS);
     Object.assign(this.slopeParams, SLOPE_PARAMS);
     Object.assign(this.damage.params, DAMAGE_PARAMS);
+    Object.assign(this.weather.params, WET_PARAMS);
+    Object.assign(this.weather.drops, RAINDROP_PARAMS);
     Object.assign(this.cameraParams, CAMERA_PARAMS);
     for (const [surface, params] of Object.entries(SURFACE_PARAMS)) {
       Object.assign(this.surfaceParams[surface as Surface], params);
@@ -320,6 +378,12 @@ export class TuningPanel {
       ([key, value]) => `  ${key}: ${round(value as number)},`,
     );
     const damageLines = Object.entries(this.damage.params).map(
+      ([key, value]) => `  ${key}: ${round(value as number)},`,
+    );
+    const wetLines = Object.entries(this.weather.params).map(
+      ([key, value]) => `  ${key}: ${round(value as number)},`,
+    );
+    const dropLines = Object.entries(this.weather.drops).map(
       ([key, value]) => `  ${key}: ${round(value as number)},`,
     );
     const cameraLines = Object.entries(this.cameraParams).map(
@@ -351,11 +415,17 @@ export class TuningPanel {
       '// config/damage.ts',
       `export const DAMAGE_PARAMS: DamageParams = {\n${damageLines.join('\n')}\n};`,
       '',
+      '// config/weather.ts',
+      `export const WET_PARAMS: WetParams = {\n${wetLines.join('\n')}\n};`,
+      '',
       '// config/surfaces.ts',
       `export const SURFACE_PARAMS: Record<Surface, SurfaceParams> = {\n${surfaceLines.join('\n')}\n};`,
       '',
       '// config/bot.ts',
       `export const BOT_PARAMS: Record<BotLevel, BotParams> = {\n${botLines.join('\n')}\n};`,
+      '',
+      '// client: view/weather/Raindrops.ts',
+      `export const RAINDROP_PARAMS: RaindropParams = {\n${dropLines.join('\n')}\n};`,
       '',
       '// client: view/cameras/params.ts',
       `export const CAMERA_PARAMS: CameraParams = {\n${cameraLines.join('\n')}\n};`,

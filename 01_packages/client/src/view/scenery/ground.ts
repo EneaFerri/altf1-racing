@@ -269,15 +269,26 @@ const CHECK_STEP = 1.5;
 /**
  * Lowers the grid wherever its triangles rise above the road or its run-off (an 8 m triangle
  * joining a point under a low stretch to one by a higher stretch can cross the low one's edge):
- * the triangle's vertices go down until it is GROUND_DROP under the road there. Returns how many
- * points needed it on the first pass.
+ * the triangle's vertices go down until it is GROUND_DROP under the road there. Under the main
+ * loop, and with `routes` under each route's own stretch too (the Grand Prix's pit lane: no grass
+ * through it). Returns how many points needed it on the first pass.
  */
-export function settleUnderRoad(grid: GroundGrid, track: Track): number {
+export function settleUnderRoad(grid: GroundGrid, track: Track, routes = false): number {
+  // Each sample with how far either side of its centre the ground must lie under it.
+  const under = [
+    ...track.samples.map((s) => ({ s, reach: s.halfWidth + track.runoffWidth + 0.5 })),
+    ...(routes ? track.routes : []).flatMap((road) =>
+      road.samples
+        .filter(
+          (s) => !road.branch || (s.distance >= road.branch.from && s.distance <= road.branch.to),
+        )
+        .map((s) => ({ s, reach: s.halfWidth + road.runoffWidth + 0.5 })),
+    ),
+  ];
   let first = -1;
   for (let pass = 0; pass < 8; pass++) {
     let raised = 0;
-    for (const s of track.samples) {
-      const reach = s.halfWidth + track.runoffWidth + 0.5;
+    for (const { s, reach } of under) {
       for (let o = -reach; o <= reach; o += CHECK_STEP) {
         const x = s.position.x + s.normal.x * o;
         const z = s.position.z + s.normal.z * o;
@@ -302,10 +313,15 @@ const GRID_MARGIN = 400;
 
 /**
  * The ground an elevated track is drawn on: `height` on a GRID_CELL m grid GRID_MARGIN m round the
- * track, settled under the road (`settleUnderRoad`). SceneView draws it; props stand on it.
+ * track, settled under the road (`settleUnderRoad`; with `routes` under the routes too). SceneView
+ * draws it; props stand on it.
  */
-export function elevatedGround(track: Track, height: (p: Vec2) => number): GroundGrid {
+export function elevatedGround(
+  track: Track,
+  height: (p: Vec2) => number,
+  routes = false,
+): GroundGrid {
   const grid = groundGrid(trackBounds(track, GRID_MARGIN), GRID_CELL, height);
-  settleUnderRoad(grid, track);
+  settleUnderRoad(grid, track, routes);
   return grid;
 }

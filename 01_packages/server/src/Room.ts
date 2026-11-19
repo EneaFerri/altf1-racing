@@ -17,6 +17,7 @@ import {
   type StartHold,
   type Track,
   type TrackDefinition,
+  type Weather,
 } from '@altf1/shared';
 
 /**
@@ -119,14 +120,35 @@ export class Room {
   /** Damage on or off from the next tick (the Grand Prix's phases); off repairs every car. */
   setDamage(on: boolean): void {
     if (on === this.damage) return;
-    this.ctx = onlineSimContext(this.track, { damage: on, pitBoxes: this.ctx.pit?.boxes });
+    this.rules = { ...this.rules, damage: on };
+    this.ctx = onlineSimContext(this.track, this.rules);
     if (!on) this.current = repairCars(this.current);
   }
 
   /** Each driver's pit box (a Grand Prix room, whose track has the pit lane). */
   setPitBoxes(boxes: Readonly<Record<CarId, number>>): void {
-    this.ctx = onlineSimContext(this.track, { damage: this.damage, pitBoxes: boxes });
+    this.rules = { ...this.rules, pitBoxes: boxes };
+    this.ctx = onlineSimContext(this.track, this.rules);
   }
+
+  /** The track's weather (a Grand Prix's, chosen by its manager); dry by default. */
+  get weather(): Weather {
+    return this.rules.weather;
+  }
+
+  /** The track wet (`rain`: its puddles too) or dry from the next tick. */
+  setWeather(weather: Weather): void {
+    if (weather === this.rules.weather) return;
+    this.rules = { ...this.rules, weather };
+    this.ctx = onlineSimContext(this.track, this.rules);
+  }
+
+  /** What the room's simulation runs with, besides the track (see `onlineSimContext`). */
+  private rules: {
+    readonly damage: boolean;
+    readonly pitBoxes: Readonly<Record<CarId, number>>;
+    readonly weather: Weather;
+  } = { damage: false, pitBoxes: {}, weather: 'dry' };
 
   /** No players left (cars out of the race still count: their players are watching). */
   get isEmpty(): boolean {

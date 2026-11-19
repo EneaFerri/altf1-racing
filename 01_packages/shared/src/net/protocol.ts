@@ -1,4 +1,5 @@
 import { GRAND_PRIX, type RaceLaps } from '../config/grandPrix';
+import { WEATHERS, type Weather } from '../config/weather';
 import type { StartHold } from '../race/hold';
 import type { QualifyingEntry } from '../race/qualifying';
 import type { RaceStanding } from '../race/standings';
@@ -10,7 +11,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 14;
+export const PROTOCOL_VERSION = 15;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -99,12 +100,22 @@ export interface GrandPrixInfo {
   readonly hold: StartHold | null;
   /** Each driver's pit box (an index into the pit lane's boxes), kept from joining to leaving. */
   readonly boxes: Readonly<Record<CarId, number>>;
+  /** The weather the manager chose in the lobby, for the whole GP (`dry` unless `offersRain`). */
+  readonly weather: Weather;
+  /**
+   * The session's best time of each sector (ticks) over every driver's valid laps: the HUD's
+   * purple. The session is the phase (lobby, qualifying, race): it starts over with each one.
+   * null = nobody has a valid time in that sector yet.
+   */
+  readonly sectorBests: readonly (number | null)[];
 }
 
 /** What the GP manager can ask for, each in its phase; `playAgain` is open to every player. */
 export type GrandPrixCommand =
   /** Lobby → qualifying. */
   | { readonly action: 'start' }
+  /** In the lobby, on a track that `offersRain`: the GP's weather. */
+  | { readonly action: 'weather'; readonly weather: Weather }
   /** Qualifying → grid, without waiting for everyone's laps. */
   | { readonly action: 'endQualifying' }
   /** Grid → race over `laps` laps: the start lights begin. */
@@ -198,7 +209,12 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isFiniteNumber(t) ? { type: 'ping', t } : null;
     }
     case 'gp': {
-      const { action, laps } = data;
+      const { action, laps, weather } = data;
+      if (action === 'weather') {
+        return WEATHERS.includes(weather as Weather)
+          ? { type: 'gp', action, weather: weather as Weather }
+          : null;
+      }
       if (
         action === 'start' ||
         action === 'endQualifying' ||

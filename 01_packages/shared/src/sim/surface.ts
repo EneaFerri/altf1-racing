@@ -9,6 +9,8 @@ import type { CarState } from './car';
 export interface SurfaceEffect {
   readonly grip: number;
   readonly traction: number;
+  /** Multiplies braking on top of `traction` (a wet track); 1 on every dry surface. */
+  readonly brake: number;
   readonly drag: number;
   /** Yaw kick to add this tick (rad/s). */
   readonly spinKick: number;
@@ -17,6 +19,7 @@ export interface SurfaceEffect {
 export const NEUTRAL_SURFACE_EFFECT: SurfaceEffect = {
   grip: 1,
   traction: 1,
+  brake: 1,
   drag: 0,
   spinKick: 0,
 };
@@ -58,7 +61,7 @@ export function surfaceEffect(
     }
   });
 
-  return { grip, traction, drag, spinKick };
+  return { grip, traction, brake: 1, drag, spinKick };
 }
 
 /** Convenience for stepGame: sample + combine in one call. */

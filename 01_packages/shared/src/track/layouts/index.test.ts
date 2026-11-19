@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MAX_PLAYERS } from '../../net/protocol';
 import { buildTrack } from '../buildTrack';
 import type { WallSegment } from '../types';
-import { GP_TRACKS, KRUNCAR, TEST_TRACK } from '.';
+import { GP_TRACKS, KRUNCAR, SAO_PAULO, TEST_TRACK } from '.';
 
 function wallDistance(p: { x: number; z: number }, wall: WallSegment): number {
   const dx = wall.b.x - wall.a.x;
@@ -66,5 +66,26 @@ describe('pit lanes', () => {
   it('only the real circuits have one', () => {
     expect(TEST_TRACK.pitLane).toBeUndefined();
     expect(KRUNCAR.pitLane).toBeUndefined();
+  });
+});
+
+describe("São Paulo's pit lane (owner, 2026-11-18)", () => {
+  const lane = SAO_PAULO.pitLane!;
+  const road = buildTrack(SAO_PAULO, { pitLane: true }).routes.find((r) => r.pit)!;
+
+  it('climbs and falls gently: never steeper than 6%, no step', () => {
+    const { samples } = road;
+    for (let i = 1; i < samples.length; i++) {
+      const [a, b] = [samples[i - 1]!, samples[i]!];
+      if (a.distance < road.branch!.from || b.distance > road.branch!.to) continue;
+      expect(Math.abs(b.height - a.height) / (b.distance - a.distance)).toBeLessThan(0.06);
+    }
+  });
+
+  it('has its boxes close together (20 m apart) and a short limiter round them', () => {
+    lane.boxes.slice(1).forEach((box, i) => expect(box - lane.boxes[i]!).toBeCloseTo(20));
+    expect(lane.limit.to - lane.limit.from).toBeLessThan(300);
+    expect(lane.boxes[0]! - lane.limit.from).toBeCloseTo(50);
+    expect(lane.limit.to - lane.boxes.at(-1)!).toBeCloseTo(50);
   });
 });

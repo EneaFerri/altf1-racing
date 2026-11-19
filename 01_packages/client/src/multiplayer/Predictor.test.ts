@@ -201,6 +201,23 @@ describe('Predictor', () => {
     expect(own(predictor.current).damage).toBeUndefined();
   });
 
+  it('predicts the rain exactly like the server room, once told its weather', () => {
+    const server = onlineSimContext(ctx.track, { weather: 'rain' });
+    const start = createGame(ctx.track, ['p1']);
+    const predictor = new Predictor('p1', ctx);
+    predictor.setWeather('rain');
+    predictor.reconcile(snapshot(start));
+    for (let seq = 0; seq < 60; seq++) predictor.step(seq, LEFT);
+    let wet = start;
+    let dry = start;
+    for (let i = 0; i < 60; i++) {
+      wet = stepGame(wet, { p1: LEFT }, server);
+      dry = stepGame(dry, { p1: LEFT }, ctx);
+    }
+    expect(own(predictor.current)).toEqual(own(wet));
+    expect(own(wet)).not.toEqual(own(dry));
+  });
+
   it('runs a pit stop exactly like the server room, once told the boxes', () => {
     const pits = buildTrack(MONZA, { pitLane: true });
     const lane = pits.routes.find((road) => road.pit)!;

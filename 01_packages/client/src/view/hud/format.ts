@@ -39,6 +39,27 @@ export function sectorColor(
   return 'yellow';
 }
 
+/**
+ * A Grand Prix's colour of a sector just driven, F1 style: purple = the session's best of every
+ * driver (or nobody has one yet), green = the driver's own best (faster than their best before
+ * this lap, or their first), yellow = slower. `sessionBest` is live: once another driver beats it,
+ * the sector is no longer purple.
+ */
+export function gpSectorColor(
+  ticks: number,
+  personalBefore: number | null,
+  sessionBest: number | null,
+): SectorColor {
+  if (sessionBest === null || ticks <= sessionBest) return 'purple';
+  if (personalBefore === null || ticks < personalBefore) return 'green';
+  return 'yellow';
+}
+
+/** A Grand Prix's colour of a driver's own best sector: purple if it is the session's best too. */
+export function gpBestColor(best: number, sessionBest: number | null): SectorColor {
+  return sessionBest === null || best <= sessionBest ? 'purple' : 'green';
+}
+
 /** `OUT LAP` before the first crossing of the line, then `LAP n`. */
 export function defaultLapName(timing: LapState): string {
   return timing.lapStartTick === null ? 'OUT LAP' : `LAP ${timing.laps + 1}`;

@@ -183,7 +183,9 @@ function longitudinal(
   if (slopeAccel !== 0) v += slopeAccel * dt;
 
   // The brake stops the car whichever way it rolls; only the reverse key drives backwards.
-  if (brakePressure > 0) v = moveToward(v, 0, p.brakeDecel * traction * brakePressure * dt);
+  if (brakePressure > 0) {
+    v = moveToward(v, 0, p.brakeDecel * traction * surface.brake * brakePressure * dt);
+  }
 
   if (input.reverse > 0 && v <= REVERSE_ENGAGE_SPEED) {
     v = Math.max(v - p.reverseAccel * traction * input.reverse * dt, -p.maxReverseSpeed);

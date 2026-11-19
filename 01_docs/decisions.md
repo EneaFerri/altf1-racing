@@ -557,3 +557,77 @@
   lights per lamp, for speed). Built once in Singapore's step, reused by Las Vegas.
 - EU-DEM covers Europe only: Interlagos's land comes from another OpenTopoData dataset (SRTM 30 m),
   chosen per circuit in `circuits.ts`.
+
+## 2026-11-18 — Rain (2.7 plan)
+
+- Owner: a **generic rain mode**, tried on São Paulo; the **Grand Prix's manager** chooses it in
+  the **lobby**, for the whole GP. No raindrops (grey sky, haze, wet road, puddles); spray behind
+  the cars as a last, separate step. Wet laps go into the **same lap records**. In single player
+  the rain is a dev tool only (F2, `?rain`).
+- Puddles are part of the **simulation**, not only drawn: placed once per track by a pure,
+  seeded function in shared, so the server, the prediction and the view agree on every one
+  without sending them over the network.
+- The rain's look is derived from the theme (`rainLook`), not written per circuit: any track can
+  have it later without touching its theme.
+
+## 2026-11-18 — The rain's numbers (2.7 W.2)
+
+- Owner (F2): a much harder wet than the first guess: `WET_PARAMS` grip 0.5, traction 0.95,
+  brake 0.59, puddle grip 0.1, traction 0.3, drag 2.3. The rain is a real challenge (braking +61%,
+  laps ~13% slower), a puddle nearly frictionless. Every other group unchanged: baseline v3 stays.
+
+## 2026-11-18 — Falling rain after all, light (2.7 W.2b)
+
+- Owner: the rain should show falling drops, light (no lag, the view stays clear), with **N** to
+  switch them off on one's own screen; and every car on **wet tyres** (the blue band) in the rain.
+- The drops are one `LineSegments` moved and wrapped round the camera in the vertex shader: the
+  cost stays the same whatever the count (no CPU work per drop), one draw call. Rejected: a 2D
+  screen overlay (reads as UI, not as weather) and CPU-animated particles (cost per drop).
+
+## 2026-11-18 — Wetter still, and a heavier-looking rain (2.7 W.2b)
+
+- Owner (F2): `WET_PARAMS.grip` 0.5 → **0.3** (Hard bot on São Paulo +24% instead of +13%), and the
+  falling rain's look: `RAINDROP_PARAMS` 2 m long, 80% opacity, 22 m/s, slanted 0.3 / 0.1 (the
+  count, box and clear space round the eye unchanged).
+
+## 2026-11-18 — Protocol v15: the Grand Prix's weather (2.7 W.3)
+
+- One more `gp` command (`weather`) and `GrandPrixInfo.weather`. The puddles are never sent:
+  every machine places them from the track (`placePuddles`), so the message stays one word.
+- The choice is the lobby's only: fixed from qualifying on, so nobody's qualifying and race run
+  in different weather. Kept after play again (the same group usually wants the same race).
+- Which tracks offer it: one list in shared (`RAIN_TRACKS`), checked by the server; the other
+  circuits stay exactly as they were (rule 5).
+
+## 2026-11-18 — Grand Prix sector colours, F1 style (2.3l)
+
+- Owner: in the Grand Prix, purple = the best of every driver (not only one's own), green = own
+  best, yellow = slower, with two rows (this lap, own bests) showing the times.
+- Purple is **per session** (lobby, qualifying, race), like F1's, and computed by the **server**
+  (`GrandPrixInfo.sectorBests`): the same for everyone, and a driver's best survives them leaving
+  the track (a client could only see the cars still in the room). It rode on the unreleased v15.
+- Other modes keep the old colours (purple = own record), for now.
+- Live (owner): a sector counts the moment it is done on a lap still valid, not only once the lap
+  is finished: the server reads `currentSectors` every tick, the HUD keeps the own live bests.
+
+## 2026-11-18 — Walls catch only from the front (pit wall, 4i P.1)
+
+- The bug: the pit wall is two one-sided walls back to back, ~1 m apart; the anti-tunnelling catch
+  (2 m behind a wall) let the far one grab a car scraping the near one, and the deepest contact
+  won: the car was thrown through.
+- Fix in the solver, not the data (owner: for every circuit): a wall catches a circle from behind
+  only if it started the tick in front of it. Exact and general (any thin wall, any gap), keeps
+  the anti-tunnelling, changes nothing else (every measured test unchanged). Rejected: a smaller
+  catch depth per wall (weaker anti-tunnelling) or moving the walls apart (regenerating every
+  circuit).
+
+## 2026-11-18 — São Paulo's pit lane: options of the tool, not hand edits (4i P.2)
+
+- The layout is generated: the fixes are tool options set only in São Paulo's config
+  (`pitLaneMaxGrade`, `pitBoxesAtLine`) and a theme option (`groundUnderRoutes`), so every other
+  circuit's data and ground stay exactly as they were (rule 5); only `layouts/saoPaulo.ts`'s
+  `pitLane` was regenerated.
+- Boxes by the start line, 20 m apart (owner): like the real garages, and the limiter only round
+  them. Most of the 1350 m lane is then driven at full speed.
+- Heights: the lane can't be level with both the top and the bottom of the Senna S. The step is
+  ramped at 5%, half above one and half below the other.

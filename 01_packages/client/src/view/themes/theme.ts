@@ -54,6 +54,12 @@ export interface TrackTheme {
    * heights around it. Settled under the road by SceneView.
    */
   readonly groundHeight?: (track: Track) => (p: Vec2) => number;
+  /**
+   * The ground is settled under the routes too (the Grand Prix's pit lane), not only the main loop:
+   * São Paulo's land rose through its lane (owner, 2026-11-18). Left out on the other circuits,
+   * whose ground stays as it was (rule 5).
+   */
+  readonly groundUnderRoutes?: boolean;
 }
 
 /**

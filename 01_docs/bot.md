@@ -101,6 +101,14 @@ Tests (`ai/bot.test.ts`): clean laps on every level of every track in `TRACKS`, 
 Kruncar shortcut, real circuits' lap times (Hard within 1.5% of the pole, sectors within 7%, Barcelona 10%), Hard never off the asphalt, line inside the asphalt, recovery from a car parked on its line, stuck → reset,
 determinism.
 
+## In the rain
+
+On a wet track (dev only in single player: F2 → Weather) the bot plans with the wet brakes
+(`brakeDecel` × wet traction × wet brake) and cornering yaw × √(wet grip) (`buildBotPlan`'s `wet`;
+planning only, the simulation applies the wet itself). With the owner's `WET_PARAMS`, on São
+Paulo: Hard 69.50 s dry, 86.28 s wet (+24%), no walls, no resets; Medium and Hard slide wide onto
+the grass now and then ([weather.md](weather.md#physics-w2)).
+
 ## Limits (for now)
 
 No racecraft: it doesn't plan overtakes or avoid the player beyond following its line,

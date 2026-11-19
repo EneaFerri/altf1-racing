@@ -15,6 +15,8 @@ import {
   defaultLapName,
   formatDelta,
   formatLapTime,
+  gpBestColor,
+  gpSectorColor,
   sectorColor,
   slipstreamPercent,
   type SectorColor,
@@ -32,7 +34,9 @@ interface Reference {
 
 /**
  * F1-style timing strip, top centre: lap, running time, sector bars, last and best lap, speed,
- * slipstream (SLIP bar + %, the same value as the wind lines).
+ * slipstream (SLIP bar + %, the same value as the wind lines). In a Grand Prix the sector bars
+ * become a table under the strip: this lap's sector times and the own bests, purple for the
+ * session's best of every driver (`setSessionBests`).
  * A chip under it shows each sector's gap to the best lap for a few seconds; in a race with damage,
  * the damage panel bottom right. Reads state only.
  */
@@ -69,6 +73,24 @@ export class Hud {
   private clearBarsAt: number | null = null;
   /** Name of the lap being driven (e.g. Q1–Q3 in qualifying, `P2/6 · LAP 3/8` in a race). */
   private lapName = defaultLapName;
+  /**
+   * A Grand Prix: the session's best sectors of every driver (the server's); null elsewhere. With
+   * them, the sectors show as a table: this lap's times and the own bests, F1's colours.
+   */
+  private sessionBests: readonly (number | null)[] | null = null;
+  /** The table's two rows of sector cells: this lap, the own bests. */
+  private readonly sectorTable = element('div', 'hud-gp-sectors');
+  private readonly lapCells = sectorCells();
+  private readonly bestCells = sectorCells();
+  /** This lap's sector times as shown (null = not yet), and whether the lap is valid. */
+  private lapSectors: (number | null)[] = [];
+  /**
+   * The own best of each sector, live: taken as each sector is done on a valid lap (the
+   * simulation's `bestSectors` only grow at the line, from laps still valid there). Cleared when
+   * the timing starts over (a new session).
+   */
+  private ownBests: (number | null)[] = [];
+  private lapValid = true;
 
   constructor() {
     const strip = element('div', 'hud-strip');
@@ -91,8 +113,35 @@ export class Hud {
       this.bot,
     );
     this.pit.hidden = true;
-    this.root.append(strip, this.chip, this.pit);
+    this.sectors = sectors;
+    this.sectorTable.append(
+      element('span', 'hud-label'),
+      ...Array.from({ length: TRACK_RULES.sectorCount }, (_, i) =>
+        element('span', 'hud-label', `S${i + 1}`),
+      ),
+      element('span', 'hud-label', 'LAP'),
+      ...this.lapCells,
+      element('span', 'hud-label', 'BEST'),
+      ...this.bestCells,
+    );
+    // A label column, then one per sector.
+    this.sectorTable.style.gridTemplateColumns = `auto repeat(${TRACK_RULES.sectorCount}, 4.6em)`;
+    this.sectorTable.hidden = true;
+    this.root.append(strip, this.sectorTable, this.chip, this.pit);
     document.body.appendChild(this.root);
+  }
+
+  /** The strip's sector bars, hidden in a Grand Prix (the table shows the sectors instead). */
+  private readonly sectors: HTMLElement;
+
+  /**
+   * A Grand Prix: the session's best sectors of every driver, from the server (null: not a Grand
+   * Prix). Shows the sector table instead of the bars, coloured against them from now on.
+   */
+  setSessionBests(bests: readonly (number | null)[] | null): void {
+    this.sessionBests = bests;
+    this.sectorTable.hidden = bests === null;
+    this.sectors.hidden = bests !== null;
   }
 
   /** How the lap being driven is named from now on (`OUT LAP`, then `LAP n`, by default). */
@@ -147,8 +196,40 @@ export class Hud {
     this.chip.hidden = nowMs > this.chipUntil;
     if (this.clearBarsAt !== null && nowMs > this.clearBarsAt) {
       for (const bar of this.bars) bar.className = 'hud-bar';
+      this.lapSectors = [];
       this.clearBarsAt = null;
     }
+    if (this.sessionBests) this.showSectorTable(timing, this.sessionBests);
+  }
+
+  /** The own best of each sector: the finished laps' and the live ones (`ownBests`). */
+  private personalBests(timing: LapState): (number | null)[] {
+    return timing.bestSectors.map((best, i) => {
+      const live = this.ownBests[i] ?? null;
+      return best === null ? live : live === null ? best : Math.min(best, live);
+    });
+  }
+
+  /**
+   * The Grand Prix's sector table, recoloured every frame against the session's bests (a purple
+   * beaten by another driver turns green): this lap's sectors so far, then the own bests.
+   */
+  private showSectorTable(timing: LapState, session: readonly (number | null)[]): void {
+    this.lapCells.forEach((cell, i) => {
+      const ticks = this.lapSectors[i] ?? null;
+      const color =
+        ticks === null
+          ? null
+          : this.lapValid
+            ? gpSectorColor(ticks, this.reference.bestSectors[i] ?? null, session[i] ?? null)
+            : 'invalid';
+      showCell(cell, ticks, color);
+    });
+    const own = this.personalBests(timing);
+    this.bestCells.forEach((cell, i) => {
+      const best = own[i] ?? null;
+      showCell(cell, best, best === null ? null : gpBestColor(best, session[i] ?? null));
+    });
   }
 
   /** `PIT STOP 3.4` while stopped in the box, `PIT LIMITER 76` between the limit lines. */
@@ -177,8 +258,13 @@ export class Hud {
     if (timing.lapStartTick !== this.lapStartTick) {
       this.lapStartTick = timing.lapStartTick;
       this.seenSectors = 0;
+      if (timing.lapStartTick === null) {
+        // Fresh timing (a new session, or the car put back on the track): no bests any more.
+        this.ownBests = [];
+        this.seenLaps = timing.laps;
+      }
       this.reference = {
-        bestSectors: timing.bestSectors,
+        bestSectors: this.sessionBests ? this.personalBests(timing) : timing.bestSectors,
         bestLapSectors: timing.bestLap?.sectors ?? null,
       };
       this.clearBarsAt = lapFinished ? this.chipUntil : nowMs;
@@ -197,9 +283,16 @@ export class Hud {
   ): void {
     const ticks = sectors[index]!;
     const { bestSectors, bestLapSectors } = this.reference;
-    const color: SectorColor | 'invalid' = valid
-      ? sectorColor(ticks, bestSectors[index] ?? null, bestLapSectors?.[index] ?? null)
-      : 'invalid';
+    const before = bestSectors[index] ?? null;
+    const color: SectorColor | 'invalid' = !valid
+      ? 'invalid'
+      : this.sessionBests
+        ? gpSectorColor(ticks, before, this.sessionBests[index] ?? null)
+        : sectorColor(ticks, before, bestLapSectors?.[index] ?? null);
+    this.lapSectors[index] = ticks;
+    this.lapValid = valid;
+    const own = this.ownBests[index] ?? null;
+    if (valid && (own === null || ticks < own)) this.ownBests[index] = ticks;
     this.bars[index]!.className = `hud-bar hud-c-${color}`;
 
     // Gap to the best lap at the same point, or the sector time if there is no best lap yet.
@@ -212,6 +305,18 @@ export class Hud {
     setText(this.chip, `S${index + 1}  ${gap}`);
     this.chipUntil = nowMs + CHIP_MS;
   }
+}
+
+/** One cell per sector for a row of the Grand Prix's sector table. */
+function sectorCells(): HTMLElement[] {
+  return Array.from({ length: TRACK_RULES.sectorCount }, () => element('span', 'hud-cell'));
+}
+
+/** A sector cell: its time in its colour, or `--` greyed while it has none. */
+function showCell(cell: HTMLElement, ticks: number | null, color: string | null): void {
+  setText(cell, ticks === null ? '--' : formatLapTime(ticks));
+  const className = color === null ? 'hud-cell' : `hud-cell hud-c-${color}`;
+  if (cell.className !== className) cell.className = className;
 }
 
 /** `● BOT <level>`, the dot in the bot's livery colour. */

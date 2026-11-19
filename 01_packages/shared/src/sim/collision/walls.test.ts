@@ -106,3 +106,50 @@ describe('resolveWalls', () => {
     }
   });
 });
+
+describe('a thin wall between two roads (the pit wall)', () => {
+  // The track's wall on x = 0 facing +x, and the pit lane's 1 m behind it, facing -x.
+  const both: SolidWall[] = [...segments];
+  for (let z = -3000; z < 3000; z += 2) {
+    both.push({ a: vec2(-1, z + 2), b: vec2(-1, z), normal: vec2(-1, 0) });
+  }
+  const PIT_WALL: WallSet = {
+    walls: both,
+    wallGrid: new SegmentGrid(both.map((w) => [w.a, w.b] as const)),
+  };
+
+  /** Nearest any circle's centre comes to the wall on its own side (`side`) in 2 s of scraping. */
+  function scrape(car: CarState, steer: number, side: 1 | -1, withStart: boolean): number {
+    let nearest = Infinity;
+    for (let tick = 0; tick < 2 * TICK_RATE; tick++) {
+      const moved = stepCar(car, { ...THROTTLE, steer }, CAR_PARAMS, FIXED_DT);
+      car = resolveWalls(moved, PIT_WALL, COLLISION_PARAMS, withStart ? car : undefined).car;
+      for (const c of carCircles(car)) {
+        nearest = Math.min(nearest, side > 0 ? c.x : -1 - c.x);
+      }
+    }
+    return nearest;
+  }
+
+  it('keeps a car scraping it on the track on the track, and one in the pit lane in the lane', () => {
+    for (const angle of [2, 5, 10, 20, 45]) {
+      for (const speed of [20, 50, 80]) {
+        expect(scrape(carAt(1.3, deg(angle), speed), -1, 1, true)).toBeGreaterThan(1);
+        expect(scrape(carAt(-2.3, -deg(angle), speed), 1, -1, true)).toBeGreaterThan(1);
+      }
+    }
+  });
+
+  it('would pull a scraping car into or through it without the start of the tick', () => {
+    const pulled = [5, 10, 20].some((angle) =>
+      [20, 50, 80].some((speed) => scrape(carAt(1.3, deg(angle), speed), -1, 1, false) < 0.5),
+    );
+    expect(pulled).toBe(true);
+  });
+
+  it('still catches a car that tunnelled into it from its own side', () => {
+    const start = vec2(0.5, 0);
+    expect(wallContact(WALL, vec2(-1.5, 0), 1.1, start)?.depth).toBeCloseTo(2.6);
+    expect(wallContact(WALL, vec2(-1.5, 0), 1.1, vec2(-2.5, 0))).toBeUndefined();
+  });
+});

@@ -300,8 +300,10 @@ Autódromo José Carlos Pace (Interlagos), **with its real heights** (the second
 after Monaco: [elevation.md](elevation.md#são-paulo-24e)). Shape from OSM relation 6781071;
 target: the 2025 pole, 1:09.511 (car #4, OpenF1 session 9865). Anticlockwise; `lineDirection` 210. Real widths × 1.4. Run-off 10 m (a permanent circuit). The pit lane (on the left, 1350 m)
 runs on round the inside of the Senna S and Curva do Sol; its tight bend there folded the walls,
-so it joins at the track's edge and is smoothed 16 times (`pitLaneSmoothing`). No station moved
-for the game's limits.
+so it joins at the track's edge and is smoothed 16 times (`pitLaneSmoothing`). Its heights are
+gentle (`pitLaneMaxGrade`, 5%), and its boxes sit 20 m apart by the start line, inside a 240 m
+limiter (`pitBoxesAtLine`) ([pitlane.md](pitlane.md#results)). No station moved for the game's
+limits.
 
 | Lap (s)   | Lap   | S1    | S2    | S3    | Walls | Off |
 | --------- | ----- | ----- | ----- | ----- | ----- | --- |

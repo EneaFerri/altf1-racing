@@ -70,3 +70,33 @@ One slim translucent strip, system sans-serif with tabular figures:
 - `● BOT <level>` at the end shows the bot's level (`OFF` greyed when off, see [bot.md](bot.md)).
   The bot is timed in the simulation like any car, but its times are never shown.
 - The DOM is touched only when a text changes. `pointer-events: none`, so it never blocks input.
+
+### Grand Prix: sector table (2.3l)
+
+In a Grand Prix (online) the strip's sector bars give way to a small table under it, F1 style
+(owner, 2026-11-18):
+
+```
+        S1       S2       S3
+LAP   28.412   31.002     --
+BEST  28.100   30.950   22.871
+```
+
+- **LAP**: this lap's sectors, filled in as each is done (cleared with the chip after the line).
+  **Purple** (a fuchsia) = the session's best of every driver, **green** = the own best (faster
+  than the own best when the lap started, or the first), **yellow** = slower, struck grey = an
+  invalid lap.
+- **BEST**: the own best time of each sector this session, valid laps only: purple while it is
+  the session's best of everyone, green once another driver beats it.
+- **Live, at every sector** (owner): a sector counts as soon as it is done on a lap still valid,
+  not only at the line. The server reads every car's `currentSectors` each tick (on a valid lap)
+  besides the finished laps' `bestSectors`, so `GrandPrixInfo.sectorBests` changes the moment a
+  driver beats a sector; a lap voided later (R) keeps what was already taken. The HUD keeps the
+  own live bests the same way (`ownBests`), cleared when the timing starts over.
+- The session's bests come from the server (`GrandPrixInfo.sectorBests`, read after each tick,
+  before anyone leaves the track): the same for everyone, kept after a driver retires. A session
+  is a phase (lobby, qualifying, race): its bests and every driver's timing start over with it.
+  Colours are recomputed every frame (`gpSectorColor`, `gpBestColor` in `view/hud/format.ts`), so
+  a purple beaten by another driver turns green at once.
+- The chip under the table keeps the gap to the best lap, in the sector's colour.
+- Single player, Free practice and Time trial keep the bars and their rules.

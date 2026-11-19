@@ -43,6 +43,8 @@ const LOBBY: GrandPrixInfo = {
   raceLaps: null,
   hold: null,
   boxes: { p2: 0, p3: 1 },
+  weather: 'dry',
+  sectorBests: [null, null, null],
 };
 
 describe('Grand Prix results', () => {

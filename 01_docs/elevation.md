@@ -140,6 +140,8 @@ to 4.5 m above the road (an 8 m ground triangle joining a point under the low st
 higher stretch crosses the low one's edge), with smaller spots by the tunnel. `settleUnderRoad`
 now checks the road and its run-off every ~1.5 m and lowers the ground's triangles wherever they
 rise above it; the grid is built once (`elevatedGround`) and drawn with the same triangles.
+With the theme's `groundUnderRoutes` (São Paulo) it settles under the routes too: the Grand Prix's
+pit lane ([pitlane.md](pitlane.md#results)).
 
 ## Terrain and town (3d ✅)
 

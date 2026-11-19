@@ -8,12 +8,14 @@ import { resolveWalls, type WallSet } from './walls';
  * Collision pass, run once per tick after every car has moved. Each solver pass resolves all car
  * pairs (in id order) and then the walls, which go last so no car is ever left inside a wall.
  * Impulses only act on contacts that are closing in, so repeating the pass only cleans up overlaps.
- * Returns the strongest impact per car and per thing it hit.
+ * Returns the strongest impact per car and per thing it hit. `before`: the cars at the start of
+ * the tick, in the same order (a wall only catches a car from behind if it started in front).
  */
 export function resolveCollisions(
   cars: readonly CarState[],
   walls: WallSet,
   p: CollisionParams,
+  before?: readonly CarState[],
 ): { cars: CarState[]; impacts: ImpactEvent[] } {
   const result = [...cars];
   const impacts = new Map<string, ImpactEvent>();
@@ -34,7 +36,7 @@ export function resolveCollisions(
       }
     }
     for (let i = 0; i < result.length; i++) {
-      const { car, impact } = resolveWalls(result[i]!, walls, p);
+      const { car, impact } = resolveWalls(result[i]!, walls, p, before?.[i]);
       result[i] = car;
       if (impact) record(impact);
     }

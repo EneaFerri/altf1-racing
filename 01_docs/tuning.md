@@ -10,6 +10,8 @@ All feel-related numbers have one home each and are the game's defaults:
 | `BOT_PARAMS`        | `01_packages/shared/src/config/bot.ts`          | [bot.md](bot.md)                    |
 | `SLIPSTREAM_PARAMS` | `01_packages/shared/src/config/slipstream.ts`   | [physics.md](physics.md#slipstream) |
 | `CAMERA_PARAMS`     | `01_packages/client/src/view/cameras/params.ts` | [architecture.md](architecture.md)  |
+| `WET_PARAMS`        | `01_packages/shared/src/config/weather.ts`      | [weather.md](weather.md)            |
+| `PUDDLE_PARAMS`     | `01_packages/shared/src/config/weather.ts`      | [weather.md](weather.md)            |
 
 ## Status flag
 
@@ -24,6 +26,8 @@ owner's idea: a faster car at the end of the straights makes braking and corner 
 so lap times stay similar; tracks, real-circuit scales and bots were deliberately left as they were.
 `SLIPSTREAM_PARAMS` (step 10b) were added on top of v3 without touching its values: a car alone
 drives exactly as before, so the real circuits' Hard-bot pole times (lapped alone) still hold.
+`WET_PARAMS` (2.7, the owner's values) and `PUDDLE_PARAMS` (provisional) are rain only: they
+don't touch a dry track at all.
 It is the owner's **reference setup**: future tuning starts from here, and any change to these values
 bumps the version (v4, …).
 

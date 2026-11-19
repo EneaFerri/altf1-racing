@@ -17,6 +17,7 @@ import { heldInBox, inBox, limitedSpeed, pitStep, type PitRules } from './pit';
 import { createLapState, stepLap, type LapState } from './laps';
 import { slipstreamEffect, slipstreamFactor } from './slipstream';
 import { carSurface } from './surface';
+import { puddleShare, wetSurfaceEffect, type WetTrack } from './weather';
 
 /** Complete simulation state. Plain data only, so it can be copied, compared and sent over the network. */
 export interface GameState {
@@ -48,6 +49,11 @@ export interface SimContext {
    * limit and the stops in each car's box. Left out: neither.
    */
   readonly pit?: PitRules;
+  /**
+   * A wet track (2.7, the rain: 01_docs/weather.md): less grip and braking, and its puddles
+   * (`placePuddles`) under the wheels. Left out: dry.
+   */
+  readonly weather?: WetTrack;
 }
 
 /** A grid slot counts as free when no car is closer than this to it (m). */
@@ -87,7 +93,11 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
     const given = inputs[car.id] ?? NEUTRAL_INPUT;
     if (given.reset) return resetOnTrack(car, ctx.track);
 
-    const { surfaces, effect } = carSurface(ctx.track, car, ctx.surfaceParams);
+    const { surfaces, effect: dry } = carSurface(ctx.track, car, ctx.surfaceParams);
+    const { weather } = ctx;
+    const effect = weather
+      ? wetSurfaceEffect(dry, puddleShare(car, weather.puddles), weather.params)
+      : dry;
     const own = ctx.carParamsById?.[car.id] ?? ctx.carParams;
     // A damaged car (only with ctx.damage) drives slower, turns and grips less, and may pull.
     const { damage } = ctx;
@@ -102,7 +112,7 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
     };
     return ctx.pit ? limitedSpeed(next, ctx.track) : next;
   });
-  const resolved = resolveCollisions(moved, ctx.track, ctx.collisionParams);
+  const resolved = resolveCollisions(moved, ctx.track, ctx.collisionParams, state.cars);
   const { impacts } = resolved;
   const damage = ctx.damage;
   const tick = state.tick + 1;

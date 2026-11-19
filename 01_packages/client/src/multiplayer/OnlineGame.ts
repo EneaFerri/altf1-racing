@@ -87,6 +87,7 @@ export class OnlineGame {
             {
               markPitBox: (box) => this.view.markPitBox(box),
               showFlagMarshal: (on) => this.view.showFlagMarshal(on),
+              setWeather: (weather) => this.view.setWeather(weather),
             },
             built,
           )
@@ -99,6 +100,7 @@ export class OnlineGame {
     this.debugOverlay = mode === 'grandPrix' ? null : new DebugOverlay();
     this.controller.onAction('toggleDebug', () => this.debugOverlay?.toggle());
     this.controller.onAction('toggleCamera', () => this.view.toggleCamera());
+    this.controller.onAction('toggleRain', () => this.view.toggleRaindrops());
     // A reload closes the socket (the server frees the nickname) and brings the start screen back.
     this.controller.onAction('backToMenu', () => location.reload());
     client.onMessage((message) => {

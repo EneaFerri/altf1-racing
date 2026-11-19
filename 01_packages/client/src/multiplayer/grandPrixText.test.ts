@@ -7,7 +7,7 @@ import {
   type RaceStanding,
 } from '@altf1/shared';
 import { LIVERIES, playerLivery } from '../view/pixelTexture';
-import { chequeredFlag, grandPrixContent, lapName } from './grandPrixText';
+import { chequeredFlag, fastestLap, grandPrixContent, lapName } from './grandPrixText';
 
 const PLAYERS: PlayerInfo[] = [
   { id: 'p1', nickname: 'Enea', livery: 0 },
@@ -23,6 +23,8 @@ const LOBBY: GrandPrixInfo = {
   raceLaps: null,
   hold: null,
   boxes: { p1: 0, p2: 1 },
+  weather: 'dry',
+  sectorBests: [null, null, null],
 };
 
 /** Kimi fastest and done, Enea without a time, on Q2. */
@@ -63,6 +65,24 @@ describe('Grand Prix panel', () => {
       hint: 'You are the GP manager — Enter: start the GP',
     });
     expect(grandPrixContent(LOBBY, PLAYERS, 'p2').hint).toBe('Waiting for Enea to start the GP');
+  });
+
+  it('offers the manager the weather in the lobby of a track with rain, and shows it', () => {
+    const lobby = grandPrixContent(LOBBY, PLAYERS, 'p1', new Map(), true);
+    expect(lobby.title).toBe('GRAND PRIX · WAITING · DRY');
+    expect(lobby.hint).toBe('You are the GP manager — 1: dry · 2: rain · Enter: start the GP');
+    const wet: GrandPrixInfo = { ...LOBBY, weather: 'rain' };
+    expect(grandPrixContent(wet, PLAYERS, 'p2', new Map(), true).title).toBe(
+      'GRAND PRIX · WAITING · RAIN',
+    );
+    const race: GrandPrixInfo = { ...wet, phase: 'race', race: RACE, raceLaps: 8 };
+    expect(grandPrixContent(race, PLAYERS, 'p1', new Map(), true).title).toBe(
+      'GRAND PRIX · RACE · 8 LAPS · RAIN',
+    );
+    const grid: GrandPrixInfo = { ...LOBBY, phase: 'grid', qualifying: QUALIFYING };
+    expect(grandPrixContent(grid, PLAYERS, 'p1', new Map(), true).title).toBe(
+      'GRAND PRIX · STARTING GRID',
+    );
   });
 
   it('lists only the drivers of a new lobby, and says when it has no manager', () => {
@@ -182,5 +202,39 @@ describe('chequeredFlag', () => {
     expect(chequeredFlag(race([3, 2]))).toBe(true);
     expect(chequeredFlag({ ...race([3, 2]), phase: 'results' })).toBe(false);
     expect(chequeredFlag(LOBBY)).toBe(false);
+  });
+});
+
+describe('fastestLap', () => {
+  it('is the lowest time, the first in order on a tie, none before any', () => {
+    expect(fastestLap([])).toBeNull();
+    expect(fastestLap([{ id: 'p1', best: null }])).toBeNull();
+    const entries = [
+      { id: 'p1', best: 5500 },
+      { id: 'p2', best: 5400 },
+      { id: 'p3', best: 5400 },
+      { id: 'p4', best: null },
+    ];
+    expect(fastestLap(entries)).toEqual({ id: 'p2', best: 5400 });
+  });
+
+  it("marks its driver in the panel with the lap's time, in qualifying and the race", () => {
+    const qualifying: GrandPrixInfo = { ...LOBBY, phase: 'qualifying', qualifying: QUALIFYING };
+    const rows = grandPrixContent(qualifying, PLAYERS, 'p1').rows;
+    expect(rows.map((r) => r.fastest)).toEqual(['1:30.000', undefined]);
+    const race: GrandPrixInfo = {
+      ...LOBBY,
+      phase: 'race',
+      raceLaps: 8,
+      race: [
+        { ...RACE[0]!, best: 5600 },
+        { ...RACE[1]!, best: 5550 },
+      ],
+    };
+    expect(grandPrixContent(race, PLAYERS, 'p1').rows.map((r) => r.fastest)).toEqual([
+      undefined,
+      '1:32.500',
+    ]);
+    expect(grandPrixContent(LOBBY, PLAYERS, 'p1').rows.every((r) => !r.fastest)).toBe(true);
   });
 });

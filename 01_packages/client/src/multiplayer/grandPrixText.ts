@@ -14,31 +14,63 @@ import { LIVERIES, playerLivery } from '../view/pixelTexture';
  * The Grand Prix panel for player `ownId`, by phase: the drivers (arrival order in the lobby, then
  * the qualifying order, which becomes the starting grid, then the race order with the gaps) and
  * what this player can do or is waiting for. The manager's keys: Enter (start, end qualifying,
- * end the race), 1/2/3 (race laps). `pits`: the drivers in the pit lane now (PIT, BOX while
- * stopped), shown beside them in qualifying and the race.
+ * end the race), 1/2/3 (race laps); in the lobby of a track that offers the rain (`canRain`), 1/2
+ * (dry, rain). `pits`: the drivers in the pit lane now (PIT, BOX while stopped), shown beside them
+ * in qualifying and the race. The title says RAIN in a wet GP (and DRY in such a lobby).
  */
 export function grandPrixContent(
   info: GrandPrixInfo,
   players: readonly PlayerInfo[],
   ownId: CarId,
   pits: ReadonlyMap<CarId, PitBadge> = new Map(),
+  canRain = false,
+): GrandPrixContent {
+  const content = phaseContent(info, players, ownId, pits, canRain);
+  const weather =
+    info.weather === 'rain' ? ' · RAIN' : canRain && info.phase === 'lobby' ? ' · DRY' : '';
+  return leftOut(info, ownId) ? content : { ...content, title: content.title + weather };
+}
+
+/** Pressed play again too late: the new GP started without player `ownId`. */
+function leftOut(info: GrandPrixInfo, ownId: CarId): boolean {
+  return info.phase !== 'lobby' && info.phase !== 'results' && !info.drivers.includes(ownId);
+}
+
+function phaseContent(
+  info: GrandPrixInfo,
+  players: readonly PlayerInfo[],
+  ownId: CarId,
+  pits: ReadonlyMap<CarId, PitBadge>,
+  canRain: boolean,
 ): GrandPrixContent {
   const byId = new Map(players.map((p) => [p.id, p]));
   const pitOf = (id: CarId) => {
     const badge = pits.get(id);
     return badge ? { pit: badge } : {};
   };
+  // The session's fastest lap: purple stopwatch and time beside its driver.
+  const fastest = fastestLap(
+    info.phase === 'race' || info.phase === 'results' ? info.race : info.qualifying,
+  );
+  const fastestOf = (id: CarId) =>
+    fastest?.id === id ? { fastest: formatLapTime(fastest.best) } : {};
   const row = (id: CarId, name: string, note: string): GrandPrixRow[] => {
     const player = byId.get(id);
     if (!player) return [];
     return [
-      { name, color: playerLivery(player.livery).body, note, own: id === ownId, ...pitOf(id) },
+      {
+        name,
+        color: playerLivery(player.livery).body,
+        note,
+        own: id === ownId,
+        ...pitOf(id),
+        ...fastestOf(id),
+      },
     ];
   };
   const isManager = info.manager === ownId;
   const manager = (info.manager !== null && byId.get(info.manager)?.nickname) || 'the manager';
-  // Pressed play again too late: the new GP started without this player.
-  if (info.phase !== 'lobby' && info.phase !== 'results' && !info.drivers.includes(ownId)) {
+  if (leftOut(info, ownId)) {
     return {
       title: 'GRAND PRIX · IN PROGRESS',
       rows: [],
@@ -55,7 +87,7 @@ export function grandPrixContent(
           row(id, byId.get(id)?.nickname ?? '', id === info.manager ? 'manager' : ''),
         ),
         hint: isManager
-          ? 'You are the GP manager — Enter: start the GP'
+          ? `You are the GP manager — ${canRain ? '1: dry · 2: rain · ' : ''}Enter: start the GP`
           : info.manager === null
             ? 'Waiting for a driver: the next one in is the manager'
             : `Waiting for ${manager} to start the GP`,
@@ -100,6 +132,7 @@ export function grandPrixContent(
           note: raceNote(standing, i, info.raceLaps!),
           own: standing.id === ownId,
           ...(info.phase === 'race' && pitOf(standing.id)),
+          ...fastestOf(standing.id),
         };
       });
       if (info.phase === 'results') return { title: 'GRAND PRIX · RESULTS', rows, hint: '' };
@@ -110,6 +143,20 @@ export function grandPrixContent(
       };
     }
   }
+}
+
+/**
+ * The fastest lap among `entries` (qualifying or the race, valid laps only): the first in their
+ * order with the lowest time; null while nobody has one.
+ */
+export function fastestLap(
+  entries: readonly { readonly id: CarId; readonly best: number | null }[],
+): { readonly id: CarId; readonly best: number } | null {
+  let fastest: { id: CarId; best: number } | null = null;
+  for (const { id, best } of entries) {
+    if (best !== null && (fastest === null || best < fastest.best)) fastest = { id, best };
+  }
+  return fastest;
 }
 
 /**

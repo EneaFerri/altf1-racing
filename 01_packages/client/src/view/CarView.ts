@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 import { CAR_WHEELS, type CarDamage } from '@altf1/shared';
 import { damageLook } from './carDamageLook';
-import { createCheckerTexture, createLiveryTexture, type Livery } from './pixelTexture';
+import {
+  createCheckerTexture,
+  createLiveryTexture,
+  createWetSidewallTexture,
+  type Livery,
+} from './pixelTexture';
 
 /** Interpolated car pose handed to the View each frame. */
 export interface CarPose {
@@ -53,19 +58,26 @@ export class CarView {
   /** The damage drawn now (redrawn only when it changes). */
   private damage: CarDamage | undefined;
   private firstPerson = false;
+  /** The red rear lights (and the crash structure holding them), shown only while lit. */
+  private readonly rearLights: THREE.Object3D[] = [];
+  private lightsOn = false;
+  /** The wheels' flat ends: the tread's checker when dry, the wets' blue band in the rain. */
+  private readonly sidewall: THREE.MeshLambertMaterial;
+  private readonly dryTyre: THREE.Texture;
+  private readonly wetSidewall = createWetSidewallTexture();
 
   /**
    * `opacity` < 1 draws a see-through car (time trial's ghost) that never hides what's behind it.
-   * `rearLights`: the red lights of a night race, lit (01_docs/themes.md).
+   * `rearLights`: the red lights of a night race or the rain, lit (01_docs/themes.md,
+   * 01_docs/weather.md); `setRearLights` switches them later.
    */
   constructor(colors: Livery, opacity = 1, rearLights = false) {
     const see = opacity < 1 ? { transparent: true, opacity, depthWrite: false } : {};
     const livery = new THREE.MeshLambertMaterial({ map: createLiveryTexture(colors), ...see });
     const carbon = new THREE.MeshLambertMaterial({ color: '#1c1c1c', ...see });
-    const tyre = new THREE.MeshLambertMaterial({
-      map: createCheckerTexture(8, '#1a1a1a', '#3a3a3a'),
-      ...see,
-    });
+    this.dryTyre = createCheckerTexture(8, '#1a1a1a', '#3a3a3a');
+    const tyre = new THREE.MeshLambertMaterial({ map: this.dryTyre, ...see });
+    this.sidewall = new THREE.MeshLambertMaterial({ map: this.dryTyre, ...see });
 
     // [width, height, length, x, y, z, material, visibility]
     // 'body' = hidden in first person, 'tip' = always shown, 'cockpit' = first person only.
@@ -93,9 +105,9 @@ export class CarView {
       }
     }
 
-    // A night race: the rear crash structure's red light and the two on the rear wing's endplates
-    // (as on a real F1), lit through the fog.
-    if (rearLights) {
+    // A night race or the rain: the rear crash structure's red light and the two on the rear
+    // wing's endplates (as on a real F1), lit through the fog. Built always, shown while lit.
+    {
       const red = new THREE.MeshBasicMaterial({ color: '#ff2a1f', fog: false, ...see });
       const lights: [number, number, number, number, number, number, THREE.Material][] = [
         [0.3, 0.2, 0.4, 0, 0.5, 1.95, carbon], // crash structure
@@ -116,12 +128,12 @@ export class CarView {
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), material);
         mesh.position.set(x, y, z);
         this.object.add(mesh);
-        this.body.push(mesh);
+        this.rearLights.push(mesh);
         if (material !== red) continue;
         const halo = new THREE.Mesh(new THREE.BoxGeometry(w * 2.2, h * 2.2, 0.01), glow);
         halo.position.set(x, y, z + 0.04);
         this.object.add(halo);
-        this.body.push(halo);
+        this.rearLights.push(halo);
       }
     }
 
@@ -148,7 +160,7 @@ export class CarView {
       const width = steers ? 0.4 : 0.5;
       const wheel = new THREE.Mesh(
         new THREE.CylinderGeometry(WHEEL_RADIUS, WHEEL_RADIUS, width, 8),
-        tyre,
+        [tyre, this.sidewall, this.sidewall], // the cylinder's groups: tread, then both ends
       );
       // Default order XYZ: tipped onto X first (Z), then the spin (X) turns it round the axle.
       wheel.rotation.z = Math.PI / 2; // cylinder axis along X = the axle
@@ -161,6 +173,21 @@ export class CarView {
       this.wheels.push(wheel);
       if (steers) this.frontPivots.push(pivot);
     }
+    this.setRearLights(rearLights);
+  }
+
+  /** Wet-weather tyres (the rain): the blue band on every wheel's sidewalls, whatever the livery. */
+  setWetTyres(on: boolean): void {
+    const map = on ? this.wetSidewall : this.dryTyre;
+    if (this.sidewall.map === map) return;
+    this.sidewall.map = map;
+    this.sidewall.needsUpdate = true;
+  }
+
+  /** The red rear lights on or off (a night race; the rain switches them live). */
+  setRearLights(on: boolean): void {
+    this.lightsOn = on;
+    for (const part of this.rearLights) part.visible = on && !this.firstPerson;
   }
 
   /**
@@ -172,6 +199,7 @@ export class CarView {
     this.firstPerson = firstPerson;
     for (const part of this.body) part.visible = !firstPerson;
     for (const part of this.cockpit) part.visible = firstPerson;
+    this.setRearLights(this.lightsOn);
     this.showDamage(this.damage);
   }
 
@@ -180,10 +208,16 @@ export class CarView {
     this.object.traverse((node) => {
       if (!(node instanceof THREE.Mesh)) return;
       node.geometry.dispose();
-      const material = node.material as THREE.MeshLambertMaterial;
-      material.map?.dispose();
-      material.dispose();
+      const materials = (
+        Array.isArray(node.material) ? node.material : [node.material]
+      ) as THREE.MeshLambertMaterial[];
+      for (const material of materials) {
+        material.map?.dispose();
+        material.dispose();
+      }
     });
+    this.dryTyre.dispose();
+    this.wetSidewall.dispose();
   }
 
   update(pose: CarPose, frameSeconds: number): void {

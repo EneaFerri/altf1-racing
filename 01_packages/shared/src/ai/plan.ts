@@ -1,6 +1,7 @@
 import { BOT_DRIVER, type BotParams } from '../config/bot';
 import type { CarParams } from '../config/car';
 import { SLOPE_PARAMS, type SlopeParams } from '../config/slope';
+import type { WetParams } from '../config/weather';
 import { wrapAngle } from '../math/angle';
 import { add, distance, dot, headingOf, scale, sub, type Vec2 } from '../math/vec2';
 import type { Track } from '../track/types';
@@ -38,17 +39,36 @@ export function botCarParams(car: CarParams, bot: BotParams): CarParams {
  * 3. a backward pass makes the bot brake in time (`brakeUse` of `brakeDecel`, less downhill and
  *    more uphill on an elevated track: `slope`) for what comes next.
  * `player` is the player's car; the bot's own car (`botCarParams`) is derived from it.
+ * On a wet track (`wet`, 01_docs/weather.md) it plans with the wet brakes and grip.
  */
 export function buildBotPlan(
   track: Track,
   player: CarParams,
   bot: BotParams,
   slope: SlopeParams = SLOPE_PARAMS,
+  wet?: WetParams,
 ): BotPlan {
   // A shortcut, never the pit lane (the bot doesn't stop).
   const shortcut = track.routes.find((route) => !route.pit);
-  return planRoad(bot.shortcuts ? (shortcut ?? track) : track, player, bot, slope);
+  const car = wet ? wetPlanCar(player, wet) : player;
+  return planRoad(bot.shortcuts ? (shortcut ?? track) : track, car, bot, slope);
 }
+
+/**
+ * The car as a bot plans it on a wet track: the brakes as weak as the wet makes them, the yaw it
+ * counts on in corners scaled like the grip (a car sliding wider must corner slower).
+ * Planning only: the simulation applies the wet itself.
+ */
+function wetPlanCar(car: CarParams, wet: WetParams): CarParams {
+  return {
+    ...car,
+    brakeDecel: car.brakeDecel * wet.traction * wet.brake,
+    maxYawRate: car.maxYawRate * wet.grip ** WET_YAW_SHARE,
+  };
+}
+
+/** How much of the wet grip loss a bot takes off its cornering yaw (0 = none, 1 = all). */
+const WET_YAW_SHARE = 0.5;
 
 /** Braking never counts on less than this share of the planned deceleration (steep descents). */
 const MIN_BRAKING = 0.25;

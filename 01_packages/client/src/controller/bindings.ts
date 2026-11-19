@@ -33,6 +33,8 @@ export const ACTION_KEYS = {
   toggleTuning: ['F2'],
   toggleDebug: ['F3'],
   toggleCamera: ['KeyV'],
+  /** In the rain: the falling drops on or off on this screen (the look only). */
+  toggleRain: ['KeyN'],
   /** Bot level: Off → Easy → Medium → Hard → Off. */
   cycleBot: ['KeyB'],
   /** Grand Prix manager: move the GP on (start it, end qualifying). */

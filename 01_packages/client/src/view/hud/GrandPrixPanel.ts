@@ -9,6 +9,8 @@ export interface GrandPrixRow {
   readonly own: boolean;
   /** In the pit lane (Phase 4): `PIT`, or `BOX` while stopped in the box. */
   readonly pit?: PitBadge;
+  /** The session's fastest lap is this driver's: its time, shown with a purple stopwatch. */
+  readonly fastest?: string;
 }
 
 /** What the timing tower shows beside a driver in the pit lane. */
@@ -46,6 +48,7 @@ export class GrandPrixPanel {
         swatch.className = 'gp-swatch';
         swatch.style.background = row.color;
         item.append(swatch, text('span', 'gp-name', row.name));
+        if (row.fastest) item.append(fastestLap(row.fastest));
         if (row.pit) item.append(text('span', 'gp-pit', row.pit));
         item.append(text('span', 'gp-note', row.note));
         return item;
@@ -54,6 +57,46 @@ export class GrandPrixPanel {
     this.root.replaceChildren(text('p', 'gp-title', title), list);
     if (hint) this.root.append(text('p', 'gp-hint', hint));
   }
+}
+
+/** F1's fastest-lap mark: a purple pixel stopwatch and the lap's time. */
+function fastestLap(time: string): HTMLElement {
+  const mark = text('span', 'gp-fastest', time);
+  mark.prepend(stopwatch());
+  return mark;
+}
+
+/** A 9 × 10 pixel stopwatch (crown, button, dial with a hand), drawn in the current colour. */
+function stopwatch(): SVGSVGElement {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 9 10');
+  svg.setAttribute('class', 'gp-stopwatch');
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  // [x, y, width, height]: crown, side button, the dial's ring, the hand.
+  const pixels = [
+    [3, 0, 3, 1],
+    [4, 1, 1, 1],
+    [7, 1, 1, 1],
+    [2, 2, 5, 1],
+    [1, 3, 1, 5],
+    [7, 3, 1, 5],
+    [0, 4, 1, 3],
+    [8, 4, 1, 3],
+    [2, 8, 5, 1],
+    [4, 4, 1, 2],
+    [5, 5, 1, 1],
+  ];
+  for (const [x, y, width, height] of pixels) {
+    const rect = document.createElementNS(ns, 'rect');
+    rect.setAttribute('x', `${x}`);
+    rect.setAttribute('y', `${y}`);
+    rect.setAttribute('width', `${width}`);
+    rect.setAttribute('height', `${height}`);
+    rect.setAttribute('fill', 'currentColor');
+    svg.append(rect);
+  }
+  return svg;
 }
 
 function text<K extends keyof HTMLElementTagNameMap>(

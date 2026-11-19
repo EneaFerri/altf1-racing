@@ -44,6 +44,10 @@ describe('key maps', () => {
     expect(ACTION_KEYS.toggleCamera).toEqual(['KeyV']);
   });
 
+  it('switches the falling rain with N', () => {
+    expect(ACTION_KEYS.toggleRain).toEqual(['KeyN']);
+  });
+
   it('looks back while Z is held', () => {
     expect(VIEW_KEYS.lookBack).toEqual(['KeyZ']);
   });

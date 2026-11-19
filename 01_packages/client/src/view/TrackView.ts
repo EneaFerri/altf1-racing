@@ -39,6 +39,8 @@ const Y_GRAVEL = 0.01;
 const Y_ASPHALT = 0.02;
 const Y_EDGE_LINE = 0.025;
 const Y_KERB = 0.03;
+/** A wet track's puddles: above the edge lines (never on a kerb), under the painted lines across. */
+export const Y_PUDDLE = 0.028;
 const Y_START_LINE = 0.035;
 const Y_SECTOR_LINE = 0.035;
 const Y_GRID_BOX = 0.035;
@@ -87,8 +89,17 @@ const GRID_LINE = 0.3;
 const SIDES: readonly TrackSide[] = ['left', 'right'];
 const sign = (side: TrackSide): number => (side === 'right' ? 1 : -1);
 
-const textured = (texture: THREE.Texture, color = '#ffffff'): THREE.Material =>
+const textured = (texture: THREE.Texture, color = '#ffffff'): THREE.MeshLambertMaterial =>
   new THREE.MeshLambertMaterial({ map: texture, color, side: THREE.DoubleSide });
+
+/** The circuit's meshes, and the materials the weather darkens when wet (`SceneView.setWeather`). */
+export interface TrackViewObjects {
+  readonly object: THREE.Group;
+  /** Asphalt, kerbs and painted lines. */
+  readonly road: readonly THREE.MeshLambertMaterial[];
+  /** Gravel and the run-off's grass. */
+  readonly ground: readonly THREE.MeshLambertMaterial[];
+}
 
 /**
  * Builds the circuit's meshes from the same compiled `Track` the simulation uses,
@@ -97,9 +108,9 @@ const textured = (texture: THREE.Texture, color = '#ffffff'): THREE.Material =>
  * drawn too, and kerbs, lines and gravel only where the physics puts them on that road (not across
  * the mouth of another road at a fork).
  */
-export function createTrackView(track: Track, theme: TrackTheme): THREE.Group {
+export function createTrackView(track: Track, theme: TrackTheme): TrackViewObjects {
   const group = new THREE.Group();
-  const materials: RoadMaterials = {
+  const materials = {
     asphalt: textured(theme.asphalt()),
     line: new THREE.MeshLambertMaterial({ color: '#e8e8e8', side: THREE.DoubleSide }),
     lowKerb: textured(createKerbTexture(...theme.kerb.colors)),
@@ -130,7 +141,8 @@ export function createTrackView(track: Track, theme: TrackTheme): THREE.Group {
   if (theme.gridBoxes) group.add(createGridBoxes(track));
   const pitLane = track.routes.find((road) => road.pit);
   if (pitLane) group.add(createPitMarkings(track, pitLane));
-  return group;
+  const { asphalt, line, lowKerb, highKerb, gravel, runoff } = materials;
+  return { object: group, road: [asphalt, line, lowKerb, highKerb], ground: [gravel, runoff] };
 }
 
 /** A pit box's painted frame: this long and wide (m), lines this thick. */

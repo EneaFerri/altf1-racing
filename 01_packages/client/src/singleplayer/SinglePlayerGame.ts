@@ -13,6 +13,9 @@ import {
   DAMAGE_PARAMS,
   PIT_PARAMS,
   findCar,
+  placePuddles,
+  puddleShare,
+  WET_PARAMS,
   NEUTRAL_INPUT,
   NEW_BOT_MEMORY,
   placeCar,
@@ -33,6 +36,7 @@ import {
   type SurfaceParams,
   type Track,
   type TrackDefinition,
+  type Weather,
 } from '@altf1/shared';
 import { KeyboardController } from '../controller/KeyboardController';
 import { CAMERA_PARAMS } from '../view/cameras/params';
@@ -61,6 +65,8 @@ const DUMMY_DISTANCE = 25;
  * Prix's (F2 → Pit lane sets it and reloads).
  */
 const PIT_LANE_PARAM = 'pitlane';
+/** Dev only: `?rain` in the URL starts in the rain (F2 → Weather switches it live). */
+const RAIN_PARAM = 'rain';
 
 /** Wires Model, View and Controller together and drives them with the game loop. */
 export class SinglePlayerGame {
@@ -82,6 +88,8 @@ export class SinglePlayerGame {
   private readonly slopeParams = { ...SLOPE_PARAMS };
   /** Damage is the Grand Prix's: here only through the dev panel (F2 → Damage), to try it. */
   private readonly damageParams = { ...DAMAGE_PARAMS };
+  /** Rain is the Grand Prix's: here only through the dev panel (F2 → Weather, `?rain`). */
+  private readonly wetParams = { ...WET_PARAMS };
   private readonly cameraParams = { ...CAMERA_PARAMS };
   private readonly botParams = copyBotParams();
   /** Cars that drive a different car than the player's: the bot's, with its level's performance. */
@@ -129,6 +137,8 @@ export class SinglePlayerGame {
       this.cameraParams,
       theme,
     );
+    const devRain = import.meta.env.DEV && new URLSearchParams(location.search).has(RAIN_PARAM);
+    if (devRain) this.setWeather('rain');
     this.minimap = new Minimap(this.track);
     if (this.ctx.pit) {
       this.hud.usePitLane(this.track);
@@ -141,6 +151,7 @@ export class SinglePlayerGame {
     });
     this.controller.onAction('toggleDebug', () => this.debugOverlay.toggle());
     this.controller.onAction('toggleCamera', () => this.view.toggleCamera());
+    this.controller.onAction('toggleRain', () => this.view.toggleRaindrops());
     this.controller.onAction('cycleBot', () => this.cycleBot());
     // A fresh page load is the simplest full teardown (renderer, listeners, state): nothing to lose yet.
     this.controller.onAction('backToMenu', () => location.reload());
@@ -170,6 +181,12 @@ export class SinglePlayerGame {
               else url.searchParams.delete(PIT_LANE_PARAM);
               location.assign(url); // back to the start screen: choose the circuit again
             },
+          },
+          {
+            on: devRain,
+            set: (on) => this.setWeather(on ? 'rain' : 'dry'),
+            params: this.wetParams,
+            drops: this.view.raindropParams,
           },
         );
         this.controller.onAction('toggleTuning', () => panel.toggle());
@@ -220,6 +237,20 @@ export class SinglePlayerGame {
     if (!on) this.changeCars(repairCars);
   }
 
+  /**
+   * Dev only (F2 → Weather, `?rain`): the weather a Grand Prix's manager can choose, tried here:
+   * its look and the wet track (live `wetParams`, the puddles), the bot planning for it
+   * (01_docs/weather.md).
+   */
+  private setWeather(weather: Weather): void {
+    const dry = withoutWeather(this.ctx);
+    this.ctx =
+      weather === 'rain'
+        ? { ...dry, weather: { params: this.wetParams, puddles: placePuddles(this.track) } }
+        : dry;
+    this.view.setWeather(weather);
+  }
+
   /** Dev only (F2 → Damage): sets the player's damage, to feel it without crashing. */
   private setPlayerDamage(damage: CarDamage): void {
     this.changeCars((state) => ({
@@ -235,12 +266,19 @@ export class SinglePlayerGame {
   }
 
   private currentBotPlan(level: BotLevel): BotPlan {
-    const key = JSON.stringify([level, this.botParams[level], this.carParams, this.slopeParams]);
+    const wet = this.ctx.weather?.params;
+    const key = JSON.stringify([
+      level,
+      this.botParams[level],
+      this.carParams,
+      this.slopeParams,
+      wet,
+    ]);
     if (this.botPlan?.key !== key) {
       const params = this.botParams[level];
       this.botPlan = {
         key,
-        plan: buildBotPlan(this.track, this.carParams, params, this.slopeParams),
+        plan: buildBotPlan(this.track, this.carParams, params, this.slopeParams, wet),
       };
       this.carParamsById[BOT_ID] = botCarParams(this.carParams, params);
     }
@@ -253,12 +291,22 @@ export class SinglePlayerGame {
     this.hud.update(this.state, PLAYER_ID, performance.now());
     this.minimap.update(this.state.cars, PLAYER_ID);
     const player = findCar(this.state, PLAYER_ID);
-    if (player) this.debugOverlay.update(this.state, player, this.lastInput);
+    if (!player) return;
+    const { weather } = this.ctx;
+    const wet = weather
+      ? [`weather   rain · ${puddleShare(player, weather.puddles) * 4}/4 wheels in a puddle`]
+      : [];
+    this.debugOverlay.update(this.state, player, this.lastInput, wet);
   }
 }
 
 /** `ctx` with no damage: what every mode but the Grand Prix runs. */
 function withoutDamage({ damage: _damage, ...ctx }: SimContext): SimContext {
+  return ctx;
+}
+
+/** `ctx` on a dry track: what every mode runs unless the Grand Prix's manager chose the rain. */
+function withoutWeather({ weather: _weather, ...ctx }: SimContext): SimContext {
   return ctx;
 }
 

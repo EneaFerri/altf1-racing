@@ -5,11 +5,13 @@ import {
   lerp,
   lerpAngle,
   locateOnTrack,
+  placePuddles,
   slipAngle,
   type CarId,
   type CarState,
   type GameState,
   type Track,
+  type Weather,
 } from '@altf1/shared';
 import { CameraRig } from './cameras/CameraRig';
 import type { CameraParams } from './cameras/params';
@@ -19,6 +21,9 @@ import { LIVERIES, type Livery } from './pixelTexture';
 import { elevatedGround, gridHeightAt, trackGroundHeight } from './scenery/ground';
 import { trackBounds } from './scenery/placement';
 import type { TrackTheme } from './themes/theme';
+import { weatherLook } from './weather/look';
+import { createPuddles } from './weather/puddles';
+import { Raindrops, RAINDROP_PARAMS } from './weather/Raindrops';
 
 /** How see-through the ghost car is (time trial). */
 const GHOST_OPACITY = 0.35;
@@ -46,8 +51,8 @@ export class SceneView {
   /** Time trial's ghost, in the followed car's colours; created when first shown. */
   private ghostView: CarView | null = null;
   private ghost: GhostPose | null = null;
-  /** A night race: every car (the ghost too) with its red rear lights lit. */
-  private readonly carLights: boolean;
+  /** A night race or the rain: every car (the ghost too) with its red rear lights lit. */
+  private carLights: boolean;
 
   /**
    * `followId`: the car the camera follows (the local player; `follow` changes it). `liveries`: colour per car id, others
@@ -66,25 +71,100 @@ export class SceneView {
     this.cameraRig = new CameraRig(cameraParams);
     this.cameraRig.camera.far = theme.viewDistance;
     this.cameraRig.camera.updateProjectionMatrix();
-    this.scene.background = new THREE.Color(theme.sky);
-    this.scene.fog = new THREE.Fog(theme.sky, theme.fog.near, theme.fog.far);
-    this.scene.add(
-      new THREE.HemisphereLight(theme.light.sky, theme.light.ground, theme.light.intensity),
-    );
-    if (theme.light.sun > 0) {
-      const sun = new THREE.DirectionalLight('#ffffff', theme.light.sun);
-      sun.position.set(0.4, 1, 0.25); // high, slightly to one side: lights facets unevenly
-      this.scene.add(sun);
-    }
+    this.theme = theme;
+    this.scene.background = this.sky;
+    this.scene.fog = this.fog;
+    this.sun.position.set(0.4, 1, 0.25); // high, slightly to one side: lights facets unevenly
+    this.scene.add(this.hemisphere, this.sun);
     // The camera is in the scene so the cockpit attached to it gets drawn.
     const ground = createGround(track, theme);
+    const trackView = createTrackView(track, theme);
     this.scene.add(
       ground.object,
-      createTrackView(track, theme),
+      trackView.object,
       ...theme.scenery(track, ground.height),
       this.cameraRig.camera,
     );
+    for (const material of trackView.road) this.road.set(material, material.color.clone());
+    const groundMaterials = [...trackView.ground, ...lambertMaterials(ground.object)];
+    for (const material of groundMaterials) this.ground.set(material, material.color.clone());
+    this.setWeather('dry');
     bindResize(this.renderer, this.cameraRig.camera);
+  }
+
+  private readonly theme: TrackTheme;
+  private readonly sky = new THREE.Color();
+  private readonly fog = new THREE.Fog('#ffffff');
+  private readonly hemisphere = new THREE.HemisphereLight();
+  private readonly sun = new THREE.DirectionalLight('#ffffff');
+  /** The road's and the ground's materials, with their dry colours (the weather multiplies them). */
+  private readonly road = new Map<THREE.MeshLambertMaterial, THREE.Color>();
+  private readonly ground = new Map<THREE.MeshLambertMaterial, THREE.Color>();
+  /** The puddles, built the first time it rains. */
+  private puddles: THREE.Mesh | null = null;
+  /** In the rain: every car on wet-weather tyres (the blue band). */
+  private wetTyres = false;
+  /** The falling rain, built the first time it rains; shown in the rain unless switched off (N). */
+  private raindrops: Raindrops | null = null;
+  private raining = false;
+  private dropsOn = true;
+  /** How the drops look; the dev panel edits it live. */
+  readonly raindropParams = { ...RAINDROP_PARAMS };
+
+  /**
+   * Draws the track in `weather` from now on: the theme's own look when dry; in the rain an
+   * overcast sky, a nearer haze, dimmer light, a darker wet road and ground, the puddles the
+   * simulation places, every car's red rear lights lit and on wet tyres, and the falling rain
+   * (01_docs/weather.md).
+   */
+  setWeather(weather: Weather): void {
+    const look = weatherLook(this.theme, weather);
+    this.sky.set(look.sky);
+    this.fog.color.set(look.sky);
+    this.fog.near = look.fog.near;
+    this.fog.far = look.fog.far;
+    this.hemisphere.color.set(look.light.sky);
+    this.hemisphere.groundColor.set(look.light.ground);
+    this.hemisphere.intensity = look.light.intensity;
+    this.sun.intensity = look.light.sun;
+    this.sun.visible = look.light.sun > 0;
+    const tint = (materials: Map<THREE.MeshLambertMaterial, THREE.Color>, color: string) => {
+      for (const [material, dry] of materials)
+        material.color.copy(dry).multiply(new THREE.Color(color));
+    };
+    tint(this.road, look.road);
+    tint(this.ground, look.ground);
+    if (weather === 'rain' && !this.puddles) {
+      this.puddles = createPuddles(this.track, placePuddles(this.track));
+      this.scene.add(this.puddles);
+    }
+    // The rain lights the cars' rear lights, for visibility (owner); a night race always has them.
+    this.carLights = (this.theme.carLights ?? false) || weather === 'rain';
+    this.wetTyres = weather === 'rain';
+    for (const view of [...this.cars.values(), this.ghostView]) {
+      view?.setRearLights(this.carLights);
+      view?.setWetTyres(this.wetTyres);
+    }
+    this.raining = weather === 'rain';
+    if (this.raining && !this.raindrops) {
+      this.raindrops = new Raindrops(this.raindropParams);
+      this.scene.add(this.raindrops.object);
+    }
+    this.showRaindrops();
+    if (this.puddles) {
+      this.puddles.visible = weather === 'rain';
+      (this.puddles.material as THREE.MeshBasicMaterial).color.set(look.sky);
+    }
+  }
+
+  /** N: the falling rain on or off on this screen (the look only; the track stays wet). */
+  toggleRaindrops(): void {
+    this.dropsOn = !this.dropsOn;
+    this.showRaindrops();
+  }
+
+  private showRaindrops(): void {
+    if (this.raindrops) this.raindrops.object.visible = this.raining && this.dropsOn;
   }
 
   /** Points the camera at car `id` from now on (spectating another car, or back to the own one). */
@@ -179,6 +259,7 @@ export class SceneView {
       const tag = this.tags.get(id);
       if (tag) this.removeTag(id, tag);
     }
+    if (this.raindrops?.object.visible) this.raindrops.update(this.cameraRig.camera, frameSeconds);
     this.renderer.render(this.scene, this.cameraRig.camera);
   }
 
@@ -193,6 +274,7 @@ export class SceneView {
         GHOST_OPACITY,
         this.carLights,
       );
+      this.ghostView.setWetTyres(this.wetTyres);
       this.scene.add(this.ghostView.object);
     }
     const { before, after, alpha } = this.ghost;
@@ -224,6 +306,7 @@ export class SceneView {
     let view = this.cars.get(id);
     if (!view) {
       view = new CarView(this.liveries[id] ?? LIVERIES.grey, 1, this.carLights);
+      view.setWetTyres(this.wetTyres);
       this.cars.set(id, view);
       this.scene.add(view.object);
     }
@@ -255,6 +338,17 @@ function onRoad(track: Track, pose: CarPose): CarPose {
   return { ...pose, y: loc.height, pitch: Math.atan(loc.grade * along) };
 }
 
+/** Every Lambert material in `object` (the ground's), once each. */
+function lambertMaterials(object: THREE.Object3D): THREE.MeshLambertMaterial[] {
+  const found = new Set<THREE.MeshLambertMaterial>();
+  object.traverse((child) => {
+    if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshLambertMaterial) {
+      found.add(child.material);
+    }
+  });
+  return [...found];
+}
+
 /** Ground cell size (m), see createGround. */
 const GROUND_CELL = 50;
 
@@ -275,7 +369,11 @@ function createGround(
   const flat = createFlatGround(track, theme);
   const lowest = Math.min(...track.samples.map((s) => s.height));
   flat.position.y = lowest - 3;
-  const grid = elevatedGround(track, (theme.groundHeight ?? trackGroundHeight)(track));
+  const grid = elevatedGround(
+    track,
+    (theme.groundHeight ?? trackGroundHeight)(track),
+    theme.groundUnderRoutes ?? false,
+  );
   const positions: number[] = [];
   const uvs: number[] = [];
   const colors: number[] = [];
