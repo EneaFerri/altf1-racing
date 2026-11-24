@@ -54,12 +54,20 @@ export function createCheckerTexture(size: number, colorA: string, colorB: strin
  * texture): black rubber with the blue band of F1's full wets round it, a dark hub in the middle.
  */
 export function createWetSidewallTexture(size = 16): THREE.Texture {
+  return createBandSidewallTexture(TYRE_BANDS.wet, size);
+}
+
+/** The sidewall bands: F1's full wets blue, softs red, mediums yellow. */
+export const TYRE_BANDS = { wet: '#1e6fe0', soft: '#e10600', medium: '#f5c518' } as const;
+
+/** A tyre's sidewall with its compound's coloured band (see `createWetSidewallTexture`). */
+export function createBandSidewallTexture(band: string, size = 16): THREE.Texture {
   return createPixelTexture(size, (ctx) => {
     const c = (size - 1) / 2;
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const r = Math.hypot(x - c, y - c) / (size / 2);
-        ctx.fillStyle = r < 0.3 ? '#3a3a3e' : r >= 0.6 && r < 0.8 ? '#1e6fe0' : '#1a1a1a';
+        ctx.fillStyle = r < 0.3 ? '#3a3a3e' : r >= 0.6 && r < 0.8 ? band : '#1a1a1a';
         ctx.fillRect(x, y, 1, 1);
       }
     }

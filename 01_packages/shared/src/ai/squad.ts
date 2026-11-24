@@ -2,6 +2,7 @@ import { BOT_PARAMS, type BotLevel } from '../config/bot';
 import { CAR_PARAMS } from '../config/car';
 import { PIT_PARAMS } from '../config/pit';
 import { SLOPE_PARAMS } from '../config/slope';
+import { TYRE_PARAMS, type TyreCompound } from '../config/tyres';
 import type { WetParams } from '../config/weather';
 import type { CarId } from '../sim/car';
 import { findCar, findLap, type GameState } from '../sim/game';
@@ -34,6 +35,20 @@ interface Racer {
 }
 
 /**
+ * A bot's tyres at a stop after `laps` laps: softs when the stint ahead (to its next scheduled
+ * stop, else the flag) is no longer than they last, else mediums. See 01_docs/tyres.md.
+ */
+export function botCompound(
+  schedule: readonly number[],
+  stops: number,
+  laps: number,
+  raceLaps: number,
+): TyreCompound {
+  const next = schedule[stops] ?? raceLaps;
+  return next - laps <= TYRE_PARAMS.lifeLaps.soft ? 'soft' : 'medium';
+}
+
+/**
  * Single player's Grand Prix bots (S.5): drives each in traffic on its race plan, and through the
  * pit lane to its box when one of its mandatory stops is owed (`pitSchedule`, `pitLag` laps later, or
  * earlier when later would fall on the last two, `setRace`). `track` built with its pit lane; `wet` on a wet
@@ -44,6 +59,9 @@ export class BotSquad {
   private readonly racers: Racer[];
 
   private readonly track: Track;
+
+  /** The race's laps; null in qualifying (no stops). */
+  private raceLaps: number | null = null;
 
   constructor(track: Track, bots: readonly SquadBot[], wet?: WetParams) {
     this.track = track;
@@ -78,6 +96,7 @@ export class BotSquad {
 
   /** A new race over `raceLaps` laps (null: no race, no stops: qualifying): stops counted afresh. */
   setRace(raceLaps: number | null): void {
+    this.raceLaps = raceLaps;
     const base = raceLaps === null ? [] : pitSchedule(raceLaps);
     for (const racer of this.racers) {
       const latest = (raceLaps ?? 0) - 2;
@@ -112,6 +131,14 @@ export class BotSquad {
         continue;
       }
       const laps = findLap(state, racer.bot.id)?.laps ?? 0;
+      // Stopped in its box: its tyres for the stint ahead (the stop just counted).
+      if (car.pitStop && state.tick < car.pitStop.until && this.raceLaps !== null) {
+        const compound = botCompound(racer.schedule, racer.stops, laps, this.raceLaps);
+        if (car.tyres?.compound !== compound || car.tyres.wear > 0) {
+          inputs[racer.bot.id] = { ...NEUTRAL_INPUT, compound };
+          continue;
+        }
+      }
       const want = pitDue(racer.schedule, laps, racer.stops) ? 'pit' : 'race';
       if (
         want !== racer.using &&

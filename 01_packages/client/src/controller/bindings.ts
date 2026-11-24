@@ -39,7 +39,10 @@ export const ACTION_KEYS = {
   cycleBot: ['KeyB'],
   /** Grand Prix manager: move the GP on (start it, end qualifying). */
   confirm: ['Enter', 'NumpadEnter'],
-  /** Grand Prix manager on the grid: start the race over the first, second or third distance. */
+  /**
+   * Grand Prix manager on the grid: start the race over the first, second or third distance.
+   * Stopped in the box: 1 fits softs, 2 mediums.
+   */
   choice1: ['Digit1', 'Numpad1'],
   choice2: ['Digit2', 'Numpad2'],
   choice3: ['Digit3', 'Numpad3'],

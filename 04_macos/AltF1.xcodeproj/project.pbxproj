@@ -1,0 +1,269 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A1F1000000000000000000B1 /* AltF1Core in Frameworks */ = {isa = PBXBuildFile; productRef = A1F1000000000000000000C1 /* AltF1Core */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A1F1000000000000000000A2 /* AltF1 Racing.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AltF1 Racing.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		A1F1000000000000000000A3 /* AltF1 */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AltF1;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A1F1000000000000000000D1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1F1000000000000000000B1 /* AltF1Core in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A1F1000000000000000000A1 = {
+			isa = PBXGroup;
+			children = (
+				A1F1000000000000000000A3 /* AltF1 */,
+				A1F1000000000000000000A4 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A1F1000000000000000000A4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A1F1000000000000000000A2 /* AltF1 Racing.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A1F1000000000000000000E1 /* AltF1 */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1F1000000000000000000F2 /* Build configuration list for PBXNativeTarget "AltF1" */;
+			buildPhases = (
+				A1F1000000000000000000D2 /* Sources */,
+				A1F1000000000000000000D1 /* Frameworks */,
+				A1F1000000000000000000D3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A1F1000000000000000000A3 /* AltF1 */,
+			);
+			name = AltF1;
+			packageProductDependencies = (
+				A1F1000000000000000000C1 /* AltF1Core */,
+			);
+			productName = AltF1;
+			productReference = A1F1000000000000000000A2 /* AltF1 Racing.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A1F1000000000000000000E0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2720;
+				LastUpgradeCheck = 2720;
+				TargetAttributes = {
+					A1F1000000000000000000E1 = {
+						CreatedOnToolsVersion = 27.2;
+					};
+				};
+			};
+			buildConfigurationList = A1F1000000000000000000F1 /* Build configuration list for PBXProject "AltF1" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A1F1000000000000000000A1;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A1F1000000000000000000C0 /* XCLocalSwiftPackageReference "AltF1Core" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A1F1000000000000000000A4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A1F1000000000000000000E1 /* AltF1 */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A1F1000000000000000000D3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A1F1000000000000000000D2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A1F100000000000000000101 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A1F100000000000000000102 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		A1F100000000000000000103 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AltF1Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "AltF1 Racing";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.racing-games";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.altf1.racing;
+				PRODUCT_NAME = "AltF1 Racing";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		A1F100000000000000000104 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AltF1Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "AltF1 Racing";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.racing-games";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.altf1.racing;
+				PRODUCT_NAME = "AltF1 Racing";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A1F1000000000000000000F1 /* Build configuration list for PBXProject "AltF1" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1F100000000000000000101 /* Debug */,
+				A1F100000000000000000102 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1F1000000000000000000F2 /* Build configuration list for PBXNativeTarget "AltF1" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1F100000000000000000103 /* Debug */,
+				A1F100000000000000000104 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A1F1000000000000000000C0 /* XCLocalSwiftPackageReference "AltF1Core" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = AltF1Core;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1F1000000000000000000C1 /* AltF1Core */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AltF1Core;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = A1F1000000000000000000E0 /* Project object */;
+}

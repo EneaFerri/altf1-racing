@@ -92,6 +92,18 @@ describe('client messages', () => {
     });
   });
 
+  it('keep a tyre choice, refuse an unknown compound', () => {
+    const input = { ...NEUTRAL_INPUT, compound: 'soft' as const };
+    const raw = encodeMessage({ type: 'input', seq: 1, input });
+    expect(parseClientMessage(raw)).toEqual({ type: 'input', seq: 1, input });
+    const bad = JSON.stringify({
+      type: 'input',
+      seq: 1,
+      input: { ...NEUTRAL_INPUT, compound: 'hard' },
+    });
+    expect(parseClientMessage(bad)).toBeNull();
+  });
+
   it('keep only the known fields', () => {
     const raw = JSON.stringify({
       type: 'input',

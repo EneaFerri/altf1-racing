@@ -4,6 +4,7 @@ import { DAMAGE_PARAMS } from '../config/damage';
 import { PIT_PARAMS } from '../config/pit';
 import { SLIPSTREAM_PARAMS } from '../config/slipstream';
 import { SURFACE_PARAMS } from '../config/surfaces';
+import { TYRE_PARAMS } from '../config/tyres';
 import { WET_PARAMS, type Weather } from '../config/weather';
 import type { CarId } from '../sim/car';
 import type { SimContext } from '../sim/game';
@@ -35,6 +36,7 @@ export function onlineSimContext(
     ...(rules.damage && { damage: DAMAGE_PARAMS }),
     ...(track.routes.some((road) => road.pit) && {
       pit: { params: PIT_PARAMS, boxes: rules.pitBoxes ?? {} },
+      tyres: TYRE_PARAMS,
     }),
     ...(rules.weather === 'rain' && {
       weather: { params: WET_PARAMS, puddles: placePuddles(track) },

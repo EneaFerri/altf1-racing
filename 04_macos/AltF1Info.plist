@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Merged into the app's generated Info.plist (INFOPLIST_FILE). The multiplayer server speaks plain
+  ws:// on a private address (Tailscale or the LAN, 01_docs/macos.md#online-x7): App Transport
+  Security would refuse it everywhere but localhost.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

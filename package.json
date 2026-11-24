@@ -10,7 +10,7 @@
     "dev": "npm run dev -w @altf1/client",
     "build": "npm run build -w @altf1/client",
     "server": "npm run dev -w @altf1/server",
-    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p 01_tools/openf1",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p 01_tools/openf1 && tsc -p 01_tools/swiftExport",
     "test": "vitest run",
     "lint": "eslint .",
     "format": "prettier --write ."

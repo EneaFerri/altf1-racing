@@ -505,6 +505,67 @@ of that race. One step at a time, each awaiting the owner's review.
   first ten (`racePoints`), the constructors' standings of the race (`constructorStandings`); the
   classification card gets TEAM and PTS, then a constructors' card ([bot.md](bot.md#single-player-grand-prix)).
 
+## X — Native macOS app in Swift (owner, 2026-11-22)
+
+The game as a macOS app written entirely in Swift (`04_macos/`, [macos.md](macos.md)): RealityKit
+with a realistic PBR look, SwiftUI menus and HUD in Liquid Glass, every feature of the web game,
+online on the same Node server. One step at a time, each awaiting the owner's review.
+
+- X.0 (awaiting the owner's review) **Scaffolding** — Xcode project (`AltF1.xcodeproj`, folder
+  synced) + the `AltF1Core` Swift package, `01_tools/swiftExport` (the 7 circuits' definitions,
+  scenery and land as JSON), the start menus in Liquid Glass (mode → single-player mode → circuit).
+- X.1 (awaiting the owner's review) **Port of the model** — math, config, track (`buildTrack`,
+  query), sim (car, surfaces, slipstream, laps, collisions, damage, pit, weather) in
+  `AltF1Core`; parity tests on fixtures recorded with the TypeScript (`01_tools/swiftExport/fixtures.ts`):
+  tracks bit-identical on all 7 circuits, `stepGame` within 1 ulp per tick on Monza, Monaco (pit
+  stop, damage, heights) and São Paulo (rain) ([macos.md](macos.md#parity)).
+- X.2 (awaiting the owner's review) **First drivable lap** — Test on any circuit: fixed 60 Hz loop
+  with interpolation, the track's meshes (asphalt, lines, kerbs, gravel, guard rails and tyre
+  walls, start line, grid) in PBR from procedural textures, the car rebuilt in PBR, sky (skybox +
+  environment light), sun with shadows, tone mapping; chase and first-person cameras (V, Z, speed
+  FOV), WASD/Space/R/Esc, speed in a Liquid Glass HUD; dev options for snapshots
+  ([macos.md](macos.md#rendering-x2)). Then the owner's onboard (from a TV onboard photo): the
+  camera behind the helmet looking through the halo, front tyres, mirrors and steering wheel in view.
+- X.3 (awaiting the owner's review) **HUD and Time trial** — the timing strip (sectors in F1
+  colours, gap chip), minimap, F3 telemetry, in Liquid Glass; Time trial with the ghost and this
+  Mac's records in the track menu ([macos.md](macos.md#hud-and-time-trial-x3)). Test's bot comes
+  with X.4.
+- X.4 (awaiting the owner's review) **Bots and the single-player Grand Prix** — first the car
+  rebuilt after the owner's side and rear photos (lofted body, open cockpit with the driver, one body
+  for every car, the livery its only difference); then `ai/` and `race/` ported with parity tests
+  (plans, driving in traffic, qualifying laps) and a headless GP test; Test's bot (B); the GP with
+  team, circuit and weather menus, qualifying, grid and distance, F1 lights, race through the drawn
+  pit lane, panel, sector table, damage, results with points and constructors
+  ([macos.md](macos.md#bots-and-the-grand-prix-x4)). Name tags and the flag marshal come later.
+- T.1 (awaiting the owner's test) **Tyres: soft and medium** — web and Mac, online (protocol v18):
+  the choice at a stop (1 / 2), wear, bots by their stint ([tyres.md](tyres.md)).
+- C.1 (awaiting the owner's review) **A more realistic car, damage on it** — lofted wings and
+  tyres, diffuser, brake ducts, floor edges; the web's damage look (drooping or missing front wing
+  halves, tilted or missing rear wing, flat tyres) and debris: broken parts and carbon shards flying
+  off, bouncing and sliding on the road ([macos.md](macos.md#the-car-x3-the-owners-photos)).
+- X.5 Scenery, one circuit per sub-step ([macos.md](macos.md#scenery-x5)):
+  - X.5a (awaiting the owner's review) **Monaco** — the town on the real land, Casino, chapel, Port
+    Hercule and its yachts, the pool, the tunnel, hills, catch fences.
+  - X.5b (awaiting the owner's review) **Singapore** — the night race: night sky, floodlights, the
+    town lit window by window, the Flyer, Marina Bay Sands' SkyPark, the durians, the bay.
+  - Next: Monza, Barcelona, Mexico City, Las Vegas, São Paulo.
+- X.6 Rain: puddles, wet look and physics, wet tyres, falling rain (N), spray.
+- X.7 Online, on the web's server (Mac and browser in the same rooms) ([macos.md](macos.md#online-x7)):
+  - X.7a (awaiting the owner's review) **Protocol and socket** — the protocol's messages and the
+    nickname rules in `AltF1Core/Net` (parity with the web's own messages), the address the player
+    types → the socket's URL, `NetClient` on `URLSessionWebSocketTask`; tried on a local server.
+  - X.7b (awaiting the owner's review) **Lobby menus** — Multiplayer enabled: server address and
+    nickname (remembered), mode with players online, circuit with the Grand Prix's TOP 10, the room
+    with its players live; disconnected and refused cards.
+  - X.7c (awaiting the owner's test) **Online Free practice** — the web's prediction in Swift
+    (`Predictor`, tested), the race on screen with everyone's liveries and names.
+  - X.7d (awaiting the owner's test) **Online Grand Prix** — the panel by phase (manager or not),
+    lights, damage, tyres, results with Play again; how friends set it up in the README.
+    Fix (2026-11-24): the own yellow pit box follows the server's boxes live (it was painted once
+    and could show a box where the car never stopped).
+  - Next: the lap-record boards in the results, name tags over the cars, a zip of the app.
+- X.8 Polish: gamepad, settings (quality, server), Debug tuning panel, app icon, performance.
+
 ## Later
 
 - Desktop packaging (Tauri/Electron), assets, audio.

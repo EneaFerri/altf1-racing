@@ -1,5 +1,6 @@
 import type { CarDamage } from './damage';
 import type { PitStop } from './pit';
+import type { TyreState } from './tyres';
 import type { CarParams } from '../config/car';
 import { moveToward, wrapAngle } from '../math/angle';
 import { add, dot, forward, headingOf, length, right, scale, ZERO, type Vec2 } from '../math/vec2';
@@ -39,6 +40,11 @@ export interface CarState {
   readonly damage?: CarDamage;
   /** Its pit stop (sim/pit.ts), from stopping in its box until it leaves the pit lane. */
   readonly pitStop?: PitStop;
+  /**
+   * Its tyres (sim/tyres.ts). Only in a race with tyres (`SimContext.tyres`: the Grand Prix), from
+   * its first metre; absent: new mediums.
+   */
+  readonly tyres?: TyreState;
 }
 
 export interface CarSpawn {

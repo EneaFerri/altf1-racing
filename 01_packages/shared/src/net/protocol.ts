@@ -1,4 +1,5 @@
 import { isRaceLaps } from '../config/grandPrix';
+import { TYRE_COMPOUNDS, type TyreCompound } from '../config/tyres';
 import { WEATHERS, type Weather } from '../config/weather';
 import type { StartHold } from '../race/hold';
 import type { QualifyingEntry } from '../race/qualifying';
@@ -11,7 +12,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 17;
+export const PROTOCOL_VERSION = 18;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -250,16 +251,18 @@ export function parseServerMessage(raw: string): ServerMessage | null {
 
 function parseInput(data: unknown): InputCommand | null {
   if (!isRecord(data)) return null;
-  const { throttle, brake, reverse, steer, reset } = data;
+  const { throttle, brake, reverse, steer, reset, compound } = data;
   if (![throttle, brake, reverse, steer].every(isFiniteNumber) || typeof reset !== 'boolean') {
     return null;
   }
+  if (compound !== undefined && !TYRE_COMPOUNDS.includes(compound as TyreCompound)) return null;
   return {
     throttle: clamp(throttle as number, 0, 1),
     brake: clamp(brake as number, 0, 1),
     reverse: clamp(reverse as number, 0, 1),
     steer: clamp(steer as number, -1, 1),
     reset,
+    ...(compound !== undefined && { compound: compound as TyreCompound }),
   };
 }
 

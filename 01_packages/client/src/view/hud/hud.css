@@ -569,3 +569,28 @@
 .hud-pit[hidden] {
   display: none;
 }
+
+/* The own tyres (Grand Prix): compound in its colour, and wear. */
+.hud-tyres {
+  padding: 4px 10px;
+  border-left: 4px solid var(--hud-tyre, #f5c518);
+  border-radius: 3px;
+  background: rgba(12, 12, 16, 0.72);
+  color: #f4f4f6;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  white-space: pre;
+}
+
+.hud-tyres[data-compound='soft'] {
+  --hud-tyre: #e10600;
+}
+
+.hud-tyres[data-compound='medium'] {
+  --hud-tyre: #f5c518;
+}
+
+.hud-tyres[hidden] {
+  display: none;
+}

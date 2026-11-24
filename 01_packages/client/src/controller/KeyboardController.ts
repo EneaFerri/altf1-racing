@@ -1,4 +1,4 @@
-import type { InputCommand } from '@altf1/shared';
+import type { InputCommand, TyreCompound } from '@altf1/shared';
 import {
   ACTION_KEYS,
   DRIVE_KEYS,
@@ -25,6 +25,8 @@ export class KeyboardController {
   /** Triggers pressed since the last sample; consumed by the next tick. */
   private readonly pendingTriggers = new Set<TickTrigger>();
   private readonly actionHandlers = new Map<ActionName, () => void>();
+  /** A tyre compound chosen since the last sample (in the box, Grand Prix): sent for one tick. */
+  private pendingCompound: TyreCompound | undefined;
 
   constructor(target: Window = window) {
     target.addEventListener('keydown', this.onKeyDown);
@@ -37,7 +39,14 @@ export class KeyboardController {
   sample(): InputCommand {
     const input = inputFromKeys(this.held, this.pendingTriggers);
     this.pendingTriggers.clear();
-    return input;
+    const compound = this.pendingCompound;
+    this.pendingCompound = undefined;
+    return compound ? { ...input, compound } : input;
+  }
+
+  /** The tyres to fit if stopped in the box (Grand Prix: keys 1 / 2), with the next tick's input. */
+  chooseCompound(compound: TyreCompound): void {
+    this.pendingCompound = compound;
   }
 
   /** Whether a view key is held right now. */

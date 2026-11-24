@@ -177,6 +177,10 @@ export class SinglePlayerGrandPrix {
       this.controller.onAction(key, () => {
         if (phase() === 'grid')
           this.command({ action: 'startRace', laps: GRAND_PRIX.raceLaps[i]! });
+        // On track, stopped in the box: 1 softs, 2 mediums (ignored anywhere else).
+        else if ((phase() === 'qualifying' || phase() === 'race') && i < 2) {
+          this.controller.chooseCompound(i === 0 ? 'soft' : 'medium');
+        }
       }),
     );
     this.controller.onAction('choice4', () => {

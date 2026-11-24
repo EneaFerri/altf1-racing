@@ -4,8 +4,9 @@ import type { DamageParams } from '../config/damage';
 import { FIXED_DT } from '../config/sim';
 import type { SlipstreamParams } from '../config/slipstream';
 import { SLOPE_PARAMS, type SlopeParams } from '../config/slope';
+import type { TyreParams } from '../config/tyres';
 import type { SurfaceParams } from '../config/surfaces';
-import { distance, dot, forward, headingOf } from '../math/vec2';
+import { distance, dot, forward, headingOf, length } from '../math/vec2';
 import { gridSlot, locateOnTrack } from '../track/query';
 import type { Surface, Track } from '../track/types';
 import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
@@ -16,6 +17,7 @@ import { damagedInput, damagedParams, stepDamage } from './damage';
 import { heldInBox, inBox, limitedSpeed, pitStep, type PitRules } from './pit';
 import { createLapState, stepLap, type LapState } from './laps';
 import { slipstreamEffect, slipstreamFactor } from './slipstream';
+import { NEW_MEDIUMS, tyredParams, wearTyres } from './tyres';
 import { carSurface } from './surface';
 import { puddleShare, wetSurfaceEffect, type WetTrack } from './weather';
 
@@ -54,6 +56,12 @@ export interface SimContext {
    * (`placePuddles`) under the wheels. Left out: dry.
    */
   readonly weather?: WetTrack;
+  /**
+   * Tyre compounds and wear (T.1: the Grand Prix, with its pit lane; 01_docs/tyres.md): each car's
+   * `tyres` set its grip, turning and acceleration and wear as it drives; a stop fits new ones.
+   * Left out: no `CarState.tyres`, every car as on new mediums.
+   */
+  readonly tyres?: TyreParams;
 }
 
 /** A grid slot counts as free when no car is closer than this to it (m). */
@@ -89,7 +97,9 @@ export function createGame(track: Track, carIds: readonly CarId[]): GameState {
 export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): GameState {
   const moved = state.cars.map((car) => {
     // Stopped in its box: held still, whatever its controls (R too).
-    if (ctx.pit && inBox(car, state.tick)) return heldInBox(car);
+    if (ctx.pit && inBox(car, state.tick)) {
+      return heldInBox(car, ctx.tyres && inputs[car.id]?.compound);
+    }
     const given = inputs[car.id] ?? NEUTRAL_INPUT;
     if (given.reset) return resetOnTrack(car, ctx.track);
 
@@ -101,14 +111,26 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
     const own = ctx.carParamsById?.[car.id] ?? ctx.carParams;
     // A damaged car (only with ctx.damage) drives slower, turns and grips less, and may pull.
     const { damage } = ctx;
-    const params = damage && car.damage ? damagedParams(own, car.damage, damage) : own;
+    const hurt = damage && car.damage ? damagedParams(own, car.damage, damage) : own;
+    // Its tyres (only with ctx.tyres): the compound's grip and traction, less as they wear.
+    const { tyres } = ctx;
+    const params = tyres ? tyredParams(hurt, car.tyres ?? NEW_MEDIUMS, tyres) : hurt;
     const input = damage && car.damage ? damagedInput(given, car.damage, damage) : given;
     const slipstream = slipstreamFactor(car, state.cars, ctx.slipstreamParams);
     const slip = slipstreamEffect(slipstream, ctx.slipstreamParams);
+    const stepped = stepCar(car, input, params, FIXED_DT, effect, slip, slopeAccel(car, ctx));
     const next: CarState = {
-      ...stepCar(car, input, params, FIXED_DT, effect, slip, slopeAccel(car, ctx)),
+      ...stepped,
       wheelSurfaces: surfaces,
       slipstream,
+      ...(tyres && {
+        tyres: wearTyres(
+          car.tyres ?? NEW_MEDIUMS,
+          length(stepped.velocity) * FIXED_DT,
+          ctx.track.length,
+          tyres,
+        ),
+      }),
     };
     return ctx.pit ? limitedSpeed(next, ctx.track) : next;
   });
@@ -252,7 +274,11 @@ function resetOnTrack(car: CarState, track: Track): CarState {
     position: location.point,
     heading: headingOf(location.tangent),
   });
-  return car.damage ? { ...reset, damage: car.damage } : reset;
+  return {
+    ...reset,
+    ...(car.damage && { damage: car.damage }),
+    ...(car.tyres && { tyres: car.tyres }),
+  };
 }
 
 function sortById(cars: readonly CarState[]): CarState[] {

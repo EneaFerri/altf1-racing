@@ -735,3 +735,63 @@
   driver, as F1 breaks ties by results. A season (points saved across races) would be a later step.
 - The results screen's classification card takes optional team and points columns (online keeps
   its card as it was) and a new constructors' card follows it in single player.
+
+## 2026-11-22 — A native macOS app in Swift (X.0)
+
+- Owner: the game also becomes a macOS app written entirely in Swift, with much better graphics
+  and Apple's own tools (Liquid Glass), keeping every feature. It lives in `04_macos/` beside the
+  web game, which stays as it is ([macos.md](macos.md)).
+- Owner's choices: **online on the existing Node server** (protocol v17: web and Mac players
+  race together), a **realistic PBR look** (no longer the Krunker pixel style), **RealityKit**
+  for the 3D (SceneKit is deprecated; a hand-written Metal renderer would take far longer),
+  SwiftUI with Liquid Glass for every menu and the HUD.
+- The model is a 1:1 port of `01_packages/shared` (same names, fixed 60 Hz tick, immutable
+  state), so the Mac's client-side prediction matches the server. Parity is checked by Swift tests
+  replaying traces recorded with the TypeScript sim; last-bit float differences between V8 and
+  Darwin's libm are accepted (the server is authoritative and the predictor corrects).
+- The circuits' generated data is never ported by hand: `01_tools/swiftExport` exports it to
+  JSON for the app, so the OpenF1 tool stays the one place that makes circuits.
+- The Xcode project uses folder-synchronized groups: a new Swift file needs no project edit.
+
+## 2026-11-22 — The Swift model's parity with the web (X.1)
+
+- Parity is checked one tick at a time: the TypeScript records (state, inputs, next state) and
+  Swift steps each recorded state once. Running whole races side by side would compare chaos:
+  the last-bit differences of `sin`/`cos`/`exp` (Darwin's libm vs V8's fdlibm) grow through the
+  contacts until the races part, which says nothing about the port.
+- `Math.hypot` is ported as V8 computes it (normalised, Kahan-summed) instead of libm's `hypot`:
+  libm's differs in the last bit, enough to break near-ties (which of two segments is closest)
+  the other way. With it the compiled tracks and their queries are bit-identical.
+- JavaScript's `Math.round` (halves up), `Math.sign(0) = 0`, `%` and `Math.imul` are kept as
+  helpers rather than Swift's own, which differ on exactly the cases that matter.
+
+## 2026-11-22 — The Mac's 3D view: ARView, procedural PBR (X.2)
+
+- RealityKit through `ARView` (non-AR on the Mac) rather than `RealityView`: the same renderer,
+  plus the skybox/environment setup and `snapshot`, which lets the look be checked from the
+  command line (`DevOptions`) instead of only by eye.
+- Every texture is drawn in code at launch (tileable noise → albedo, roughness, normal maps): no
+  binary assets in the repo, as on the web, and any resolution.
+- Shadows use the sun's fixed orthographic projection round the car: the automatic projection
+  produced none in `ARView`. Bloom stays off until it stops drawing ghost blobs (X.8).
+
+## 2026-11-22 — The Mac's car, and its Grand Prix (X.4)
+
+- The car is lofted (sections swept along the car) instead of boxes: the owner's photos of a modern
+  F1 car need its sculpted nose, sidepods and engine cover. One body for every car, built once; the
+  livery (two colours) is the only difference, as the owner asked.
+- The cockpit is open (its walls are their own bodies) and holds the driver (legs, torso, arms on
+  the wheel): the owner saw the wheel vanish into a filled cockpit.
+- `AltF1Core` is compiled with `-O` in Debug too: a Grand Prix (ten cars, nine bots) dropped to
+  79 fps unoptimised; 97 with it. Debugging the model itself loses some variable inspection.
+- The results' card on show lives in `GrandPrixSession`, not in the view: one source of truth for
+  Enter (the race's keyboard) and the buttons.
+
+## 2026-11-23 — The circuits' scenery on the Mac (X.5)
+
+- The web's scenery data is reused as exported (no new OSM work); the geometry is merged into one
+  mesh per material, built off the main thread: a town of 1 200 buildings stays at 120 fps.
+- Night races light the track with one cool directional light from overhead (the floodlights) and
+  emissive lamps and windows, as the web does: a light source per lamp would be too costly.
+- Ear clipping resumes where it last cut and tests only reflex corners: Marina Bay's water (3 079
+  points) went from minutes to milliseconds.

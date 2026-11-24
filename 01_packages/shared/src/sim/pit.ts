@@ -5,6 +5,8 @@ import { locateOnLoop, locateOnTrack } from '../track/query';
 import type { PitLaneRules, Track } from '../track/types';
 import type { CarId, CarState } from './car';
 import { NO_DAMAGE, type CarDamage } from './damage';
+import { fitTyres } from './tyres';
+import type { TyreCompound } from '../config/tyres';
 
 /**
  * A car's pit stop (Phase 4: the Grand Prix; 01_docs/pitlane.md#pit-stop-4g): held in its box
@@ -68,9 +70,13 @@ export function boxSpot(
   return { position: add(s.position, scale(s.normal, offset)), heading: headingOf(s.tangent) };
 }
 
-/** `car` held still in its box: it doesn't move and its controls do nothing. */
-export function heldInBox(car: CarState): CarState {
-  return { ...car, velocity: ZERO, yawRate: 0, spin: 0, steer: 0, brakePressure: 0 };
+/**
+ * `car` held still in its box: it doesn't move and its controls do nothing, but the compound its
+ * driver chose (`compound`, with tyres in the race) is fitted new.
+ */
+export function heldInBox(car: CarState, compound?: TyreCompound): CarState {
+  const held = { ...car, velocity: ZERO, yawRate: 0, spin: 0, steer: 0, brakePressure: 0 };
+  return compound ? { ...held, tyres: fitTyres(compound) } : held;
 }
 
 /** Whether `car` is stopped in its box at the step from `tick`. */
@@ -121,8 +127,11 @@ export function pitStep(
   );
   if (busy) return car;
   const { position, heading } = boxSpot(place.road, box, pit.params);
+  const held = heldInBox(car);
   return {
-    ...heldInBox(car),
+    ...held,
+    // A new set of the same compound (with tyres in the race), until its driver chooses another.
+    ...(car.tyres && { tyres: fitTyres(car.tyres.compound) }),
     position,
     heading,
     pitStop: { until: tick + stopTicks(car.damage, pit.params) },

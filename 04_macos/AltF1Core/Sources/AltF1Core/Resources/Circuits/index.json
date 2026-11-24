@@ -1,0 +1,44 @@
+[
+  {
+    "id": "monza",
+    "name": "Monza",
+    "elevated": false,
+    "length": 5448.8
+  },
+  {
+    "id": "barcelona",
+    "name": "Barcelona",
+    "elevated": false,
+    "length": 4693.9
+  },
+  {
+    "id": "monaco",
+    "name": "Monaco",
+    "elevated": true,
+    "length": 3714.6
+  },
+  {
+    "id": "mexico",
+    "name": "Mexico City",
+    "elevated": false,
+    "length": 4245.8
+  },
+  {
+    "id": "singapore",
+    "name": "Singapore",
+    "elevated": false,
+    "length": 5095.3
+  },
+  {
+    "id": "lasVegas",
+    "name": "Las Vegas",
+    "elevated": false,
+    "length": 5805.3
+  },
+  {
+    "id": "saoPaulo",
+    "name": "São Paulo",
+    "elevated": true,
+    "length": 4491.9
+  }
+]

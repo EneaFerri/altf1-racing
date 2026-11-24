@@ -9,6 +9,7 @@ import {
   type LapState,
   pitStatus,
   type Track,
+  type TyreState,
 } from '@altf1/shared';
 import { DamagePanel } from './DamagePanel';
 import {
@@ -61,6 +62,8 @@ export class Hud {
   private readonly damage = new DamagePanel();
   /** Under the strip, in the pit lane (Grand Prix): the limiter, a stop's countdown. */
   private readonly pit = element('div', 'hud-pit');
+  /** The own tyres (Grand Prix): compound and wear. */
+  private readonly tyres = element('div', 'hud-tyres');
   /** The track whose pit lane is driven (a Grand Prix); null: none. */
   private pitTrack: Track | null = null;
 
@@ -113,6 +116,7 @@ export class Hud {
       this.bot,
     );
     this.pit.hidden = true;
+    this.tyres.hidden = true;
     this.sectors = sectors;
     this.sectorTable.append(
       element('span', 'hud-label'),
@@ -127,7 +131,7 @@ export class Hud {
     // A label column, then one per sector.
     this.sectorTable.style.gridTemplateColumns = `auto repeat(${TRACK_RULES.sectorCount}, 4.6em)`;
     this.sectorTable.hidden = true;
-    this.root.append(strip, this.sectorTable, this.chip, this.pit);
+    this.root.append(strip, this.sectorTable, this.chip, this.pit, this.tyres);
     document.body.appendChild(this.root);
   }
 
@@ -180,6 +184,7 @@ export class Hud {
     this.trackEvents(timing, nowMs);
     this.damage.update(car.damage);
     this.showPit(this.pitTrack && pitStatus(this.pitTrack, car, state.tick));
+    this.showTyres(car.tyres);
 
     const running = timing.lapStartTick !== null;
     setText(this.lap, this.lapName(timing));
@@ -232,11 +237,22 @@ export class Hud {
     });
   }
 
-  /** `PIT STOP 3.4` while stopped in the box, `PIT LIMITER 76` between the limit lines. */
+  /** `SOFT 37%`: the own tyres' compound (its colour) and wear; hidden without tyres. */
+  private showTyres(tyres: TyreState | undefined): void {
+    this.tyres.hidden = tyres === undefined;
+    if (!tyres) return;
+    this.tyres.dataset['compound'] = tyres.compound;
+    setText(this.tyres, `${tyres.compound.toUpperCase()}  ${Math.round(tyres.wear * 100)}%`);
+  }
+
+  /**
+   * `PIT STOP 3.4 · 1 SOFT  2 MEDIUM` while stopped in the box (the tyres to fit), `PIT LIMITER 76`
+   * between the limit lines.
+   */
   private showPit(status: ReturnType<typeof pitStatus>): void {
     const text =
       status?.stopLeft != null
-        ? `PIT STOP  ${status.stopLeft.toFixed(1)}`
+        ? `PIT STOP  ${status.stopLeft.toFixed(1)}  ·  1 SOFT  2 MEDIUM`
         : status?.limiter
           ? `PIT LIMITER  ${Math.round(status.speedLimit * 3.6)}`
           : '';

@@ -1,3 +1,5 @@
+import type { TyreCompound } from '../config/tyres';
+
 /**
  * One frame of player intent, produced by the Controller and consumed by the Model.
  * Kept as plain serializable data so it can be sent over the network later.
@@ -13,6 +15,11 @@ export interface InputCommand {
   steer: number;
   /** True for exactly one tick when the player asks to be put back on the track. */
   reset: boolean;
+  /**
+   * Stopped in its box (the Grand Prix): the compound its driver chose (keys 1 / 2), for exactly
+   * one tick; fitted new at once. Ignored anywhere else. Absent: no choice.
+   */
+  compound?: TyreCompound;
 }
 
 export const NEUTRAL_INPUT: Readonly<InputCommand> = {

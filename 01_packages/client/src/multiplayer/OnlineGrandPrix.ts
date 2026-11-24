@@ -76,6 +76,9 @@ export class OnlineGrandPrix {
           this.command({ action: 'startRace', laps: GRAND_PRIX.raceLaps[i]! });
         } else if (this.info?.phase === 'lobby' && this.canRain && i < 2) {
           this.command({ action: 'weather', weather: i === 0 ? 'dry' : 'rain' });
+        } else if ((this.info?.phase === 'qualifying' || this.info?.phase === 'race') && i < 2) {
+          // On track, stopped in the box: 1 softs, 2 mediums (ignored anywhere else).
+          controller.chooseCompound(i === 0 ? 'soft' : 'medium');
         }
       }),
     );

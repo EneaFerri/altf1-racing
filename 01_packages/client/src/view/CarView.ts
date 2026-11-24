@@ -1,10 +1,12 @@
 import * as THREE from 'three';
-import { CAR_WHEELS, type CarDamage } from '@altf1/shared';
+import { CAR_WHEELS, type CarDamage, type TyreCompound } from '@altf1/shared';
 import { damageLook } from './carDamageLook';
 import {
+  createBandSidewallTexture,
   createCheckerTexture,
   createLiveryTexture,
   createWetSidewallTexture,
+  TYRE_BANDS,
   type Livery,
 } from './pixelTexture';
 
@@ -24,6 +26,8 @@ export interface CarPose {
   readonly pitch?: number;
   /** The car's damage (Grand Prix only); left out: drawn as new. */
   readonly damage?: CarDamage;
+  /** Its tyres' compound (Grand Prix only): the sidewalls' band; left out: none. */
+  readonly compound?: TyreCompound;
 }
 
 const WHEEL_RADIUS = 0.36;
@@ -65,6 +69,10 @@ export class CarView {
   private readonly sidewall: THREE.MeshLambertMaterial;
   private readonly dryTyre: THREE.Texture;
   private readonly wetSidewall = createWetSidewallTexture();
+  /** The compounds' sidewalls (red softs, yellow mediums), made the first time one is shown. */
+  private readonly bandSidewalls = new Map<TyreCompound, THREE.Texture>();
+  private wet = false;
+  private compound: TyreCompound | undefined;
 
   /**
    * `opacity` < 1 draws a see-through car (time trial's ghost) that never hides what's behind it.
@@ -178,7 +186,21 @@ export class CarView {
 
   /** Wet-weather tyres (the rain): the blue band on every wheel's sidewalls, whatever the livery. */
   setWetTyres(on: boolean): void {
-    const map = on ? this.wetSidewall : this.dryTyre;
+    this.wet = on;
+    this.showSidewalls();
+  }
+
+  /** The sidewalls: the wets' blue in the rain, else the compound's band (none outside a GP). */
+  private showSidewalls(): void {
+    let map = this.dryTyre;
+    if (this.wet) map = this.wetSidewall;
+    else if (this.compound) {
+      const compound = this.compound;
+      if (!this.bandSidewalls.has(compound)) {
+        this.bandSidewalls.set(compound, createBandSidewallTexture(TYRE_BANDS[compound]));
+      }
+      map = this.bandSidewalls.get(compound)!;
+    }
     if (this.sidewall.map === map) return;
     this.sidewall.map = map;
     this.sidewall.needsUpdate = true;
@@ -231,6 +253,10 @@ export class CarView {
     const spin = (pose.forwardSpeed * frameSeconds) / WHEEL_RADIUS;
     for (const wheel of this.wheels) wheel.rotation.x -= spin;
     if (pose.damage !== this.damage) this.showDamage(pose.damage);
+    if (pose.compound !== this.compound) {
+      this.compound = pose.compound;
+      this.showSidewalls();
+    }
   }
 
   /**
