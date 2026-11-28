@@ -85,23 +85,44 @@ struct StartLights: View {
 }
 
 /// Damage (the web's `DamagePanel`): the car seen from above, front wing, four tyres and rear wing
-/// coloured by their damage (white → yellow → orange → red). Shown only in a race with damage.
+/// coloured by their damage (white → yellow → orange → red); a punctured tyre blinks and
+/// `PUNCTURE` shows under the car. Shown only in a race with damage.
 struct DamagePanel: View {
-    let damage: [Double]  // front wing, FL, FR, RL, RR, rear wing
+    let damage: CarDamage
+    /// Its flat tyres (`puncturedTyres`, order of `carWheels`).
+    let punctures: [Bool]
 
     var body: some View {
-        VStack(spacing: 6) {
-            Text("DAMAGE").font(.system(size: 9, weight: .heavy)).tracking(1.2).foregroundStyle(.secondary)
-            VStack(spacing: 4) {
-                part(damage[0]).frame(width: 46, height: 7)
-                HStack(spacing: 18) { part(damage[1]).frame(width: 12, height: 20); part(damage[2]).frame(width: 12, height: 20) }
-                RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.25)).frame(width: 14, height: 22)
-                HStack(spacing: 18) { part(damage[3]).frame(width: 14, height: 22); part(damage[4]).frame(width: 14, height: 22) }
-                part(damage[5]).frame(width: 40, height: 7)
+        TimelineView(.periodic(from: .now, by: 0.3)) { context in
+            let dim = punctures.contains(true) && Int(context.date.timeIntervalSinceReferenceDate / 0.3) % 2 == 1
+            VStack(spacing: 6) {
+                Text("DAMAGE").font(.system(size: 9, weight: .heavy)).tracking(1.2).foregroundStyle(.secondary)
+                VStack(spacing: 4) {
+                    part(damage.frontWing).frame(width: 46, height: 7)
+                    HStack(spacing: 18) {
+                        tyre(0, dim).frame(width: 12, height: 20)
+                        tyre(1, dim).frame(width: 12, height: 20)
+                    }
+                    RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.25)).frame(width: 14, height: 22)
+                    HStack(spacing: 18) {
+                        tyre(2, dim).frame(width: 14, height: 22)
+                        tyre(3, dim).frame(width: 14, height: 22)
+                    }
+                    part(damage.rearWing).frame(width: 40, height: 7)
+                }
+                if punctures.contains(true) {
+                    Text("PUNCTURE").font(.system(size: 9, weight: .heavy)).tracking(1.2)
+                        .foregroundStyle(Color(red: 0.9, green: 0.05, blue: 0))
+                        .opacity(dim ? 0.25 : 1)
+                }
             }
         }
         .padding(12)
         .glassEffect(.regular, in: .rect(cornerRadius: 18))
+    }
+
+    private func tyre(_ i: Int, _ dim: Bool) -> some View {
+        part(damage.tyres[i]).opacity(i < punctures.count && punctures[i] && dim ? 0.25 : 1)
     }
 
     private func part(_ value: Double) -> some View {
@@ -112,8 +133,9 @@ struct DamagePanel: View {
     }
 }
 
-/// The own tyres (Grand Prix): the compound in its colour (soft red, medium yellow) and the wear;
-/// stopped in the box, the stop's seconds and the choice of the next set (1 / 2).
+/// The own tyres (Grand Prix): the compound in its colour (soft red, medium yellow, intermediate
+/// green, full wet blue) and the wear; stopped in the box, the stop's seconds and the choice of
+/// the next set (1 / 2 / 3 / 4).
 struct TyrePanel: View {
     let tyres: TyreState
     /// Seconds left of the stop in the box; nil when not stopped.
@@ -123,6 +145,17 @@ struct TyrePanel: View {
         switch compound {
         case .soft: Color(red: 0.88, green: 0.02, blue: 0)
         case .medium: Color(red: 0.96, green: 0.77, blue: 0.09)
+        case .intermediate: Color(red: 0.26, green: 0.69, blue: 0.16)
+        case .wet: Color(red: 0.12, green: 0.44, blue: 0.88)
+        }
+    }
+
+    static func name(_ compound: TyreCompound) -> String {
+        switch compound {
+        case .soft: "SOFT"
+        case .medium: "MEDIUM"
+        case .intermediate: "INTER"
+        case .wet: "WET"
         }
     }
 
@@ -132,7 +165,7 @@ struct TyrePanel: View {
                 Circle()
                     .strokeBorder(Self.color(tyres.compound), lineWidth: 4)
                     .frame(width: 20, height: 20)
-                Text(tyres.compound == .soft ? "SOFT" : "MEDIUM").font(.system(size: 13, weight: .heavy))
+                Text(Self.name(tyres.compound)).font(.system(size: 13, weight: .heavy))
                 Text("\(Int((tyres.wear * 100).rounded()))%")
                     .font(.system(size: 13, weight: .bold).monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -143,6 +176,8 @@ struct TyrePanel: View {
                 HStack(spacing: 10) {
                     choice("1", .soft)
                     choice("2", .medium)
+                    choice("3", .intermediate)
+                    choice("4", .wet)
                 }
             }
         }
@@ -155,7 +190,7 @@ struct TyrePanel: View {
     private func choice(_ key: String, _ compound: TyreCompound) -> some View {
         HStack(spacing: 4) {
             Text(key).font(.system(size: 11, weight: .heavy)).foregroundStyle(.secondary)
-            Text(compound == .soft ? "SOFT" : "MEDIUM")
+            Text(Self.name(compound))
                 .font(.system(size: 11, weight: .heavy))
                 .foregroundStyle(Self.color(compound))
         }

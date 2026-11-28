@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BAKU,
   BARCELONA,
   buildTrack,
   LAS_VEGAS,
@@ -88,6 +89,16 @@ import {
   SAO_PAULO_SURROUNDINGS,
   SAO_PAULO_WOODS,
 } from './saoPauloLayout';
+import {
+  BAKU_CITY,
+  BAKU_CITY_WALLS,
+  BAKU_OVAL,
+  BAKU_OVAL_WIDTH,
+  BAKU_PIT_BUILDINGS,
+  BAKU_PIT_LANE,
+  BAKU_STANDS,
+  BAKU_WOODS,
+} from './bakuLayout';
 import {
   SINGAPORE_CITY,
   SINGAPORE_OVAL,
@@ -206,6 +217,20 @@ const CIRCUITS: readonly {
     // OSM's three on the start straight, five by hand round the lap.
     minStands: 7,
     mainStand: 'Tribuna',
+  },
+  {
+    definition: BAKU,
+    scenery: {
+      stands: BAKU_STANDS,
+      pitLane: BAKU_PIT_LANE,
+      pitBuildings: BAKU_PIT_BUILDINGS,
+      woods: BAKU_WOODS,
+      oval: BAKU_OVAL,
+      ovalWidth: BAKU_OVAL_WIDTH,
+    },
+    // Placed by hand (temporary stands are not in OSM).
+    minStands: 3,
+    mainStand: 'Main Grandstand',
   },
 ];
 
@@ -520,5 +545,29 @@ describe('Las Vegas town (generated from OpenStreetMap)', () => {
     expect(LAS_VEGAS_SEA.some((ring) => insidePolygon(middle, ring))).toBe(true);
     // The Stratosphere, far up the Strip, is its tallest.
     expect(LAS_VEGAS_CITY.find((b) => b.landmark === 'strat')!.height).toBe(350);
+  });
+});
+
+describe("Baku's landmarks and the old town's walls (2.4f)", () => {
+  const track = buildTrack(BAKU);
+
+  it('draws each landmark on its real building: three Flame Towers and one of each other', () => {
+    const count = (kind: string): number => BAKU_CITY.filter((b) => b.landmark === kind).length;
+    expect(count('flame')).toBe(3);
+    for (const kind of ['maiden', 'government', 'carpet']) expect(count(kind)).toBe(1);
+    // The Flame Towers keep their real heights (160–182 m).
+    for (const b of BAKU_CITY.filter((c) => c.landmark === 'flame')) {
+      expect(b.height).toBeGreaterThan(150);
+    }
+  });
+
+  it('stands the walls right behind the barrier on the left, never on the track', () => {
+    const [wall] = BAKU_CITY_WALLS;
+    expect(wall).toBeDefined();
+    expect(wall!.path.length).toBeGreaterThan(50);
+    for (const spot of wall!.path) {
+      expect(spot[1]).toBeLessThan(0);
+      expect(clearance(track, fromTrack(track, spot))).toBeGreaterThan(wall!.thickness / 2);
+    }
   });
 });

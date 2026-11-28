@@ -34,13 +34,27 @@ public struct DamageParams: Codable, Hashable, Sendable {
     public var minTurn: Double
     public var minGrip: Double
 
+    /// Punctures (R.1): a tyre damaged to `punctureDamage` (red), or a set worn to `punctureWear`,
+    /// goes flat. Until a stop the car limps: no faster than `punctureTopSpeed` (m/s, 190 km/h;
+    /// above it, it loses `punctureDecel` m/s²), grip × `punctureGrip`, turning × `punctureTurn`, and it pulls towards
+    /// the flat tyre's side by `puncturePull`.
+    public var punctureDamage: Double
+    public var punctureWear: Double
+    public var punctureTopSpeed: Double
+    public var punctureDecel: Double
+    public var punctureGrip: Double
+    public var punctureTurn: Double
+    public var puncturePull: Double
+
     public static let baseline = DamageParams(
         impactThreshold: 8, impactDamage: 0.018, endTyreShare: 0.5, sideTyreShare: 0.6,
         frontZone: 1, rearZone: 0.7, grassDamage: 0.015, gravelDamage: 0.05, offTrackSpeed: 30,
         frontWingSpeedLoss: 0.04, frontWingTurnLoss: 0.25, frontWingGripLoss: 0,
         rearWingSpeedLoss: 0.04, rearWingTurnLoss: 0, rearWingGripLoss: 0.3,
         tyreSpeedLoss: 0.08, tyreTurnLoss: 0.1, tyreGripLoss: 0.3, tyrePull: 0.12,
-        minSpeed: 0.8, minTurn: 0.6, minGrip: 0.5)
+        minSpeed: 0.8, minTurn: 0.6, minGrip: 0.5,
+        punctureDamage: 0.75, punctureWear: 0.95, punctureTopSpeed: 190 / 3.6, punctureDecel: 12,
+        punctureGrip: 0.55, punctureTurn: 0.7, puncturePull: 0.15)
 }
 
 /// Pit stops (`config/pit.ts`, 01_docs/pitlane.md). The speed limit is the circuit's own.

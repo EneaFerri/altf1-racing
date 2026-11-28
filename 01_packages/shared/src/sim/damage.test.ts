@@ -10,7 +10,13 @@ import {
   damagedParams,
   hitZone,
   impactDamage,
+  isPunctured,
+  limpSpeed,
   NO_DAMAGE,
+  NO_PUNCTURES,
+  puncturedInput,
+  puncturedParams,
+  puncturedTyres,
   offTrackDamage,
   stepDamage,
   type CarDamage,
@@ -182,5 +188,64 @@ describe('damagedInput', () => {
       P,
     );
     expect(full.steer).toBe(1);
+  });
+});
+
+describe('punctures', () => {
+  const tyres = (fl: number, fr: number, rl: number, rr: number): CarDamage => ({
+    ...NO_DAMAGE,
+    tyres: [fl, fr, rl, rr],
+  });
+
+  it('a tyre goes flat once its damage is red, the others stay up', () => {
+    expect(puncturedTyres(tyres(0.74, 0, 0, 0), undefined, P)).toBe(NO_PUNCTURES);
+    expect(puncturedTyres(tyres(0, P.punctureDamage, 0, 0.9), undefined, P)).toEqual([
+      false,
+      true,
+      false,
+      true,
+    ]);
+  });
+
+  it('a set worn to 95% punctures its most damaged tyre (the front left on a tie)', () => {
+    expect(puncturedTyres(undefined, { compound: 'soft', wear: 0.94 }, P)).toBe(NO_PUNCTURES);
+    expect(puncturedTyres(undefined, { compound: 'soft', wear: 0.95 }, P)).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ]);
+    expect(puncturedTyres(tyres(0, 0, 0.3, 0.1), { compound: 'medium', wear: 1 }, P)).toEqual([
+      false,
+      false,
+      true,
+      false,
+    ]);
+  });
+
+  it('a flat tyre cuts grip and turning, and pulls to its side', () => {
+    const flat = puncturedTyres(tyres(0, 0, 0, 1), undefined, P);
+    expect(isPunctured(flat)).toBe(true);
+    const params = puncturedParams(CAR_PARAMS, flat, P);
+    expect(params.maxSpeed).toBe(CAR_PARAMS.maxSpeed);
+    expect(params.lateralGrip).toBeCloseTo(CAR_PARAMS.lateralGrip * P.punctureGrip);
+    expect(params.maxYawRate).toBeCloseTo(CAR_PARAMS.maxYawRate * P.punctureTurn);
+    expect(puncturedInput(NEUTRAL_INPUT, flat, P).steer).toBeCloseTo(P.puncturePull);
+    expect(puncturedParams(CAR_PARAMS, NO_PUNCTURES, P)).toBe(CAR_PARAMS);
+    expect(puncturedInput(NEUTRAL_INPUT, NO_PUNCTURES, P)).toBe(NEUTRAL_INPUT);
+  });
+
+  it('a punctured car above 190 km/h loses punctureDecel until it is down to it', () => {
+    expect(P.punctureTopSpeed * 3.6).toBeCloseTo(190);
+    const flat = puncturedTyres(tyres(1, 0, 0, 0), undefined, P);
+    const fast = { ...car, velocity: { x: 0, z: -80 } };
+    const near = { ...car, velocity: { x: 0, z: -(P.punctureTopSpeed + 1) } };
+    const slow = { ...car, velocity: { x: 0, z: -40 } };
+    expect(Math.abs(limpSpeed(fast, flat, 0.5, P).velocity.z)).toBeCloseTo(
+      80 - P.punctureDecel * 0.5,
+    );
+    expect(Math.abs(limpSpeed(near, flat, 0.5, P).velocity.z)).toBeCloseTo(P.punctureTopSpeed);
+    expect(limpSpeed(slow, flat, 0.5, P)).toBe(slow);
+    expect(limpSpeed(fast, NO_PUNCTURES, 0.5, P)).toBe(fast);
   });
 });

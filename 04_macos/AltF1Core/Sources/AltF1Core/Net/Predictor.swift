@@ -38,10 +38,12 @@ public final class Predictor {
     public private(set) var lastCorrection = 0.0
     /// The room's start hold (Grand Prix), applied like the server does; nil = none.
     public var hold: StartHold?
+    /// The race's safety car period (online Grand Prix): its car driven like the server drives it.
+    public var safetyCar: SafetyCarInfo?
 
     private var damage = false
     private var boxes: [CarId: Int] = [:]
-    private var weather = Weather.dry
+    private var forecast = dryForecast
     /// What the prediction runs: the room's rules (`onlineSimContext`), as the server has them.
     private var sim: SimContext
 
@@ -65,15 +67,15 @@ public final class Predictor {
         rebuild()
     }
 
-    /// The weather the server's room runs.
-    public func setWeather(_ weather: Weather) {
-        guard weather != self.weather else { return }
-        self.weather = weather
+    /// The weather the server's room runs: its forecast (as wet as the server's, when).
+    public func setWeather(_ forecast: Forecast) {
+        guard forecast != self.forecast else { return }
+        self.forecast = forecast
         rebuild()
     }
 
     private func rebuild() {
-        sim = onlineSimContext(track, damage: damage, pitBoxes: boxes, weather: weather)
+        sim = onlineSimContext(track, damage: damage, pitBoxes: boxes, forecast: forecast)
     }
 
     /// One client tick: input number `seq` (also sent to the server) moves the predicted world.
@@ -82,7 +84,7 @@ public final class Predictor {
         if pending.count > Self.maxPending { pending.removeFirst() }
         guard let world else { return }
         previous = world
-        self.world = stepGame(world, inputs(input, world.tick), sim)
+        self.world = stepGame(world, inputs(input, world), sim)
     }
 
     /// Restarts from the server's snapshot and replays this player's inputs it hasn't run yet.
@@ -99,7 +101,7 @@ public final class Predictor {
         var next = state
         for (_, input) in pending {
             before = next
-            next = stepGame(next, inputs(input, next.tick), sim)
+            next = stepGame(next, inputs(input, next), sim)
         }
         keepOnScreen(next)
         previous = before
@@ -131,10 +133,13 @@ public final class Predictor {
     public var ahead: Int { pending.count }
 
     /// Every car's input for the step from `tick`, all neutral while the start hold lasts.
-    private func inputs(_ own: InputCommand, _ tick: Int) -> InputMap {
+    /// Every car's input for the step from `world`: all neutral while the start hold lasts; the
+    /// safety car's as the server drives it.
+    private func inputs(_ own: InputCommand, _ world: GameState) -> InputMap {
         var all = remoteInputs
         all[playerId] = own
-        return heldInputs(all, tick, hold)
+        let held = heldInputs(all, world.tick, hold)
+        return withSafetyCar(held, world, safetyCar, track, wet: safetyCarWet(trackWetness(sim.weather, world.tick)))
     }
 
     /// Turns the jump from the old prediction to `next` into offsets, so every car stays where it

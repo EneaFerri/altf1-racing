@@ -45,6 +45,20 @@ import {
   locateOnTrack,
   NEUTRAL_INPUT,
   nicknameKey,
+  onlineSimContext,
+  placeCarAt,
+  placeCarAtPose,
+  pitExitSpot,
+  SAFETY_CAR_ID,
+  SAFETY_CAR_PARAMS,
+  TICK_RATE,
+  stepYellowFlags,
+  debrisLayout,
+  type YellowFlag,
+  SafetyCarDelta,
+  safetyCarPlans,
+  withSafetyCar,
+  type SafetyCarInfo,
   PIT_PARAMS,
   placePuddles,
   PROTOCOL_VERSION,
@@ -70,6 +84,9 @@ import {
   type SimContext,
   type Track,
   type TrackDefinition,
+  fitTyres,
+  type Forecast,
+  type TyreCompound,
 } from '../../01_packages/shared/src/index.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -78,7 +95,7 @@ mkdirSync(OUT, { recursive: true });
 
 const byName = (name: string): TrackDefinition => GP_TRACKS.find((d) => d.name === name)!;
 const kerbCode = { none: 'n', low: 'l', high: 'h' } as const;
-const runoffCode = { grass: 'g', gravel: 'v' } as const;
+const runoffCode = { grass: 'g', gravel: 'v', asphalt: 'a' } as const;
 
 /** One in this many samples and walls is kept: enough to catch any difference, small enough to commit. */
 const STRIDE = 7;
@@ -105,7 +122,15 @@ function trackSummary(track: Track): unknown {
       right: track.sides.right.runoff.map((r) => runoffCode[r]).join(''),
     },
     wallCount: track.walls.length,
-    walls: every(track.walls).map((w) => [w.a.x, w.a.z, w.b.x, w.b.z, w.route, w.sample, w.progress]),
+    walls: every(track.walls).map((w) => [
+      w.a.x,
+      w.a.z,
+      w.b.x,
+      w.b.z,
+      w.route,
+      w.sample,
+      w.progress,
+    ]),
     branch: track.branch ?? null,
     pitRules: track.pitRules ?? null,
     routes: track.routes.map(trackSummary),
@@ -159,7 +184,9 @@ interface Style {
 function driver(car: CarState, track: Track, style: Style, tick: number): InputCommand {
   const pitRoute = track.routes.findIndex((r) => r.pit);
   const onPit = style.pit && pitRoute >= 0;
-  const road = onPit ? track.routes[pitRoute]! : roadOf(track, locateOnTrack(track, car.position).route);
+  const road = onPit
+    ? track.routes[pitRoute]!
+    : roadOf(track, locateOnTrack(track, car.position).route);
   const loc = locateOnLoop(road, car.position);
   const n = road.samples.length;
   const ahead = road.samples[(loc.index + 6) % n]!;
@@ -167,7 +194,8 @@ function driver(car: CarState, track: Track, style: Style, tick: number): InputC
   const target = add(ahead.position, scale(ahead.normal, lateral));
   const error = wrapAngle(headingOf(sub(target, car.position)) - car.heading);
   let bend = 0;
-  for (let k = 0; k < 40; k++) bend = Math.max(bend, Math.abs(road.samples[(loc.index + k) % n]!.curvature));
+  for (let k = 0; k < 40; k++)
+    bend = Math.max(bend, Math.abs(road.samples[(loc.index + k) % n]!.curvature));
   let wanted = Math.min(style.speed, Math.sqrt(22 / Math.max(bend, 1e-4)));
   if (onPit && road.pitRules) {
     const box = road.pitRules.boxes[0]!;
@@ -193,6 +221,10 @@ interface Scenario {
   readonly rain: boolean;
   /** Tyre compounds and wear; the car stopped in its box fits softs. */
   readonly tyres?: boolean;
+  /** With `rain`: how wet when (2.8); left out: soaked all along. */
+  readonly forecast?: Forecast;
+  /** Each car's tyres at the start (with `tyres`); left out: new mediums. */
+  readonly compounds?: Readonly<Record<string, TyreCompound>>;
   readonly ticks: number;
   readonly styles: Readonly<Record<string, Style>>;
   /** Ticks at which a car asks for a reset. */
@@ -237,6 +269,12 @@ const SCENARIOS: readonly Scenario[] = [
     damage: true,
     rain: true,
     tyres: true,
+    // The weather turning (2.8), each car on other tyres (T.2).
+    forecast: [
+      { tick: 300, wetness: 0.1 },
+      { tick: 1500, wetness: 0.95 },
+    ],
+    compounds: { a: 'intermediate', b: 'wet' },
     ticks: 2400,
     styles: {
       a: { offset: -1, speed: 75, weave: 2 },
@@ -251,13 +289,24 @@ for (const scenario of SCENARIOS) {
   const ids = Object.keys(scenario.styles);
   const gridIds = ids.filter((id) => !scenario.styles[id]!.pit);
   let state: GameState = createGame(track, gridIds);
+  state = {
+    ...state,
+    cars: state.cars.map((car) => {
+      const compound = scenario.compounds?.[car.id];
+      return compound ? { ...car, tyres: fitTyres(compound) } : car;
+    }),
+  };
   const pitId = ids.find((id) => scenario.styles[id]!.pit);
   if (pitId) {
     // The pit car starts in the lane, 80 m before the first box.
     const lane = track.routes.find((r) => r.pit)!;
     const at = lane.pitRules!.boxes[0]! - 80;
     const sample = lane.samples.find((s) => s.distance >= at)!;
-    const car = createCar({ id: pitId, position: sample.position, heading: headingOf(sample.tangent) });
+    const car = createCar({
+      id: pitId,
+      position: sample.position,
+      heading: headingOf(sample.tangent),
+    });
     const cars = [...state.cars, car].sort((a, b) => (a.id < b.id ? -1 : 1));
     const laps = cars.map(
       (c) =>
@@ -279,13 +328,22 @@ for (const scenario of SCENARIOS) {
           pit: {
             params: PIT_PARAMS,
             boxes: Object.fromEntries(
-              [...ids].sort((x, y) => Number(!scenario.styles[x]!.pit) - Number(!scenario.styles[y]!.pit))
+              [...ids]
+                .sort((x, y) => Number(!scenario.styles[x]!.pit) - Number(!scenario.styles[y]!.pit))
                 .map((id, i) => [id, i]),
             ),
           },
         }
       : {}),
-    ...(scenario.rain ? { weather: { params: WET_PARAMS, puddles: placePuddles(track) } } : {}),
+    ...(scenario.rain
+      ? {
+          weather: {
+            params: WET_PARAMS,
+            puddles: placePuddles(track),
+            ...(scenario.forecast && { forecast: scenario.forecast }),
+          },
+        }
+      : {}),
     ...(scenario.tyres ? { tyres: TYRE_PARAMS } : {}),
   };
   const steps: unknown[] = [];
@@ -296,8 +354,13 @@ for (const scenario of SCENARIOS) {
     for (const car of state.cars) {
       const reset = scenario.resets?.some(([tick, id]) => tick === t && id === car.id) ?? false;
       // Stopped in its box: softs (the choice is the driver's, keys 1 / 2).
-      const boxed = scenario.tyres && car.pitStop && t < car.pitStop.until && car.tyres?.compound !== 'soft';
-      inputs[car.id] = { ...driver(car, track, scenario.styles[car.id]!, t), reset, ...(boxed && { compound: 'soft' as const }) };
+      const boxed =
+        scenario.tyres && car.pitStop && t < car.pitStop.until && car.tyres?.compound !== 'soft';
+      inputs[car.id] = {
+        ...driver(car, track, scenario.styles[car.id]!, t),
+        reset,
+        ...(boxed && { compound: 'soft' as const }),
+      };
     }
     const next = stepGame(state, inputs as InputMap, ctx);
     const lapEvent = next.laps.some(
@@ -323,12 +386,15 @@ for (const scenario of SCENARIOS) {
     damage: scenario.damage,
     rain: scenario.rain,
     tyres: scenario.tyres ?? false,
+    forecast: scenario.forecast ?? null,
     boxes: ctx.pit?.boxes ?? null,
     steps,
   };
   writeFileSync(join(OUT, `sim-${scenario.name}.json`), JSON.stringify(out));
   const laps = state.laps.map((l) => `${l.carId}:${l.laps}/${l.sector}`).join(' ');
-  console.log(`${scenario.name}: ${steps.length} steps kept, ${pitEvents} pit events, ${impactTicks} ticks with impacts, laps ${laps}`);
+  console.log(
+    `${scenario.name}: ${steps.length} steps kept, ${pitEvents} pit events, ${impactTicks} ticks with impacts, laps ${laps}`,
+  );
 }
 console.log(`Fixtures written to ${OUT}`);
 
@@ -384,8 +450,13 @@ writeFileSync(join(OUT, 'bot-plans.json'), JSON.stringify(plans));
     slipstreamParams: SLIPSTREAM_PARAMS,
     pit: { params: PIT_PARAMS, boxes: { c: 1 } },
   };
-  let state = createGame(track, bots.map((b) => b.id));
-  const memories: Record<string, BotMemory> = Object.fromEntries(bots.map((b) => [b.id, NEW_BOT_MEMORY]));
+  let state = createGame(
+    track,
+    bots.map((b) => b.id),
+  );
+  const memories: Record<string, BotMemory> = Object.fromEntries(
+    bots.map((b) => [b.id, NEW_BOT_MEMORY]),
+  );
   const steps: unknown[] = [];
   for (let t = 0; t < 4200; t++) {
     const inputs: Record<string, InputCommand> = {};
@@ -394,7 +465,14 @@ writeFileSync(join(OUT, 'bot-plans.json'), JSON.stringify(plans));
       const car = findCar(state, bot.id)!;
       const result = botInput(car, botPlans[i]!, memories[bot.id]!, state.cars);
       if (t % 20 === 0) {
-        record.push({ id: bot.id, level: bot.level, pit: bot.pit, memory: memories[bot.id], input: result.input, next: result.memory });
+        record.push({
+          id: bot.id,
+          level: bot.level,
+          pit: bot.pit,
+          memory: memories[bot.id],
+          input: result.input,
+          next: result.memory,
+        });
       }
       memories[bot.id] = result.memory;
       inputs[bot.id] = result.input;
@@ -404,7 +482,9 @@ writeFileSync(join(OUT, 'bot-plans.json'), JSON.stringify(plans));
   }
   writeFileSync(join(OUT, 'bot-driving.json'), JSON.stringify({ circuit: 'São Paulo', steps }));
   const stops = state.cars.filter((c) => c.pitStop).length;
-  console.log(`bot driving: ${steps.length} steps, laps ${state.laps.map((l) => l.laps).join('/')}, in a stop ${stops}`);
+  console.log(
+    `bot driving: ${steps.length} steps, laps ${state.laps.map((l) => l.laps).join('/')}, in a stop ${stops}`,
+  );
 }
 
 /** The bots' qualifying laps on Monza. */
@@ -440,9 +520,12 @@ writeFileSync(join(OUT, 'bot-plans.json'), JSON.stringify(plans));
     { type: 'enter', mode: 'grandPrix', track: 'São Paulo' },
     { type: 'input', seq: 4321, input: drive },
     { type: 'input', seq: 4322, input: { ...NEUTRAL_INPUT, compound: 'soft' } },
+    { type: 'input', seq: 4323, input: { ...NEUTRAL_INPUT, compound: 'intermediate' } },
+    { type: 'input', seq: 4324, input: { ...NEUTRAL_INPUT, compound: 'wet' } },
     { type: 'ping', t: 1234.5 },
     { type: 'gp', action: 'start' },
     { type: 'gp', action: 'weather', weather: 'rain' },
+    { type: 'gp', action: 'weather', weather: 'variable' },
     { type: 'gp', action: 'endQualifying' },
     { type: 'gp', action: 'startRace', laps: 12 },
     { type: 'gp', action: 'endRace' },
@@ -461,7 +544,11 @@ writeFileSync(join(OUT, 'bot-plans.json'), JSON.stringify(plans));
         { mode: 'grandPrix', track: 'São Paulo', players: 2, status: 'running' },
       ],
       records: [
-        { mode: 'grandPrix', track: 'Monza', records: [{ nickname: 'Zoë', ticks: 4810, setAt: '2026-11-20T18:04:11.000Z' }] },
+        {
+          mode: 'grandPrix',
+          track: 'Monza',
+          records: [{ nickname: 'Zoë', ticks: 4810, setAt: '2026-11-20T18:04:11.000Z' }],
+        },
         { mode: 'grandPrix', track: 'Monaco', records: [] },
       ],
     },
@@ -486,13 +573,39 @@ writeFileSync(join(OUT, 'bot-plans.json'), JSON.stringify(plans));
         { id: 'p2', best: null, setAt: null, laps: 1, done: true },
       ],
       race: [
-        { id: 'p1', name: 'Enea', status: 'running', laps: 2, time: null, gap: null, lapsBehind: 0, best: 4790, stops: 1, penalty: 0 },
-        { id: 'p2', name: 'Zoë', status: 'dnf', laps: 1, time: null, gap: null, lapsBehind: 1, best: null, stops: 0, penalty: 0 },
+        {
+          id: 'p1',
+          name: 'Enea',
+          status: 'running',
+          laps: 2,
+          time: null,
+          gap: null,
+          lapsBehind: 0,
+          best: 4790,
+          stops: 1,
+          penalty: 0,
+        },
+        {
+          id: 'p2',
+          name: 'Zoë',
+          status: 'dnf',
+          laps: 1,
+          time: null,
+          gap: null,
+          lapsBehind: 1,
+          best: null,
+          stops: 0,
+          penalty: 0,
+        },
       ],
       raceLaps: 8,
       hold: { lightsFrom: 12000, until: 12276 },
       boxes: { p1: 0, p2: 1 },
-      weather: 'dry',
+      weather: 'variable',
+      forecast: [
+        { tick: 14000, wetness: 0 },
+        { tick: 16500, wetness: 0.83 },
+      ],
       sectorBests: [1500, null, 1620],
     },
     {
@@ -506,10 +619,22 @@ writeFileSync(join(OUT, 'bot-plans.json'), JSON.stringify(plans));
       hold: null,
       boxes: {},
       weather: 'rain',
+      forecast: [{ tick: 0, wetness: 1 }],
       sectorBests: [null, null, null],
     },
   ];
-  const names = ['Enea', '  Max   Power  ', 'ab', 'Zoë_09-x', 'Ünal', 'e\u0301lise', 'a!b', 'abcdefghijklmnopq', 'ENEA', '名前です'];
+  const names = [
+    'Enea',
+    '  Max   Power  ',
+    'ab',
+    'Zoë_09-x',
+    'Ünal',
+    'e\u0301lise',
+    'a!b',
+    'abcdefghijklmnopq',
+    'ENEA',
+    '名前です',
+  ];
   const nicknames = names.map((raw) => ({ raw, check: checkNickname(raw), key: nicknameKey(raw) }));
   writeFileSync(
     join(OUT, 'protocol.json'),
@@ -520,5 +645,165 @@ writeFileSync(join(OUT, 'bot-plans.json'), JSON.stringify(plans));
       nicknames,
     }),
   );
-  console.log(`protocol: ${client.length} client, ${server.length} server messages, ${nicknames.length} nicknames`);
+  console.log(
+    `protocol: ${client.length} client, ${server.length} server messages, ${nicknames.length} nicknames`,
+  );
+}
+
+/**
+ * The safety car (R.3): its plans and the delta's speeds on Monza (every `STRIDE`th sample); its car
+ * driven out on the track then into the pit lane among two bots (every 20th tick: the state, the
+ * period and its input); the delta after one step from each of those states.
+ */
+{
+  const track = buildTrack(byName('Monza'), { pitLane: true });
+  const plans = safetyCarPlans(track);
+  const summary = (plan: BotPlan): unknown => ({
+    count: plan.speed.length,
+    speed: every(plan.speed),
+  });
+  const ctx = onlineSimContext(track, { damage: true, pitBoxes: { a: 0, b: 1 } });
+  const botPlan = buildBotPlan(track, CAR_PARAMS, BOT_PARAMS.medium);
+  let state = createGame(track, ['a', 'b']);
+  state = placeCarAt(state, track, SAFETY_CAR_ID, 400, 25);
+  const memories: Record<string, BotMemory> = { a: NEW_BOT_MEMORY, b: NEW_BOT_MEMORY };
+  const steps: unknown[] = [];
+  for (let t = 0; t < 3000; t++) {
+    // Waiting for the first 300 ticks, out until 2000, then going in.
+    const sc: SafetyCarInfo = {
+      phase: t < 300 ? 'deployed' : t < 2000 ? 'out' : 'in',
+      since: 0,
+      inThisLap: t >= 1000,
+      released: [],
+    };
+    const bots: Record<string, InputCommand> = {};
+    for (const id of ['a', 'b']) {
+      const result = botInput(findCar(state, id)!, botPlan, memories[id]!, state.cars);
+      memories[id] = result.memory;
+      bots[id] = result.input;
+    }
+    const inputs = withSafetyCar(bots, state, sc, track);
+    const next = stepGame(state, inputs, ctx);
+    if (t % 20 === 0) {
+      const delta = new SafetyCarDelta();
+      delta.update(state, sc, track, plans);
+      delta.update(next, sc, track, plans);
+      steps.push({
+        state,
+        next,
+        sc,
+        input: inputs[SAFETY_CAR_ID],
+        delta: { a: delta.get('a'), b: delta.get('b') },
+      });
+    }
+    state = next;
+  }
+  // Released from the pit exit, where it waits (every 10th tick of 15 s): out of the lane on the
+  // lane's own road, never back into it (the circuits where it once turned round or stuck).
+  const exits = ['Singapore', 'Las Vegas', 'São Paulo'].map((circuit) => {
+    const road = buildTrack(byName(circuit), { pitLane: true });
+    const exit = pitExitSpot(road)!;
+    const roadCtx = onlineSimContext(road, { damage: true, pitBoxes: {} });
+    const sc: SafetyCarInfo = { phase: 'out', since: 0, inThisLap: false, released: [] };
+    let at = placeCarAtPose(
+      createGame(road, []),
+      road,
+      SAFETY_CAR_ID,
+      exit.position,
+      exit.direction,
+      0,
+    );
+    const recorded: unknown[] = [];
+    for (let t = 0; t < 900; t++) {
+      const inputs = withSafetyCar({}, at, sc, road);
+      if (t % 10 === 0) recorded.push({ state: at, sc, input: inputs[SAFETY_CAR_ID] });
+      at = stepGame(at, inputs, roadCtx);
+    }
+    return { circuit, steps: recorded };
+  });
+  // The delta's grace (owner, 2026-11-25): a car too fast for 8 s (beating its delta), then still
+  // for 4 s (back above it), counted every 10th tick as a player's HUD skips ticks.
+  const waiting: SafetyCarInfo = { phase: 'deployed', since: 0, inThisLap: false, released: [] };
+  const graceDelta = new SafetyCarDelta();
+  const grace: unknown[] = [];
+  let progress = 1000;
+  for (let t = 10; t <= 12 * TICK_RATE; t += 10) {
+    for (let i = 0; i < 10 && t <= 8 * TICK_RATE; i++) {
+      const sample = Math.round((progress / track.length) * track.samples.length);
+      progress +=
+        plans.delta[sample % plans.delta.length]! / SAFETY_CAR_PARAMS.deltaPace / TICK_RATE;
+    }
+    const at = { ...placeCarAt(createGame(track, []), track, 'a', progress, 0), tick: t };
+    graceDelta.update(at, waiting, track, plans, t === 10 ? 1 : 10);
+    grace.push({
+      state: at,
+      delta: graceDelta.get('a'),
+      graceLeft: graceDelta.graceLeft('a', t),
+    });
+  }
+  writeFileSync(
+    join(OUT, 'safety-car.json'),
+    JSON.stringify({
+      circuit: 'Monza',
+      plans: {
+        race: summary(plans.race),
+        pit: summary(plans.pit!),
+        delta: { count: plans.delta.length, speed: every(plans.delta) },
+      },
+      steps,
+      exits,
+      grace,
+    }),
+  );
+  console.log(
+    `safety car: ${steps.length} steps, its car ${findCar(state, SAFETY_CAR_ID) ? 'on track' : 'gone'}; ` +
+      `${exits.length} pit exits`,
+  );
+}
+
+/**
+ * Debris and yellow flags (R.2) on Monza: wall hits of every strength by two cars (and a car not in
+ * the GP) over 20 s, the flags after each tick that had one, and every flag's debris.
+ */
+{
+  const track = buildTrack(byName('Monza'), { pitLane: true });
+  const hits = [
+    { tick: 100, carId: 'a', strength: 30, sample: 600 },
+    { tick: 105, carId: 'a', strength: 35, sample: 605 },
+    { tick: 140, carId: 'b', strength: 21.9, sample: 1500 },
+    { tick: 150, carId: 'b', strength: 22, sample: 1500 },
+    { tick: 160, carId: 'x', strength: 40, sample: 900 },
+    { tick: 400, carId: 'a', strength: 60, sample: 2500 },
+    { tick: 1000, carId: 'b', strength: 25, sample: 200 },
+  ];
+  const steps: unknown[] = [];
+  let flags: readonly YellowFlag[] = [];
+  for (let tick = 0; tick <= 1300; tick++) {
+    const impacts = hits
+      .filter((h) => h.tick === tick)
+      .map((h) => {
+        const s = track.samples[h.sample]!;
+        const point = {
+          x: s.position.x + s.normal.x * (s.halfWidth + 2),
+          z: s.position.z + s.normal.z * (s.halfWidth + 2),
+        };
+        return {
+          carId: h.carId,
+          other: 'wall',
+          point,
+          normal: { x: 0, z: 1 },
+          strength: h.strength,
+        };
+      });
+    const state: GameState = { tick, cars: [], impacts, laps: [] };
+    const next = stepYellowFlags(flags, state, track, ['a', 'b']);
+    if (next !== flags || impacts.length > 0) steps.push({ state, before: flags, after: next });
+    flags = next;
+  }
+  const all = new Map<string, YellowFlag>();
+  for (const step of steps as { after: YellowFlag[] }[])
+    for (const f of step.after) all.set(`${f.carId}@${f.since}`, f);
+  const debris = [...all.values()].map((flag) => ({ flag, pieces: debrisLayout(track, flag) }));
+  writeFileSync(join(OUT, 'flags.json'), JSON.stringify({ circuit: 'Monza', steps, debris }));
+  console.log(`flags: ${steps.length} steps, ${debris.length} crashes`);
 }

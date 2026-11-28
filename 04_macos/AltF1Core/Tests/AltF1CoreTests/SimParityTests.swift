@@ -18,6 +18,8 @@ import Testing
         let damage: Bool
         let rain: Bool
         let tyres: Bool
+        /// How wet when (2.8); nil: soaked all along.
+        let forecast: Forecast?
         let boxes: [CarId: Int]?
         let steps: [Step]
     }
@@ -33,7 +35,7 @@ import Testing
             track: track,
             damage: scenario.damage ? .baseline : nil,
             pit: scenario.boxes.map { PitRules(boxes: $0) },
-            weather: scenario.rain ? WetTrack(puddles: placePuddles(track)) : nil,
+            weather: scenario.rain ? WetTrack(puddles: placePuddles(track), forecast: scenario.forecast) : nil,
             tyres: scenario.tyres ? .baseline : nil)
 
         var failures: [String] = []
@@ -53,6 +55,7 @@ import Testing
         var laps = 0
         var damaged = 0
         var softs = 0
+        var rainTyres = 0
         var worn = 0
         for name in ["monza", "monaco", "saoPaulo"] {
             let scenario = try JSONDecoder().decode(Scenario.self, from: Fixture.data("sim-\(name)"))
@@ -62,10 +65,12 @@ import Testing
                 laps += zip(step.state.laps, step.next.laps).filter { $0.laps != $1.laps }.count
                 damaged += step.next.cars.filter { ($0.damage?.frontWing ?? 0) > 0 }.count
                 softs += step.next.cars.filter { $0.tyres?.compound == .soft }.count
+                rainTyres += step.next.cars.filter { $0.tyres.map { !$0.compound.isSlick } ?? false }.count
                 worn += step.next.cars.filter { ($0.tyres?.wear ?? 0) > 0.01 }.count
             }
         }
         #expect(softs > 0)
+        #expect(rainTyres > 0)
         #expect(worn > 0)
         #expect(impacts > 0)
         #expect(stops > 0)

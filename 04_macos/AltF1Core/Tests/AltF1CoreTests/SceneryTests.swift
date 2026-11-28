@@ -65,7 +65,7 @@ extension SceneryTests {
 }
 
 extension SceneryTests {
-    @Test(arguments: ["monza", "barcelona", "monaco", "mexico", "singapore", "lasVegas", "saoPaulo"])
+    @Test(arguments: ["monza", "barcelona", "monaco", "mexico", "singapore", "lasVegas", "saoPaulo", "baku"])
     func everyCircuitsSceneryDecodes(_ id: String) throws {
         let (scenery, _) = try CircuitCatalog.scenery(id)
         #expect(!scenery.stands.isEmpty)

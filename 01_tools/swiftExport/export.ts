@@ -34,6 +34,7 @@ const CIRCUITS = [
   'singapore',
   'lasVegas',
   'saoPaulo',
+  'baku',
 ] as const;
 
 /** `lasVegas` → `LAS_VEGAS`: how the generated files name their exports. */

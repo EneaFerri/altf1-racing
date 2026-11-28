@@ -114,6 +114,42 @@ Protocol v15. The Grand Prix's manager chooses the weather in the **lobby**, for
 - **Records**: wet laps go into the same lap records as dry ones (owner).
 - Free practice is always dry (single player too, but for Test's `?rain` / F2 in dev).
 
+## Variable weather, rain tyres, wet handling (2.8)
+
+Owner, 2026-11-25: São Paulo's weather may turn during the race; intermediates and full wets at the
+stops; on the right tyres a wet track drives harder than a dry one but much better than the old
+model (grip 0.3 for everyone); slicks in the rain barely stay on the road; on the throttle mid-corner
+in the wet the car slides round.
+
+- **Forecast** (`config/weather.ts`): how wet the track is (0 dry … 1 soaked) at ticks of the
+  simulation, linear in between (`wetnessAt`). Dry = `[{0, 0}]`, rain = `[{0, 1}]`. The sim reads it
+  every tick (`trackWetness`), so server, predictions and the Mac agree to the tick.
+- **Variable** (`WEATHERS`, the manager's 3 in the lobby; the single player's menu): `drawWeatherTurn`
+  when chosen (and at play again): it starts dry and rain comes (to 0.55–1) or starts wet and
+  dries. Until the race the track stays at the start; at the start lights `raceForecast` places the
+  turn between 20% and 55% of the distance, over 1–2 laps (`FORECAST_PARAMS`, a lap reckoned at
+  45 m/s). Sent in `GrandPrixInfo.forecast` (protocol v19).
+- **Per compound** (`TYRE_PARAMS.wet`, curves at wetness 0 / 0.5 / 1; `tyreWetParams` →
+  `wetSurfaceEffect`, its puddle share × wetness): grip slicks 1 / 0.45 / 0.22, intermediates
+  1 / 0.86 / 0.66, full wets 1 / 0.92 / 0.8 (on dry grip 0.93 and 0.86 of a medium); traction,
+  braking and aquaplaning likewise. Each compound is the best one in its weather.
+- **Power oversteer** (`stepCar` `powerSlide`): on the throttle, turning harder than the tyres hold
+  (speed × turn rate above `slideFrom`: full wets 80 → 60 m/s² from wetness 0.5 to 1, inters
+  75 → 50, slicks 50 → 30; none dry), the rear steps out by the excess × `slideGain` (7/s > the
+  spin damping 4/s, so it feeds itself into a spin, at most `slideMaxSpin` 3.5 rad/s); lifting stops
+  it. The safety car never slides; the bots lift at 90% of it (`wetLift`).
+- **Starts and wear**: on a wet track the cars start on the tyres it asks for (`startingTyres`:
+  intermediates from 0.15, full wets from 0.6); rain tyres wear 3× / 4× faster on a dry track
+  (`dryWear`, normal from 0.5).
+- **Bots** (`BotSquad`): plans per tyre and quarter of wetness, built when first needed; a stop for
+  the weather's tyres when theirs no longer suit it (`BOT_TYRE_SWITCH`).
+- **Measured** (São Paulo, hard bot): dry 69.9 s; old web rain 86.3 s; full rain on full wets
+  77.8 s, intermediates 80.6 s, slicks 115.4 s; damp (0.4) intermediates 73.8 s, slicks 82.2 s;
+  dry on full wets 74.8 s. Full throttle at full lock on full wets in full rain: a spin (98° of
+  slip at 35 m/s); lifting: a 50° slide.
+- **Web look**: the rain's look from wetness 0.3 (`SceneView.setWetness`), the sidewall bands of
+  every compound (inters green, wets blue). The Mac's: [macos.md](macos.md#rain-28).
+
 ## Dev
 
 In single player **F2 → Weather (Grand Prix)**: rain on/off (or `?rain` in the URL) and the wet

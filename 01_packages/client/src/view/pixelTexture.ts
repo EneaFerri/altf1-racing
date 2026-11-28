@@ -57,8 +57,13 @@ export function createWetSidewallTexture(size = 16): THREE.Texture {
   return createBandSidewallTexture(TYRE_BANDS.wet, size);
 }
 
-/** The sidewall bands: F1's full wets blue, softs red, mediums yellow. */
-export const TYRE_BANDS = { wet: '#1e6fe0', soft: '#e10600', medium: '#f5c518' } as const;
+/** The sidewall bands: F1's full wets blue, intermediates green, softs red, mediums yellow. */
+export const TYRE_BANDS = {
+  wet: '#1e6fe0',
+  intermediate: '#43b02a',
+  soft: '#e10600',
+  medium: '#f5c518',
+} as const;
 
 /** A tyre's sidewall with its compound's coloured band (see `createWetSidewallTexture`). */
 export function createBandSidewallTexture(band: string, size = 16): THREE.Texture {
@@ -255,6 +260,14 @@ export function createWheelDisplayTexture(size = 8): THREE.Texture {
 /** 3×5 pixel glyphs for sector boards (1 = lit). */
 const GLYPHS: Record<string, readonly string[]> = {
   S: ['111', '100', '111', '001', '111'],
+  A: ['111', '101', '111', '101', '101'],
+  F: ['111', '100', '110', '100', '100'],
+  E: ['111', '100', '110', '100', '111'],
+  T: ['111', '010', '010', '010', '010'],
+  Y: ['101', '101', '010', '010', '010'],
+  C: ['111', '100', '100', '100', '111'],
+  R: ['110', '101', '110', '101', '101'],
+  ' ': ['000', '000', '000', '000', '000'],
   '1': ['010', '110', '010', '010', '111'],
   '2': ['111', '001', '111', '100', '111'],
   '3': ['111', '001', '111', '001', '111'],
@@ -640,6 +653,130 @@ export function createBelleEpoqueTexture(size = 16): THREE.Texture {
       ctx.fillRect(6, 4, 4, 1);
       ctx.fillStyle = '#c9b48a';
       ctx.fillRect(0, 15, size, 1);
+    },
+    true,
+  );
+}
+
+/** Draws `text` in GLYPHS at (`left`, `top`), one pixel between letters, in the current fill. */
+function drawGlyphs(ctx: CanvasRenderingContext2D, text: string, left: number, top: number): void {
+  [...text].forEach((char, i) => {
+    GLYPHS[char]?.forEach((row, y) => {
+      [...row].forEach((bit, x) => {
+        if (bit === '1') ctx.fillRect(left + i * 4 + x, top + y, 1, 1);
+      });
+    });
+  });
+}
+
+/** The safety car's red, darker red, and its black. */
+export const SAFETY_CAR_COLORS = { red: '#d0101a', shade: '#a80c14', black: '#16161a' } as const;
+
+/**
+ * The safety car's flanks (96×16, the owner's photo): red, a white flame sweeping back along the
+ * door, `SAFETY CAR` in white over a black sill.
+ */
+export function createSafetyCarSideTexture(): THREE.Texture {
+  const width = 96;
+  return createPixelTexture(
+    width,
+    (ctx) => {
+      const { red, shade, black } = SAFETY_CAR_COLORS;
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < width; x++) {
+          ctx.fillStyle = (x * 7 + y * 3) % 11 === 0 ? shade : red;
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+      // The white flame: a wedge from the rear wheel arch forward along the door, tapering.
+      ctx.fillStyle = '#f4f4f6';
+      for (let x = 0; x < 44; x++) {
+        const thick = Math.max(1, Math.round(4 - x / 12));
+        ctx.fillRect(width - 22 - x, 1 + Math.round(x / 14), 1, thick);
+      }
+      ctx.fillStyle = black;
+      ctx.fillRect(0, 13, width, 3);
+      ctx.fillStyle = '#f4f4f6';
+      drawGlyphs(ctx, 'SAFETY CAR', 29, 7); // centred between the wheels
+    },
+    false,
+    16,
+  );
+}
+
+/** The safety car's number plate (48×8): `SAFETY CAR` in white on black. */
+export function createSafetyCarPlateTexture(): THREE.Texture {
+  return createPixelTexture(
+    48,
+    (ctx) => {
+      ctx.fillStyle = SAFETY_CAR_COLORS.black;
+      ctx.fillRect(0, 0, 48, 8);
+      ctx.fillStyle = '#f4f4f6';
+      drawGlyphs(ctx, 'SAFETY CAR', 4, 1);
+    },
+    false,
+    8,
+  );
+}
+
+/**
+ * Baku's old town stone (the Maiden Tower, the Icherisheher walls): honey limestone in ashlar
+ * courses, each block a slightly different shade, darker joints.
+ */
+export function createLimestoneTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#d8bd8a', '#d2b582', '#dcc394', '#cdb07c'], 113);
+      sprinkle(ctx, size, '#a88a5a40', 0.1, 117);
+      ctx.fillStyle = '#a58758';
+      for (let y = 0; y < size; y += 4) {
+        ctx.fillRect(0, y, size, 1);
+        for (let x = (y / 4) % 2 === 0 ? 0 : 3; x < size; x += 6) ctx.fillRect(x, y, 1, 4);
+      }
+    },
+    true,
+  );
+}
+
+/** The Flame Towers' glass: deep blue panes, their steel frame in thin light lines. */
+export function createFlameGlassTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#2f5d8c', '#356694', '#2a5583', '#3c6f9e'], 127);
+      sprinkle(ctx, size, '#9cc3e655', 0.05, 131);
+      ctx.fillStyle = '#9fb4c6';
+      ctx.fillRect(0, 0, size, 1);
+      ctx.fillRect(0, 8, size, 1);
+      ctx.fillRect(0, 0, 1, size);
+      ctx.fillRect(8, 0, 1, size);
+    },
+    true,
+  );
+}
+
+/**
+ * An Azerbaijani carpet (the Carpet Museum's rolled-carpet walls): a red field, a navy border with
+ * a cream line, a diamond medallion.
+ */
+export function createCarpetTexture(size = 16): THREE.Texture {
+  return createPixelTexture(
+    size,
+    (ctx) => {
+      fillNoise(ctx, size, ['#a3242c', '#9a2029', '#a82a31'], 137);
+      ctx.fillStyle = '#1f2f5a';
+      ctx.fillRect(0, 0, size, 3);
+      ctx.fillRect(0, 13, size, 3);
+      ctx.fillStyle = '#e9dcc0';
+      ctx.fillRect(0, 3, size, 1);
+      ctx.fillRect(0, 12, size, 1);
+      // The medallion: a diamond of navy round a cream heart.
+      for (let d = 0; d <= 3; d++) {
+        ctx.fillStyle = d === 0 ? '#e9dcc0' : d === 3 ? '#e0a23a' : '#1f2f5a';
+        ctx.fillRect(8 - d, 8 - (3 - d), 1, 1 + 2 * (3 - d));
+        ctx.fillRect(7 + d, 8 - (3 - d), 1, 1 + 2 * (3 - d));
+      }
     },
     true,
   );

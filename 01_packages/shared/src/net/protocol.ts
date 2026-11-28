@@ -1,8 +1,10 @@
 import { isRaceLaps } from '../config/grandPrix';
 import { TYRE_COMPOUNDS, type TyreCompound } from '../config/tyres';
-import { WEATHERS, type Weather } from '../config/weather';
+import { WEATHERS, type Forecast, type Weather } from '../config/weather';
 import type { StartHold } from '../race/hold';
 import type { QualifyingEntry } from '../race/qualifying';
+import type { YellowFlag } from '../race/flags';
+import type { GiveBack, RaceIncident, SafetyCarInfo } from '../race/safetyCar';
 import type { RaceStanding } from '../race/standings';
 import type { CarId } from '../sim/car';
 import type { GameState } from '../sim/game';
@@ -12,7 +14,7 @@ import type { InputCommand } from '../types/input';
  * Messages between the game and the multiplayer server: JSON over one WebSocket.
  * See 01_docs/multiplayer.md#protocol. Bump the version whenever a message changes shape.
  */
-export const PROTOCOL_VERSION = 18;
+export const PROTOCOL_VERSION = 19;
 
 /** Players online at most, over all rooms. */
 export const MAX_PLAYERS = 8;
@@ -104,11 +106,30 @@ export interface GrandPrixInfo {
   /** The weather the manager chose in the lobby, for the whole GP (`dry` unless `offersRain`). */
   readonly weather: Weather;
   /**
+   * How wet the track is when (2.8): constant before the race, a variable GP's turn from its start
+   * on. Every machine's simulation runs on it (`onlineSimContext`).
+   */
+  readonly forecast: Forecast;
+  /**
    * The session's best time of each sector (ticks) over every driver's valid laps: the HUD's
    * purple. The session is the phase (lobby, qualifying, race): it starts over with each one.
    * null = nobody has a valid time in that sector yet.
    */
   readonly sectorBests: readonly (number | null)[];
+  /**
+   * Crashes' debris on the track and the yellow flags of their sectors (R.2, 01_docs/flags.md),
+   * in qualifying and the race. Optional for older clients' sake: absent = none.
+   */
+  readonly yellowFlags?: readonly YellowFlag[];
+  /**
+   * The race's safety car period now (R.3, 01_docs/safetycar.md); null: none. Optional for older
+   * clients' sake: absent = none.
+   */
+  readonly safetyCar?: SafetyCarInfo | null;
+  /** Overtakes under the safety car still to be given back. */
+  readonly giveBack?: readonly GiveBack[];
+  /** Every time penalty of the race so far (the safety car's rules). */
+  readonly incidents?: readonly RaceIncident[];
 }
 
 /** What the GP manager can ask for, each in its phase; `playAgain` is open to every player. */

@@ -1,6 +1,63 @@
-/** The weather a race is run in (01_docs/weather.md). Dry everywhere unless chosen otherwise. */
-export const WEATHERS = ['dry', 'rain'] as const;
+/**
+ * The weather a race is run in (01_docs/weather.md). Dry everywhere unless chosen otherwise;
+ * `variable` (2.8): it starts dry or wet and turns during the race (`Forecast`).
+ */
+export const WEATHERS = ['dry', 'rain', 'variable'] as const;
 export type Weather = (typeof WEATHERS)[number];
+
+/**
+ * How wet the track is over time (2.8): wetness (0 dry … 1 soaked) at given ticks of the
+ * simulation, in order; linear in between, the first before it, the last after it
+ * (`wetnessAt`). Plain data: the server sends it, every machine reads the same wetness.
+ */
+export type Forecast = readonly ForecastPoint[];
+
+export interface ForecastPoint {
+  readonly tick: number;
+  readonly wetness: number;
+}
+
+/** Wetness 0 or 1 all along: a dry or a rainy GP. */
+export const DRY_FORECAST: Forecast = [{ tick: 0, wetness: 0 }];
+export const RAIN_FORECAST: Forecast = [{ tick: 0, wetness: 1 }];
+
+/** `forecast`'s wetness at `tick`. */
+export function wetnessAt(forecast: Forecast, tick: number): number {
+  const first = forecast[0];
+  if (!first || tick <= first.tick) return first?.wetness ?? 0;
+  for (let i = 1; i < forecast.length; i++) {
+    const b = forecast[i]!;
+    if (tick >= b.tick) continue;
+    const a = forecast[i - 1]!;
+    return a.wetness + ((b.wetness - a.wetness) * (tick - a.tick)) / (b.tick - a.tick);
+  }
+  return forecast[forecast.length - 1]!.wetness;
+}
+
+/** Whether the track is ever wet under `forecast`. */
+export function everWet(forecast: Forecast): boolean {
+  return forecast.some((point) => point.wetness > 0);
+}
+
+/** A variable GP's weather (2.8, `variableForecast`): when and how fast it turns, how wet. */
+export interface ForecastParams {
+  /** Wetness of a wet spell: least and most. */
+  readonly wetness: readonly [number, number];
+  /** The turn begins after this share of the race distance: earliest and latest. */
+  readonly turnAt: readonly [number, number];
+  /** Laps the turn takes (from one wetness to the other): fewest and most. */
+  readonly turnLaps: readonly [number, number];
+  /** A lap's length in ticks is reckoned at this speed (m/s): only when the weather turns. */
+  readonly lapSpeed: number;
+}
+
+/** Provisional (2.8), see 01_docs/weather.md. */
+export const FORECAST_PARAMS: ForecastParams = {
+  wetness: [0.55, 1],
+  turnAt: [0.2, 0.55],
+  turnLaps: [1, 2],
+  lapSpeed: 45,
+};
 
 /**
  * The circuits whose Grand Prix manager may choose the rain (2.7: São Paulo first). Every other

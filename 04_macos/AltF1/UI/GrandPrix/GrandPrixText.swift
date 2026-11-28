@@ -36,7 +36,7 @@ enum GrandPrixText {
                 name: name, color: session.livery(id).color, note: note, own: id == ownId, pit: session.pits[id],
                 fastest: fastest?.id == id ? Format.lapTime(fastest!.best) : nil)
         }
-        let rain = info.weather == .rain ? " · RAIN" : ""
+        let rain = weatherTitle(info.weather)
         switch info.phase {
         case .lobby:
             return GrandPrixContent(title: "GRAND PRIX · WAITING\(rain)", rows: [], hint: "Enter: start the GP")
@@ -105,12 +105,12 @@ enum GrandPrixText {
             return GrandPrixContent(
                 title: "GRAND PRIX · IN PROGRESS", rows: [], hint: "The new GP started without you — Esc: back to the start")
         }
-        let weather = info.weather == .rain ? " · RAIN" : canRain && info.phase == .lobby ? " · DRY" : ""
+        let weather = info.weather != .dry ? weatherTitle(info.weather) : canRain && info.phase == .lobby ? " · DRY" : ""
         switch info.phase {
         case .lobby:
             let hint =
                 isManager
-                ? "You are the GP manager — \(canRain ? "1: dry · 2: rain · " : "")Enter: start the GP"
+                ? "You are the GP manager — \(canRain ? "1: dry · 2: rain · 3: variable · " : "")Enter: start the GP"
                 : info.manager == nil
                     ? "Waiting for a driver: the next one in is the manager" : "Waiting for \(manager) to start the GP"
             return GrandPrixContent(
@@ -149,7 +149,11 @@ enum GrandPrixText {
             let own = info.race.first { $0.id == ownId }
             let rows = info.race.enumerated().map { i, standing in
                 // A driver who left is drawn grey, by the name the server kept.
-                var line = row(standing.id, "\(i + 1)  \(standing.name)", raceNote(standing, i, laps))
+                // Time penalties (the safety car's rules): told live, in the time at the flag.
+                let penalty =
+                    info.phase == .race && (standing.timePenalty ?? 0) > 0
+                    ? " · +\(Int((Double(standing.timePenalty!) / Double(tickRate)).rounded()))s PEN" : ""
+                var line = row(standing.id, "\(i + 1)  \(standing.name)", raceNote(standing, i, laps) + penalty)
                 if info.phase == .results { line.pit = nil }
                 if required > 0 && standing.status != .dnf {
                     line.stops = "\(standing.stops)/\(required)"
@@ -159,8 +163,9 @@ enum GrandPrixText {
             }
             if info.phase == .results { return GrandPrixContent(title: "GRAND PRIX · RESULTS", rows: rows, hint: "") }
             let done = own?.status == .finished ? "Finished — watching the others" : ""
+            let safetyCar = info.safetyCar.map { $0.phase != .restart } == true ? " · SAFETY CAR" : ""
             return GrandPrixContent(
-                title: "GRAND PRIX · RACE · \(laps) LAPS\(weather)", rows: rows,
+                title: "GRAND PRIX · RACE · \(laps) LAPS\(weather)\(safetyCar)", rows: rows,
                 hint: [done, stopsNote(laps), isManager ? "Enter: end the race now" : ""].filter { !$0.isEmpty }
                     .joined(separator: " — "))
         }
@@ -204,6 +209,15 @@ enum GrandPrixText {
             return { "P\(position)/\(count) · LAP \(min($0.laps + 1, laps))/\(laps)" }
         default:
             return Format.lapName
+        }
+    }
+
+    /// The weather in a panel's title: RAIN, VARIABLE (2.8), nothing when dry.
+    static func weatherTitle(_ weather: Weather) -> String {
+        switch weather {
+        case .dry: ""
+        case .rain: " · RAIN"
+        case .variable: " · VARIABLE"
         }
     }
 }

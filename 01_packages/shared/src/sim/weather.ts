@@ -1,14 +1,68 @@
 import { CAR_WHEELS } from '../config/car';
-import { PUDDLE_PARAMS, type PuddleParams, type WetParams } from '../config/weather';
+import { atWetness, weatherCompound, type TyreCompound, type TyreParams } from '../config/tyres';
+import {
+  PUDDLE_PARAMS,
+  wetnessAt,
+  type Forecast,
+  type PuddleParams,
+  type WetParams,
+} from '../config/weather';
 import { add, dot, scale, sub, toWorld, type Vec2 } from '../math/vec2';
 import type { Track } from '../track/types';
 import type { CarState } from './car';
+import { fitTyres, type TyreState } from './tyres';
 import type { SurfaceEffect } from './surface';
 
-/** A wet track, as the simulation feels it (`SimContext.weather`): its params and its puddles. */
+/**
+ * A wet track, as the simulation feels it (`SimContext.weather`): its params, its puddles and how
+ * wet it is when (`forecast`, 2.8; left out: soaked all along).
+ */
 export interface WetTrack {
   readonly params: WetParams;
   readonly puddles: readonly Puddle[];
+  readonly forecast?: Forecast;
+}
+
+/** How wet `weather` is at `tick` (0 without one). */
+export function trackWetness(weather: WetTrack | undefined, tick: number): number {
+  if (!weather) return 0;
+  return weather.forecast ? wetnessAt(weather.forecast, tick) : 1;
+}
+
+/**
+ * The tyres cars start on at `tick` (2.8): with `tyres` (the Grand Prix), on a wet track, the ones
+ * it asks for (`weatherCompound`: intermediates or full wets); else none given (new mediums).
+ */
+export function startingTyres(
+  weather: WetTrack | undefined,
+  tyres: TyreParams | undefined,
+  tick: number,
+): TyreState | undefined {
+  if (!tyres) return undefined;
+  const compound = weatherCompound(trackWetness(weather, tick), tyres);
+  return compound === 'medium' ? undefined : fitTyres(compound);
+}
+
+/**
+ * The wet params of a car on `compound` on a track `wetness` wet (T.2): the compound's own grip,
+ * traction and braking there (`TyreParams.wet`), its puddles' aquaplaning, the puddles' drag. With
+ * `wetSurfaceEffect` (its share of wheels in a puddle × `wetness`), and for the bots' plans.
+ */
+export function tyreWetParams(
+  compound: TyreCompound,
+  wetness: number,
+  tyres: TyreParams,
+  wet: WetParams,
+): WetParams {
+  const c = tyres.wet[compound];
+  return {
+    grip: atWetness(c.grip, wetness),
+    traction: atWetness(c.traction, wetness),
+    brake: atWetness(c.brake, wetness),
+    puddleGrip: c.puddleGrip,
+    puddleTraction: c.puddleTraction,
+    puddleDrag: wet.puddleDrag,
+  };
 }
 
 /**

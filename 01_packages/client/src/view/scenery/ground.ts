@@ -1,4 +1,4 @@
-import { locateOnTrack, vec2, type Track, type Vec2 } from '@altf1/shared';
+import { locateOnTrack, runoffAt, vec2, type Track, type Vec2 } from '@altf1/shared';
 import { clearance, insidePolygon, polygonBounds, trackBounds } from './placement';
 
 // The ground's height around an elevated track (Phase 3: Monaco, São Paulo; 01_docs/elevation.md). Pure.
@@ -50,7 +50,7 @@ function roadSurround(track: Track): (p: Vec2) => RoadSurround {
     Math.max(
       ...track.samples.map((s, i) => (i > 0 ? s.distance - track.samples[i - 1]!.distance : 0)),
     );
-  const wallReach = track.maxHalfWidth + track.runoffWidth + spacing;
+  const wallReach = track.maxHalfWidth + (track.maxRunoffWidth ?? track.runoffWidth) + spacing;
   return (p) => {
     let sum = 0;
     let weights = 0;
@@ -276,7 +276,10 @@ const CHECK_STEP = 1.5;
 export function settleUnderRoad(grid: GroundGrid, track: Track, routes = false): number {
   // Each sample with how far either side of its centre the ground must lie under it.
   const under = [
-    ...track.samples.map((s) => ({ s, reach: s.halfWidth + track.runoffWidth + 0.5 })),
+    ...track.samples.map((s, i) => ({
+      s,
+      reach: s.halfWidth + Math.max(runoffAt(track, 'left', i), runoffAt(track, 'right', i)) + 0.5,
+    })),
     ...(routes ? track.routes : []).flatMap((road) =>
       road.samples
         .filter(

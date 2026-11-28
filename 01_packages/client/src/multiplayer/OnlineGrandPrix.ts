@@ -1,4 +1,10 @@
 import {
+  SafetyCarDelta,
+  safetyCarPlans,
+  safetyCarWet,
+  TYRE_COMPOUNDS,
+  WEATHERS,
+  wetnessAt,
   damageInPhase,
   offersRain,
   pitStatus,
@@ -19,6 +25,8 @@ import { ResultsScreen } from '../view/hud/ResultsScreen';
 import { StartLights } from '../view/hud/StartLights';
 import type { SceneView } from '../view/SceneView';
 import { CustomLaps } from '../race/customLaps';
+import { GREEN_FLAG_NOTICE, penaltyNotice, raceControl, wentGreen } from '../race/raceControlText';
+import { RaceControlBoard } from '../view/hud/RaceControlBoard';
 import { chequeredFlag, grandPrixContent, lapName, type DriverLook } from '../race/grandPrixText';
 import type { NetClient } from './NetClient';
 import type { Predictor } from './Predictor';
@@ -48,6 +56,12 @@ export class OnlineGrandPrix {
   private drivers: readonly DriverLook[] = [];
   /** The manager's own race distance on the grid (key 4, then ←/→); null = not chosen. */
   private readonly customLaps = new CustomLaps();
+  /** The safety car's board, and this player's delta counted on the predicted world. */
+  private readonly raceControlBoard = new RaceControlBoard();
+  private readonly delta = new SafetyCarDelta();
+  private deltaTick: number | null = null;
+  /** The race's penalties already told to this player. */
+  private incidentsTold = 0;
 
   constructor(
     private readonly client: NetClient,
@@ -56,7 +70,10 @@ export class OnlineGrandPrix {
     private readonly hud: Hud,
     controller: KeyboardController,
     /** The view: the own pit box marked, the flag marshal at the line, the weather. */
-    private readonly scene: Pick<SceneView, 'markPitBox' | 'showFlagMarshal' | 'setWeather'>,
+    private readonly scene: Pick<
+      SceneView,
+      'markPitBox' | 'showFlagMarshal' | 'setWetness' | 'setSafetyCar' | 'setYellowFlags'
+    >,
     /** The room's track, with its pit lane: who is in it is shown in the panel. */
     private readonly track: Track,
   ) {
@@ -74,16 +91,21 @@ export class OnlineGrandPrix {
         if (this.onResults) return;
         if (this.info?.phase === 'grid') {
           this.command({ action: 'startRace', laps: GRAND_PRIX.raceLaps[i]! });
-        } else if (this.info?.phase === 'lobby' && this.canRain && i < 2) {
-          this.command({ action: 'weather', weather: i === 0 ? 'dry' : 'rain' });
-        } else if ((this.info?.phase === 'qualifying' || this.info?.phase === 'race') && i < 2) {
-          // On track, stopped in the box: 1 softs, 2 mediums (ignored anywhere else).
-          controller.chooseCompound(i === 0 ? 'soft' : 'medium');
+        } else if (this.info?.phase === 'lobby' && this.canRain) {
+          this.command({ action: 'weather', weather: WEATHERS[i]! });
+        } else if (this.info?.phase === 'qualifying' || this.info?.phase === 'race') {
+          // On track, stopped in the box: 1 softs, 2 mediums, 3 intermediates (ignored elsewhere).
+          controller.chooseCompound(TYRE_COMPOUNDS[i]!);
         }
       }),
     );
     controller.onAction('choice4', () => {
-      if (this.onResults || !this.choosingLaps) return;
+      if (this.onResults) return;
+      // On track, stopped in the box: 4 full wets.
+      if (this.info?.phase === 'qualifying' || this.info?.phase === 'race') {
+        controller.chooseCompound('wet');
+      }
+      if (!this.choosingLaps) return;
       this.customLaps.open();
       this.show();
     });
@@ -112,13 +134,19 @@ export class OnlineGrandPrix {
       info.phase === 'results' &&
       this.info?.phase !== 'results' &&
       info.drivers.includes(this.playerId);
-    if (info.weather !== this.info?.weather) this.scene.setWeather(info.weather);
+    if (wentGreen(this.info, info)) {
+      this.raceControlBoard.tell(GREEN_FLAG_NOTICE, performance.now(), true);
+    }
     this.info = info;
     if (!this.choosingLaps) this.customLaps.reset(); // a new grid starts from the presets
     this.predictor.hold = info.hold;
     this.predictor.setDamage(damageInPhase(info.phase));
     this.predictor.setPitBoxes(info.boxes);
-    this.predictor.setWeather(info.weather);
+    this.predictor.setWeather(info.forecast);
+    this.predictor.safetyCar = info.safetyCar ?? null;
+    this.scene.setSafetyCar(info.safetyCar ?? null);
+    this.scene.setYellowFlags(info.yellowFlags ?? []);
+    this.tellPenalties(info);
     this.hud.setSessionBests(info.sectorBests);
     this.scene.markPitBox(info.boxes[this.playerId] ?? null);
     this.scene.showFlagMarshal(chequeredFlag(info));
@@ -138,9 +166,52 @@ export class OnlineGrandPrix {
     this.show();
   }
 
+  /** The race's new penalties: this player's own told on the safety car board. */
+  private tellPenalties(info: GrandPrixInfo): void {
+    const incidents = info.incidents ?? [];
+    if (incidents.length < this.incidentsTold) this.incidentsTold = 0; // a new race
+    for (const incident of incidents.slice(this.incidentsTold)) {
+      if (incident.id === this.playerId) {
+        this.raceControlBoard.tell(penaltyNotice(incident), performance.now());
+      }
+    }
+    this.incidentsTold = incidents.length;
+  }
+
+  /**
+   * The safety car board, with this player's delta counted tick by tick on the predicted world
+   * (as the server counts it).
+   */
+  private showSafetyCar(state: GameState): void {
+    const info = this.info;
+    if (!info) return;
+    const sc = info.phase === 'race' ? (info.safetyCar ?? null) : null;
+    const ticks = this.deltaTick === null ? 1 : state.tick - this.deltaTick;
+    if (ticks > 0) {
+      const wet = safetyCarWet(wetnessAt(info.forecast, state.tick));
+      if (sc) this.delta.update(state, sc, this.track, safetyCarPlans(this.track, wet), ticks);
+      else this.delta.clear();
+      this.deltaTick = state.tick;
+    }
+    const nameOf = (id: CarId): string => this.drivers.find((d) => d.id === id)?.name ?? id;
+    const content = raceControl(
+      info,
+      this.playerId,
+      this.delta.get(this.playerId),
+      state.tick,
+      nameOf,
+      this.delta.graceLeft(this.playerId, state.tick),
+    );
+    this.raceControlBoard.setVisible(!this.onResults);
+    this.raceControlBoard.update(content, performance.now());
+  }
+
   /** The start lights and who is in the pit lane, in the (predicted) world `state`; once per frame. */
   render(state: GameState): void {
     this.lights.update(lightsOn(state.tick, this.info?.hold ?? null));
+    // The track as wet as the forecast says now (a variable GP's weather turns live).
+    this.scene.setWetness(this.info ? wetnessAt(this.info.forecast, state.tick) : 0);
+    this.showSafetyCar(state);
     const pits = new Map<CarId, PitBadge>();
     for (const car of state.cars) {
       const status = pitStatus(this.track, car, state.tick);

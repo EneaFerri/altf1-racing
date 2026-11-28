@@ -24,9 +24,25 @@ protocol RaceSession: AnyObject {
     var ownPitBox: Int? { get }
     /// The player's car: "player" on this Mac, the server's id online.
     var playerId: CarId { get }
+    /// The safety car's light bar flashing (online Grand Prix only, R.3).
+    var safetyCarLights: Bool { get }
+    /// Crashes' debris and yellow flags out now (a Grand Prix, R.2).
+    var yellowFlags: [YellowFlag] { get }
+    /// How wet the track is now (0 dry … 1 soaked; a Grand Prix's weather, 2.8).
+    var wetness: Double { get }
+    /// Whether this circuit may be wet at all (its rain's look is made ready).
+    var mayRain: Bool { get }
 }
 
 extension RaceSession {
+    /// No safety car outside an online Grand Prix.
+    var safetyCarLights: Bool { false }
+    /// No crashes' flags outside a Grand Prix.
+    var yellowFlags: [YellowFlag] { [] }
+    /// Dry outside a Grand Prix.
+    var wetness: Double { 0 }
+    var mayRain: Bool { false }
+
     /// Every car between the last two ticks (a car new since the last tick drawn where it is).
     func poses(alpha: Double) -> [CarId: CarPose] {
         var poses: [CarId: CarPose] = [:]

@@ -4,22 +4,37 @@ import type { DamageParams } from '../config/damage';
 import { FIXED_DT } from '../config/sim';
 import type { SlipstreamParams } from '../config/slipstream';
 import { SLOPE_PARAMS, type SlopeParams } from '../config/slope';
-import type { TyreParams } from '../config/tyres';
+import { slideFrom, weatherCompound, type TyreParams } from '../config/tyres';
 import type { SurfaceParams } from '../config/surfaces';
-import { distance, dot, forward, headingOf, length } from '../math/vec2';
+import { distance, dot, forward, headingOf, length, type Vec2 } from '../math/vec2';
 import { gridSlot, locateOnTrack } from '../track/query';
 import type { Surface, Track } from '../track/types';
 import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
-import { createCar, stepCar, type CarId, type CarState } from './car';
+import { createCar, SAFETY_CAR_ID, stepCar, type CarId, type CarState } from './car';
 import { resolveCollisions } from './collision/resolve';
 import type { ImpactEvent } from './collision/types';
-import { damagedInput, damagedParams, stepDamage } from './damage';
+import {
+  damagedInput,
+  damagedParams,
+  limpSpeed,
+  NO_PUNCTURES,
+  puncturedInput,
+  puncturedParams,
+  puncturedTyres,
+  stepDamage,
+} from './damage';
 import { heldInBox, inBox, limitedSpeed, pitStep, type PitRules } from './pit';
 import { createLapState, stepLap, type LapState } from './laps';
 import { slipstreamEffect, slipstreamFactor } from './slipstream';
-import { NEW_MEDIUMS, tyredParams, wearTyres } from './tyres';
+import { NEW_MEDIUMS, tyredParams, wearTyres, type TyreState } from './tyres';
 import { carSurface } from './surface';
-import { puddleShare, wetSurfaceEffect, type WetTrack } from './weather';
+import {
+  puddleShare,
+  trackWetness,
+  tyreWetParams,
+  wetSurfaceEffect,
+  type WetTrack,
+} from './weather';
 
 /** Complete simulation state. Plain data only, so it can be copied, compared and sent over the network. */
 export interface GameState {
@@ -53,7 +68,8 @@ export interface SimContext {
   readonly pit?: PitRules;
   /**
    * A wet track (2.7, the rain: 01_docs/weather.md): less grip and braking, and its puddles
-   * (`placePuddles`) under the wheels. Left out: dry.
+   * (`placePuddles`) under the wheels; how wet by its forecast (2.8). With `tyres`, by each car's
+   * compound (T.2: `tyreWetParams`); without, as `params`. Left out: dry.
    */
   readonly weather?: WetTrack;
   /**
@@ -70,11 +86,15 @@ const SPAWN_CLEARANCE = 6;
 /** One input per car id; cars without an entry get NEUTRAL_INPUT. */
 export type InputMap = Readonly<Record<CarId, InputCommand>>;
 
-/** New race: cars on the starting grid in the given order (first = pole position). */
-export function createGame(track: Track, carIds: readonly CarId[]): GameState {
+/**
+ * New race: cars on the starting grid in the given order (first = pole position); on `tyres` when
+ * given (a wet start: `weatherCompound`), else none yet (new mediums).
+ */
+export function createGame(track: Track, carIds: readonly CarId[], tyres?: TyreState): GameState {
   const cars = carIds.map((id, slot) => {
     const { position, direction } = gridSlot(track, slot);
-    return createCar({ id, position, heading: headingOf(direction) });
+    const car = createCar({ id, position, heading: headingOf(direction) });
+    return tyres ? { ...car, tyres } : car;
   });
   const sorted = sortById(cars);
   return {
@@ -104,21 +124,45 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
     if (given.reset) return resetOnTrack(car, ctx.track);
 
     const { surfaces, effect: dry } = carSurface(ctx.track, car, ctx.surfaceParams);
-    const { weather } = ctx;
-    const effect = weather
-      ? wetSurfaceEffect(dry, puddleShare(car, weather.puddles), weather.params)
-      : dry;
+    const { weather, tyres } = ctx;
+    const wetness = trackWetness(weather, state.tick);
+    let effect = dry;
+    if (weather && wetness > 0) {
+      const share = puddleShare(car, weather.puddles);
+      if (tyres) {
+        // The safety car runs on the tyres the weather asks for, and never slides (R.3).
+        const safety = car.id === SAFETY_CAR_ID;
+        const compound = safety
+          ? weatherCompound(wetness, tyres)
+          : (car.tyres ?? NEW_MEDIUMS).compound;
+        const wet = tyreWetParams(compound, wetness, tyres, weather.params);
+        effect = {
+          ...wetSurfaceEffect(dry, share * wetness, wet),
+          ...(!safety && {
+            slideFrom: slideFrom(compound, wetness, tyres),
+            slideGain: tyres.slideGain,
+            slideMaxSpin: tyres.slideMaxSpin,
+          }),
+        };
+      } else {
+        effect = wetSurfaceEffect(dry, share, weather.params);
+      }
+    }
     const own = ctx.carParamsById?.[car.id] ?? ctx.carParams;
     // A damaged car (only with ctx.damage) drives slower, turns and grips less, and may pull.
     const { damage } = ctx;
     const hurt = damage && car.damage ? damagedParams(own, car.damage, damage) : own;
     // Its tyres (only with ctx.tyres): the compound's grip and traction, less as they wear.
-    const { tyres } = ctx;
-    const params = tyres ? tyredParams(hurt, car.tyres ?? NEW_MEDIUMS, tyres) : hurt;
-    const input = damage && car.damage ? damagedInput(given, car.damage, damage) : given;
+    const shod = tyres ? tyredParams(hurt, car.tyres ?? NEW_MEDIUMS, tyres) : hurt;
+    // A flat tyre (only with ctx.damage: a red tyre, or a worn-out set): it limps to the pits.
+    const flat = damage ? puncturedTyres(car.damage, car.tyres, damage) : NO_PUNCTURES;
+    const params = damage ? puncturedParams(shod, flat, damage) : shod;
+    const dragged = damage && car.damage ? damagedInput(given, car.damage, damage) : given;
+    const input = damage ? puncturedInput(dragged, flat, damage) : dragged;
     const slipstream = slipstreamFactor(car, state.cars, ctx.slipstreamParams);
     const slip = slipstreamEffect(slipstream, ctx.slipstreamParams);
-    const stepped = stepCar(car, input, params, FIXED_DT, effect, slip, slopeAccel(car, ctx));
+    const driven = stepCar(car, input, params, FIXED_DT, effect, slip, slopeAccel(car, ctx));
+    const stepped = damage ? limpSpeed(driven, flat, FIXED_DT, damage) : driven;
     const next: CarState = {
       ...stepped,
       wheelSurfaces: surfaces,
@@ -129,6 +173,7 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
           length(stepped.velocity) * FIXED_DT,
           ctx.track.length,
           tyres,
+          wetness,
         ),
       }),
     };
@@ -138,8 +183,13 @@ export function stepGame(state: GameState, inputs: InputMap, ctx: SimContext): G
   const { impacts } = resolved;
   const damage = ctx.damage;
   const tick = state.tick + 1;
+  // The safety car is never damaged.
   const damaged = damage
-    ? resolved.cars.map((car) => ({ ...car, damage: stepDamage(car, impacts, FIXED_DT, damage) }))
+    ? resolved.cars.map((car) =>
+        car.id === SAFETY_CAR_ID
+          ? car
+          : { ...car, damage: stepDamage(car, impacts, FIXED_DT, damage) },
+      )
     : resolved.cars;
   const { pit } = ctx;
   const cars = pit ? damaged.map((car) => pitStep(car, ctx.track, tick, pit, damaged)) : damaged;
@@ -221,6 +271,52 @@ export function placeCar(
     car.id === id ? timing : state.laps.find((lap) => lap.carId === car.id)!,
   );
   return { ...state, cars, laps };
+}
+
+/**
+ * Puts car `id` on the main loop's centreline `progress` m from the start line, facing the driving
+ * direction at `speed` (m/s), its timing on an out-lap (replaces the car if `id` is already
+ * there). Used to send the safety car out of the pit lane.
+ */
+export function placeCarAt(
+  state: GameState,
+  track: Track,
+  id: CarId,
+  progress: number,
+  speed: number,
+): GameState {
+  const along = ((progress % track.length) + track.length) % track.length;
+  const sample = track.samples.reduce((best, s) =>
+    Math.abs(s.distance - along) < Math.abs(best.distance - along) ? s : best,
+  );
+  return placeCarAtPose(state, track, id, sample.position, sample.tangent, speed);
+}
+
+/**
+ * Puts car `id` at `position` facing `direction` (unit) at `speed` (m/s), its timing on an out-lap
+ * from where it is (replaces the car if `id` is already there). Used to park the safety car at the
+ * pit exit.
+ */
+export function placeCarAtPose(
+  state: GameState,
+  track: Track,
+  id: CarId,
+  position: Vec2,
+  direction: Vec2,
+  speed: number,
+): GameState {
+  const placed = {
+    ...createCar({ id, position, heading: headingOf(direction) }),
+    velocity: { x: direction.x * speed, z: direction.z * speed },
+  };
+  const others = removeCar(state, id);
+  const cars = sortById([...others.cars, placed]);
+  const laps = cars.map((car) =>
+    car.id === id
+      ? createLapState(id, locateOnTrack(track, position).distance)
+      : others.laps.find((lap) => lap.carId === car.id)!,
+  );
+  return { ...others, cars, laps };
 }
 
 /**

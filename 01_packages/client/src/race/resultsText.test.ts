@@ -52,6 +52,7 @@ const LOBBY: GrandPrixInfo = {
   hold: null,
   boxes: { p2: 0, p3: 1 },
   weather: 'dry',
+  forecast: [{ tick: 0, wetness: 0 }],
   sectorBests: [null, null, null],
 };
 

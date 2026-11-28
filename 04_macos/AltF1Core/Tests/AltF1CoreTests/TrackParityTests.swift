@@ -8,7 +8,7 @@ import Testing
     private static let stride = 7
 
     private static let kerbCode: [KerbKind: String] = [.none: "n", .low: "l", .high: "h"]
-    private static let runoffCode: [RunoffKind: String] = [.grass: "g", .gravel: "v"]
+    private static let runoffCode: [RunoffKind: String] = [.grass: "g", .gravel: "v", .asphalt: "a"]
 
     /// The same summary the fixture holds (01_tools/swiftExport/fixtures.ts, `trackSummary`).
     private static func summary(_ track: Track) throws -> [String: Any] {
@@ -62,7 +62,7 @@ import Testing
         return try buildTrack(CircuitCatalog.definition(entry.id), pitLane: true)
     }
 
-    @Test(arguments: ["Monza", "Barcelona", "Monaco", "Mexico City", "Singapore", "Las Vegas", "São Paulo"])
+    @Test(arguments: ["Monza", "Barcelona", "Monaco", "Mexico City", "Singapore", "Las Vegas", "São Paulo", "Baku"])
     func compilesLikeTheWeb(_ name: String) throws {
         let fixture = try Self.fixture(name)
         let track = try Self.track(named: name)
@@ -70,7 +70,7 @@ import Testing
         #expect(diffs.isEmpty, "\(name): \(diffs.joined(separator: "\n"))")
     }
 
-    @Test(arguments: ["Monza", "Barcelona", "Monaco", "Mexico City", "Singapore", "Las Vegas", "São Paulo"])
+    @Test(arguments: ["Monza", "Barcelona", "Monaco", "Mexico City", "Singapore", "Las Vegas", "São Paulo", "Baku"])
     func locatesLikeTheWeb(_ name: String) throws {
         let fixture = try Self.fixture(name)
         let track = try Self.track(named: name)

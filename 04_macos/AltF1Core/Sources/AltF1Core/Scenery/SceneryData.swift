@@ -32,6 +32,14 @@ public struct TownBuilding: Codable, Hashable, Sendable {
     public var base: Double
     public var name: String?
     public var landmark: String?
+
+    public init(points: [Vec2], height: Double, base: Double, name: String? = nil, landmark: String? = nil) {
+        self.points = points
+        self.height = height
+        self.base = base
+        self.name = name
+        self.landmark = landmark
+    }
 }
 
 /// A pier: a walkway along `points`, or a deck over the area they close (`area`).
@@ -82,6 +90,31 @@ public struct CircuitScenery: Codable, Sendable {
     public var pools: [[Vec2]]?
     public var palms: [Vec2]?
     public var tunnel: TunnelSpan?
+    /// A park circuit's surroundings (São Paulo, Mexico City): the town's buildings round the park
+    /// (some domed), its lakes, and north (for far scenery placed by compass).
+    public var surroundings: Surroundings?
+    /// Old town walls beside the track, placed by hand (Baku's Icherisheher).
+    public var cityWalls: [CityWall]?
+
+    /// An old town wall: its centreline behind the barrier, height and thickness (m).
+    public struct CityWall: Codable, Sendable {
+        public var name: String
+        public var height: Double
+        public var thickness: Double
+        public var path: [TrackSpot]
+    }
+
+    public struct Surroundings: Codable, Sendable {
+        public struct Building: Codable, Sendable {
+            public var points: [Vec2]
+            public var height: Double
+            public var base: Double
+            public var dome: Bool
+        }
+        public var buildings: [Building]
+        public var lakes: [[Vec2]]
+        public var north: Vec2
+    }
 }
 
 extension CircuitCatalog {

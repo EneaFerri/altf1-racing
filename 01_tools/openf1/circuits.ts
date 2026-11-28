@@ -32,6 +32,18 @@ export interface SharpCorner {
   readonly span: number;
 }
 
+/**
+ * An escape area: the run-off `width` m wider (game m) on `side` over `length` m round `at` (real
+ * m along the profile's centreline), as the real one outside a corner (Baku's turn 16).
+ */
+export interface RunoffAreaConfig {
+  readonly at: number;
+  readonly length: number;
+  readonly side: 'left' | 'right';
+  readonly width: number;
+  readonly place: string;
+}
+
 /** A grandstand placed by hand (temporary stands are not in OSM). Real metres. */
 export interface HandStand {
   readonly name: string;
@@ -59,8 +71,27 @@ export interface Landmark {
     | 'sphere'
     | 'eiffel'
     | 'fountains'
-    | 'strat';
+    | 'strat'
+    | 'flame'
+    | 'maiden'
+    | 'government'
+    | 'carpet';
   readonly osmWay?: number;
+}
+
+/**
+ * Old town walls placed by hand along the track, right behind its barrier (OSM maps few of them:
+ * Baku's Icherisheher, beside the castle section). Real metres.
+ */
+export interface HandWall {
+  readonly name: string;
+  /** Distances of its ends from the line along the profile's centreline. */
+  readonly from: number;
+  readonly to: number;
+  /** Side of the track, seen driving. */
+  readonly side: 'left' | 'right';
+  /** Its height to the top of the battlements. */
+  readonly height: number;
 }
 
 /**
@@ -101,6 +132,11 @@ export interface CircuitConfig {
    * fit on the land (Monaco: the harbour front on its quay, owner's choice).
    */
   readonly lowestHeight?: number;
+  /**
+   * With elevation: the surface of the circuit's own sea (m above the oceans), when not 0: Baku's
+   * Caspian, at -29 m (SRTM). Heights are then kept above it, where the sea is drawn (terrainOf).
+   */
+  readonly seaLevel?: number;
   /** Exported constant of the generated TrackDefinition, and its display name. */
   readonly constName: string;
   readonly name: string;
@@ -146,6 +182,12 @@ export interface CircuitConfig {
    */
   readonly pitLaneMaxGrade?: number;
   /**
+   * OSM's lane is drawn this much too near the track (m, real): its points are taken as this much
+   * further beyond the asphalt (Baku's, drawn on Neftchilar Avenue 5–10 m from the track's middle,
+   * behind its wall in reality). Default 0.
+   */
+  readonly pitLaneOutset?: number;
+  /**
    * The boxes `spacing` m apart, centred where the lane passes the start line, and the limiter only
    * `margin` m before the first and after the last (São Paulo's lane is 1350 m long). Default: the
    * limit lines where the lane is fully beside the track, the boxes over the garages or spread.
@@ -153,6 +195,8 @@ export interface CircuitConfig {
   readonly pitBoxesAtLine?: { readonly spacing: number; readonly margin: number };
   /** Corners made sharper than the real ones, sorted by `at`. */
   readonly sharpCorners?: readonly SharpCorner[];
+  /** Escape areas: the run-off wider on one side (01_docs/track.md). */
+  readonly runoffAreas?: readonly RunoffAreaConfig[];
 
   // ---- Scenery (scenery.ts) ----
   /**
@@ -169,6 +213,8 @@ export interface CircuitConfig {
   readonly townReach?: number;
   /** Town circuits: buildings drawn with their own model. */
   readonly landmarks?: readonly Landmark[];
+  /** Town circuits: old town walls along the track, placed by hand (Baku's). */
+  readonly cityWalls?: readonly HandWall[];
   /** Stadiums beside or around the track (Mexico City's Foro Sol and ballpark). */
   readonly stadiums?: readonly Stadium[];
   /** Grandstands further than this beyond the real asphalt are left out (m, real; default 250). */
@@ -213,6 +259,12 @@ const OSM_AREAS = 'OSM area:highway=raceway, measured across the centreline';
  * stretches by the pits and the bay set by hand (01_docs/circuits.md).
  */
 const OSM_LANES = 'OSM lanes × 3.3 m (within 10–15 m)';
+/**
+ * Baku: the published narrowest point (7.6 m, turn 8 by the castle walls); elsewhere estimated from
+ * the city roads it runs on (Neftchilar and Azadliq Avenues the widest), within 7.6–15 m.
+ */
+const F1_BAKU = 'formula1.com: 7.6 m at turn 8, the narrowest';
+const BAKU_WIDTHS = `${F1_BAKU}; elsewhere estimated from the roads it runs on`;
 const ILLMAN = 'kymillman.com, "Why overtaking is nearly impossible at the Monaco Grand Prix"';
 
 const MONACO: CircuitConfig = {
@@ -560,6 +612,89 @@ export const CIRCUITS: readonly CircuitConfig[] = [
     ],
     // The town round the park (Interlagos's houses and blocks) and the lakes inside the circuit.
     surroundings: { reach: 400, domes: [] },
+  },
+  {
+    id: 'baku',
+    constName: 'BAKU',
+    name: 'Baku',
+    // 2024: OpenF1 has no laps of the 2025 qualifying (session 9900).
+    qualifying: 9594,
+    year: 2024,
+    osmRelation: 11266687,
+    widthRange: [7.6, 15],
+    widthSource: BAKU_WIDTHS,
+    widths: [
+      { at: 0, width: 15, place: 'Neftchilar Avenue (start/finish straight)' },
+      { at: 280, width: 13, place: 'turn 1' },
+      { at: 620, width: 12, place: 'turn 2' },
+      { at: 1000, width: 15, place: 'Azadliq Avenue' },
+      { at: 1480, width: 12, place: 'turn 3' },
+      { at: 1710, width: 11, place: 'turn 4' },
+      { at: 2085, width: 11, place: 'turns 5–6' },
+      { at: 2300, width: 10, place: 'turn 7, by the old town walls' },
+      { at: 2480, width: 7.6, place: 'turn 8, the castle (narrowest)', source: F1_BAKU },
+      { at: 2700, width: 8, place: 'the old town climb (turns 9–10)' },
+      { at: 3000, width: 10, place: 'turns 11–12' },
+      { at: 3300, width: 11, place: 'the top of the old town' },
+      { at: 3690, width: 11, place: 'turn 15, downhill' },
+      { at: 4040, width: 12, place: 'turn 16' },
+      { at: 4300, width: 15, place: 'Neftchilar Avenue, the run to the line' },
+      { at: 5946, width: 15, place: 'Neftchilar Avenue (start/finish straight)' },
+    ],
+    // Owner's choice: a narrow street circuit, the real car-to-road ratio like Monaco.
+    widthFactor: 1.2,
+    scale: 0.9517,
+    lineDirection: 17,
+    runoffWidth: 3,
+    kerbs: 'corners',
+    pitSpeedLimit: 60,
+    pitLaneAtEdge: true,
+    // OSM draws the lane on Neftchilar Avenue 5–10 m from the track's middle: behind its wall.
+    pitLaneOutset: 10,
+    // Owner's choice (2026-11-25): the 90° corners made sharp, so that you must brake for them.
+    sharpCorners: [
+      { at: 285, span: 30, place: 'turn 1' },
+      { at: 605, span: 30, place: 'turn 2' },
+      { at: 1465, span: 30, place: 'turn 3' },
+      { at: 1695, span: 30, place: 'turn 4' },
+      { at: 2075, span: 25, place: 'turn 6' },
+      { at: 2475, span: 25, place: 'turn 8, the castle' },
+      { at: 2771, span: 25, place: 'turn 11' },
+      { at: 2836, span: 25, place: 'turn 12' },
+      { at: 4016, span: 30, place: 'turn 16' },
+    ],
+    // Owner's choice: the last corner before the long run to the line has room to run wide, as the
+    // real one: an escape area on its outside, from the braking zone past the apex.
+    runoffAreas: [{ at: 3990, length: 150, side: 'right', width: 18, place: 'turn 16' }],
+    // The garages face the start line; its entry steps behind the wall only past them.
+    pitBoxesAtLine: { spacing: 20, margin: 50 },
+    town: true,
+    townReach: 600,
+    // Temporary stands (not in OSM), on the side the city leaves free: the pits are on the left of
+    // Neftchilar Avenue, the Caspian boulevard on its right.
+    stands: [
+      { name: 'Main Grandstand', at: 5650, length: 260, depth: 16, side: 'right' },
+      { name: 'Turn 1 Grandstand', at: 330, length: 100, depth: 14, side: 'right' },
+      { name: 'Azadliq Avenue Grandstand', at: 1000, length: 160, depth: 14, side: 'left' },
+      { name: 'Turn 16 Grandstand', at: 4140, length: 80, depth: 14, side: 'right' },
+    ],
+    landmarks: [
+      // The Flame Towers on the hill above the old town, 660 m from the track (OSM: Tower 1–3).
+      { name: 'Tower 1', kind: 'flame', osmWay: 253081850 },
+      { name: 'Tower 2', kind: 'flame', osmWay: 253082095 },
+      { name: 'Tower 3', kind: 'flame', osmWay: 253081914 },
+      { name: 'Qız Qalası', kind: 'maiden' },
+      { name: 'Hökumət Evi', kind: 'government' },
+      { name: 'Azərbaycan Xalçası Muzeyi', kind: 'carpet' },
+    ],
+    // The old town's (Icherisheher) walls on the left of the castle section, from turn 8 up the
+    // climb to turn 12: OSM maps only a stretch of them.
+    cityWalls: [{ name: 'Icherisheher walls', from: 2490, to: 3080, side: 'left', height: 9 }],
+    // Its real heights (the old town's climb), on SRTM: EU-DEM covers Europe only.
+    elevation: true,
+    dem: 'srtm30m',
+    // The Caspian lies 29 m under the oceans (SRTM): heights above it, where its water is drawn.
+    seaLevel: -29,
   },
 ];
 

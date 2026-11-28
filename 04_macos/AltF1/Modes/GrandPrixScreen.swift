@@ -70,9 +70,17 @@ struct GrandPrixScreen: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 VStack(alignment: .trailing, spacing: 12) {
+                    // Race control: the yellow flags (single player has no safety car).
+                    let control = RaceControlContent.of(
+                        session.info, ownId: session.playerId, delta: nil, tick: session.current.tick,
+                        name: { id in session.seats.first { $0.id == id }?.name ?? id })
+                    if !session.onResults && !control.isEmpty {
+                        RaceControlBoard(content: control, notice: nil)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
                     Spacer()
-                    if let damage = onTrack?.damage {
-                        DamagePanel(damage: [damage.frontWing] + damage.tyres + [damage.rearWing])
+                    if let car = onTrack, let damage = car.damage {
+                        DamagePanel(damage: damage, punctures: puncturedTyres(damage, car.tyres, .baseline))
                     }
                     if let car = onTrack, let tyres = car.tyres {
                         TyrePanel(
@@ -107,7 +115,8 @@ struct GrandPrixScreen: View {
     private func load() async {
         do {
             async let made = GrandPrixSession.prepare(circuit: circuit, team: team, weather: weather)
-            let assets = try await RaceAssets.load(night: CircuitLook.of(circuit.id)?.night ?? false)
+            let assets = try await RaceAssets.load(
+                night: CircuitLook.of(circuit.id)?.night ?? false, rain: Weather.offersRain(circuit.name))
             let session = try await made
             scenery = try await CircuitSceneryBuilder.build(session.track, circuitId: circuit.id)
             session.hud = hud

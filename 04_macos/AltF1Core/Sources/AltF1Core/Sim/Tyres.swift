@@ -25,8 +25,14 @@ public func tyredParams(_ params: CarParams, _ tyres: TyreState, _ p: TyreParams
     return next
 }
 
-/// `tyres` after driving `metres` on a circuit `lapLength` long (`wearTyres`).
-public func wearTyres(_ tyres: TyreState, _ metres: Double, _ lapLength: Double, _ p: TyreParams) -> TyreState {
+/// `tyres` after driving `metres` on a circuit `lapLength` long, `wetness` wet: rain tyres wear
+/// faster on a drier track (`wearTyres`).
+public func wearTyres(
+    _ tyres: TyreState, _ metres: Double, _ lapLength: Double, _ p: TyreParams, wetness: Double = 0
+) -> TyreState {
     if metres <= 0 || tyres.wear >= 1 { return tyres }
-    return TyreState(compound: tyres.compound, wear: min(1, tyres.wear + metres / (p.lifeLaps[tyres.compound]! * lapLength)))
+    let hot = max(0, 1 - wetness / p.cooledAt)
+    let rate = 1 + (p.dryWear[tyres.compound]! - 1) * hot
+    let wear = min(1, tyres.wear + (metres * rate) / (p.lifeLaps[tyres.compound]! * lapLength))
+    return TyreState(compound: tyres.compound, wear: wear)
 }

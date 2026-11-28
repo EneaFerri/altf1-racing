@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { Track, TrackSample, Vec2 } from '@altf1/shared';
 
 /** Lateral band of a strip at one sample: [from, to] signed offsets (positive = right). */
-export type Band = (sample: TrackSample) => readonly [number, number];
+/** Offsets across the strip at a sample (and its index: a band can vary per sample). */
+export type Band = (sample: TrackSample, index: number) => readonly [number, number];
 
 /**
  * Strip along the track within `band`, `y` above the road (each sample at its own height: 0 on a
@@ -35,8 +36,8 @@ export function ribbon(
       y + s.height,
       s.position.z + s.normal.z * offset,
     ];
-    const [a0, a1] = band(a);
-    const [b0, b1] = band(b);
+    const [a0, a1] = band(a, i);
+    const [b0, b1] = band(b, (i + 1) % n);
     const u = (offset: number, edge: 0 | 1): number =>
       metresAcross ? offset / metresAcross : edge;
     positions.push(

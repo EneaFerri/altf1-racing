@@ -41,12 +41,16 @@ export const ACTION_KEYS = {
   confirm: ['Enter', 'NumpadEnter'],
   /**
    * Grand Prix manager on the grid: start the race over the first, second or third distance.
-   * Stopped in the box: 1 fits softs, 2 mediums.
+   * Stopped in the box: 1 fits softs, 2 mediums, 3 intermediates. In the lobby of a track with
+   * rain: 1 dry, 2 rain, 3 variable.
    */
   choice1: ['Digit1', 'Numpad1'],
   choice2: ['Digit2', 'Numpad2'],
   choice3: ['Digit3', 'Numpad3'],
-  /** Grand Prix manager on the grid: choose any other race distance (then ←/→ and Enter). */
+  /**
+   * Grand Prix manager on the grid: choose any other race distance (then ←/→ and Enter).
+   * Stopped in the box: 4 fits full wets.
+   */
   choice4: ['Digit4', 'Numpad4'],
   /** Grand Prix manager on the grid, choosing the distance: one lap fewer / more. */
   lapsDown: ['ArrowLeft', 'Minus', 'NumpadSubtract'],

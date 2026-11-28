@@ -64,7 +64,7 @@ public func stepCar(
     slopeAccel: Double = 0
 ) -> CarState {
     let steer = smoothSteer(car.steer, input.steer, p, dt)
-    let spin = (car.spin + surface.spinKick) * exp(-p.spinDamping * dt)
+    let spin = (car.spin + surface.spinKick + powerSlide(car, input, surface, dt)) * exp(-p.spinDamping * dt)
     let brakePressure = smoothBrake(
         car.brakePressure, input, car.velocity.dot(.forward(car.heading)), p, dt)
     let grip = p.lateralGrip * surface.grip
@@ -93,6 +93,18 @@ public func stepCar(
     next.steer = steer
     next.brakePressure = brakePressure
     return next
+}
+
+/// Power oversteer on a wet track (`powerSlide`, 2.8): on the throttle past `surface.slideFrom`, a
+/// yaw kick into the turn by the excess turn rate × `slideGain` × throttle, up to `slideMaxSpin`.
+private func powerSlide(_ car: CarState, _ input: InputCommand, _ surface: SurfaceEffect, _ dt: Double) -> Double {
+    guard let slideFrom = surface.slideFrom, let slideGain = surface.slideGain, input.throttle > 0 else { return 0 }
+    if let maxSpin = surface.slideMaxSpin, abs(car.spin) >= maxSpin { return 0 }
+    let speed = car.velocity.length
+    if speed < 1 { return 0 }
+    let rotation = car.yawRate + car.spin
+    let over = abs(rotation) - slideFrom / speed
+    return over > 0 ? jsSign(rotation) * slideGain * input.throttle * over * dt : 0
 }
 
 /// Frame-rate independent exponential approach of `value` towards `target` at `rate` (1/s).

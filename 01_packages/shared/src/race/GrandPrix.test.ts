@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { Weather } from '../config/weather';
+import { wetnessAt, type Forecast } from '../config/weather';
 import type { CarId } from '../sim/car';
 import type { GameState } from '../sim/game';
 import { createLapState, type LapState } from '../sim/laps';
-import type { TrackDefinition } from '../track/types';
+import type { Track, TrackDefinition } from '../track/types';
 import { GrandPrix, type GrandPrixRoom } from './GrandPrix';
 import { HELD, type StartHold } from './hold';
 
@@ -13,10 +13,16 @@ class FakeRoom implements GrandPrixRoom {
     this.definition = { name: track } as TrackDefinition;
   }
   readonly definition: TrackDefinition;
-  /** The weather, as the Grand Prix last set it. */
-  weather: Weather = 'dry';
-  setWeather(weather: Weather): void {
-    this.weather = weather;
+  /** Only its length is read (a variable GP's forecast): these races have no wall hits. */
+  readonly track = { length: 4300 } as Track;
+  /** The forecast, as the Grand Prix last set it. */
+  forecast: Forecast = [{ tick: 0, wetness: 0 }];
+  setWeather(forecast: Forecast): void {
+    this.forecast = forecast;
+  }
+  /** Rain or dry at tick 0, as the tests ask. */
+  get weather(): 'rain' | 'dry' {
+    return wetnessAt(this.forecast, 0) > 0 ? 'rain' : 'dry';
   }
   state: GameState = { tick: 0, cars: [], impacts: [], laps: [] };
   hold: StartHold | null = null;
@@ -108,7 +114,9 @@ describe('GrandPrix — lobby', () => {
       hold: null,
       boxes: { p1: 1, p3: 0 },
       weather: 'dry',
+      forecast: [{ tick: 0, wetness: 0 }],
       sectorBests: [null, null, null],
+      yellowFlags: [],
     });
     expect(gp.isOpen).toBe(true);
   });
@@ -429,7 +437,9 @@ describe('GrandPrix — play again', () => {
       hold: null,
       boxes: { p2: 0 },
       weather: 'dry',
+      forecast: [{ tick: 0, wetness: 0 }],
       sectorBests: [null, null, null],
+      yellowFlags: [],
     });
     expect(room.restarts.at(-1)).toEqual(['p2']);
     expect(gp.isOpen).toBe(true);
@@ -564,5 +574,34 @@ describe('GrandPrix — session best sectors', () => {
     expect(room.retired).toContain('p2');
     expect(gp.afterTick()).toBe(false);
     expect(gp.info.sectorBests).toEqual([1700, 1600, 1500]);
+  });
+});
+
+describe('GrandPrix — variable weather (2.8)', () => {
+  it('starts as drawn in the lobby and turns once the race starts', () => {
+    const room = new FakeRoom();
+    // Lights out and the weather drawn from one fixed sequence: a dry start, rain coming.
+    const gp = new GrandPrix(room, () => 0.75);
+    gp.add('p1', 'Enea');
+    expect(gp.command('p1', { action: 'weather', weather: 'variable' })).toBe(true);
+    expect(gp.info.weather).toBe('variable');
+    expect(gp.info.forecast).toEqual([{ tick: 0, wetness: 0 }]);
+    expect(room.forecast).toBe(gp.info.forecast);
+    gp.command('p1', { action: 'start' });
+    gp.command('p1', { action: 'endQualifying' });
+    gp.command('p1', { action: 'startRace', laps: 8 });
+    const [before, after] = gp.info.forecast;
+    expect(before!.wetness).toBe(0);
+    expect(after!.wetness).toBeGreaterThan(0.5);
+    expect(before!.tick).toBeGreaterThan(room.hold!.until);
+    expect(room.forecast).toBe(gp.info.forecast);
+  });
+
+  it('is offered only where the rain is', () => {
+    const room = new FakeRoom('Monza');
+    const gp = new GrandPrix(room);
+    gp.add('p1', 'Enea');
+    expect(gp.command('p1', { action: 'weather', weather: 'variable' })).toBe(false);
+    expect(gp.info.forecast).toEqual([{ tick: 0, wetness: 0 }]);
   });
 });

@@ -137,6 +137,8 @@ struct StartView: View {
                 items: [
                     ListMenuItem(name: "Dry", detail: "a dry track", value: Weather.dry),
                     ListMenuItem(name: "Rain", detail: "wet track, puddles", value: Weather.rain),
+                    ListMenuItem(
+                        name: "Variable", detail: "it may start dry and rain, or start wet and dry", value: Weather.variable),
                 ],
                 hint: back,
                 back: { screen = .gpTrack(team) }

@@ -1,13 +1,18 @@
 import { GRAND_PRIX } from '../config/grandPrix';
 import { TRACK_RULES } from '../config/track';
-import { offersRain, type Weather } from '../config/weather';
+import { SAFETY_CAR_PARAMS } from '../config/safetyCar';
+import { TICK_RATE } from '../config/sim';
+import { offersRain, wetnessAt, type Forecast, type Weather } from '../config/weather';
 import type { GrandPrixCommand, GrandPrixInfo, GrandPrixPhase } from '../net/protocol';
 import type { CarId } from '../sim/car';
 import type { GameState } from '../sim/game';
-import type { TrackDefinition } from '../track/types';
+import type { Track, TrackDefinition } from '../track/types';
+import { stepYellowFlags, type YellowFlag } from './flags';
 import { damageInPhase } from './damage';
+import { drawWeatherTurn, forecastBefore, raceForecast, type WeatherTurn } from './forecast';
 import { HELD, startHold, type StartHold } from './hold';
 import { qualifyingOrder, type QualifyingEntry } from './qualifying';
+import { safetyCarWet, SafetyCarDirector, type SafetyCarRoom } from './safetyCar';
 import { raceStandings, timingLinesPassed, type RaceDriver } from './standings';
 
 /**
@@ -16,6 +21,8 @@ import { raceStandings, timingLinesPassed, type RaceDriver } from './standings';
  */
 export interface GrandPrixRoom {
   readonly definition: TrackDefinition;
+  /** The track it runs on (with its pit lane): where a crash's yellow flag is. */
+  readonly track: Track;
   readonly state: GameState;
   /** Cars held on the grid (and the start lights); null while they may drive. */
   hold: StartHold | null;
@@ -27,7 +34,17 @@ export interface GrandPrixRoom {
   spawn(id: CarId): void;
   setDamage(on: boolean): void;
   setPitBoxes(boxes: Readonly<Record<CarId, number>>): void;
-  setWeather(weather: Weather): void;
+  /** How wet the track is when (`forecastBefore`, `raceForecast`). */
+  setWeather(forecast: Forecast): void;
+}
+
+/** How a Grand Prix runs beyond the rules every one has. */
+export interface GrandPrixOptions {
+  /**
+   * The safety car (R.3, 01_docs/safetycar.md): the room that drives it (the server's; single
+   * player's Grand Prix has none, owner 2026-11-24). Left out: no safety car.
+   */
+  readonly safetyCar?: SafetyCarRoom;
 }
 
 /**
@@ -37,8 +54,10 @@ export interface GrandPrixRoom {
  * (play again) a new lobby on the same circuit, for whoever asks for it.
  * The first player in is the manager; if they leave, the one who has been there longest takes
  * over. Only the manager's commands count, apart from play again. In the lobby the manager also
- * chooses the weather (the rain only where `offersRain`), kept for the whole GP and play again.
- * Pure apart from `random` (lights out). See 01_docs/multiplayer.md#grand-prix.
+ * chooses the weather (the rain, or the variable weather, only where `offersRain`), kept for the
+ * whole GP and play again; a variable GP's turn (`drawWeatherTurn`) is drawn when chosen (and
+ * again for play again), its timing when the race starts (`raceForecast`).
+ * Pure apart from `random` (lights out, the weather). See 01_docs/multiplayer.md#grand-prix.
  */
 export class GrandPrix {
   private phase: GrandPrixPhase = 'lobby';
@@ -54,19 +73,39 @@ export class GrandPrix {
   private raceLaps: number | null = null;
   /** Chosen by the manager in the lobby (on a track that `offersRain`), kept for play again. */
   private weather: Weather = 'dry';
+  /** A variable GP's turn of weather; null otherwise. */
+  private turn: WeatherTurn | null = null;
+  /** How wet the track is when: the room's, sent to every machine. */
+  private forecast: Forecast = forecastBefore('dry', null);
   /** The session's (phase's) best time of each sector over every driver; reset by `setPhase`. */
   private sectorBests: (number | null)[] = noSectorBests();
   /** Drivers with a given qualifying time (`addSimulated`), by id. */
   private readonly simulated = new Map<CarId, number>();
+  /** Crashes' debris and yellow flags out now (R.2: qualifying and the race). */
+  private yellowFlags: readonly YellowFlag[] = [];
   /** The race's last counted pit stop of each driver (its end tick). */
   private readonly stopsCounted = new Map<CarId, number>();
+  /**
+   * The race's safety car (R.3, multiplayer only: `GrandPrixOptions.safetyCar`): its periods, the
+   * delta, the overtakes and their penalties; null without one.
+   */
+  private readonly safety: { director: SafetyCarDirector; room: SafetyCarRoom } | null;
+  /** Penalties of `safety` already added to their drivers. */
+  private penaltiesGiven = 0;
   private readonly room: GrandPrixRoom;
   /** Draws lights out (0..1); tests pass a fixed one. */
   private readonly random: () => number;
 
-  constructor(room: GrandPrixRoom, random: () => number = Math.random) {
+  constructor(
+    room: GrandPrixRoom,
+    random: () => number = Math.random,
+    options: GrandPrixOptions = {},
+  ) {
     this.room = room;
     this.random = random;
+    this.safety = options.safetyCar
+      ? { director: new SafetyCarDirector(), room: options.safetyCar }
+      : null;
   }
 
   /** Whether newcomers may still enter: only while waiting in the lobby. */
@@ -95,7 +134,14 @@ export class GrandPrix {
       hold: this.room.hold,
       boxes: Object.fromEntries(this.boxes),
       weather: this.weather,
+      forecast: this.forecast,
       sectorBests: [...this.sectorBests],
+      yellowFlags: this.yellowFlags,
+      ...(this.safety && {
+        safetyCar: this.safety.director.info,
+        giveBack: [...this.safety.director.giveBack],
+        incidents: [...this.safety.director.incidents],
+      }),
     };
   }
 
@@ -139,7 +185,7 @@ export class GrandPrix {
       const allowed = command.weather === 'dry' || offersRain(this.room.definition.name);
       if (!allowed || command.weather === this.weather) return false;
       this.weather = command.weather;
-      this.room.setWeather(command.weather);
+      this.newTurn();
       return true;
     }
     if (command.action === 'start' && this.phase === 'lobby') {
@@ -165,6 +211,12 @@ export class GrandPrix {
       this.setPhase('race');
       this.raceLaps = command.laps;
       this.room.hold = startHold(this.room.state.tick, this.random());
+      if (this.turn) {
+        const { until } = this.room.hold;
+        const { length } = this.room.track;
+        this.forecast = raceForecast(this.turn, until, command.laps, length, this.random);
+        this.room.setWeather(this.forecast);
+      }
       for (const { id } of this.order()) {
         this.racers.set(id, {
           id,
@@ -192,7 +244,8 @@ export class GrandPrix {
    */
   afterTick(): boolean {
     // Before anyone is retired: a best set on a driver's last lap still counts.
-    const bests = this.newSectorBests();
+    const flags = this.flagsTick();
+    const bests = this.newSectorBests() || flags;
     if (this.phase === 'race') return this.raceTick() || bests;
     if (this.phase !== 'qualifying') return bests;
     let changed = bests;
@@ -233,6 +286,7 @@ export class GrandPrix {
       this.stopsCounted.clear();
       this.raceLaps = null;
       this.room.hold = null;
+      this.newTurn();
       this.room.restart([id]);
       return true;
     }
@@ -270,8 +324,42 @@ export class GrandPrix {
       if (finished) this.room.retire(lap.carId);
       changed = true;
     }
+    if (this.safety && this.anyRacing()) changed = this.safetyCarTick(this.safety) || changed;
     if (changed && !this.anyRacing()) this.setPhase('results');
     return changed;
+  }
+
+  /** The safety car's tick (R.3), and the penalties it gave added to their drivers' race time. */
+  private safetyCarTick(safety: { director: SafetyCarDirector; room: SafetyCarRoom }): boolean {
+    const start = this.room.hold?.until ?? 0;
+    const running = raceStandings([...this.racers.values()], start)
+      .filter((standing) => standing.status === 'running')
+      .map((standing) => standing.id);
+    const wet = safetyCarWet(wetnessAt(this.forecast, this.room.state.tick));
+    const changed = safety.director.tick(safety.room, {
+      running,
+      raceLaps: this.raceLaps!,
+      started: this.room.state.tick >= start,
+      ...(wet && { wet }),
+    });
+    const { incidents } = safety.director;
+    for (; this.penaltiesGiven < incidents.length; this.penaltiesGiven++) {
+      const { id } = incidents[this.penaltiesGiven]!;
+      const racer = this.racers.get(id);
+      if (!racer) continue;
+      const penalty = Math.round(SAFETY_CAR_PARAMS.penalty * TICK_RATE);
+      this.racers.set(id, { ...racer, timePenalty: (racer.timePenalty ?? 0) + penalty });
+    }
+    return changed;
+  }
+
+  /** In qualifying and the race, the crashes' yellow flags (`stepYellowFlags`); whether they changed. */
+  private flagsTick(): boolean {
+    if (!this.isTimed) return false;
+    const next = stepYellowFlags(this.yellowFlags, this.room.state, this.room.track, this.drivers);
+    if (next === this.yellowFlags) return false;
+    this.yellowFlags = next;
+    return true;
   }
 
   /**
@@ -295,6 +383,13 @@ export class GrandPrix {
     return improved;
   }
 
+  /** The weather from the lobby on: a variable GP's turn drawn afresh; told to the room. */
+  private newTurn(): void {
+    this.turn = this.weather === 'variable' ? drawWeatherTurn(this.random) : null;
+    this.forecast = forecastBefore(this.weather, this.turn);
+    this.room.setWeather(this.forecast);
+  }
+
   /** `id`'s pit box: the lowest no driver has, told to the room. */
   private giveBox(id: CarId): void {
     const taken = new Set(this.boxes.values());
@@ -306,8 +401,14 @@ export class GrandPrix {
 
   /** Every phase change goes through here: the room's damage follows the phase (`damageInPhase`). */
   private setPhase(phase: GrandPrixPhase): void {
+    // A new race, or none: no safety car, nothing owed.
+    if (this.safety && (phase !== this.phase || phase === 'race')) {
+      this.safety.director.reset(this.safety.room);
+      this.penaltiesGiven = 0;
+    }
     this.phase = phase;
     this.sectorBests = noSectorBests(); // a new session, with its own bests
+    this.yellowFlags = []; // and a clean track
     this.room.setDamage(damageInPhase(phase));
   }
 

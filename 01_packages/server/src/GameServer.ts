@@ -192,7 +192,8 @@ export class GameServer {
       room = new Room(definition, { pitLane: mode === 'grandPrix' });
       this.rooms.set(key, room);
       this.modes.set(key, mode);
-      if (mode === 'grandPrix') this.grandPrix.set(key, new GrandPrix(room));
+      if (mode === 'grandPrix')
+        this.grandPrix.set(key, new GrandPrix(room, Math.random, { safetyCar: room }));
       this.log(`[rooms] ${key} is live`);
     }
     const grandPrix = this.grandPrix.get(key);

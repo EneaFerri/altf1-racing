@@ -5,21 +5,26 @@ import {
   findCar,
   heldInputs,
   length,
+  everWet,
   placePuddles,
+  safetyCarWet,
   scale,
   stepGame,
   sub,
+  trackWetness,
   WET_PARAMS,
+  withSafetyCar,
   wrapAngle,
   type CarId,
   type GameState,
   type InputCommand,
   type InputMap,
+  type SafetyCarInfo,
   type ServerMessage,
   type SimContext,
   type StartHold,
+  type Forecast,
   type Vec2,
-  type Weather,
 } from '@altf1/shared';
 
 export type Snapshot = Extract<ServerMessage, { type: 'snapshot' }>;
@@ -70,6 +75,8 @@ export class Predictor {
   private correction = 0;
   /** The room's start hold (Grand Prix), applied like the server does; null = none. */
   hold: StartHold | null = null;
+  /** The race's safety car period (Grand Prix): its car driven like the server does; null = none. */
+  safetyCar: SafetyCarInfo | null = null;
 
   /** What the prediction runs: `ctx`, with damage while the room has it (`setDamage`). */
   private sim: SimContext;
@@ -97,18 +104,21 @@ export class Predictor {
   }
 
   /**
-   * The weather the server's room runs (a Grand Prix's, chosen by its manager): the rain makes
-   * the predicted track wet, with the same puddles (`onlineSimContext`).
+   * The weather the server's room runs (a Grand Prix's, chosen by its manager): its forecast makes
+   * the predicted track as wet as the server's, with the same puddles (`onlineSimContext`).
    */
-  setWeather(weather: Weather): void {
-    if (weather === this.weather) return;
-    this.weather = weather;
+  setWeather(forecast: Forecast): void {
+    const key = JSON.stringify(forecast);
+    if (key === this.forecastKey) return;
+    this.forecastKey = key;
+    this.forecast = forecast;
     this.rebuild();
   }
 
   private damage = false;
   private boxes: Readonly<Record<CarId, number>> = {};
-  private weather: Weather = 'dry';
+  private forecast: Forecast = [];
+  private forecastKey = '[]';
 
   private rebuild(): void {
     const { pit } = this.ctx;
@@ -116,8 +126,12 @@ export class Predictor {
       ...this.ctx,
       ...(this.damage && { damage: DAMAGE_PARAMS }),
       ...(pit && { pit: { ...pit, boxes: this.boxes } }),
-      ...(this.weather === 'rain' && {
-        weather: { params: WET_PARAMS, puddles: placePuddles(this.ctx.track) },
+      ...(everWet(this.forecast) && {
+        weather: {
+          params: WET_PARAMS,
+          puddles: placePuddles(this.ctx.track),
+          forecast: this.forecast,
+        },
       }),
     };
   }
@@ -128,7 +142,7 @@ export class Predictor {
     if (this.pending.length > MAX_PENDING) this.pending.shift();
     if (!this.world) return;
     this.previous = this.world;
-    this.world = stepGame(this.world, this.inputs(input, this.world.tick), this.sim);
+    this.world = stepGame(this.world, this.inputs(input, this.world), this.sim);
   }
 
   /** Restarts from the server's snapshot and replays this player's inputs it hasn't run yet. */
@@ -143,7 +157,7 @@ export class Predictor {
     let world = snapshot.state;
     for (const { input } of this.pending) {
       previous = world;
-      world = stepGame(world, this.inputs(input, world.tick), this.sim);
+      world = stepGame(world, this.inputs(input, world), this.sim);
     }
     this.keepOnScreen(world);
     this.previous = previous;
@@ -186,9 +200,15 @@ export class Predictor {
     return this.pending.length;
   }
 
-  /** Every car's input for the step from `tick`, all neutral while the start hold lasts. */
-  private inputs(own: InputCommand, tick: number): InputMap {
-    return heldInputs({ ...this.remoteInputs, [this.playerId]: own }, tick, this.hold);
+  /**
+   * Every car's input for the step from `world`, all neutral while the start hold lasts; the
+   * safety car's as the server drives it.
+   */
+  private inputs(own: InputCommand, world: GameState): InputMap {
+    const held = heldInputs({ ...this.remoteInputs, [this.playerId]: own }, world.tick, this.hold);
+    const { track, weather } = this.sim;
+    const wet = safetyCarWet(trackWetness(weather, world.tick));
+    return withSafetyCar(held, world, this.safetyCar, track, wet);
   }
 
   /**

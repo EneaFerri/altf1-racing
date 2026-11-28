@@ -4,21 +4,30 @@ import {
   heldInputs,
   NEUTRAL_INPUT,
   onlineSimContext,
+  placeCarAtPose,
   quantizeState,
   removeCar,
   repairCars,
+  SAFETY_CAR_ID,
   spawnOnGrid,
+  safetyCarWet,
+  startingTyres,
   stepGame,
+  trackWetness,
+  withSafetyCar,
   type BuildOptions,
   type CarId,
   type GameState,
   type GrandPrixRoom,
   type InputCommand,
+  type SafetyCarInfo,
   type SimContext,
   type StartHold,
   type Track,
   type TrackDefinition,
-  type Weather,
+  type Vec2,
+  DRY_FORECAST,
+  type Forecast,
 } from '@altf1/shared';
 
 /**
@@ -99,12 +108,14 @@ function newTimeline(): InputTimeline {
  */
 export class Room implements GrandPrixRoom {
   readonly definition: TrackDefinition;
-  private readonly track: Track;
+  readonly track: Track;
   private ctx: SimContext;
   private current: GameState = { tick: 0, cars: [], impacts: [], laps: [] };
   private readonly queues = new Map<CarId, InputTimeline>();
   /** Cars held on the grid until lights out (a Grand Prix start); null = free to drive. */
   hold: StartHold | null = null;
+  /** A Grand Prix race's safety car period (it drives the safety car); null = none. */
+  safetyCar: SafetyCarInfo | null = null;
 
   /** `options`: a Grand Prix's room drives the pit lane (`pitLane`). */
   constructor(definition: TrackDefinition, options: BuildOptions = {}) {
@@ -132,15 +143,15 @@ export class Room implements GrandPrixRoom {
     this.ctx = onlineSimContext(this.track, this.rules);
   }
 
-  /** The track's weather (a Grand Prix's, chosen by its manager); dry by default. */
-  get weather(): Weather {
-    return this.rules.weather;
+  /** How wet the track is when (a Grand Prix's, chosen by its manager); dry by default. */
+  get forecast(): Forecast {
+    return this.rules.forecast;
   }
 
-  /** The track wet (`rain`: its puddles too) or dry from the next tick. */
-  setWeather(weather: Weather): void {
-    if (weather === this.rules.weather) return;
-    this.rules = { ...this.rules, weather };
+  /** The track's wetness (its puddles too) by `forecast` from the next tick. */
+  setWeather(forecast: Forecast): void {
+    if (forecast === this.rules.forecast) return;
+    this.rules = { ...this.rules, forecast };
     this.ctx = onlineSimContext(this.track, this.rules);
   }
 
@@ -148,8 +159,8 @@ export class Room implements GrandPrixRoom {
   private rules: {
     readonly damage: boolean;
     readonly pitBoxes: Readonly<Record<CarId, number>>;
-    readonly weather: Weather;
-  } = { damage: false, pitBoxes: {}, weather: 'dry' };
+    readonly forecast: Forecast;
+  } = { damage: false, pitBoxes: {}, forecast: DRY_FORECAST };
 
   /** No players left (cars out of the race still count: their players are watching). */
   get isEmpty(): boolean {
@@ -187,10 +198,24 @@ export class Room implements GrandPrixRoom {
 
   /**
    * Every car back on the grid in `order` (first = pole), at rest, with fresh timing; the cars of
-   * players not in `order` leave the track. The tick count goes on.
+   * players not in `order` leave the track. The tick count goes on. On a wet track the cars start on
+   * the tyres it asks for (`startingTyres`).
    */
   restart(order: readonly CarId[]): void {
-    this.current = { ...createGame(this.track, order), tick: this.current.tick };
+    const tyres = startingTyres(this.ctx.weather, this.ctx.tyres, this.current.tick);
+    this.current = { ...createGame(this.track, order, tyres), tick: this.current.tick };
+  }
+
+  /** The safety car (`GrandPrix`) at `position` facing `direction` at `speed`. */
+  placeSafetyCar(position: Vec2, direction: Vec2, speed: number): void {
+    this.current = placeCarAtPose(
+      this.current,
+      this.track,
+      SAFETY_CAR_ID,
+      position,
+      direction,
+      speed,
+    );
   }
 
   /** Takes the player's car off the track; the player stays (watching, inputs still acked). */
@@ -237,15 +262,17 @@ export class Room implements GrandPrixRoom {
   /**
    * One fixed tick of the simulation (nothing to do while nobody is in the room). Each player runs
    * the input of its next slot, or repeats its last one (never its reset) if that hasn't arrived;
-   * a `hold` makes them all neutral.
+   * a `hold` makes them all neutral. The safety car drives by `safetyCar`.
    */
   tick(): void {
     if (this.isEmpty) return;
     const inputs: Record<CarId, InputCommand> = {};
     for (const [id, queue] of this.queues) inputs[id] = runSlot(queue);
+    const held = heldInputs(inputs, this.current.tick, this.hold);
+    const weather = safetyCarWet(trackWetness(this.ctx.weather, this.current.tick));
     this.current = stepGame(
       this.current,
-      heldInputs(inputs, this.current.tick, this.hold),
+      withSafetyCar(held, this.current, this.safetyCar, this.track, weather),
       this.ctx,
     );
   }

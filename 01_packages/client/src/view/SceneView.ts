@@ -1,22 +1,31 @@
 import * as THREE from 'three';
 import {
+  DAMAGE_PARAMS,
   dot,
   forward,
+  isPunctured,
   lerp,
   lerpAngle,
   locateOnTrack,
   placePuddles,
+  puncturedTyres,
+  SAFETY_CAR_ID,
   slipAngle,
   type CarId,
   type CarState,
   type GameState,
+  type Punctures,
+  type SafetyCarInfo,
   type Track,
   type Weather,
+  type YellowFlag,
 } from '@altf1/shared';
 import { CameraRig } from './cameras/CameraRig';
 import type { CameraParams } from './cameras/params';
 import { CarView, type CarPose } from './CarView';
 import { NameTag } from './NameTag';
+import { SafetyCarView } from './SafetyCarView';
+import { TrackDebris } from './TrackDebris';
 import { LIVERIES, type Livery } from './pixelTexture';
 import { elevatedGround, gridHeightAt, trackGroundHeight } from './scenery/ground';
 import { trackBounds } from './scenery/placement';
@@ -38,11 +47,16 @@ import { createOwnBoxMark, createTrackView } from './TrackView';
 import { FlagMarshal } from './FlagMarshal';
 import { bindResize, createRenderer } from './renderer';
 
+/** From this wetness on the track is drawn wet (`setWetness`). */
+const RAIN_LOOK_FROM = 0.3;
+
 /** Owns the Three.js scene and draws it. Reads game state, never writes it. */
 export class SceneView {
   private readonly renderer = createRenderer();
   private readonly scene = new THREE.Scene();
-  private readonly cars = new Map<CarId, CarView>();
+  private readonly cars = new Map<CarId, CarView | SafetyCarView>();
+  /** The safety car's light bar (R.3): on while it leads the field. */
+  private safetyCarLights = false;
   /** Nickname over each opponent's car (multiplayer); never over the followed car. */
   private readonly tags = new Map<CarId, NameTag>();
   private names: Readonly<Record<CarId, string>> = {};
@@ -110,6 +124,15 @@ export class SceneView {
   private dropsOn = true;
   /** How the drops look; the dev panel edits it live. */
   readonly raindropParams = { ...RAINDROP_PARAMS };
+
+  /**
+   * The look for a track `wetness` wet (2.8, a variable GP's weather turning): the rain's from
+   * `RAIN_LOOK_FROM` on, else the dry one; nothing redrawn while it stays the same.
+   */
+  setWetness(wetness: number): void {
+    const weather = wetness >= RAIN_LOOK_FROM ? 'rain' : 'dry';
+    if (weather !== (this.raining ? 'rain' : 'dry')) this.setWeather(weather);
+  }
 
   /**
    * Draws the track in `weather` from now on: the theme's own look when dry; in the rain an
@@ -224,6 +247,21 @@ export class SceneView {
     this.flagMarshal.visible = on;
   }
 
+  private trackDebris: TrackDebris | null = null;
+
+  /**
+   * Crashes' debris on the track and the yellow flags' marshals (R.2, a Grand Prix); created when
+   * the first crash is shown.
+   */
+  setYellowFlags(flags: readonly YellowFlag[]): void {
+    if (flags.length === 0 && !this.trackDebris) return;
+    if (!this.trackDebris) {
+      this.trackDebris = new TrackDebris(this.track);
+      this.scene.add(this.trackDebris.object);
+    }
+    this.trackDebris.show(flags, (id) => (this.liveries[id] ?? LIVERIES.grey).body);
+  }
+
   /** Looks behind the followed car while `on` (either camera). */
   setLookBack(on: boolean): void {
     this.cameraRig.lookBack = on;
@@ -243,6 +281,7 @@ export class SceneView {
     }
     this.renderGhost(frameSeconds);
     this.flagMarshal?.update(frameSeconds);
+    this.trackDebris?.update(frameSeconds);
     // Tags after the camera moved, so they face it and size against its new position.
     for (const car of curr.cars) {
       if (car.id === this.followId) continue;
@@ -301,9 +340,30 @@ export class SceneView {
     this.tags.delete(id);
   }
 
-  /** CarView for `id`, created the first time the car appears (opponents can join any time). */
-  private carView(id: CarId): CarView {
+  /**
+   * The race's safety car period (R.3): its light bar flashes while it leads the field, out on
+   * its last lap and going in.
+   */
+  setSafetyCar(info: SafetyCarInfo | null): void {
+    // Lit from the call on (waiting at the pit exit too), out on its last lap.
+    this.safetyCarLights = (info?.phase === 'deployed' || info?.phase === 'out') && !info.inThisLap;
+    const view = this.cars.get(SAFETY_CAR_ID);
+    if (view instanceof SafetyCarView) view.setLights(this.safetyCarLights);
+  }
+
+  /**
+   * The view of car `id`, created the first time the car appears (opponents can join any time):
+   * the safety car its own.
+   */
+  private carView(id: CarId): CarView | SafetyCarView {
     let view = this.cars.get(id);
+    if (!view && id === SAFETY_CAR_ID) {
+      const safetyCar = new SafetyCarView();
+      safetyCar.setLights(this.safetyCarLights);
+      view = safetyCar;
+      this.cars.set(id, view);
+      this.scene.add(view.object);
+    }
     if (!view) {
       view = new CarView(this.liveries[id] ?? LIVERIES.grey, 1, this.carLights);
       view.setWetTyres(this.wetTyres);
@@ -324,8 +384,15 @@ function interpolateCar(prev: CarState, curr: CarState, alpha: number): CarPose 
     forwardSpeed: dot(curr.velocity, forward(curr.heading)),
     slip: slipAngle(prev) + (slipAngle(curr) - slipAngle(prev)) * alpha,
     ...(curr.damage && { damage: curr.damage }),
+    ...(curr.damage && punctured(curr)),
     ...(curr.tyres && { compound: curr.tyres.compound }),
   };
+}
+
+/** A car's flat tyres for its pose (damage on, i.e. the Grand Prix), or nothing when none is. */
+function punctured(car: CarState): { punctures: Punctures } | null {
+  const punctures = puncturedTyres(car.damage, car.tyres, DAMAGE_PARAMS);
+  return isPunctured(punctures) ? { punctures } : null;
 }
 
 /**

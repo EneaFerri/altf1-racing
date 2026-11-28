@@ -131,3 +131,40 @@ damage)`); off also repairs every car (`repairCars`). `GrandPrix.setPhase`, the 
   and Time trial snapshots are exactly as before).
 - The HUD damage panel and the damaged cars (4c) show by themselves: they read the cars'
   `damage`. Free practice rooms never have it (tested).
+
+## Punctures (R.1)
+
+Owner's request (2026-11-24): a tyre gone red, or worn out, punctures, as in reality, and the car
+has to go very slowly. Grand Prix only (with `SimContext.damage`), web and Mac, single player and
+online.
+
+- **When** (`puncturedTyres` in `sim/damage.ts`, pure, tested): a tyre whose damage reaches
+  `punctureDamage` (0.75: red in the HUD, from hits and walls), and, once its set (`CarState.tyres`,
+  T.1) is worn to `punctureWear` (95%), the most damaged tyre too (on a tie the front left).
+  Derived from the state alone: no new field, no protocol change, the server and the prediction
+  agree by themselves.
+- **Effect** (`puncturedParams`, `puncturedInput`, `limpSpeed`, applied by `stepGame` after the
+  damage and the tyres): top speed `punctureTopSpeed` (190 km/h, the owner's number), grip ×
+  `punctureGrip` (0.55), turning × `punctureTurn` (0.7); faster than that the car loses
+  `punctureDecel` (12 m/s²) until it is down to it; the flat tyre's side pulls (`puncturePull`, 0.15 of the
+  steering range).
+- **Mended** by a pit stop: new tyres at the stop, the damage repaired at its end.
+- **Bots** (`ai/squad.ts`): a punctured bot takes the pit lane at once (the stop counts like any
+  other); softs only for a stint that ends before 95% of their life (3.8 laps), so a 4-lap stint
+  now gets mediums.
+- **Look** (the owner's photo: the tread torn off the carcass, floating over the rim), every car:
+  the punctured wheel loses its tyre: the bare **grey rim** (`PUNCTURED_RIM`, 70% of the wheel,
+  narrower) sits on the road, under the **loose tread**: an open band a little wider than the rim
+  (`LOOSE_TREAD`, 86% of the wheel; owner, 2026-11-24: close to the rim), not turned by it. `looseTread` (`view/carDamageLook.ts`, tested) sets
+  it each frame: at rest it hangs round the rim, its bottom on the road; with speed (in full from
+  25 m/s) it lifts a little, slips round slower than the wheel, flaps sideways and wobbles in and out
+  of shape, each wheel out of step. In the HUD damage panel the tyre blinks and `PUNCTURE` shows
+  in red.
+- **Tuning**: dev panel, F2 → Damage (the `puncture*` params).
+- **Mac**: `puncturedTyres`, `puncturedParams`, `puncturedInput`, `limpSpeed` in
+  `AltF1Core/Sim/Damage.swift` (parity: the Monaco sim fixture has a punctured car);
+  `CarDamageLook(damage, punctures:)` with the same loose tread (`looseTread`, an open band mesh
+  in `CarEntity`) and the blinking `DamagePanel`.
+
+Note for players: softs last 4 laps, so a full 4-lap stint on softs now ends in a puncture just
+before the stop (at 3.8 laps); mediums puncture after ~8.5 laps.

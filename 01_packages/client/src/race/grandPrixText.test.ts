@@ -30,6 +30,7 @@ const LOBBY: GrandPrixInfo = {
   hold: null,
   boxes: { p1: 0, p2: 1 },
   weather: 'dry',
+  forecast: [{ tick: 0, wetness: 0 }],
   sectorBests: [null, null, null],
 };
 
@@ -77,7 +78,9 @@ describe('Grand Prix panel', () => {
   it('offers the manager the weather in the lobby of a track with rain, and shows it', () => {
     const lobby = grandPrixContent(LOBBY, DRIVERS, 'p1', new Map(), true);
     expect(lobby.title).toBe('GRAND PRIX · WAITING · DRY');
-    expect(lobby.hint).toBe('You are the GP manager — 1: dry · 2: rain · Enter: start the GP');
+    expect(lobby.hint).toBe(
+      'You are the GP manager — 1: dry · 2: rain · 3: variable · Enter: start the GP',
+    );
     const wet: GrandPrixInfo = { ...LOBBY, weather: 'rain' };
     expect(grandPrixContent(wet, DRIVERS, 'p2', new Map(), true).title).toBe(
       'GRAND PRIX · WAITING · RAIN',

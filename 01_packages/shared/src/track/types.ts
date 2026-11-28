@@ -3,7 +3,8 @@ import type { Vec2 } from '../math/vec2';
 
 export type TrackSide = 'left' | 'right';
 export type KerbKind = 'none' | 'low' | 'high';
-export type RunoffKind = 'grass' | 'gravel';
+/** What lies between the asphalt and the wall: a run-off area is paved (`runoffAreas`). */
+export type RunoffKind = 'grass' | 'gravel' | 'asphalt';
 /** What a wheel can be on. Effects per surface live in config/surfaces.ts. */
 export type Surface = 'asphalt' | 'kerb' | 'highKerb' | 'grass' | 'gravel';
 
@@ -82,6 +83,22 @@ export interface TrackDefinition {
   readonly kerbBand?: { readonly inset: number; readonly outset: number };
   /** Real circuits: the pit lane (only the Grand Prix drives it; elsewhere it is scenery). */
   readonly pitLane?: PitLaneDefinition;
+  /**
+   * Run-off wider than `runoffWidth` on one side: an escape area outside a corner (Baku's turn
+   * 16). Left out: the same run-off all round. See 01_docs/track.md.
+   */
+  readonly runoffAreas?: readonly RunoffArea[];
+}
+
+/**
+ * `width` m more run-off on `side` from control point `fromPoint` to `toPoint` (in driving order,
+ * over the line if it must), eased in and out over TRACK_RULES.runoffAreaRamp at its ends.
+ */
+export interface RunoffArea {
+  readonly fromPoint: number;
+  readonly toPoint: number;
+  readonly side: TrackSide;
+  readonly width: number;
 }
 
 export interface TrackSample {
@@ -106,6 +123,8 @@ export interface TrackSample {
 export interface TrackSideInfo {
   readonly kerb: readonly KerbKind[];
   readonly runoff: readonly RunoffKind[];
+  /** Run-off beyond `Track.runoffWidth` per sample (m): only with `runoffAreas`. See `runoffAt`. */
+  readonly extraRunoff?: readonly number[];
 }
 
 /** A one-sided wall: collisions push only towards `normal` (which points at the track). */
@@ -156,7 +175,10 @@ export interface Track {
   readonly maxHalfWidth: number;
   /** True when its points have heights (Monaco): only then does the slope act. */
   readonly elevated: boolean;
+  /** Run-off all round (m); wider on one side in a run-off area (`runoffAt`). */
   readonly runoffWidth: number;
+  /** Widest run-off anywhere (m), for search radii: only with `runoffAreas`. */
+  readonly maxRunoffWidth?: number;
   /** Kerb band across the edge (m): from `kerbInset` inside it to `kerbOutset` outside it. */
   readonly kerbInset: number;
   readonly kerbOutset: number;

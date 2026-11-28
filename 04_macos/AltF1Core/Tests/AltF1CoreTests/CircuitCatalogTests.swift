@@ -4,18 +4,18 @@ import Testing
 @testable import AltF1Core
 
 @Suite struct CircuitCatalogTests {
-    @Test func listsTheSevenCircuitsInMenuOrder() throws {
+    @Test func listsTheEightCircuitsInMenuOrder() throws {
         let names = try CircuitCatalog.entries().map(\.name)
         #expect(
             names == [
                 "Monza", "Barcelona", "Monaco", "Mexico City", "Singapore", "Las Vegas",
-                "São Paulo",
+                "São Paulo", "Baku",
             ])
     }
 
-    @Test func onlyMonacoAndSaoPauloAreElevated() throws {
+    @Test func onlyMonacoSaoPauloAndBakuAreElevated() throws {
         let elevated = try CircuitCatalog.entries().filter(\.elevated).map(\.id)
-        #expect(elevated == ["monaco", "saoPaulo"])
+        #expect(elevated == ["monaco", "saoPaulo", "baku"])
     }
 
     @Test func everyCircuitHasItsData() throws {

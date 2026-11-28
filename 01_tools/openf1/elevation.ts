@@ -86,16 +86,32 @@ export function alignHeights(
 }
 
 /**
+ * A circuit's land (`data/<id>.terrain.json`), its heights above its own sea: with `seaLevel`
+ * (Baku's Caspian, 29 m under the oceans) every height is moved up by it and the sea's cells (at
+ * or under it) become no land, as the sea on the oceans' coasts. Without it, the file as it is.
+ */
+export function terrainOf(circuit: CircuitConfig): RawTerrain {
+  const terrain = readJson<RawTerrain>(terrainPath(circuit.id));
+  const sea = circuit.seaLevel;
+  if (sea === undefined) return terrain;
+  return {
+    ...terrain,
+    heights: terrain.heights.map((h) =>
+      h === null || h <= sea ? null : Math.round((h - sea) * 10) / 10,
+    ),
+  };
+}
+
+/**
  * A circuit's station heights for its layout (real m above sea level), when it has elevation
- * (`CircuitConfig.elevation`): the profile's aligned onto the land in `data/<data>.terrain.json`.
+ * (`CircuitConfig.elevation`): the profile's aligned onto its land (`terrainOf`).
  */
 export function elevationOf(
   circuit: CircuitConfig,
   profile: CircuitProfile,
 ): readonly number[] | undefined {
   if (!circuit.elevation) return undefined;
-  return alignHeights(profile, readJson<RawTerrain>(terrainPath(circuit.id)), circuit.lowestHeight)
-    .heights;
+  return alignHeights(profile, terrainOf(circuit), circuit.lowestHeight).heights;
 }
 
 /** The land's datasets (OpenTopoData), by `CircuitConfig.dem`: step = the DEM's own resolution (m). */

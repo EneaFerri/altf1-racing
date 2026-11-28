@@ -1,6 +1,7 @@
 import {
   GRAND_PRIX,
   requiredStops,
+  TICK_RATE,
   type CarId,
   type GrandPrixInfo,
   type LapState,
@@ -40,7 +41,13 @@ export function grandPrixContent(
 ): GrandPrixContent {
   const content = phaseContent(info, drivers, ownId, pits, canRain, customLaps);
   const weather =
-    info.weather === 'rain' ? ' · RAIN' : canRain && info.phase === 'lobby' ? ' · DRY' : '';
+    info.weather === 'rain'
+      ? ' · RAIN'
+      : info.weather === 'variable'
+        ? ' · VARIABLE'
+        : canRain && info.phase === 'lobby'
+          ? ' · DRY'
+          : '';
   return leftOut(info, ownId) ? content : { ...content, title: content.title + weather };
 }
 
@@ -101,7 +108,7 @@ function phaseContent(
           row(id, byId.get(id)?.name ?? '', id === info.manager ? 'manager' : ''),
         ),
         hint: isManager
-          ? `You are the GP manager — ${canRain ? '1: dry · 2: rain · ' : ''}Enter: start the GP`
+          ? `You are the GP manager — ${canRain ? '1: dry · 2: rain · 3: variable · ' : ''}Enter: start the GP`
           : info.manager === null
             ? 'Waiting for a driver: the next one in is the manager'
             : `Waiting for ${manager} to start the GP`,
@@ -150,7 +157,15 @@ function phaseContent(
         return {
           name: `${i + 1}  ${standing.name}`,
           color: (driver?.livery ?? LIVERIES.grey).body,
-          note: raceNote(standing, i, info.raceLaps!),
+          note: [
+            raceNote(standing, i, info.raceLaps!),
+            // Time penalties (the safety car's rules): told live, in the time at the flag.
+            info.phase === 'race' && standing.timePenalty
+              ? `+${Math.round(standing.timePenalty / TICK_RATE)}s PEN`
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' · '),
           own: standing.id === ownId,
           ...(info.phase === 'race' && pitOf(standing.id)),
           ...(standing.status !== 'dnf' && stopsOf(standing.stops)),
@@ -159,8 +174,9 @@ function phaseContent(
       });
       if (info.phase === 'results') return { title: 'GRAND PRIX · RESULTS', rows, hint: '' };
       const rule = stopsNote(info.raceLaps!);
+      const safetyCar = info.safetyCar && info.safetyCar.phase !== 'restart' ? ' · SAFETY CAR' : '';
       return {
-        title: `GRAND PRIX · RACE · ${info.raceLaps} LAPS`,
+        title: `GRAND PRIX · RACE · ${info.raceLaps} LAPS${safetyCar}`,
         rows,
         hint: [done, rule, isManager ? 'Enter: end the race now' : ''].filter(Boolean).join(' — '),
       };

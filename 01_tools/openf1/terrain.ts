@@ -20,6 +20,7 @@ import {
   elevationOf,
   landHeight,
   profileToOsm,
+  terrainOf,
   type RawTerrain,
 } from './elevation.ts';
 import { fromGame, generate } from './generate.ts';
@@ -117,7 +118,7 @@ async function get(url: string): Promise<(number | null)[]> {
 
 function report(): void {
   const profile = readJson<CircuitProfile>(profilePath(circuit.id));
-  const terrain = readJson<RawTerrain>(terrainPath(circuit.id));
+  const terrain = terrainOf(circuit);
   const { heights, offset, land } = alignHeights(profile, terrain, circuit.lowestHeight);
   const n = heights.length;
   const at = (i: number): number => Math.round(i * profile.spacing);
@@ -186,7 +187,7 @@ function report(): void {
 /** The land around the track in game coordinates, for the ground the client draws (Phase 3d). */
 function writeLand(): void {
   const profile = readJson<CircuitProfile>(profilePath(circuit.id));
-  const terrain = readJson<RawTerrain>(terrainPath(circuit.id));
+  const terrain = terrainOf(circuit);
   const { stations } = generate(profile, circuit, circuit.scale, elevationOf(circuit, profile));
   const toReal = fromGame(profile, circuit, circuit.scale);
   const toOsm = profileToOsm(profile.osmFrame);

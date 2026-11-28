@@ -7,6 +7,11 @@ public struct SurfaceEffect: Sendable {
     public var drag: Double
     /// Yaw kick to add this tick (rad/s).
     public var spinKick: Double
+    /// A wet track (2.8): the cornering load (m/s²) above which the throttle breaks the rear loose,
+    /// how fast it then spins the car round, and how fast at most (`stepCar`). nil: never.
+    public var slideFrom: Double? = nil
+    public var slideGain: Double? = nil
+    public var slideMaxSpin: Double? = nil
 
     public static let neutral = SurfaceEffect(grip: 1, traction: 1, brake: 1, drag: 0, spinKick: 0)
 }

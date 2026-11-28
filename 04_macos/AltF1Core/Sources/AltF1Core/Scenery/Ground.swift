@@ -20,7 +20,7 @@ public enum Ground {
         let hs = points.map(\.height)
         var spacing = 0.0
         for i in 1..<track.samples.count { spacing = max(spacing, track.samples[i].distance - track.samples[i - 1].distance) }
-        let wallReach = track.maxHalfWidth + track.runoffWidth + 2 * Double(every) * spacing
+        let wallReach = track.maxHalfWidth + (track.maxRunoffWidth ?? track.runoffWidth) + 2 * Double(every) * spacing
         return { p in
             var sum = 0.0
             var weights = 0.0
@@ -70,6 +70,54 @@ public enum Ground {
             let f = min(1, max(0, (r.beyond - landFrom) / (landTo - landFrom)))
             let eased = f * f * (3 - 2 * f)
             return r.height + (landHeight(land, p) - r.height) * eased
+        }
+    }
+
+    /// On the real land, a lake's bed lies this far under its water (m; the web's `LAKE_DEPTH`).
+    public static let lakeDepth: Double = 2
+    /// Past its shore, the land eases from the lake's level to its own over this far (m).
+    public static let shoreBand: Double = 30
+
+    /// Points along a ring's edges, about 4 m apart.
+    private static func shorePoints(_ ring: [Vec2]) -> [Vec2] {
+        ring.indices.flatMap { i -> [Vec2] in
+            let a = ring[i]
+            let b = ring[(i + 1) % ring.count]
+            let steps = max(1, Int((jsHypot(b.x - a.x, b.z - a.z) / 4).rounded(.up)))
+            return (0..<steps).map { k in a + (b - a) * (Double(k) / Double(steps)) }
+        }
+    }
+
+    /// A lake's water level on the land (the web's `lakeLevel`): the median of the dry ground along
+    /// its shore (the DEM counts the trees on the bank, so not its lowest point).
+    public static func lakeLevel(_ dry: (Vec2) -> Double, _ ring: [Vec2]) -> Double {
+        let heights = shorePoints(ring).map(dry).sorted()
+        return heights[heights.count / 2]
+    }
+
+    /// The ground with its lakes in it (the web's `withLakes`): inside each, `lakeDepth` under its
+    /// level; past the shore, eased from that level to the land over `shoreBand` m.
+    public static func withLakes(_ dry: @escaping @Sendable (Vec2) -> Double, _ lakes: [[Vec2]]) -> @Sendable (Vec2) -> Double {
+        let shores = lakes.map { ring in (ring: ring, bounds: polygonBounds(ring), level: lakeLevel(dry, ring)) }
+        return { p in
+            let h = dry(p)
+            for shore in shores {
+                let b = shore.bounds
+                if p.x < b.minX - shoreBand || p.x > b.maxX + shoreBand || p.z < b.minZ - shoreBand || p.z > b.maxZ + shoreBand {
+                    continue
+                }
+                if insidePolygon(p, shore.ring) { return shore.level - lakeDepth }
+                var d = Double.infinity
+                for (i, a) in shore.ring.enumerated() {
+                    let e = shore.ring[(i + 1) % shore.ring.count] - a
+                    let t = max(0, min(1, ((p.x - a.x) * e.x + (p.z - a.z) * e.z) / (e.x * e.x + e.z * e.z == 0 ? 1 : e.x * e.x + e.z * e.z)))
+                    d = min(d, jsHypot(p.x - a.x - e.x * t, p.z - a.z - e.z * t))
+                }
+                if d >= shoreBand { continue }
+                let f = d / shoreBand
+                return shore.level + (h - shore.level) * f * f * (3 - 2 * f)
+            }
+            return h
         }
     }
 
@@ -126,7 +174,9 @@ public enum Ground {
 
     /// Lowers the grid wherever its triangles rise above the road or its run-off.
     static func settleUnderRoad(_ grid: inout Grid, _ track: Track, routes: Bool) {
-        var under = track.samples.map { ($0, $0.halfWidth + track.runoffWidth + 0.5) }
+        var under = track.samples.enumerated().map { i, s in
+            (s, s.halfWidth + max(runoffAt(track, .left, i), runoffAt(track, .right, i)) + 0.5)
+        }
         if routes {
             for road in track.routes {
                 for s in road.samples where road.branch.map({ s.distance >= $0.from && s.distance <= $0.to }) ?? true {

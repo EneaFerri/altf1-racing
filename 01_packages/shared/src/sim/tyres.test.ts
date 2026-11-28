@@ -106,10 +106,30 @@ describe('tyres', () => {
     expect(findCar(reset, 'p1')!.tyres).toEqual(findCar(worn, 'p1')!.tyres);
   });
 
-  it('bots fit softs for a stint no longer than they last, else mediums', () => {
-    // Stops after laps 4 and 8 of 12.
-    expect(botCompound([4, 8], 1, 4, 12)).toBe('soft');
-    expect(botCompound([4, 8], 2, 8, 12)).toBe('soft');
+  it('bots fit softs for a stint that ends before they wear out to a puncture, else mediums', () => {
+    // Stops after laps 3 and 6 of 9: 3-lap stints on softs.
+    expect(botCompound([3, 6], 1, 3, 9)).toBe('soft');
+    expect(botCompound([3, 6], 2, 6, 9)).toBe('soft');
+    // A 4-lap stint would wear softs (4 laps' life) past 95%: mediums.
+    expect(botCompound([4, 8], 1, 4, 12)).toBe('medium');
     expect(botCompound([3], 1, 3, 12)).toBe('medium');
+  });
+});
+
+describe('rain tyres on a dry track (T.2)', () => {
+  const lap = 5000;
+
+  it('overheat and wear out by dryWear on a dry track, normally once it is wet enough', () => {
+    const inters = fitTyres('intermediate');
+    const dry = wearTyres(inters, 100, lap, P, 0).wear;
+    const wet = wearTyres(inters, 100, lap, P, P.cooledAt).wear;
+    expect(dry / wet).toBeCloseTo(P.dryWear.intermediate, 9);
+    expect(wet).toBeCloseTo(100 / (P.lifeLaps.intermediate * lap), 12);
+  });
+
+  it('leaves slicks wearing as before, whatever the weather', () => {
+    const softs = fitTyres('soft');
+    expect(wearTyres(softs, 100, lap, P, 0)).toEqual(wearTyres(softs, 100, lap, P));
+    expect(wearTyres(softs, 100, lap, P, 1)).toEqual(wearTyres(softs, 100, lap, P));
   });
 });

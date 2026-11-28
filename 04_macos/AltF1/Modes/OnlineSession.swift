@@ -6,7 +6,7 @@ import Observation
 /// numbered input every tick and draws the room as predicted from the server's snapshots
 /// (`Predictor`), so the own car responds at once. In a Grand Prix: the panel and the start lights,
 /// the manager's keys (Enter: start / end qualifying / end the race; on the grid 1–3: 4 / 8 / 12
-/// laps, 4 + ←/→ any other; in the lobby of a track with rain 1/2: dry / rain), the tyres in the
+/// laps, 4 + ←/→ any other; in the lobby of a track with rain 1/2/3: dry / rain / variable), the tyres in the
 /// box (1 / 2), which car to watch while the own one is off the track, the results.
 /// See 01_docs/macos.md#online-x7.
 @MainActor
@@ -46,6 +46,16 @@ final class OnlineSession: RaceSession {
     private(set) var resultsLaps = 0
     /// Last measured round trip (ms); nil before the first pong.
     private(set) var rttMs: Double?
+    /// Race control's board (the safety car, R.3), and a penalty told to this player (or the green
+    /// flag at a safety car period's end: `noticeGreen`) for a while.
+    private(set) var raceControl = RaceControlContent.none
+    private(set) var notice: String?
+    private(set) var noticeGreen = false
+    @ObservationIgnored private var noticeUntil = 0.0
+    @ObservationIgnored private var incidentsTold = 0
+    /// This player's delta under the safety car, counted on the predicted world as the server does.
+    @ObservationIgnored private let delta = SafetyCarDelta()
+    @ObservationIgnored private var deltaTick: Int?
 
     /// The timing strip, told how to name the lap and the session's bests as the GP moves on.
     @ObservationIgnored weak var hud: TimingHud? {
@@ -66,6 +76,9 @@ final class OnlineSession: RaceSession {
 
     var previous: GameState { predictor.before ?? Self.empty }
     var current: GameState { predictor.current ?? Self.empty }
+    /// How wet the track is now: the server's forecast at the predicted tick.
+    var wetness: Double { info.map { wetnessAt($0.forecast, current.tick) } ?? 0 }
+    var mayRain: Bool { canRain }
     var ownPitBox: Int? { info?.boxes[playerId] }
 
     func livery(_ id: CarId) -> Livery {
@@ -101,8 +114,40 @@ final class OnlineSession: RaceSession {
                 if let status = pitStatus(track, car, state.tick) { now[car.id] = status.stopLeft != nil ? "BOX" : "PIT" }
             }
             if now != pits { pits = now }
+            showRaceControl(state)
         }
         return result
+    }
+
+    /// Crashes' debris and yellow flags (R.2), as the server's Grand Prix has them.
+    var yellowFlags: [YellowFlag] { info?.yellowFlags ?? [] }
+
+    /// The safety car's light bar: flashing while it leads the field (out, not on its last lap).
+    var safetyCarLights: Bool {
+        guard let sc = info?.safetyCar else { return false }
+        // Lit from the call on (waiting at the pit exit too), out on its last lap.
+        return (sc.phase == .deployed || sc.phase == .out) && !sc.inThisLap
+    }
+
+    /// The delta tick by tick on the predicted world, and race control's board from it.
+    private func showRaceControl(_ state: GameState) {
+        guard let info else { return }
+        let sc = info.phase == .race ? info.safetyCar : nil
+        let ticks = deltaTick.map { state.tick - $0 } ?? 1
+        if ticks > 0 {
+            if let sc {
+                let wet = safetyCarWet(wetnessAt(info.forecast, state.tick))
+                delta.update(state, sc, track, safetyCarPlans(track, wet: wet), ticks: ticks)
+            } else {
+                delta.clear()
+            }
+            deltaTick = state.tick
+        }
+        let content = RaceControlContent.of(
+            info, ownId: playerId, delta: delta.get(playerId), graceLeft: delta.graceLeft(playerId, tick: state.tick),
+            tick: state.tick, name: name)
+        if content != raceControl { raceControl = content }
+        if notice != nil && ProcessInfo.processInfo.systemUptime > noticeUntil { notice = nil }
     }
 
     /// One fixed tick: this player's numbered input goes to the server (R rides along as `reset`)
@@ -133,12 +178,26 @@ final class OnlineSession: RaceSession {
     /// The server's news about the Grand Prix.
     private func show(_ info: GrandPrixInfo) {
         let raceOver = info.phase == .results && self.info?.phase != .results && info.drivers.contains(playerId)
+        if RaceControlContent.wentGreen(self.info, info) {
+            notice = RaceControlContent.greenFlagNotice
+            noticeGreen = true
+            noticeUntil = ProcessInfo.processInfo.systemUptime + 5
+        }
         self.info = info
         if !(info.phase == .grid && info.manager == playerId) { customLaps = nil }
         predictor.hold = info.hold
         predictor.setDamage(damageInPhase(info.phase))
         predictor.setPitBoxes(info.boxes)
-        predictor.setWeather(info.weather)
+        predictor.setWeather(info.forecast)
+        predictor.safetyCar = info.safetyCar
+        // The race's new penalties: this player's own told on race control's board.
+        if info.incidents.count < incidentsTold { incidentsTold = 0 }  // a new race
+        for incident in info.incidents.dropFirst(incidentsTold) where incident.id == playerId {
+            notice = RaceControlContent.notice(incident)
+            noticeGreen = false
+            noticeUntil = ProcessInfo.processInfo.systemUptime + 5
+        }
+        incidentsTold = info.incidents.count
         if raceOver {
             results = info.race
             resultsLaps = info.raceLaps ?? 0
@@ -181,10 +240,10 @@ final class OnlineSession: RaceSession {
         case (.choice(4), .grid) where isManager: customLaps = customLaps ?? GrandPrixRules.customLapsStart
         case (.lapsDown, .grid): customLaps = customLaps.map { max(GrandPrixRules.customLapsMin, $0 - 1) }
         case (.lapsUp, .grid): customLaps = customLaps.map { min(GrandPrixRules.customLapsMax, $0 + 1) }
-        case (.choice(let n), .lobby) where canRain && n <= 2: command(.weather(n == 1 ? .dry : .rain))
-        // On track, stopped in the box: 1 softs, 2 mediums (ignored anywhere else).
-        case (.choice(1), .qualifying), (.choice(1), .race): keyboard.chooseCompound(.soft)
-        case (.choice(2), .qualifying), (.choice(2), .race): keyboard.chooseCompound(.medium)
+        case (.choice(let n), .lobby) where canRain && n <= 3: command(.weather(Weather.allCases[n - 1]))
+        // On track, stopped in the box: 1 softs, 2 mediums, 3 intermediates, 4 full wets.
+        case (.choice(let n), .qualifying), (.choice(let n), .race):
+            if (1...4).contains(n) { keyboard.chooseCompound(TyreCompound.allCases[n - 1]) }
         default: break
         }
     }

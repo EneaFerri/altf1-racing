@@ -3,7 +3,7 @@ import { distance, dot, normalize, sub } from '../math/vec2';
 import { TRACK_RULES } from '../config/track';
 import { buildTrack } from './buildTrack';
 import { GP_TRACKS, TEST_TRACK } from './layouts';
-import { locateOnLoop, locateOnTrack, roadOf } from './query';
+import { locateOnLoop, locateOnTrack, roadOf, runoffAt, surfaceAt } from './query';
 import type { Track } from './types';
 import type { Vec2 } from '../math/vec2';
 
@@ -252,4 +252,34 @@ describe('buildTrack: the pit lane (Phase 4)', () => {
       });
     },
   );
+});
+
+describe('buildTrack: run-off areas (Baku, 2.4f)', () => {
+  const area = { fromPoint: 4, toPoint: 9, side: 'right' as const, width: 12 };
+  const plain = buildTrack(TEST_TRACK);
+  const wide = buildTrack({ ...TEST_TRACK, runoffAreas: [area] });
+
+  it('moves the wall out on its side only, eased at its ends, and paves it', () => {
+    const extra = wide.sides.right.extraRunoff!;
+    expect(Math.max(...extra)).toBeCloseTo(12);
+    expect(wide.sides.left.extraRunoff!.every((w) => w === 0)).toBe(true);
+    expect(wide.maxRunoffWidth).toBeCloseTo(TEST_TRACK.runoffWidth + 12);
+    // No step: neighbouring samples never differ by more than the ramp allows.
+    extra.forEach((w, i) => expect(Math.abs(w - extra[(i + 1) % extra.length]!)).toBeLessThan(2));
+    const i = extra.indexOf(Math.max(...extra));
+    expect(runoffAt(wide, 'right', i)).toBeCloseTo(TEST_TRACK.runoffWidth + 12);
+    expect(wide.sides.right.runoff[i]).toBe('asphalt');
+    const s = wide.samples[i]!;
+    const p = {
+      x: s.position.x + s.normal.x * (s.halfWidth + TEST_TRACK.runoffWidth + 6),
+      z: s.position.z + s.normal.z * (s.halfWidth + TEST_TRACK.runoffWidth + 6),
+    };
+    expect(surfaceAt(wide, p)).toBe('asphalt');
+  });
+
+  it('leaves a track without any exactly as it was', () => {
+    expect(plain.sides.right.extraRunoff).toBeUndefined();
+    expect(plain.maxRunoffWidth).toBeUndefined();
+    expect(runoffAt(plain, 'right', 10)).toBe(TEST_TRACK.runoffWidth);
+  });
 });

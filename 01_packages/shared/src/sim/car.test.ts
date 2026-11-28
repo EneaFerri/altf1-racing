@@ -3,7 +3,10 @@ import { CAR_PARAMS } from '../config/car';
 import { FIXED_DT, TICK_RATE } from '../config/sim';
 import { dot, forward, length, right, scale } from '../math/vec2';
 import { NEUTRAL_INPUT, type InputCommand } from '../types/input';
-import { createCar, stepCar, type CarState } from './car';
+import { slideFrom, TYRE_PARAMS } from '../config/tyres';
+import { WET_PARAMS } from '../config/weather';
+import { createCar, slipAngle, stepCar, type CarState } from './car';
+import { tyreWetParams, wetSurfaceEffect } from './weather';
 import { NEUTRAL_SURFACE_EFFECT, type SurfaceEffect } from './surface';
 
 const THROTTLE: InputCommand = { ...NEUTRAL_INPUT, throttle: 1 };
@@ -232,5 +235,43 @@ describe('stepCar — slope (Phase 3)', () => {
       held = stepCar(held, BRAKE, CAR_PARAMS, FIXED_DT, NEUTRAL_SURFACE_EFFECT, undefined, -0.5);
     }
     expect(Math.abs(forwardSpeed(held))).toBeLessThan(0.01);
+  });
+});
+
+describe('power oversteer in the wet (2.8)', () => {
+  /** A car at `speed` on full left lock for 3 s, on full wets on a soaked track. */
+  const corner = (speed: number, throttle: number, wet: boolean): number => {
+    const surface = wet
+      ? {
+          ...wetSurfaceEffect(
+            NEUTRAL_SURFACE_EFFECT,
+            0,
+            tyreWetParams('wet', 1, TYRE_PARAMS, WET_PARAMS),
+          ),
+          slideFrom: slideFrom('wet', 1, TYRE_PARAMS),
+          slideGain: TYRE_PARAMS.slideGain,
+          slideMaxSpin: TYRE_PARAMS.slideMaxSpin,
+        }
+      : NEUTRAL_SURFACE_EFFECT;
+    let car = { ...createCar({ id: 'p', position: { x: 0, z: 0 }, heading: 0 }) };
+    car = { ...car, velocity: { x: 0, z: -speed } };
+    let worst = 0;
+    for (let t = 0; t < 3 * TICK_RATE; t++) {
+      car = stepCar(car, { ...NEUTRAL_INPUT, steer: -1, throttle }, CAR_PARAMS, FIXED_DT, surface);
+      worst = Math.max(worst, Math.abs(slipAngle(car)));
+    }
+    return (worst * 180) / Math.PI;
+  };
+
+  it('spins the car round on the throttle mid-corner', () => {
+    expect(corner(40, 1, true)).toBeGreaterThan(90);
+  });
+
+  it('only slides it when the driver lifts', () => {
+    expect(corner(40, 0, true)).toBeLessThan(60);
+  });
+
+  it('never happens on a dry track', () => {
+    expect(corner(40, 1, false)).toBeLessThan(30);
   });
 });

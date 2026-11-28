@@ -146,7 +146,14 @@ unchanged):
   A landmark is never left out for being far, and with `osmWay` it is fetched wherever it is (Las
   Vegas's Stratosphere, 2.5 km up the Strip); a water area may be one too, drawn alone on its
   middle (the Fountains of Bellagio). Las Vegas: the Sphere, Paris's Eiffel Tower, the Fountains
-  of Bellagio, the Stratosphere.
+  of Bellagio, the Stratosphere. Baku: the three Flame Towers (`flame`, OSM's "Tower 1–3",
+  fetched by `osmWay` 660 m from the track), the Maiden Tower (`maiden`), Government House
+  (`government`) and the Carpet Museum (`carpet`).
+- **Old town walls** (`CircuitConfig.cityWalls`, placed by hand: OSM maps few of them): a wall's
+  centreline 0.5 m behind the game's barrier from `from` to `to` (real m) on its side, a spot
+  every 5 m (`<ID>_CITY_WALLS`: name, height, thickness 3 m × scale, path); its footprint keeps
+  the town's buildings off it. Baku: Icherisheher's, on the left of the castle section from turn 8
+  up to turn 12, 9 m high.
 - **Pit garages**: a row of temporary boxes (10 m real deep, ~60 m long) just beyond the pit lane
   where it runs, over its middle (15% at each end are entry and exit), shallower where another
   stretch is close behind, left out where none fits; OSM's apartments are never used as garages.
@@ -172,7 +179,15 @@ Marina Bay Sands' towers, drawn as town buildings, running 35 m past the end one
 `createEiffel` (three tapering see-through lattice stages, two platforms and an antenna, lit
 gold), `createFountains` (28 lit jets, 19–55 m, in a row along the lake through its middle),
 `createStrat` (a concrete shaft, the lit pod at 75% of its 350 m, a mast with a red beacon: from
-the track, lights high in the sky to the north).
+the track, lights high in the sky to the north). Baku's: `createFlame` (each Flame Tower on its
+footprint and real height, 160–182 m: blue glass rings that keep their width most of the way up,
+then curl in to a pointed tip leaning towards the footprint's far end), `createMaidenTower` (a
+round limestone tower 16.5 m across and 29.5 m high, its buttress towards the track, battlements),
+`createGovernmentHouse` (the U-shaped footprint in pale stone, a stepped tower on the middle of
+the wing facing the track, corner turrets), `createCarpetMuseum` (a carpet rolled up along the
+footprint's long side, its ends wound); `scenery/cityWalls.ts` (`createCityWalls`: limestone in
+ashlar courses, a walkway, battlements on the side away from the track, a round tower every 34 m
+standing out behind; every vertex on the ground).
 
 `mooredBoats` (`scenery/placement.ts`, pure, tested) moors yachts stern-to, Monaco's way: along
 both sides of pier lines and the outer side of each edge of pier areas (all of Port Hercule's are
@@ -187,7 +202,8 @@ except on the tunnel roof, the tunnel where it really is, sea, pools, piers and 
 track, the Casino and the chapel, hundreds of yachts on the water and off the track; Singapore: a
 thousand buildings beyond the walls, towers over 150 m, the water never on the track even under
 its bridges, its landmarks; Las Vegas: hundreds of buildings beyond the walls and none over the
-road, the water off it, its four landmarks, the fountains in their lake).
+road, the water off it, its four landmarks, the fountains in their lake; Baku: its landmarks on
+their real buildings, the Flame Towers over 150 m, the old town's walls behind the barrier).
 
 ## Monza theme (`themes/monza.ts`)
 
@@ -305,3 +321,18 @@ the line; none fits at the Bico de Pato), the real pit lane (on the left) and it
 town round the park (~3000 OSM buildings within 400 m: houses and blocks on the slopes) and the
 lake beside the Descida do Lago at its own level, 747 m (`saoPauloLayout.ts`, generated; step
 e.3). OSM maps only that one lake within reach.
+
+## Baku theme (`themes/baku.ts`, step 2.4f)
+
+A street circuit on the real land (the generated `bakuLand.ts`, SRTM, heights above the Caspian:
+[elevation.md](elevation.md#baku-24f)): a hazy Caspian sky and warm afternoon light, stone paving,
+broadleaf trees, guard rails with catch fences. The town from OSM (~1340 buildings within 600 m,
+with their heights), the Caspian from its coastline with the boulevard's piers and palms, the small
+waters of its parks (Little Venice); four grandstands placed by hand (the main one on the sea side
+of Neftchilar Avenue, turn 1, Azadliq Square, turn 16). OSM maps the whole Caspian as a lake too,
+its outline 1,000 km long: water wider than 20 km is left out (`SEA_AS_LAKE` in `scenery.ts`), the
+sea drawn from its coastline. Its landmarks (f.2): the Flame Towers on the hill above the old town
+(660 m from the track, the skyline's tallest), the Maiden Tower, Government House behind the pits
+and the Carpet Museum on the boulevard; the old town's walls (Icherisheher) along the castle
+section, from turn 8 up the climb, with battlements and round towers. Not drawn: the Baku Eye
+(the boulevard's Ferris wheel is not in OSM).

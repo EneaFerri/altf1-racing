@@ -75,13 +75,18 @@ struct OnlineScreen: View {
                         session: session,
                         players: Dictionary(uniqueKeysWithValues: session.players.map {
                             ($0.id, MapPlayer(name: $0.nickname, color: Livery.online($0.livery).color))
-                        }))
+                        }).merging([safetyCarId: MapPlayer(name: "Safety car", color: .orange)]) { a, _ in a })
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 VStack(alignment: .trailing, spacing: 12) {
+                    if !session.onResults && (!session.raceControl.isEmpty || session.notice != nil) {
+                        RaceControlBoard(
+                            content: session.raceControl, notice: session.notice, noticeGreen: session.noticeGreen)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
                     Spacer()
-                    if let damage = onTrack?.damage {
-                        DamagePanel(damage: [damage.frontWing] + damage.tyres + [damage.rearWing])
+                    if let car = onTrack, let damage = car.damage {
+                        DamagePanel(damage: damage, punctures: puncturedTyres(damage, car.tyres, .baseline))
                     }
                     if let car = onTrack, let tyres = car.tyres {
                         TyrePanel(tyres: tyres, stopLeft: pitStatus(session.track, car, session.current.tick)?.stopLeft)
@@ -131,7 +136,8 @@ struct OnlineScreen: View {
             let definition = try CircuitCatalog.definition(circuit.id)
             guard let playerId = lobby.playerId else { return exit() }
             let session = try OnlineSession(lobby: lobby, playerId: playerId, mode: mode, definition: definition)
-            let assets = try await RaceAssets.load(night: CircuitLook.of(circuit.id)?.night ?? false)
+            let assets = try await RaceAssets.load(
+                night: CircuitLook.of(circuit.id)?.night ?? false, rain: Weather.offersRain(circuit.name))
             scenery = try await CircuitSceneryBuilder.build(session.track, circuitId: circuit.id)
             session.hud = hud
             session.keyboard.onAction = { [cameraRig, debug] action in

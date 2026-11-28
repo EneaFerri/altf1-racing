@@ -1,9 +1,10 @@
 import type { CarParams } from '../config/car';
-import type { Weather } from '../config/weather';
+import { DRY_FORECAST, type Forecast } from '../config/weather';
 import { onlineSimContext } from '../net/simContext';
 import type { CarId } from '../sim/car';
 import { createGame, removeCar, repairCars, spawnOnGrid, stepGame } from '../sim/game';
 import type { GameState, InputMap, SimContext } from '../sim/game';
+import { startingTyres } from '../sim/weather';
 import { buildTrack } from '../track/buildTrack';
 import type { Track, TrackDefinition } from '../track/types';
 import type { GrandPrixRoom } from './GrandPrix';
@@ -20,7 +21,10 @@ export class OfflineRoom implements GrandPrixRoom {
   readonly track: Track;
   hold: StartHold | null = null;
   private current: GameState;
-  private rules: { damage: boolean; weather: Weather } = { damage: false, weather: 'dry' };
+  private rules: { damage: boolean; forecast: Forecast } = {
+    damage: false,
+    forecast: DRY_FORECAST,
+  };
   private ctx: SimContext;
 
   private readonly carParamsById: Readonly<Record<CarId, CarParams>>;
@@ -48,8 +52,9 @@ export class OfflineRoom implements GrandPrixRoom {
     return this.ctx;
   }
 
-  get weather(): Weather {
-    return this.rules.weather;
+  /** How wet the track is when. */
+  get forecast(): Forecast {
+    return this.rules.forecast;
   }
 
   setDamage(on: boolean): void {
@@ -62,14 +67,16 @@ export class OfflineRoom implements GrandPrixRoom {
   /** Single player's boxes are the teams' (`boxes`): the Grand Prix's numbering is ignored. */
   setPitBoxes(_boxes: Readonly<Record<CarId, number>>): void {}
 
-  setWeather(weather: Weather): void {
-    if (weather === this.rules.weather) return;
-    this.rules = { ...this.rules, weather };
+  setWeather(forecast: Forecast): void {
+    if (forecast === this.rules.forecast) return;
+    this.rules = { ...this.rules, forecast };
     this.ctx = this.context();
   }
 
+  /** On a wet track the cars start on the tyres it asks for (`startingTyres`). */
   restart(order: readonly CarId[]): void {
-    this.current = { ...createGame(this.track, order), tick: this.current.tick };
+    const tyres = startingTyres(this.ctx.weather, this.ctx.tyres, this.current.tick);
+    this.current = { ...createGame(this.track, order, tyres), tick: this.current.tick };
   }
 
   retire(id: CarId): void {

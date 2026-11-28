@@ -22,6 +22,8 @@ struct CarPose {
     var velocity: Vec2 = .zero
     /// Its damage (Grand Prix only; nil = none drawn).
     var damage: CarDamage?
+    /// Its flat tyres (Grand Prix only, `puncturedTyres`; order of `carWheels`); empty = none.
+    var punctures: [Bool] = []
     /// Its tyres' compound (Grand Prix only): the sidewalls' band; nil = yellow, as mediums.
     var compound: TyreCompound?
 
@@ -35,6 +37,10 @@ struct CarPose {
         slipstream = curr.slipstream
         velocity = curr.velocity
         damage = curr.damage
+        if curr.damage != nil {
+            let flat = puncturedTyres(curr.damage, curr.tyres, .baseline)
+            if flat.contains(true) { punctures = flat }
+        }
         compound = curr.tyres?.compound
         if track.elevated {
             let loc = locateOnTrack(track, position)
@@ -102,17 +108,31 @@ final class CarEntity {
     /// Every wheel's pivot (order of `carWheels`): lowered and squashed when flat.
     private var wheelPivots: [Entity] = []
     private var spinners: [Entity] = []
+    /// Per wheel: its tread come loose (shown only when punctured), flapping round the rim.
+    private var treads: [Entity] = []
+    /// Per wheel: its tyre (tread, sidewall band, the rubber lip) and the dark cover, hidden when
+    /// punctured: the bare grey rim shows.
+    private var tyreParts: [[Entity]] = []
+    /// How long the loose treads have flapped (s).
+    private var flapSeconds: Float = 0
     /// The front wing's halves (left, right), hinged at the nose; the rear wing on its axle.
     private var frontWing: [Entity] = []
     private let rearWing = Entity()
     /// The damage drawn now, and the last one seen (for the shards of a new hit).
     private var look = CarDamageLook.intact
     private var lastDamage: CarDamage?
+    private var lastPunctures: [Bool] = []
     /// What the shards are made of: this car's paint and carbon.
     private var shardMaterials: [any RealityKit.Material] = []
     /// The sidewalls' bands (one per wheel) and the compound they show.
     private var bands: [ModelEntity] = []
     private var bandCompound = TyreCompound.medium
+    /// The rain light under the gearbox, its glow dim and lit (flashing in the wet, 2.8).
+    private var rainLight: ModelEntity?
+    private var rainLit = false
+    private var rainSeconds: Double = 0
+    /// The spray behind the car on a wet track (made the first time it is wet).
+    private var spray: Entity?
     /// The steering wheel's rim (turned with the steering).
     private let steeringWheel = Entity()
     private var spin: Float = 0
@@ -168,6 +188,7 @@ final class CarEntity {
         rainLight.position = SIMD3(0, 0.33, 2.32)
         rainLight.orientation = simd_quatf(angle: .pi / 2, axis: SIMD3(1, 0, 0))
         root.addChild(rainLight)
+        self.rainLight = rainLight
         // Thin pylons from the nose down to the front wing.
         for side: Float in [-1, 1] {
             root.addChild(Self.bar(from: SIMD3(side * 0.07, 0.27, -2.45), to: SIMD3(side * 0.12, 0.13, -2.62), width: 0.025, height: 0.06, carbon))
@@ -500,6 +521,9 @@ final class CarEntity {
         rim.metallic = 1.0
         rim.roughness = 0.3
         let carbon = Self.carbon()
+        // The loose tread of a puncture is seen from both sides.
+        var looseRubber = rubber
+        looseRubber.faceCulling = .none
 
         let r = Self.wheelRadius
         for wheel in carWheels {
@@ -514,6 +538,7 @@ final class CarEntity {
             let tyre = ModelEntity(mesh: Self.tyreMesh(width: width), materials: [rubber])
             tyre.orientation = simd_quatf(angle: .pi / 2, axis: SIMD3(0, 1, 0))
             spinner.addChild(tyre)
+            var rubberParts: [Entity] = [tyre]
             // Cylinders stand on Y: turned onto X, the axle. The sidewall's band, the rim's lip,
             // its cover and the wheel nut.
             let axle = simd_quatf(angle: .pi / 2, axis: SIMD3(0, 0, 1))
@@ -525,11 +550,20 @@ final class CarEntity {
                 part.orientation = axle
                 spinner.addChild(part)
                 if radius == r * 0.84 { bands.append(part) }
+                // Punctured: the tyre and the dark cover go, the grey rim shows.
+                if radius >= r * 0.77 || radius == r * 0.64 { rubberParts.append(part) }
             }
+            tyreParts.append(rubberParts)
             let spoke = Self.box(SIMD3(width + 0.024, 0.035, r * 1.1), .zero, 0.01, cover)
             spinner.addChild(spoke)
             // The brake duct inside the wheel (it steers with it, never spins).
             pivot.addChild(Self.box(SIMD3(0.1, 0.24, 0.3), SIMD3(-side * (width / 2 + 0.06), 0, 0), 0.03, carbon))
+            // The loose tread of a puncture: an open band wider than the rim, not turned by it.
+            let tread = Entity()
+            tread.addChild(ModelEntity(mesh: Self.looseTreadMesh(width: width * 0.85), materials: [looseRubber]))
+            tread.isEnabled = false
+            pivot.addChild(tread)
+            treads.append(tread)
             root.addChild(pivot)
             wheelPivots.append(pivot)
             spinners.append(spinner)
@@ -549,6 +583,47 @@ final class CarEntity {
             profile.map { LoftStation(z: $0.0 * width, width: 2 * r * $0.1, height: 2 * r * $0.1, centerY: 0, exponent: 2) },
             rows: 16, around: 56)
         tyreMeshes[width] = mesh
+        return mesh
+    }
+
+    private static var looseTreadMeshes: [Float: MeshResource] = [:]
+
+    /// A torn-off tread `width` wide along x (the axle): an open band, 3 cm thick, wider than the
+    /// wheel (`looseTreadRadius`), its outside, inside and both edges.
+    private static func looseTreadMesh(width: Float) -> MeshResource {
+        if let made = looseTreadMeshes[width] { return made }
+        let outer = wheelRadius * CarDamageLook.looseTreadRadius
+        let inner = outer - 0.03
+        let around = 40
+        var positions: [SIMD3<Float>] = []
+        var normals: [SIMD3<Float>] = []
+        var indices: [UInt32] = []
+        /// A strip round the axle from (radius a, x a) to (radius b, x b), facing `normal(theta)`.
+        func strip(_ ra: Float, _ xa: Float, _ rb: Float, _ xb: Float, _ normal: (Float) -> SIMD3<Float>) {
+            let first = UInt32(positions.count)
+            for j in 0...around {
+                let theta = 2 * Float.pi * Float(j) / Float(around)
+                let (c, s) = (cos(theta), sin(theta))
+                positions += [SIMD3(xa, ra * s, ra * c), SIMD3(xb, rb * s, rb * c)]
+                normals += [normal(theta), normal(theta)]
+            }
+            for j in 0..<UInt32(around) {
+                let a = first + 2 * j, b = a + 1, c = a + 2, d = a + 3
+                indices += [a, c, b, b, c, d]
+            }
+        }
+        let half = width / 2
+        let out = { (t: Float) in SIMD3<Float>(0, sin(t), cos(t)) }
+        strip(outer, -half, outer, half, out)  // the tread's face
+        strip(inner, half, inner, -half) { -out($0) }  // its inside, seen through the gap
+        strip(inner, half, outer, half) { _ in SIMD3(1, 0, 0) }  // the edges
+        strip(outer, -half, inner, -half) { _ in SIMD3(-1, 0, 0) }
+        var descriptor = MeshDescriptor(name: "looseTread")
+        descriptor.positions = MeshBuffer(positions)
+        descriptor.normals = MeshBuffer(normals)
+        descriptor.primitives = .triangles(indices)
+        let mesh = try! MeshResource.generate(from: [descriptor])
+        looseTreadMeshes[width] = mesh
         return mesh
     }
 
@@ -579,6 +654,7 @@ final class CarEntity {
         let rolling = simd_quatf(angle: spin, axis: SIMD3(1, 0, 0))
         for spinner in spinners { spinner.orientation = rolling }
         showDamage(pose)
+        flapTreads(pose, frameSeconds: Float(frameSeconds))
         let compound = pose.compound ?? .medium
         if compound != bandCompound {
             bandCompound = compound
@@ -590,14 +666,15 @@ final class CarEntity {
     // MARK: Damage
 
     /// Draws `pose`'s damage (the web's `CarView`): the front wing's halves droop, the rear wing
-    /// tilts, tyres go flat; a part that breaks off flies away, and every hit that damages a wing
-    /// throws carbon shards. Only when the damage changes.
+    /// tilts, tyres go flat (a punctured one fully); a part that breaks off flies away, and every
+    /// hit that damages a wing throws carbon shards. Only when the damage changes.
     private func showDamage(_ pose: CarPose) {
         let damage = pose.damage ?? .none
-        guard damage != lastDamage else { return }
+        guard damage != lastDamage || pose.punctures != lastPunctures else { return }
         let previous = lastDamage
         lastDamage = damage
-        let next = CarDamageLook(damage)
+        lastPunctures = pose.punctures
+        let next = CarDamageLook(damage, punctures: pose.punctures)
         let carVelocity = SIMD3<Float>(Float(pose.velocity.x), 0, Float(pose.velocity.z))
         let ground = Float(pose.y)
 
@@ -629,11 +706,30 @@ final class CarEntity {
         }
         rearWing.isEnabled = !next.rearMissing
         rearWing.orientation = simd_quatf(angle: next.rearTilt, axis: SIMD3(1, 0, 0))
-        // A flat tyre: up to 35% lower, squashed onto the road.
-        for (pivot, flat) in zip(wheelPivots, next.flat) {
-            let squash = 1 - 0.35 * flat
+        // A flat tyre: up to 35% lower, squashed onto the road. Punctured: the bare grey rim on the
+        // road (the tyre hidden, the rim narrower), under its loose tread.
+        for (i, pivot) in wheelPivots.enumerated() {
+            let punctured = next.punctured[i]
+            let squash = punctured ? 1 : 1 - 0.35 * next.flat[i]
             pivot.scale = SIMD3(1, squash, 1)
-            pivot.position.y = Self.wheelRadius * squash
+            pivot.position.y = Self.wheelRadius * (punctured ? CarDamageLook.puncturedHeight : squash)
+            spinners[i].scale = SIMD3(punctured ? 0.8 : 1, 1, 1)
+            for part in tyreParts[i] { part.isEnabled = !punctured }
+            treads[i].isEnabled = punctured
+        }
+    }
+
+    /// Each punctured wheel's loose tread, flapping at the car's speed (`CarDamageLook.looseTread`).
+    private func flapTreads(_ pose: CarPose, frameSeconds: Float) {
+        guard look.punctured.contains(true) else { return }
+        flapSeconds += frameSeconds
+        for (i, tread) in treads.enumerated() where look.punctured[i] {
+            let pose = CarDamageLook.looseTread(
+                seconds: flapSeconds, speed: Float(pose.forwardSpeed), spin: spin, wheel: i, radius: Self.wheelRadius)
+            tread.position = SIMD3(0, pose.lift, 0)
+            tread.orientation =
+                simd_quatf(angle: pose.flap, axis: SIMD3(0, 1, 0)) * simd_quatf(angle: pose.roll, axis: SIMD3(1, 0, 0))
+            tread.scale = SIMD3(1, pose.stretch, pose.squeeze)
         }
     }
 
@@ -680,14 +776,44 @@ final class CarEntity {
         return material
     }
 
-    /// A tyre's sidewall band: red softs, yellow mediums.
+    /// A tyre's sidewall band: red softs, yellow mediums, green intermediates, blue full wets.
     private static func band(_ compound: TyreCompound) -> PhysicallyBasedMaterial {
         var material = PhysicallyBasedMaterial()
-        material.baseColor = .init(
-            tint: compound == .soft ? NSColor(red: 0.88, green: 0.04, blue: 0.02, alpha: 1)
-                : NSColor(red: 0.95, green: 0.82, blue: 0.08, alpha: 1))
+        let tint: NSColor =
+            switch compound {
+            case .soft: NSColor(red: 0.88, green: 0.04, blue: 0.02, alpha: 1)
+            case .medium: NSColor(red: 0.95, green: 0.82, blue: 0.08, alpha: 1)
+            case .intermediate: NSColor(red: 0.2, green: 0.7, blue: 0.16, alpha: 1)
+            case .wet: NSColor(red: 0.1, green: 0.4, blue: 0.9, alpha: 1)
+            }
+        material.baseColor = .init(tint: tint)
         material.roughness = 0.5
         return material
+    }
+
+    /// The car on a track `wetness` wet at `speed` (m/s): its spray, thicker the faster and the
+    /// wetter, and its rain light flashing (F1's: 4 Hz) once the track is wet (2.8).
+    func setWet(_ wetness: Double, speed: Double, frameSeconds: Double) {
+        if wetness > 0, spray == nil {
+            let made = Entity()
+            made.position = SIMD3(0, 0.25, 2.35)
+            made.components.set(Self.sprayEmitter())
+            root.addChild(made)
+            spray = made
+        }
+        if let spray, var emitter = spray.components[ParticleEmitterComponent.self] {
+            let rate = Float(wetness) * Float(min(1, max(0, speed - 4) / 60)) * 420
+            emitter.isEmitting = rate > 1
+            emitter.mainEmitter.birthRate = rate
+            spray.components.set(emitter)
+        }
+        rainSeconds += frameSeconds
+        let lit = wetness >= RainEffects.overcastFrom && Int(rainSeconds * 8) % 2 == 0
+        guard lit != rainLit, let rainLight else { return }
+        rainLit = lit
+        var red = Self.glow(SIMD3(1, 0.08, 0.05))
+        red.emissiveIntensity = lit ? 6 : 0.6
+        rainLight.model?.materials = [red]
     }
 
     /// Clear-coated car paint.

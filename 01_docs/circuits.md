@@ -1,6 +1,6 @@
 # Real circuits
 
-Monza (step 9b), Barcelona (9c), Monaco (9d), Mexico City (2.4a), Singapore (2.4c), Las Vegas (2.4d) and São Paulo (2.4e) are the real circuits, built from open data by the
+Monza (step 9b), Barcelona (9c), Monaco (9d), Mexico City (2.4a), Singapore (2.4c), Las Vegas (2.4d), São Paulo (2.4e) and Baku (2.4f) are the real circuits, built from open data by the
 tool in `01_tools/openf1/` (how to run it: its [README](../01_tools/openf1/README.md)). Owner's
 rules: **shape** faithful to the real track (the PNGs in `03_F1Circuits/` are the visual
 reference), **real widths** (Monza wide, Monaco narrow, varying along the lap), and **lap times
@@ -76,7 +76,7 @@ and speed from OpenF1**.
 corners much harder, so fast circuits shrink and slow ones grow. Widths are not scaled: they
 follow reality × `WIDTH_FACTOR` (1.4, the owner's default for new circuits since 2026-11-17; it
 was 1.6, which **Monza** and **Barcelona** keep), so the circuits keep their character. **Mexico
-City** uses × 1.4 (owner's choice, now the default). **Monaco** and **Singapore** use × 1.2
+City** uses × 1.4 (owner's choice, now the default). **Monaco**, **Singapore** and **Baku** use × 1.2
 (owner's choice; Singapore: "the map is narrow"): our car is 2.2 m wide, an F1 2 m, so the road holds as many cars side by side as
 the real one (4.4–6.5): overtaking stays as hard as in reality.
 
@@ -89,9 +89,10 @@ the real one (4.4–6.5): overtaking stays as hard as in reality.
 | Singapore   | 4895 m      | 1.048  | 5.10 km     | 10–15          | 12–18          | 3 m     |
 | Las Vegas   | 6154 m      | 0.945  | 5.81 km     | 10–15          | 14–21          | 3 m     |
 | São Paulo   | 4288 m      | 1.048  | 4.49 km     | 10.6–16.3      | 14.8–22.8      | 10 m    |
+| Baku        | 5946 m      | 0.9517 | 5.65 km     | 7.6–15         | 9.1–18         | 3 m     |
 
 Real lengths are the OSM centreline's (official: Monza 5793 m, Barcelona 4657 m, Monaco 3337 m,
-Mexico City 4304 m, Singapore 4940 m, Las Vegas 6201 m, São Paulo 4309 m).
+Mexico City 4304 m, Singapore 4940 m, Las Vegas 6201 m, São Paulo 4309 m, Baku 6003 m).
 
 ### Widths (published, then per section)
 
@@ -124,6 +125,11 @@ within that range unless marked with their own source there.
   Oposta, 10.7–14.7 m in the infield (Descida do Lago to Junção), 13–15.7 m up the Subida dos
   Boxes. By hand: 12 m at the Reta Oposta's start (OSM's area cut short there, 5–9 m across) and
   11 m at the Ferradura.
+- **Baku**: published only its narrowest point, 7.6 m at turn 8 by the castle walls
+  (formula1.com). Estimated elsewhere from the city roads it runs on: 15 m on Neftchilar Avenue
+  (the boulevard, start straight and the run to the line) and Azadliq Avenue, 12–13 m at turns 1–3
+  and 16, 10–11 m through turns 4–7 and at the top of the old town, 8 m up the old town's climb
+  (turns 9–10).
 
 ### Monza (`layouts/monza.ts`, step 9b)
 
@@ -315,6 +321,32 @@ limits.
 S3 is 12% slow: it is the long full-throttle climb from Junção to the line (our car slower on
 straights, and uphill: the slope force); S2's corners win it back (7% fast). The test's sector
 tolerance is 13% for this circuit.
+
+### Baku (`layouts/baku.ts`, step 2.4f)
+
+Shape from OSM relation 11266687; target: the **2024** pole, 1:41.365 (car #16, OpenF1 session
+9594): OpenF1 has no laps of the 2025 qualifying (session 9900). Anticlockwise; `lineDirection` 17. Real widths × 1.2 (a narrow street circuit, as Monaco and Singapore). Run-off 3 m (a street
+circuit). With its real heights (SRTM 30 m), above the Caspian, 29 m under the oceans
+(`seaLevel`: [elevation.md](elevation.md#baku-24f)). The pit lane (on the left of Neftchilar
+Avenue, 695 m, 60 km/h) is drawn in OSM 5–10 m from the track's middle, on the asphalt: taken as
+10 m further out (`pitLaneOutset`), behind its wall, and joined at the edge; it exits inside turn 1,
+as the real one. Owner's choice (2026-11-25): its nine 90° corners made sharp (turns 1–4, 6, 8,
+11, 12 and 16: `sharpCorners`), so that you must brake for them (the Hard bot ~70 km/h in each,
+from 320–350 km/h); the last corner before the long run to the line has an escape area on its
+outside, as the real one: the run-off 18 m wider, paved, over 150 m round turn 16
+(`runoffAreas`: [track.md](track.md#run-off-areas-trackdefinitionrunoffareas-step-24f)). Scale
+0.9517 with them (1.000 without).
+
+| Lap (s)   | Lap    | S1    | S2    | S3    | Walls | Off |
+| --------- | ------ | ----- | ----- | ----- | ----- | --- |
+| Real pole | 101.37 | 35.70 | 40.81 | 24.85 |       |     |
+| Hard      | 101.10 | 35.98 | 37.87 | 27.25 | 0     | 0   |
+| Medium    | 102.62 | 36.43 | 38.38 | 27.80 | 0     | 0   |
+| Easy      | 121.92 | 42.55 | 47.50 | 31.87 | 0     | 0   |
+
+S3 is 12% slow: the 2.2 km flat-out run along the boulevard to the line (our car tops out at ~283
+km/h, an F1 at ~350); the old town's corners in S1 and S2 win it back. The test's sector tolerance
+is 13% for this circuit, as São Paulo's.
 
 ## Adding a circuit
 

@@ -1,6 +1,14 @@
 import * as THREE from 'three';
-import { CAR_WHEELS, type CarDamage, type TyreCompound } from '@altf1/shared';
-import { damageLook } from './carDamageLook';
+import { CAR_WHEELS, type CarDamage, type Punctures, type TyreCompound } from '@altf1/shared';
+import {
+  damageLook,
+  LOOSE_TREAD,
+  looseTread,
+  PUNCTURED_HEIGHT,
+  PUNCTURED_RIM,
+  WHEEL_RADIUS,
+  type CarDamageLook,
+} from './carDamageLook';
 import {
   createBandSidewallTexture,
   createCheckerTexture,
@@ -26,17 +34,20 @@ export interface CarPose {
   readonly pitch?: number;
   /** The car's damage (Grand Prix only); left out: drawn as new. */
   readonly damage?: CarDamage;
+  /** Its flat tyres (Grand Prix only, `puncturedTyres`); left out: none. */
+  readonly punctures?: Punctures;
   /** Its tyres' compound (Grand Prix only): the sidewalls' band; left out: none. */
   readonly compound?: TyreCompound;
 }
 
-const WHEEL_RADIUS = 0.36;
 /** Visual front-wheel angle at full lock (rad). Purely cosmetic. */
 const MAX_WHEEL_STEER = 0.4;
 /** Body roll per radian of slip. Purely cosmetic (~2° at full lock). */
 const ROLL_PER_SLIP = 0.1;
 /** A fully flat tyre is drawn this much lower (share of its height). */
 const FLAT_SQUASH = 0.35;
+/** A punctured wheel's bare rim is this much of the tyre's width: inside its loose tread. */
+const RIM_WIDTH = 0.8;
 /** Front wing: half its span, height and position (local; forward is −Z). */
 const FRONT_WING = { halfSpan: 0.95, y: 0.15, z: -2.7 } as const;
 
@@ -59,8 +70,18 @@ export class CarView {
   private readonly wingHalves: { left: THREE.Group; right: THREE.Group };
   private readonly rearWing: THREE.Mesh;
   private readonly pivots: THREE.Group[] = [];
+  /** Per wheel: its tread come loose (shown only when punctured), flapping round the rim. */
+  private readonly treads: THREE.Group[] = [];
+  /** Which wheels are punctured now, and how long their treads have flapped (s). */
+  private punctured: CarDamageLook['punctured'] = [false, false, false, false];
+  private flapSeconds = 0;
+  /** A wheel's materials (tread, both ends): with its tyre, or the bare rim of a puncture. */
+  private readonly tyreMaterials: THREE.Material[];
+  private readonly rimMaterials: THREE.Material[];
   /** The damage drawn now (redrawn only when it changes). */
   private damage: CarDamage | undefined;
+  /** The flat tyres drawn now, as a key ('' = none). */
+  private flatKey = '';
   private firstPerson = false;
   /** The red rear lights (and the crash structure holding them), shown only while lit. */
   private readonly rearLights: THREE.Object3D[] = [];
@@ -69,7 +90,7 @@ export class CarView {
   private readonly sidewall: THREE.MeshLambertMaterial;
   private readonly dryTyre: THREE.Texture;
   private readonly wetSidewall = createWetSidewallTexture();
-  /** The compounds' sidewalls (red softs, yellow mediums), made the first time one is shown. */
+  /** The compounds' sidewalls (by `TYRE_BANDS`), made the first time one is shown. */
   private readonly bandSidewalls = new Map<TyreCompound, THREE.Texture>();
   private wet = false;
   private compound: TyreCompound | undefined;
@@ -86,6 +107,19 @@ export class CarView {
     this.dryTyre = createCheckerTexture(8, '#1a1a1a', '#3a3a3a');
     const tyre = new THREE.MeshLambertMaterial({ map: this.dryTyre, ...see });
     this.sidewall = new THREE.MeshLambertMaterial({ map: this.dryTyre, ...see });
+    // A punctured wheel's bare rim: grey, its face darker.
+    const rim = [
+      new THREE.MeshLambertMaterial({ color: '#9a9da3', ...see }),
+      new THREE.MeshLambertMaterial({ color: '#6c6f75', ...see }),
+    ];
+    this.rimMaterials = [rim[0]!, rim[1]!, rim[1]!];
+    this.tyreMaterials = [tyre, this.sidewall, this.sidewall];
+    // Both faces: the loose tread is an open band, seen from inside through the gap over the rim.
+    const loose = new THREE.MeshLambertMaterial({
+      map: this.dryTyre,
+      side: THREE.DoubleSide,
+      ...see,
+    });
 
     // [width, height, length, x, y, z, material, visibility]
     // 'body' = hidden in first person, 'tip' = always shown, 'cockpit' = first person only.
@@ -168,13 +202,31 @@ export class CarView {
       const width = steers ? 0.4 : 0.5;
       const wheel = new THREE.Mesh(
         new THREE.CylinderGeometry(WHEEL_RADIUS, WHEEL_RADIUS, width, 8),
-        [tyre, this.sidewall, this.sidewall], // the cylinder's groups: tread, then both ends
+        this.tyreMaterials, // the cylinder's groups: tread, then both ends
       );
       // Default order XYZ: tipped onto X first (Z), then the spin (X) turns it round the axle.
       wheel.rotation.z = Math.PI / 2; // cylinder axis along X = the axle
       const pivot = new THREE.Group();
       pivot.position.set(side, WHEEL_RADIUS, -ahead);
       pivot.add(wheel);
+      // The loose tread: an open band wider than the rim, not turned by it (see `looseTread`).
+      const band = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          WHEEL_RADIUS * LOOSE_TREAD,
+          WHEEL_RADIUS * LOOSE_TREAD,
+          width * 0.85,
+          12,
+          1,
+          true,
+        ),
+        loose,
+      );
+      band.rotation.z = Math.PI / 2;
+      const tread = new THREE.Group();
+      tread.add(band);
+      tread.visible = false;
+      pivot.add(tread);
+      this.treads.push(tread);
       this.object.add(pivot);
       this.body.push(pivot);
       this.pivots.push(pivot);
@@ -190,10 +242,10 @@ export class CarView {
     this.showSidewalls();
   }
 
-  /** The sidewalls: the wets' blue in the rain, else the compound's band (none outside a GP). */
+  /** The sidewalls: the compound's band (Grand Prix); without one, the wets' blue in the rain. */
   private showSidewalls(): void {
     let map = this.dryTyre;
-    if (this.wet) map = this.wetSidewall;
+    if (!this.compound && this.wet) map = this.wetSidewall;
     else if (this.compound) {
       const compound = this.compound;
       if (!this.bandSidewalls.has(compound)) {
@@ -238,6 +290,8 @@ export class CarView {
         material.dispose();
       }
     });
+    // A wheel shows either set: the other one is not in the scene to be found above.
+    for (const material of [...this.tyreMaterials, ...this.rimMaterials]) material.dispose();
     this.dryTyre.dispose();
     this.wetSidewall.dispose();
   }
@@ -252,7 +306,12 @@ export class CarView {
     for (const pivot of this.frontPivots) pivot.rotation.y = -pose.steer * MAX_WHEEL_STEER;
     const spin = (pose.forwardSpeed * frameSeconds) / WHEEL_RADIUS;
     for (const wheel of this.wheels) wheel.rotation.x -= spin;
-    if (pose.damage !== this.damage) this.showDamage(pose.damage);
+    this.flapTreads(pose, frameSeconds);
+    const flatKey = pose.punctures ? pose.punctures.map(Number).join('') : '';
+    if (pose.damage !== this.damage || flatKey !== this.flatKey) {
+      this.flatKey = flatKey;
+      this.showDamage(pose.damage, pose.punctures);
+    }
     if (pose.compound !== this.compound) {
       this.compound = pose.compound;
       this.showSidewalls();
@@ -261,11 +320,11 @@ export class CarView {
 
   /**
    * Draws `damage` (see `damageLook`): front wing halves bent down or gone, the rear wing tilted or
-   * gone, flat tyres squashed onto the road. Undefined = as new.
+   * gone, flat tyres squashed onto the road (a punctured one fully). Undefined = as new.
    */
-  private showDamage(damage: CarDamage | undefined): void {
+  private showDamage(damage: CarDamage | undefined, punctures?: Punctures): void {
     this.damage = damage;
-    const look = damage ? damageLook(damage) : null;
+    const look = damage ? damageLook(damage, punctures) : null;
     const { left, right } = this.wingHalves;
     // The outer end down: +Z rotation lowers the left half (−X), −Z the right one.
     left.rotation.z = look?.frontWing.left.droop ?? 0;
@@ -275,10 +334,39 @@ export class CarView {
     // Trailing edge (+Z, the rear) down.
     this.rearWing.rotation.x = look?.rearWing.tilt ?? 0;
     this.rearWing.visible = !this.firstPerson && !look?.rearWing.missing;
+    this.punctured = look?.punctured ?? [false, false, false, false];
     this.pivots.forEach((pivot, i) => {
-      const squash = 1 - FLAT_SQUASH * (look?.flat[i] ?? 0);
+      // Punctured: the bare grey rim on the road, under its loose tread; else flattened by the
+      // damage.
+      const punctured = this.punctured[i]!;
+      const squash = punctured ? 1 : 1 - FLAT_SQUASH * (look?.flat[i] ?? 0);
       pivot.scale.y = squash;
-      pivot.position.y = WHEEL_RADIUS * squash;
+      pivot.position.y = WHEEL_RADIUS * (punctured ? PUNCTURED_HEIGHT : squash);
+      const rim = punctured ? PUNCTURED_RIM : 1;
+      const wheel = this.wheels[i]!;
+      // The cylinder's radius is its local X and Z, its width Y: the rim inside the loose tread.
+      wheel.scale.set(rim, punctured ? RIM_WIDTH : 1, rim);
+      wheel.material = punctured ? this.rimMaterials : this.tyreMaterials;
+      this.treads[i]!.visible = punctured;
+    });
+  }
+
+  /** Each punctured wheel's loose tread, flapping at the car's speed (see `looseTread`). */
+  private flapTreads(pose: CarPose, frameSeconds: number): void {
+    if (!this.punctured.some(Boolean)) return;
+    this.flapSeconds += frameSeconds;
+    this.treads.forEach((tread, i) => {
+      if (!this.punctured[i]) return;
+      const spin = this.wheels[i]!.rotation.x;
+      const { lift, roll, flap, stretch, squeeze } = looseTread(
+        this.flapSeconds,
+        pose.forwardSpeed,
+        spin,
+        i,
+      );
+      tread.position.y = lift;
+      tread.rotation.set(roll, flap, 0);
+      tread.scale.set(1, stretch, squeeze);
     });
   }
 }

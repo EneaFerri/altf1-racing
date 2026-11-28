@@ -68,7 +68,8 @@ export function roadOf(track: Track, route: number): Track {
  */
 export function locateOnLoop(track: Track, p: Vec2): TrackLocation {
   const n = track.samples.length;
-  const nearby = track.centerGrid.query(p, track.maxHalfWidth + track.runoffWidth + 10);
+  const reach = track.maxHalfWidth + (track.maxRunoffWidth ?? track.runoffWidth) + 10;
+  const nearby = track.centerGrid.query(p, reach);
   const candidates = nearby.length > 0 ? nearby : track.samples.map((_, i) => i);
 
   let best = { index: 0, t: 0, point: track.samples[0]!.position, dist: Infinity };
@@ -96,6 +97,11 @@ export function locateOnLoop(track: Track, p: Vec2): TrackLocation {
     height: a.height + (b.height - a.height) * best.t,
     grade: a.grade + (b.grade - a.grade) * best.t,
   };
+}
+
+/** The run-off (m) beside sample `index` of `road` on `side`: wider in a run-off area. */
+export function runoffAt(road: Track, side: TrackSide, index: number): number {
+  return road.runoffWidth + (road.sides[side].extraRunoff?.[index] ?? 0);
 }
 
 /** Surface under point `p`, from its lateral distance to the centreline. See 01_docs/track.md. */

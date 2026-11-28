@@ -20,6 +20,8 @@ public enum TrackRules {
     public static let kerbOutset: Double = 1.0
     /// High kerbs are placed on samples curving more than this (1/m).
     public static let highKerbMinCurvature: Double = 1.0 / 300
+    /// A run-off area (`TrackDefinition.runoffAreas`) widens and narrows over this much at its ends (m).
+    public static let runoffAreaRamp: Double = 20
     /// Timing sectors per lap; they double as checkpoints.
     public static let sectorCount = 3
 }

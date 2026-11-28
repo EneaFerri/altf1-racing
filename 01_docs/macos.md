@@ -192,6 +192,35 @@ their style by place (concrete by stands and pits, tyres by gravel, the circuit'
   capsules), Marina Bay Sands with its SkyPark, the Esplanade's durians, the bay, palms and the
   park, darker grass, catch fences.
 
+- **São Paulo** (X.5c, 2026-11-24), Interlagos on its real land (SRTM): the park's lake by the
+  Descida do Lago sunk into the ground at its own level (`Ground.withLakes`, `lakeLevel`: the web's)
+  with green-brown water, broadleaf woods and 700 trees in the open, guard rails, the town round the
+  park (OSM's 2 971 `surroundings` buildings on the slopes) in Brazil's colours (eight facades),
+  terracotta roofs and four in ten grey concrete slabs, domed roofs, the city's skyline 2.6–4.4 km
+  to the north in two hazy tones (220 towers), the grandstands and the pit buildings. **Kerbs**: the
+  Senna S's (245–600 m from the line) in yellow, green and blue blocks (the tribute to Ayrton Senna
+  painted there), red and white elsewhere (`CircuitLook.kerbs`, `TrackMesh.KerbPaint`,
+  `ProceduralTextures.kerbStripes`; every other circuit keeps its kerbs).
+
+- **Baku** (X.5d, 2026-11-25): the town in honey sandstone (flat roofs), the grey-green Caspian,
+  the Flame Towers, the Maiden Tower, Government House, the Carpet Museum and the old town's walls
+  (`BakuScenery.swift`). **Lifelike trees** (`CircuitLook.Trees.real`, Baku only; owner
+  2026-11-25): plane trees (a forked trunk, a crown of nine leaf clumps: alpha-cut cards round a
+  solid core, lit as one rounded volume), Eldar pines in tiers of needle sprays, date palms with
+  arching fronds (`Trees.swift`; leaves, needles, fronds and barks drawn leaf by leaf in
+  `TreeTextures.swift`). **Trees behind the walls** (`wallTreeSpots`): two rows along the main loop
+  (4–6.5 m and 10–14 m past the wall, every 7 m), only on free ground (no building, water, stand,
+  pit or the old town's walls within a crown's reach), none where the town reaches the wall.
+  **The pit lane** (`PitCrew.swift`, `BakuPit`, Baku only; owner 2026-11-25): no town building
+  within 3 m of the real drivable lane, its entry and exit (the 17 m block at the entry and two
+  small ones), in every mode (the lane built from the definition when the session has none). In
+  the Grand Prix (both modes) the generated garages overlap the lane and are skipped, so each of
+  the 8 boxes gets its own: a concrete garage 1.5 m past the lane's edge, its open door and a
+  yellow band; over the box a gantry (two posts, arms, a boom with the team's stripe, the hoses,
+  the red light over the nose); round the car's spot 18 mechanics (three per wheel, two jacks, two
+  steadying the car, two at the front wing), static, in the box's team kit (boxes 0–4: `Teams.all`
+  order as `teamBoxes`; the player's and the spare boxes neutral, online too). Visual only.
+
 ## Online (X.7)
 
 The app is one more client of the web's server (`npm run server`, protocol v18): Mac and browser
@@ -253,8 +282,30 @@ and X.7d the online Grand Prix done, awaiting the owner's test with friends. How
   `markPitBox`): the server gives a box when the player joins and may move it (play again, a
   driver leaving); painted once with the track it showed a stale box where the car never stopped
   (fixed 2026-11-24).
+- **The safety car** (R.3, 2026-11-24; the rules: [safetycar.md](safetycar.md)): the server runs
+  it; the Mac follows it. `AltF1Core/Race/SafetyCar.swift` ports what a client needs:
+  `SafetyCarInfo`, `GiveBack`, `RaceIncident` (decoded from `GrandPrixInfo`, optional fields),
+  `safetyCarPlans`, `withSafetyCar` (the `Predictor` drives its car like the server) and
+  `SafetyCarDelta` (the player's delta, counted on the predicted world); `RaceStanding.timePenalty`;
+  `stepGame` never damages it (`safetyCarId`); `SafetyCarDelta.graceLeft` (R.3b). The app:
+  `Render/SafetyCarEntity.swift` (rebuilt after the owner's photo, R.3b 2026-11-25, the Mac only:
+  a red chrome GT under a deep clear coat, lofted: long bonnet, fastback glasshouse under a red
+  roof, haunches flared over the wheels; black splitter, grille with chrome slats, skirts, diffuser
+  with fins, four tailpipes, a full-width tail-light strip; a swan-neck carbon wing carrying the
+  amber LED bar, a slim roof bar with its aerial; black ten-spoke wheels with red calipers; the white
+  and black flames and `SAFETY CAR` on the doors, yellow `SAFETY CAR` plates; no maker's badge or
+  sponsor. Its LED and roof lamps flash left and right from the call (waiting at the pit exit) while
+  it leads,
+  `OnlineSession.safetyCarLights`), `UI/GrandPrix/RaceControl.swift` (race control's board, top
+  right: the blinking `SAFETY CAR` title, the rule, the delta green or red (only while it waits for
+  the leader) and `BACK ABOVE YOUR DELTA · 4 s`, the place to give back,
+  a penalty for 5 s), the panel's `· SAFETY CAR` and `+5s PEN`, an orange dot on the minimap.
+- **Debris and yellow flags** (R.2), online and in single player's Grand Prix:
+  [flags.md](flags.md#mac).
 - **Dev**: `ALTF1_ONLINE=<address>,<nickname>,<practice|grandPrix>,<circuit name>` joins and
-  enters at launch (with `ALTF1_AUTOPILOT`, `ALTF1_SNAPSHOTS`).
+  enters at launch (with `ALTF1_AUTOPILOT`, `ALTF1_SNAPSHOTS`); `ALTF1_SAFETY_CAR=<m>` draws the
+  safety car that far ahead of the followed car (behind if negative), lights flashing;
+  `ALTF1_YELLOW_FLAG=<m>` a crash's debris and yellow flag post that far ahead.
 - **Measured** (2026-11-23, a local server and a second player from a script): practice on Monza
   with both cars; a Grand Prix on Monza and Monaco with the other player as manager: lobby
   (waiting for the manager), qualifying, grid, the start lights, the race (stops required), the
@@ -264,13 +315,33 @@ and X.7d the online Grand Prix done, awaiting the owner's test with friends. How
   as manager), snapshots at 30 Hz with the inputs acknowledged (tick 60: seq 56); an address with
   no server → `unreachable`.
 
+## Rain (2.8)
+
+`Render/Rain.swift`, only where it may rain (São Paulo), following the simulation's wetness live
+(`RaceSession.wetness`):
+- **Falling rain**: RealityKit particles (`ParticleEmitterComponent`, from its rain preset) in two
+  layers carried with the camera (ahead of it by its speed): fine streaks close by, all falling the
+  same height so each dies on the road and throws a splash (particles spawned at its death), and a
+  curtain of fainter streaks further off that greys the distance.
+- **A wet track**: every road, kerb and wall material (and the ground, the pit lane, the stands'
+  concrete) darker, smoother and under a clear coat that mirrors the sky.
+- **Standing water** from wetness 0.45, full from 0.75: the simulation's puddles, each a quad cut
+  into an irregular pool with a soft edge (`RainTextures.puddleShapes`, four shapes), mirror-smooth
+  and nearly black, the drops' rings spreading on it (`RainTextures.ripples`: 8 normal-map frames
+  at 14 fps).
+- **Sky**: overcast from 0.3 (`ProceduralTextures.overcastSky`, also the lighting), back to the sun
+  below 0.2; the sun dims with the cloud.
+- **Cars**: spray from the rear tyres (particles, by speed and wetness), the rain light flashing.
+- **Tyres**: the sidewall bands of all four compounds; the tyre panel offers 1–4 in the box.
+- Dev: `ALTF1_WEATHER=rain|variable`, `ALTF1_WETNESS=<0…1>` (the look at that wetness).
+
 ## Dev options
 
 Debug builds read environment variables (`Dev/DevOptions.swift`) to check the look without a
 person at the keys: `ALTF1_START=<id>` (straight into that circuit's Test), `ALTF1_AUTOPILOT=1`,
 `ALTF1_CAMERA=pov`, `ALTF1_SNAPSHOTS=120,900` (frames to save as PNG in the app's temporary folder,
 `~/Library/Containers/com.altf1.racing/Data/tmp/`), `ALTF1_MODE=timeTrial|grandPrix` (with
-`ALTF1_TEAM=<id>`, `ALTF1_WEATHER=rain`, `ALTF1_GP=200:confirm,260:start1,…`: the GP's keys at those
+`ALTF1_TEAM=<id>`, `ALTF1_WEATHER=rain|variable`, `ALTF1_WETNESS=<0…1>`, `ALTF1_GP=200:confirm,260:start1,…`: the GP's keys at those
 frames), `ALTF1_CAMERA=orbit:<deg>:<m>:<m>` (look at the car from round it), `ALTF1_TELEMETRY=1`,
 `ALTF1_QUIT=1`. A
 snapshot is the 3D view with the HUD drawn over it by `ImageRenderer` (true layout and numbers,
@@ -302,6 +373,11 @@ first-met order; the puddles' PRNG on wrapping 32-bit integers (`Math.imul`).
   and run-off) and 200 points round it (`locateOnTrack`, `surfaceAt`);
 - `puddles.json`: Monza's and São Paulo's puddles;
 - `protocol.json`: the multiplayer messages and nicknames ([Online](#online-x7));
+- `flags.json`: the yellow flags tick by tick and every crash's debris on Monza (R.2);
+- `safety-car.json`: the safety car's plans and the delta's speeds on Monza, its input every 20th
+  tick out on the track and into the pit lane among two bots, the delta after each of those steps,
+  a car beating its delta then back above it (the delta and its grace every 10th tick) (identical
+  to the web's);
 - `sim-<scenario>.json`: ticks of three races (state, inputs, next state; one in 30 plus every lap,
   sector, stop, reset and contact tick): **Monza** (4 cars in traffic, contacts, a reset, a full
   lap), **Monaco** (heights, damage, pit lane, limiter, a stop and its repair), **São Paulo**

@@ -14,6 +14,8 @@ struct CircuitSceneryResult {
     let hasGround: Bool
     /// The run-off's surface beside the road (the circuit's ground).
     let runoff: (any RealityKit.Material)?
+    /// Kerbs in the circuit's own colours along their stretches (`CircuitLook.kerbs`).
+    let kerbs: [TrackMesh.KerbPaint]
 }
 
 @MainActor
@@ -23,13 +25,17 @@ enum CircuitSceneryBuilder {
         guard let look = CircuitLook.of(circuitId) else { return nil }
         let (scenery, land) = try CircuitCatalog.scenery(circuitId)
         async let materials = SceneryMaterials.load(look)
-        let result = await Task.detached { SceneryGeometry.build(track, scenery, land, look) }.value
+        // Baku: its town cleared off the real pit lane in every mode (`BakuPit`).
+        let pitLane = look.landmarks == .baku
+            ? (track.routes.contains(where: \.pit) ? track : try buildTrack(CircuitCatalog.definition(circuitId), pitLane: true))
+            : nil
+        let result = await Task.detached { SceneryGeometry.build(track, scenery, land, look, pitLane: pitLane) }.value
         let m = try await materials
         let root = Entity()
         root.name = "scenery"
         for (part, builder) in result.parts.meshes {
             guard let material = m.material(part), let entity = try builder.entity(material, name: "\(part)") else { continue }
-            if [.tunnelLights, .hills, .sea, .floodLamp, .flyerRim, .skyParkEdge].contains(part) {
+            if [.tunnelLights, .hills, .sea, .lake, .floodLamp, .flyerRim, .skyParkEdge, .skylineNear, .skylineFar].contains(part) {
                 // Lights and far hills cast no shadow; nor does the sea.
                 entity.components.set(DynamicLightShadowComponent(castsShadow: false))
             }
@@ -37,7 +43,21 @@ enum CircuitSceneryBuilder {
         }
         return CircuitSceneryResult(
             entity: root, wallStyles: result.parts.wallStyles, look: look, hasGround: result.ground != nil,
-            runoff: m.material(.groundLow))
+            runoff: m.material(.groundLow),
+            kerbs: try await kerbs(look))
+    }
+
+    /// `look`'s painted kerbs: a kerb material per stretch, its colours in blocks in turn.
+    private static func kerbs(_ look: CircuitLook) async throws -> [TrackMesh.KerbPaint] {
+        var paints: [TrackMesh.KerbPaint] = []
+        for paint in look.kerbs {
+            let colors = paint.colors
+            let maps = await Task.detached { ProceduralTextures.kerbStripes(colors) }.value
+            paints.append(
+                TrackMesh.KerbPaint(
+                    from: paint.from, to: paint.to, blocks: colors.count, material: try await RaceMaterials.pbr(maps)))
+        }
+        return paints
     }
 }
 
@@ -50,7 +70,8 @@ struct SceneryMaterials {
 
     static func load(_ look: CircuitLook) async throws -> SceneryMaterials {
         typealias S = SceneryTextures
-        async let facadeMaps = Task.detached { SceneryGeometry.facades.map { S.facade(wall: $0.0, shutter: $0.1) } }.value
+        let palette = look.facades ?? SceneryGeometry.facades
+        async let facadeMaps = Task.detached { palette.map { S.facade(wall: $0.0, shutter: $0.1) } }.value
         async let glass = Task.detached { S.glass() }.value
         async let stone = Task.detached { S.belleEpoque() }.value
         async let chapel = Task.detached { S.facade(wall: 0xE9C88E, shutter: 0x8A5A3A) }.value
@@ -125,6 +146,36 @@ struct SceneryMaterials {
         lights.emissiveIntensity = 3
         m.byPart[.tunnelLights] = lights
         m.byPart[.hills] = plain(0x7D8A6A, roughness: 0.95)
+        if look.flatRoofs > 0 {
+            // Weathered concrete slabs (São Paulo's houses), darker than a tower's flat roof.
+            var slab = concreteMaterial
+            slab.baseColor.tint = .init(white: 0.62, alpha: 1)
+            m.byPart[.roofSlab] = slab
+        }
+        if let lake = look.lake {
+            // A park's lake: the sea's gloss and ripples, its own green-brown water.
+            var water = sea
+            let c = SceneryTextures.rgb(lake)
+            water.baseColor = .init(tint: .init(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z), alpha: 1))
+            water.roughness = 0.12
+            m.byPart[.lake] = water
+        }
+        if look.skyline {
+            // Far towers fade into the haze: pale blue-grey, flat lit, the farther the paler.
+            for (part, hex) in [(SceneryParts.Part.skylineNear, UInt32(0x8E9AA6)), (.skylineFar, 0xAEB9C3)] {
+                var haze = plain(hex, roughness: 1)
+                haze.faceCulling = .none
+                m.byPart[part] = haze
+            }
+        }
+        if let tint = look.seaTint {
+            // Its own sea's colour (Baku's Caspian: grey-green, shallow and silty).
+            let c = SceneryTextures.rgb(tint)
+            sea.baseColor = .init(tint: .init(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z), alpha: 1))
+            m.byPart[.sea] = sea
+        }
+        if look.landmarks == .baku { try await m.addBaku() }
+        if look.trees == .real { try await m.addRealTrees() }
         if look.night { try await m.addNight() }
         return m
     }
@@ -167,6 +218,69 @@ struct SceneryMaterials {
         }
     }
 
+    /// Baku's materials: the old town's limestone, the Flame Towers' blue glass (glossy, part
+    /// mirror), the Carpet Museum's carpet and its wound ends.
+    private mutating func addBaku() async throws {
+        typealias S = SceneryTextures
+        async let stone = Task.detached { S.limestone() }.value
+        async let glass = Task.detached { S.flameGlass() }.value
+        async let carpet = Task.detached { S.carpet() }.value
+        async let ends = Task.detached { S.carpetEnd() }.value
+        byPart[.limestone] = try await Self.pbr(stone)
+        var flame = try await Self.pbr(glass)
+        flame.metallic = 0.75
+        flame.clearcoat = 0.6
+        byPart[.flameGlass] = flame
+        byPart[.carpet] = try await Self.pbr(carpet)
+        byPart[.carpetEnd] = try await Self.pbr(ends)
+        // The pit crews: each team's overalls and helmets (`Livery.team`), then a neutral kit.
+        let kits = Teams.all.map { Livery.team($0.id) } + [Livery(0x30343C, 0xD8D8D8)]
+        for (kit, livery) in kits.enumerated() {
+            byPart[.crewSuit(kit)] = Self.plain(livery.body * 0.85, roughness: 0.8)
+            var helmet = Self.plain(livery.accent, roughness: 0.25)
+            helmet.clearcoat = 1.0
+            byPart[.crewHelmet(kit)] = helmet
+        }
+        byPart[.pitBlack] = Self.plain(0x141416, roughness: 0.85)
+        byPart[.pitSteel] = Self.plain(0x26282C, roughness: 0.45, metallic: 0.6)
+        byPart[.pitLight] = Self.glow(0xFF2A1A, 3)
+        byPart[.pitBand] = Self.plain(0xF2C200, roughness: 0.5)
+    }
+
+    /// The lifelike trees' materials (`Trees.swift`): leaves, needles and fronds cut out of their
+    /// cards, the crowns' cores a shade darker, three barks.
+    private mutating func addRealTrees() async throws {
+        typealias T = TreeTextures
+        async let leaves = Task.detached { T.leaves() }.value
+        async let needles = Task.detached { T.needles() }.value
+        async let frond = Task.detached { T.palmFrond(dry: false) }.value
+        async let dry = Task.detached { T.palmFrond(dry: true) }.value
+        async let plane = Task.detached { T.bark(.plane) }.value
+        async let pine = Task.detached { T.bark(.pine) }.value
+        async let palm = Task.detached { T.bark(.palm) }.value
+        byPart[.leaves] = try await Self.foliage(leaves)
+        byPart[.needles] = try await Self.foliage(needles)
+        byPart[.palmLeaf] = try await Self.foliage(frond)
+        byPart[.palmDry] = try await Self.foliage(dry)
+        byPart[.leafCore] = Self.plain(0x34501C, roughness: 0.9)
+        byPart[.needleCore] = Self.plain(0x263F22, roughness: 0.9)
+        byPart[.barkPlane] = try await Self.pbr(plane)
+        byPart[.barkPine] = try await Self.pbr(pine)
+        byPart[.palmBark] = try await Self.pbr(palm)
+    }
+
+    /// A cut-out surface: its colour, every pixel off its mask discarded (sharp leaf edges, shadows
+    /// through the gaps).
+    private static func foliage(_ maps: TreeTextures.Foliage) async throws -> PhysicallyBasedMaterial {
+        var material = PhysicallyBasedMaterial()
+        material.baseColor = .init(texture: try await texture(maps.albedo, .color))
+        material.roughness = 0.75
+        material.blending = .transparent(opacity: .init(texture: try await texture(maps.mask, .raw)))
+        material.opacityThreshold = 0.5
+        material.faceCulling = .none
+        return material
+    }
+
     /// An emissive light (a lamp, a lit rim) of `hex`, `intensity` times bright.
     private static func glow(_ hex: UInt32, _ intensity: Float) -> PhysicallyBasedMaterial {
         let c = SceneryTextures.rgb(hex)
@@ -180,7 +294,10 @@ struct SceneryMaterials {
     }
 
     private static func plain(_ hex: UInt32, roughness: Float, metallic: Float = 0) -> PhysicallyBasedMaterial {
-        let c = SceneryTextures.rgb(hex)
+        plain(SceneryTextures.rgb(hex), roughness: roughness, metallic: metallic)
+    }
+
+    private static func plain(_ c: SIMD3<Float>, roughness: Float, metallic: Float = 0) -> PhysicallyBasedMaterial {
         var material = PhysicallyBasedMaterial()
         material.baseColor = .init(tint: .init(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z), alpha: 1))
         material.roughness = .init(floatLiteral: roughness)

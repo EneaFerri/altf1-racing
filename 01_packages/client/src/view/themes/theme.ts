@@ -74,6 +74,7 @@ const THEMES: Readonly<Record<string, () => Promise<TrackTheme>>> = {
   Singapore: async () => (await import('./singapore')).SINGAPORE_THEME,
   'Las Vegas': async () => (await import('./lasVegas')).LAS_VEGAS_THEME,
   'São Paulo': async () => (await import('./saoPaulo')).SAO_PAULO_THEME,
+  Baku: async () => (await import('./baku')).BAKU_THEME,
 };
 
 /** Loads the theme drawn for a circuit (every one of `GP_TRACKS` has its own). */

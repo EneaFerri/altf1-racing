@@ -1,10 +1,11 @@
 import type { CarParams } from '../config/car';
 import type { DamageParams } from '../config/damage';
-import { dot, forward, length, right, sub } from '../math/vec2';
+import { dot, forward, length, right, scale, sub } from '../math/vec2';
 import type { Surface } from '../track/types';
 import type { InputCommand } from '../types/input';
 import type { CarState } from './car';
 import type { ImpactEvent } from './collision/types';
+import type { TyreState } from './tyres';
 
 /**
  * How damaged a car's parts are, each from 0 (as new) to 1 (fully damaged). Only cars in a race
@@ -141,6 +142,83 @@ export function damagedInput(
   const pull = ((fr - fl + (rr - rl)) / 2) * p.tyrePull;
   if (pull === 0) return input;
   return { ...input, steer: Math.max(-1, Math.min(1, input.steer + pull)) };
+}
+
+/** Per wheel (order of CAR_WHEELS): whether that tyre is flat. */
+export type Punctures = readonly [boolean, boolean, boolean, boolean];
+
+export const NO_PUNCTURES: Punctures = [false, false, false, false];
+
+/**
+ * Which of a car's tyres are punctured: each one damaged to `punctureDamage` or more (red: hits, a
+ * wall), and, once its set is worn to `punctureWear`, the most damaged one too (on a tie the first
+ * in the order of CAR_WHEELS: the front left). Derived from the state alone, so the server and
+ * the prediction agree without sending it. A pit stop (new tyres, repaired) mends it.
+ */
+export function puncturedTyres(
+  damage: CarDamage | undefined,
+  tyres: TyreState | undefined,
+  p: DamageParams,
+): Punctures {
+  const wheels = (damage ?? NO_DAMAGE).tyres;
+  const flat = wheels.map((tyre) => tyre >= p.punctureDamage);
+  if (tyres && tyres.wear >= p.punctureWear) {
+    const worst = wheels.reduce((best, tyre, i) => (tyre > wheels[best]! ? i : best), 0);
+    flat[worst] = true;
+  }
+  return flat.some(Boolean) ? (flat as unknown as Punctures) : NO_PUNCTURES;
+}
+
+/** Whether any tyre in `punctures` is flat. */
+export function isPunctured(punctures: Punctures): boolean {
+  return punctures !== NO_PUNCTURES && punctures.some(Boolean);
+}
+
+/**
+ * The car a punctured car drives: less grip and turning (its top speed: `limpSpeed`).
+ * No flat tyre: `params` itself.
+ */
+export function puncturedParams(
+  params: CarParams,
+  punctures: Punctures,
+  p: DamageParams,
+): CarParams {
+  if (!isPunctured(punctures)) return params;
+  return {
+    ...params,
+    lateralGrip: params.lateralGrip * p.punctureGrip,
+    maxYawRate: params.maxYawRate * p.punctureTurn,
+  };
+}
+
+/** `input` with a flat tyre's pull towards its side (right = +), within the steering range. */
+export function puncturedInput(
+  input: InputCommand,
+  punctures: Punctures,
+  p: DamageParams,
+): InputCommand {
+  if (!isPunctured(punctures)) return input;
+  const [fl, fr, rl, rr] = punctures.map(Number) as [number, number, number, number];
+  const pull = (fr + rr - fl - rl) * p.puncturePull;
+  if (pull === 0) return input;
+  return { ...input, steer: Math.max(-1, Math.min(1, input.steer + pull)) };
+}
+
+/**
+ * `car` after moving on a flat tyre: faster than `punctureTopSpeed`, it loses `punctureDecel`
+ * m/s² until it is down to it. No flat tyre: `car` itself.
+ */
+export function limpSpeed(
+  car: CarState,
+  punctures: Punctures,
+  dt: number,
+  p: DamageParams,
+): CarState {
+  if (!isPunctured(punctures)) return car;
+  const speed = length(car.velocity);
+  if (speed <= p.punctureTopSpeed) return car;
+  const slowed = Math.max(p.punctureTopSpeed, speed - p.punctureDecel * dt);
+  return { ...car, velocity: scale(car.velocity, slowed / speed) };
 }
 
 function average(values: readonly number[]): number {

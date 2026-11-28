@@ -14,6 +14,12 @@ const REVERSE_ENGAGE_SPEED = 0.3;
 
 export type CarId = string;
 
+/**
+ * The safety car's id (R.3, 01_docs/safetycar.md): a car like the others in the state (it
+ * collides, tows, is drawn), driven by the race rules, never damaged.
+ */
+export const SAFETY_CAR_ID: CarId = 'safety-car';
+
 export interface CarState {
   readonly id: CarId;
   readonly position: Vec2;
@@ -89,7 +95,9 @@ export function stepCar(
   slopeAccel = 0,
 ): CarState {
   const steer = smoothSteer(car.steer, input.steer, p, dt);
-  const spin = (car.spin + surface.spinKick) * Math.exp(-p.spinDamping * dt);
+  const spin =
+    (car.spin + surface.spinKick + powerSlide(car, input, surface, dt)) *
+    Math.exp(-p.spinDamping * dt);
   const brakePressure = smoothBrake(
     car.brakePressure,
     input,
@@ -132,6 +140,28 @@ export function stepCar(
     steer,
     brakePressure,
   };
+}
+
+/**
+ * Power oversteer on a wet track (2.8): on the throttle, turning harder than the tyres hold there
+ * (`surface.slideFrom`, as speed × turn rate), the rear steps out: a yaw kick into the turn, by the
+ * excess turn rate × `slideGain` × throttle. Past the spin damping it feeds itself (more turn, more
+ * excess) into a spin, up to `slideMaxSpin`; lifting stops it. 0 when dry (no `slideFrom`).
+ */
+function powerSlide(
+  car: CarState,
+  input: InputCommand,
+  surface: SurfaceEffect,
+  dt: number,
+): number {
+  const { slideFrom, slideGain, slideMaxSpin } = surface;
+  if (slideFrom === undefined || slideGain === undefined || input.throttle <= 0) return 0;
+  if (slideMaxSpin !== undefined && Math.abs(car.spin) >= slideMaxSpin) return 0;
+  const speed = length(car.velocity);
+  if (speed < 1) return 0;
+  const rotation = car.yawRate + car.spin;
+  const over = Math.abs(rotation) - slideFrom / speed;
+  return over > 0 ? Math.sign(rotation) * slideGain * input.throttle * over * dt : 0;
 }
 
 /** Frame-rate independent exponential approach of `value` towards `target` at `rate` (1/s). */

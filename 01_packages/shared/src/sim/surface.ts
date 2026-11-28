@@ -14,6 +14,14 @@ export interface SurfaceEffect {
   readonly drag: number;
   /** Yaw kick to add this tick (rad/s). */
   readonly spinKick: number;
+  /**
+   * A wet track (2.8): the cornering load (m/s²) above which the throttle breaks the rear loose,
+   * and how fast it then spins the car round (`stepCar`). Left out: never.
+   */
+  readonly slideFrom?: number;
+  readonly slideGain?: number;
+  /** The fastest a slide spins the car round (rad/s). */
+  readonly slideMaxSpin?: number;
 }
 
 export const NEUTRAL_SURFACE_EFFECT: SurfaceEffect = {

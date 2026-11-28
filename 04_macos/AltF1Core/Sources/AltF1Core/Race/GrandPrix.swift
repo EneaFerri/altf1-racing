@@ -2,6 +2,8 @@
 /// online, single player's own room offline (both run the same rules).
 public protocol GrandPrixRoom: AnyObject {
     var trackName: String { get }
+    /// The track it runs on (with its pit lane): where a crash's yellow flag is.
+    var track: Track { get }
     var state: GameState { get }
     /// Cars held on the grid (and the start lights); nil while they may drive.
     var hold: StartHold? { get set }
@@ -13,7 +15,8 @@ public protocol GrandPrixRoom: AnyObject {
     func spawn(_ id: CarId)
     func setDamage(_ on: Bool)
     func setPitBoxes(_ boxes: [CarId: Int])
-    func setWeather(_ weather: Weather)
+    /// How wet the track is when (`forecastBefore`, `raceForecast`).
+    func setWeather(_ forecast: Forecast)
 }
 
 /// A Grand Prix as its drivers see it.
@@ -30,14 +33,24 @@ public struct GrandPrixInfo: Sendable {
     public var hold: StartHold?
     public var boxes: [CarId: Int]
     public var weather: Weather
+    /// How wet the track is when (2.8).
+    public var forecast: Forecast = dryForecast
     /// The session's best time of each sector over every driver.
     public var sectorBests: [Int?]
+    /// Crashes' debris and the yellow flags of their sectors (R.2), in qualifying and the race.
+    public var yellowFlags: [YellowFlag] = []
+    /// The race's safety car period (online only: the server runs it, R.3); nil: none.
+    public var safetyCar: SafetyCarInfo? = nil
+    /// Overtakes under the safety car still to be given back.
+    public var giveBack: [GiveBack] = []
+    /// Every time penalty of the race (the safety car's rules).
+    public var incidents: [RaceIncident] = []
 }
 
 /// The rules of one circuit's Grand Prix, driving its room through the phases: lobby → qualifying
 /// (3 timed laps each, then off the track) → grid (qualifying order, held) → race (start lights,
 /// timing at every line, finishers off the track) → results → (play again) a new lobby. The first
-/// driver in is the manager. Pure apart from `random` (lights out).
+/// driver in is the manager. Pure apart from `random` (lights out, a variable GP's weather).
 public final class GrandPrix {
     private var phase = GrandPrixPhase.lobby
     private var drivers: [CarId] = []
@@ -49,7 +62,13 @@ public final class GrandPrix {
     private var racerOrder: [CarId] = []
     private var raceLaps: Int?
     private var weather = Weather.dry
+    /// A variable GP's turn of weather; nil otherwise.
+    private var turn: WeatherTurn?
+    /// How wet the track is when: the room's.
+    private var forecast = dryForecast
     private var sectorBests: [Int?] = Array(repeating: nil, count: TrackRules.sectorCount)
+    /// Crashes' debris and yellow flags out now (R.2: qualifying and the race).
+    private var yellowFlags: [YellowFlag] = []
     /// Drivers with a given qualifying time (`addSimulated`).
     private var simulated: [CarId: Int] = [:]
     /// The race's last counted pit stop of each driver (its end tick).
@@ -69,7 +88,8 @@ public final class GrandPrix {
         GrandPrixInfo(
             phase: phase, manager: drivers.first, drivers: drivers, qualifying: order(),
             race: raceStandings(racerOrder.compactMap { racers[$0] }, start: room.hold?.until ?? 0, final: phase == .results),
-            raceLaps: raceLaps, hold: room.hold, boxes: boxes, weather: weather, sectorBests: sectorBests)
+            raceLaps: raceLaps, hold: room.hold, boxes: boxes, weather: weather, forecast: forecast,
+            sectorBests: sectorBests, yellowFlags: yellowFlags)
     }
 
     public func add(_ id: CarId, name: String) {
@@ -109,7 +129,7 @@ public final class GrandPrix {
             let allowed = wanted == .dry || Weather.offersRain(room.trackName)
             guard allowed, wanted != weather else { return false }
             weather = wanted
-            room.setWeather(wanted)
+            newTurn()
             return true
         case .start where phase == .lobby:
             setPhase(.qualifying)
@@ -128,7 +148,12 @@ public final class GrandPrix {
         case .startRace(let laps) where phase == .grid:
             setPhase(.race)
             raceLaps = laps
-            room.hold = startHold(room.state.tick, random())
+            let hold = startHold(room.state.tick, random())
+            room.hold = hold
+            if let turn {
+                forecast = raceForecast(turn, start: hold.until, laps: laps, lapLength: room.track.length, random)
+                room.setWeather(forecast)
+            }
             racerOrder = order().map(\.id)
             for id in racerOrder {
                 racers[id] = RaceDriver(id: id, name: names[id]!, passes: [], status: .running, best: nil, stops: 0)
@@ -146,7 +171,8 @@ public final class GrandPrix {
     /// once done); in the race every timing line, finishers off the track. Whether the GP changed.
     @discardableResult
     public func afterTick() -> Bool {
-        let bests = newSectorBests()
+        let flags = flagsTick()
+        let bests = newSectorBests() || flags
         if phase == .race { return raceTick() || bests }
         guard phase == .qualifying else { return bests }
         var changed = bests
@@ -181,6 +207,7 @@ public final class GrandPrix {
             stopsCounted = [:]
             raceLaps = nil
             room.hold = nil
+            newTurn()
             room.restart([id])
             return true
         }
@@ -189,6 +216,13 @@ public final class GrandPrix {
         giveBox(id)
         room.spawn(id)
         return true
+    }
+
+    /// The weather from the lobby on: a variable GP's turn drawn afresh; told to the room.
+    private func newTurn() {
+        turn = weather == .variable ? drawWeatherTurn(random) : nil
+        forecast = forecastBefore(weather, turn)
+        room.setWeather(forecast)
     }
 
     private func raceTick() -> Bool {
@@ -247,9 +281,19 @@ public final class GrandPrix {
     }
 
     /// Every phase change: a new session (its own bests), the damage following the phase.
+    /// In qualifying and the race, the crashes' yellow flags (`stepYellowFlags`); whether they changed.
+    private func flagsTick() -> Bool {
+        guard isTimed else { return false }
+        let next = stepYellowFlags(yellowFlags, room.state, room.track, drivers: drivers)
+        guard next != yellowFlags else { return false }
+        yellowFlags = next
+        return true
+    }
+
     private func setPhase(_ next: GrandPrixPhase) {
         phase = next
         sectorBests = Array(repeating: nil, count: TrackRules.sectorCount)
+        yellowFlags = []  // and a clean track
         room.setDamage(damageInPhase(next))
     }
 

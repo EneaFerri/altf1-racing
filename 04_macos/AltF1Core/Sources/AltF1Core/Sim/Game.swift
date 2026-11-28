@@ -68,11 +68,14 @@ private let spawnClearance: Double = 6
 /// One input per car id; cars without an entry get `InputCommand.neutral`.
 public typealias InputMap = [CarId: InputCommand]
 
-/// New race: cars on the starting grid in the given order (first = pole position).
-public func createGame(_ track: Track, _ carIds: [CarId]) -> GameState {
+/// New race: cars on the starting grid in the given order (first = pole position); on `tyres` when
+/// given (a wet start: `weatherCompound`), else none yet (new mediums).
+public func createGame(_ track: Track, _ carIds: [CarId], tyres: TyreState? = nil) -> GameState {
     let cars = carIds.enumerated().map { slot, id in
         let pose = gridSlot(track, slot)
-        return CarState(id: id, position: pose.position, heading: pose.direction.heading)
+        var car = CarState(id: id, position: pose.position, heading: pose.direction.heading)
+        if let tyres { car.tyres = tyres }
+        return car
     }
     let sorted = sortById(cars)
     return GameState(
@@ -94,9 +97,26 @@ public func stepGame(_ state: GameState, _ inputs: InputMap, _ ctx: SimContext) 
         if given.reset { return resetOnTrack(car, ctx.track) }
 
         let surface = carSurface(ctx.track, car, ctx.surfaceParams)
-        let effect =
-            ctx.weather.map { wetSurfaceEffect(surface.effect, puddleShare(car, $0.puddles), $0.params) }
-            ?? surface.effect
+        // A wet track, as wet as its forecast says: by each car's compound (with tyres, T.2).
+        let wetness = trackWetness(ctx.weather, state.tick)
+        var effect = surface.effect
+        if let weather = ctx.weather, wetness > 0 {
+            let share = puddleShare(car, weather.puddles)
+            if let tyres = ctx.tyres {
+                // The safety car runs on the tyres the weather asks for, and never slides (R.3).
+                let safety = car.id == safetyCarId
+                let compound = safety ? weatherCompound(wetness, tyres) : (car.tyres ?? .newMediums).compound
+                let wet = tyreWetParams(compound, wetness, tyres, weather.params)
+                effect = wetSurfaceEffect(surface.effect, share * wetness, wet)
+                if !safety {
+                    effect.slideFrom = slideFrom(compound, wetness, tyres)
+                    effect.slideGain = tyres.slideGain
+                    effect.slideMaxSpin = tyres.slideMaxSpin
+                }
+            } else {
+                effect = wetSurfaceEffect(surface.effect, share, weather.params)
+            }
+        }
         let own = ctx.carParamsById?[car.id] ?? ctx.carParams
         // A damaged car (only with ctx.damage) drives slower, turns and grips less, and may pull.
         var params = own
@@ -107,14 +127,22 @@ public func stepGame(_ state: GameState, _ inputs: InputMap, _ ctx: SimContext) 
         }
         // Its tyres (only with ctx.tyres): the compound's grip and traction, less as they wear.
         if let tyres = ctx.tyres { params = tyredParams(params, car.tyres ?? .newMediums, tyres) }
+        // A flat tyre (only with ctx.damage: a red tyre, or a worn-out set): it limps to the pits.
+        let flat = ctx.damage.map { puncturedTyres(car.damage, car.tyres, $0) } ?? [false, false, false, false]
+        if let damage = ctx.damage {
+            params = puncturedParams(params, flat, damage)
+            input = puncturedInput(input, flat, damage)
+        }
         let slipstream = slipstreamFactor(car, state.cars, ctx.slipstreamParams)
         let slip = slipstreamEffect(slipstream, ctx.slipstreamParams)
         var next = stepCar(
             car, input, params, fixedDt, surface: effect, slip: slip, slopeAccel: slopeAccel(car, ctx))
+        if let damage = ctx.damage { next = limpSpeed(next, flat, fixedDt, damage) }
         next.wheelSurfaces = surface.surfaces
         next.slipstream = slipstream
         if let tyres = ctx.tyres {
-            next.tyres = wearTyres(car.tyres ?? .newMediums, next.velocity.length * fixedDt, ctx.track.length, tyres)
+            next.tyres = wearTyres(
+                car.tyres ?? .newMediums, next.velocity.length * fixedDt, ctx.track.length, tyres, wetness: wetness)
         }
         return ctx.pit != nil ? limitedSpeed(next, ctx.track) : next
     }
@@ -123,7 +151,9 @@ public func stepGame(_ state: GameState, _ inputs: InputMap, _ ctx: SimContext) 
     let tick = state.tick + 1
     var cars = resolved.cars
     if let damage = ctx.damage {
+        // The safety car is never damaged.
         cars = cars.map { car in
+            guard car.id != safetyCarId else { return car }
             var next = car
             next.damage = stepDamage(car, impacts, fixedDt, damage)
             return next

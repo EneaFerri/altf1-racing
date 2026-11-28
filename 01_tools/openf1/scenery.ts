@@ -11,7 +11,14 @@
 import { existsSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildTrack, locateOnTrack, vec2, type Track } from '../../01_packages/shared/src/index.ts';
+import {
+  buildTrack,
+  locateOnTrack,
+  runoffAt,
+  vec2,
+  type Track,
+  type TrackLocation,
+} from '../../01_packages/shared/src/index.ts';
 import { circuitById, type Landmark } from './circuits.ts';
 import { elevationOf } from './elevation.ts';
 import { generate, toGame } from './generate.ts';
@@ -39,6 +46,11 @@ const BUILDING_REACH = 250;
 /** Town circuits: area searched for the town layers (degrees), metres per building level. */
 const TOWN_MARGIN = 0.003;
 const LEVEL_HEIGHT = 3.2;
+/**
+ * Water wider than this (degrees, about 20 km) is a whole sea mapped as a lake (Baku's Caspian, its
+ * outline 1,000 km long): left out, the sea is drawn from its coastline.
+ */
+const SEA_AS_LAKE = 0.2;
 /** Town building height by type when OSM has none (m). */
 const TYPE_HEIGHT: Readonly<Record<string, number>> = {
   house: 8,
@@ -79,6 +91,13 @@ const CITY_REACH = 200;
 const CITY_GAP = 1.5;
 /** Town: footprints simplified to this tolerance (m). */
 const SIMPLIFY = 0.5;
+/**
+ * Old town walls (`cityWalls`): their thickness (m, real), their gap behind the game's wall (m) and
+ * a spot every this many metres along them (real).
+ */
+const WALL_THICKNESS = 3;
+const WALL_GAP = 0.5;
+const WALL_STEP = 5;
 /** Town: a landmark's POI outside every footprint goes to the nearest building within this (m). */
 const LANDMARK_REACH = 40;
 /** Tunnel: height of its roof's top, where the buildings over it stand (m). */
@@ -194,7 +213,9 @@ out geom;`;
           .filter((m) => m.type === 'way' && m.role === 'outer' && m.geometry)
           .map((m) => geometry(m.geometry!));
         const ring = joinRing(outer);
-        if (ring && ring.some(near)) features.push({ kind: 'water', name, points: ring });
+        if (ring && ring.some(near) && !wholeSea(ring)) {
+          features.push({ kind: 'water', name, points: ring });
+        }
         continue;
       }
       if (tags.building && (circuit.town || circuit.surroundings)) {
@@ -495,6 +516,28 @@ function writeLayout(): void {
     stands.push({ name: hand.name, footprint });
   }
 
+  // Old town walls (by hand): their centreline right behind the barrier, a spot every WALL_STEP m.
+  const cityWalls = (circuit.cityWalls ?? []).map((wall) => {
+    const side = wall.side === 'right' ? 1 : -1;
+    const thickness = WALL_THICKNESS * circuit.scale;
+    const gap = WALL_GAP + thickness / 2;
+    const steps = Math.max(1, Math.round((wall.to - wall.from) / WALL_STEP));
+    const path: Spot[] = [];
+    for (let k = 0; k <= steps; k++) {
+      const at = wall.from + ((wall.to - wall.from) * k) / steps;
+      path.push([round((at / profile.spacing / n + 1) % 1, 5), side * gap]);
+    }
+    if (!path.every((spot) => clearOfWalls(spot, gap)))
+      throw new Error(`${wall.name}: no room there`);
+    // Its footprint, for the town to keep off: the path either side by half its thickness.
+    const half = thickness / 2;
+    const footprint: Spot[] = [
+      ...path.map(([at]): Spot => [at, side * (gap - half)]),
+      ...[...path].reverse().map(([at]): Spot => [at, side * (gap + half)]),
+    ];
+    return { name: wall.name, height: wall.height, thickness: round(thickness), path, footprint };
+  });
+
   // Woods: absolute, in game coordinates.
   const woods = raw.features
     .filter((f) => f.kind === 'wood' && f.points.length >= 4)
@@ -537,9 +580,12 @@ function writeLayout(): void {
         raw,
         track,
         (p) => toWorld(toProfile(p)),
-        [...stands.map((st) => st.footprint), ...pitBuildings, pitLane].map((f) =>
-          f.map((spot) => fromSpot(track, spot)),
-        ),
+        [
+          ...stands.map((st) => st.footprint),
+          ...pitBuildings,
+          pitLane,
+          ...cityWalls.map((w) => w.footprint),
+        ].map((f) => f.map((spot) => fromSpot(track, spot))),
         (PIT_LANE_WIDTH * circuit.scale) / 2 + GARAGE_DEPTH * circuit.scale + 2,
         tunnelSpan(raw.features.filter((f) => f.kind === 'tunnel').flatMap(real), relative),
         circuit.landmarks ?? [],
@@ -636,6 +682,24 @@ function writeLayout(): void {
         ]
       : []),
     ...(town ? townLines(circuit.constName, town, pt) : []),
+    ...(circuit.cityWalls
+      ? [
+          ``,
+          `/** Old town walls (placed by hand): centreline behind the barrier, height and thickness (m). */`,
+          `export const ${circuit.constName}_CITY_WALLS: readonly {`,
+          `  readonly name: string;`,
+          `  readonly height: number;`,
+          `  readonly thickness: number;`,
+          `  readonly path: readonly TrackSpot[];`,
+          `}[] = [`,
+          ...cityWalls.map(
+            (w) =>
+              `  { name: ${JSON.stringify(w.name)}, height: ${w.height}, thickness: ${w.thickness}, path: ${spots(w.path)} },`,
+          ),
+          `];`,
+          ``,
+        ]
+      : []),
   ];
   const file = join(
     dirname(fileURLToPath(import.meta.url)),
@@ -702,14 +766,21 @@ function fromSpot(track: Track, [at, gap]: Spot): Point {
     samples[
       ((Math.round(at * samples.length) % samples.length) + samples.length) % samples.length
     ]!;
-  const offset = Math.sign(gap) * (s.halfWidth + track.runoffWidth + Math.abs(gap));
+  const i = ((Math.round(at * samples.length) % samples.length) + samples.length) % samples.length;
+  const runoff = runoffAt(track, gap >= 0 ? 'right' : 'left', i);
+  const offset = Math.sign(gap) * (s.halfWidth + runoff + Math.abs(gap));
   return [s.position.x + s.normal.x * offset, s.position.z + s.normal.z * offset];
 }
 
 /** Metres beyond the walls (negative: on the asphalt or the run-off). */
 function clearance(track: Track, [x, z]: Point): number {
-  const loc = locateOnTrack(track, vec2(x, z));
-  return Math.abs(loc.lateral) - loc.halfWidth - track.runoffWidth;
+  return beyondWall(track, locateOnTrack(track, vec2(x, z)));
+}
+
+/** How far a located point is beyond its side's wall (the run-off wider in a run-off area). */
+function beyondWall(track: Track, loc: TrackLocation): number {
+  const side = loc.lateral >= 0 ? 'right' : 'left';
+  return Math.abs(loc.lateral) - loc.halfWidth - runoffAt(track, side, loc.index);
 }
 
 /**
@@ -827,7 +898,7 @@ function townLayers(
   /** Moves `p` out along the track's normal until it is `gap` beyond the wall. */
   const pushOut = (p: Point, gap: number): Point => {
     const l = loc(p);
-    const missing = gap - (Math.abs(l.lateral) - l.halfWidth - track.runoffWidth);
+    const missing = gap - beyondWall(track, l);
     if (missing <= 0) return p;
     const s = Math.sign(l.lateral) || 1;
     // The normal: the tangent turned right.
@@ -876,9 +947,7 @@ function townLayers(
     const locs = ring.map(loc);
     if (!landmark && locs.every((l) => Math.abs(l.lateral) > reach)) continue;
     if (ring.some(onOccupied)) continue;
-    const near = locs.filter(
-      (l) => Math.abs(l.lateral) - l.halfWidth - track.runoffWidth < CITY_GAP,
-    );
+    const near = locs.filter((l) => beyondWall(track, l) < CITY_GAP);
     const straddles =
       near.length > 0 && locs.some((l) => Math.sign(l.lateral) !== Math.sign(near[0]!.lateral));
     if (straddles) {
@@ -1438,4 +1507,11 @@ function resample(line: readonly Point[], step: number): Point[] {
 function round(value: number, digits = 1): number {
   const f = 10 ** digits;
   return Math.round(value * f) / f;
+}
+
+/** A water area spanning more than SEA_AS_LAKE: a whole sea, not a lake. */
+function wholeSea(ring: readonly (readonly [number, number])[]): boolean {
+  const span = (k: 0 | 1): number =>
+    Math.max(...ring.map((p) => p[k])) - Math.min(...ring.map((p) => p[k]));
+  return span(0) > SEA_AS_LAKE || span(1) > SEA_AS_LAKE;
 }

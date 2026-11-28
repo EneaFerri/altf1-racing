@@ -1,6 +1,7 @@
-/// The weather a race is run in (`config/weather.ts`, 01_docs/weather.md).
+/// The weather a race is run in (`config/weather.ts`, 01_docs/weather.md); `variable` (2.8): it
+/// starts dry or wet and turns during the race (`Forecast`).
 public enum Weather: String, Codable, CaseIterable, Sendable {
-    case dry, rain
+    case dry, rain, variable
 
     /// The circuits whose Grand Prix may be run in the rain (2.7: São Paulo first).
     public static let rainTracks: [String] = ["São Paulo"]
@@ -55,4 +56,54 @@ public struct PuddleParams: Codable, Hashable, Sendable {
         step: 40, baseChance: 0.1, bendChance: 25, maxChance: 0.6, bendWindow: 50,
         halfLength: [1.5, 3.5], halfWidth: [0.8, 1.8], edgeClearance: 0.6, gridBack: 190,
         gridAhead: 30)
+}
+
+/// How wet the track is at a tick of the simulation (`ForecastPoint`, 2.8).
+public struct ForecastPoint: Codable, Hashable, Sendable {
+    public var tick: Int
+    public var wetness: Double
+
+    public init(tick: Int, wetness: Double) {
+        self.tick = tick
+        self.wetness = wetness
+    }
+}
+
+/// How wet the track is over time (`Forecast`): in order; linear in between, the first before it,
+/// the last after it (`wetnessAt`). The server sends it; every machine reads the same wetness.
+public typealias Forecast = [ForecastPoint]
+
+/// Wetness 0 or 1 all along: a dry or a rainy GP.
+public let dryForecast: Forecast = [ForecastPoint(tick: 0, wetness: 0)]
+public let rainForecast: Forecast = [ForecastPoint(tick: 0, wetness: 1)]
+
+/// `forecast`'s wetness at `tick` (`wetnessAt`).
+public func wetnessAt(_ forecast: Forecast, _ tick: Int) -> Double {
+    guard let first = forecast.first else { return 0 }
+    if tick <= first.tick { return first.wetness }
+    for i in 1..<max(1, forecast.count) {
+        let b = forecast[i]
+        if tick >= b.tick { continue }
+        let a = forecast[i - 1]
+        return a.wetness + ((b.wetness - a.wetness) * Double(tick - a.tick)) / Double(b.tick - a.tick)
+    }
+    return forecast[forecast.count - 1].wetness
+}
+
+/// Whether the track is ever wet under `forecast` (`everWet`).
+public func everWet(_ forecast: Forecast) -> Bool { forecast.contains { $0.wetness > 0 } }
+
+/// A variable GP's weather (`ForecastParams`): when and how fast it turns, how wet.
+public struct ForecastParams: Codable, Hashable, Sendable {
+    /// Wetness of a wet spell: least and most.
+    public var wetness: [Double]
+    /// The turn begins after this share of the race distance: earliest and latest.
+    public var turnAt: [Double]
+    /// Laps the turn takes: fewest and most.
+    public var turnLaps: [Double]
+    /// A lap's length in ticks is reckoned at this speed (m/s).
+    public var lapSpeed: Double
+
+    public static let baseline = ForecastParams(
+        wetness: [0.55, 1], turnAt: [0.2, 0.55], turnLaps: [1, 2], lapSpeed: 45)
 }

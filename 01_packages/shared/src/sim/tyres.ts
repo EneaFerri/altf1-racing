@@ -31,14 +31,20 @@ export function tyredParams(params: CarParams, tyres: TyreState, p: TyreParams):
   };
 }
 
-/** `tyres` after driving `metres` on a circuit `lapLength` long: worn by the share of their life. */
+/**
+ * `tyres` after driving `metres` on a circuit `lapLength` long, `wetness` wet: worn by the share of
+ * their life, rain tyres faster on a drier track (`dryWear`, until `cooledAt`).
+ */
 export function wearTyres(
   tyres: TyreState,
   metres: number,
   lapLength: number,
   p: TyreParams,
+  wetness = 0,
 ): TyreState {
   if (metres <= 0 || tyres.wear >= 1) return tyres;
-  const wear = Math.min(1, tyres.wear + metres / (p.lifeLaps[tyres.compound] * lapLength));
+  const hot = Math.max(0, 1 - wetness / p.cooledAt);
+  const rate = 1 + (p.dryWear[tyres.compound] - 1) * hot;
+  const wear = Math.min(1, tyres.wear + (metres * rate) / (p.lifeLaps[tyres.compound] * lapLength));
   return { compound: tyres.compound, wear };
 }

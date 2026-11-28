@@ -1,14 +1,19 @@
 import type * as THREE from 'three';
 import { dot, locateOnTrack, type Track, type TrackSide, type Vec2 } from '@altf1/shared';
 import { createGrandstand, createPitBuilding, face, GRANDSTAND_REACH } from '../scenery/buildings';
+import { createCityWalls, type CityWall } from '../scenery/cityWalls';
 import {
+  createCarpetMuseum,
   createCasino,
   createChapel,
   createDome,
   createDurian,
   createEiffel,
+  createFlame,
   createFlyer,
   createFountains,
+  createGovernmentHouse,
+  createMaidenTower,
   createSkyPark,
   createSphere,
   createStrat,
@@ -106,6 +111,8 @@ export interface RealCircuitScenery {
     readonly pools: readonly (readonly Vec2[])[];
     readonly palms: readonly Vec2[];
     readonly tunnel: TunnelSpan | null;
+    /** Old town walls beside the track, placed by hand (Baku's Icherisheher). */
+    readonly cityWalls?: readonly CityWall[];
   };
 }
 
@@ -362,6 +369,10 @@ function buildScenery(
       eiffel: (_track: Track, b: TownBuilding) => createEiffel(b),
       strat: (_track: Track, b: TownBuilding) => createStrat(b),
       fountains: (_track: Track, b: TownBuilding) => createFountains(b, town.sea),
+      flame: (_track: Track, b: TownBuilding) => createFlame(b),
+      maiden: createMaidenTower,
+      government: createGovernmentHouse,
+      carpet: (_track: Track, b: TownBuilding) => createCarpetMuseum(b),
     } as const;
     for (const b of town.city) {
       const build = landmarks[b.landmark as keyof typeof landmarks];
@@ -389,6 +400,9 @@ function buildScenery(
     );
     if (town.hills) objects.push(createHills(track, town.sea));
     if (town.tunnel) objects.push(createTunnel(track, town.tunnel));
+    if (town.cityWalls) {
+      objects.push(createCityWalls(track, town.cityWalls, elevated ? ground : undefined));
+    }
   }
   // Trees grow in the gardens and the park, never inside a building, the water or a stadium.
   const blocked = [

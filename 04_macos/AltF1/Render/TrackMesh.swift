@@ -68,9 +68,18 @@ enum TrackMesh {
     /// `wallStyles`: how each wall
     /// is drawn (a circuit with its scenery); nil: tyres beside gravel, guard rails elsewhere.
     /// `groundPlane`: the plain grass to the horizon (false where the scenery brings the land).
+    /// Kerbs painted in a circuit's own colours along a stretch (main-loop progress, m): `blocks`
+    /// colour blocks of `kerbBlock` m each per repeat of `material`.
+    struct KerbPaint {
+        let from: Double
+        let to: Double
+        let blocks: Int
+        let material: PhysicallyBasedMaterial
+    }
+
     static func build(
         _ track: Track, _ m: RaceMaterials, wallStyles: [WallStyle]? = nil, groundPlane: Bool = true,
-        runoff runoffMaterial: (any RealityKit.Material)? = nil
+        runoff runoffMaterial: (any RealityKit.Material)? = nil, kerbs paints: [KerbPaint] = []
     ) throws -> Entity {
         let root = Entity()
         root.name = "track"
@@ -78,6 +87,7 @@ enum TrackMesh {
         var lines = MeshBuilder()
         var lowKerbs = MeshBuilder()
         var highKerbs = MeshBuilder()
+        var paintedKerbs = paints.map { _ in MeshBuilder() }
         var gravel = MeshBuilder()
         var runoff = MeshBuilder()
 
@@ -88,19 +98,36 @@ enum TrackMesh {
             ribbon(track, &lines, y: yEdgeLine, tile: 1) { s in
                 (k * (s.halfWidth - Double(edgeLineWidth)), k * s.halfWidth)
             }
-            ribbon(track, &gravel, y: yGravel, tile: gravelTile, across: gravelTile, include: { info.runoff[$0] == .gravel }) { s in
-                (k * s.halfWidth, k * (s.halfWidth + track.runoffWidth - 0.3))
+            ribbonAt(track, &gravel, y: yGravel, tile: gravelTile, across: gravelTile, include: { info.runoff[$0] == .gravel }) { s, i in
+                (k * s.halfWidth, k * (s.halfWidth + runoffAt(track, side, i) - 0.3))
+            }
+            // A run-off area: paved (`runoffAreas`).
+            ribbonAt(track, &asphalt, y: yGravel, tile: asphaltTile, across: asphaltTile, include: { info.runoff[$0] == .asphalt }) { s, i in
+                (k * s.halfWidth, k * (s.halfWidth + runoffAt(track, side, i) - 0.3))
             }
             if track.elevated {
                 // Elevated tracks get their own grass beside the road (the land comes with the scenery).
-                ribbon(track, &runoff, y: yRunoff, tile: grassTile, across: grassTile) { s in
-                    (k * s.halfWidth, k * (s.halfWidth + track.runoffWidth + 0.3))
+                ribbonAt(track, &runoff, y: yRunoff, tile: grassTile, across: grassTile) { s, i in
+                    (k * s.halfWidth, k * (s.halfWidth + runoffAt(track, side, i) + 0.3))
                 }
             }
             let band: (TrackSample) -> (Double, Double) = { s in
                 (k * (s.halfWidth - track.kerbInset), k * (s.halfWidth + track.kerbOutset))
             }
-            ribbon(track, &lowKerbs, y: yKerb, tile: kerbBlock * 2, include: { info.kerb[$0] == .low }, band)
+            // Low kerbs: red and white, but where the circuit paints its own.
+            func painted(_ i: Int) -> Bool {
+                let d = track.samples[i].distance
+                return paints.contains { d >= $0.from && d <= $0.to }
+            }
+            ribbon(track, &lowKerbs, y: yKerb, tile: kerbBlock * 2, include: { info.kerb[$0] == .low && !painted($0) }, band)
+            for (p, paint) in paints.enumerated() {
+                ribbon(
+                    track, &paintedKerbs[p], y: yKerb, tile: kerbBlock * Float(paint.blocks),
+                    include: { i in
+                        let d = track.samples[i].distance
+                        return info.kerb[i] == .low && d >= paint.from && d <= paint.to
+                    }, band)
+            }
             ribbon(track, &highKerbs, y: yHighKerb, tile: 2, include: { info.kerb[$0] == .high }, band)
         }
         // An elevated circuit's run-off: its own ground where it has scenery (Monaco's paving), else grass.
@@ -110,6 +137,9 @@ enum TrackMesh {
         ]
         for (builder, material, name) in parts {
             if let entity = try builder.entity(material, name: name) { root.addChild(entity) }
+        }
+        for (builder, paint) in zip(paintedKerbs, paints) {
+            if let entity = try builder.entity(paint.material, name: "paintedKerbs") { root.addChild(entity) }
         }
         for (route, road) in track.routes.enumerated() {
             for entity in try routeRoad(track, road, route, m) { root.addChild(entity) }
@@ -130,6 +160,14 @@ enum TrackMesh {
         _ track: Track, _ builder: inout MeshBuilder, y: Float, tile: Float, across: Float? = nil,
         include: (Int) -> Bool = { _ in true }, _ band: (TrackSample) -> (Double, Double)
     ) {
+        ribbonAt(track, &builder, y: y, tile: tile, across: across, include: include) { s, _ in band(s) }
+    }
+
+    /// `ribbon` with a band that may vary per sample (its index too: a run-off area).
+    private static func ribbonAt(
+        _ track: Track, _ builder: inout MeshBuilder, y: Float, tile: Float, across: Float? = nil,
+        include: (Int) -> Bool = { _ in true }, _ band: (TrackSample, Int) -> (Double, Double)
+    ) {
         let samples = track.samples
         let n = samples.count
         for i in 0..<n where include(i) {
@@ -137,8 +175,8 @@ enum TrackMesh {
             let b = samples[(i + 1) % n]
             let vA = Float(a.distance) / tile
             let vB = Float(i + 1 == n ? track.length : b.distance) / tile
-            let (a0, a1) = band(a)
-            let (b0, b1) = band(b)
+            let (a0, a1) = band(a, i)
+            let (b0, b1) = band(b, (i + 1) % n)
             func corner(_ s: TrackSample, _ offset: Double) -> SIMD3<Float> {
                 SIMD3(Float(s.position.x + s.normal.x * offset), y + Float(s.height), Float(s.position.z + s.normal.z * offset))
             }

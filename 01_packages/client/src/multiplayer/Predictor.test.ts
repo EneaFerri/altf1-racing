@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  RAIN_FORECAST,
   buildTrack,
   createGame,
   distance,
@@ -202,10 +203,10 @@ describe('Predictor', () => {
   });
 
   it('predicts the rain exactly like the server room, once told its weather', () => {
-    const server = onlineSimContext(ctx.track, { weather: 'rain' });
+    const server = onlineSimContext(ctx.track, { forecast: RAIN_FORECAST });
     const start = createGame(ctx.track, ['p1']);
     const predictor = new Predictor('p1', ctx);
-    predictor.setWeather('rain');
+    predictor.setWeather(RAIN_FORECAST);
     predictor.reconcile(snapshot(start));
     for (let seq = 0; seq < 60; seq++) predictor.step(seq, LEFT);
     let wet = start;

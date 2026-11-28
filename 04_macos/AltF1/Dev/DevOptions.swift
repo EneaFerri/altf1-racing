@@ -8,7 +8,7 @@
     ///
     /// - `ALTF1_START=<circuit id>`: open that circuit's Test session at launch (e.g. `monza`).
     /// - `ALTF1_MODE=timeTrial` or `grandPrix`: that mode instead of Test; for the Grand Prix
-    ///   `ALTF1_TEAM=<team id>` and `ALTF1_WEATHER=rain`, and `ALTF1_GP=<frame>:<key>,…` presses its
+    ///   `ALTF1_TEAM=<team id>` and `ALTF1_WEATHER=rain|variable`, and `ALTF1_GP=<frame>:<key>,…` presses its
     ///   keys at those frames (`confirm`, `start<laps>`).
     /// - `ALTF1_AUTOPILOT=1`: a simple driver follows the centreline.
     /// - `ALTF1_CAMERA=pov`: start in first person; `orbit:<deg>:<m>:<m>`: look at the car from that
@@ -19,6 +19,10 @@
     ///   and enter that room at launch (online, X.7).
     /// - `ALTF1_DAMAGE=<fw>,<rw>,<fl>,<fr>,<rl>,<rr>`: every car drawn with that damage (0…1), from
     ///   frame `ALTF1_DAMAGE_AT` on (default 0; later, the parts that break off fly away).
+    /// - `ALTF1_SAFETY_CAR=<m>`: the safety car drawn that far ahead of the followed car, its light
+    ///   bar flashing (R.3: to see it without an online race).
+    /// - `ALTF1_YELLOW_FLAG=<m>`: a crash into the right-hand wall that far ahead of the player's
+    ///   start: its debris and the yellow flag's post (R.2: to see them without a Grand Prix).
     ///
     /// A snapshot is the 3D view with the HUD drawn over it by `ImageRenderer` (`overlay`): the
     /// layout and the numbers are true, the glass is drawn flatter than on screen.
@@ -32,7 +36,10 @@
         static var startCircuit: String? { env["ALTF1_START"] }
         static var mode: SinglePlayerMode { SinglePlayerMode.allCases.first { "\($0)" == env["ALTF1_MODE"] } ?? .test }
         static var team: TeamId { env["ALTF1_TEAM"].flatMap(TeamId.init) ?? .ferrari }
-        static var weather: Weather { env["ALTF1_WEATHER"] == "rain" ? .rain : .dry }
+        static var weather: Weather { env["ALTF1_WEATHER"].flatMap(Weather.init) ?? .dry }
+        /// `ALTF1_WETNESS=<0…1>`: the rain's look at that wetness, whatever the simulation's (where it
+        /// may rain).
+        static var wetness: Double? { env["ALTF1_WETNESS"].flatMap(Double.init) }
         /// The Grand Prix on screen, for `ALTF1_GP`'s keys.
         static weak var grandPrix: GrandPrixSession?
 
@@ -66,6 +73,19 @@
             return (parts[0], parts[1], mode, parts[3])
         }
         static var autopilot: Bool { env["ALTF1_AUTOPILOT"] == "1" }
+        /// `ALTF1_SAFETY_CAR`'s distance ahead of the followed car (m); nil: none.
+        static var safetyCarAhead: Double? { env["ALTF1_SAFETY_CAR"].flatMap(Double.init) }
+        /// `ALTF1_YELLOW_FLAG`'s crash on `track`, `ahead` m from `start` along the lap; nil: none.
+        static func yellowFlag(_ track: Track, from start: Vec2) -> YellowFlag? {
+            guard let ahead = env["ALTF1_YELLOW_FLAG"].flatMap(Double.init) else { return nil }
+            let progress = locateOnLoop(track, start).distance + ahead
+            let n = track.samples.count
+            let sample = track.samples[Int((progress / track.length * Double(n)).rounded()) % n]
+            let point = sample.position + sample.normal * (sample.halfWidth + 2)
+            return YellowFlag(
+                carId: "dev", point: point, progress: sample.distance, sector: sectorAt(track, sample.distance),
+                since: 1234, until: .max)
+        }
         static var firstPerson: Bool { env["ALTF1_CAMERA"] == "pov" }
         /// `ALTF1_TELEMETRY=1`: the F3 telemetry open from the start.
         static var telemetry: Bool { env["ALTF1_TELEMETRY"] == "1" }

@@ -47,6 +47,21 @@ export interface DamageParams {
   minSpeed: number;
   minTurn: number;
   minGrip: number;
+
+  /**
+   * Punctures: a tyre whose damage reaches `punctureDamage` (red in the HUD: hits, a wall), or a
+   * set worn to `punctureWear`, goes flat (`puncturedTyres`). Until a pit stop the car limps: no
+   * faster than `punctureTopSpeed` (m/s; above it, it loses `punctureDecel` m/s² until there),
+   * with `punctureGrip` × its grip, `punctureTurn` × its turning, and pulled towards the flat
+   * tyre's side by `puncturePull` (of the steering range).
+   */
+  punctureDamage: number;
+  punctureWear: number;
+  punctureTopSpeed: number;
+  punctureDecel: number;
+  punctureGrip: number;
+  punctureTurn: number;
+  puncturePull: number;
 }
 
 export const DAMAGE_PARAMS: DamageParams = {
@@ -73,4 +88,13 @@ export const DAMAGE_PARAMS: DamageParams = {
   minSpeed: 0.8,
   minTurn: 0.6,
   minGrip: 0.5,
+
+  punctureDamage: 0.75,
+  punctureWear: 0.95,
+  /** 190 km/h (owner, 2026-11-24). */
+  punctureTopSpeed: 190 / 3.6,
+  punctureDecel: 12,
+  punctureGrip: 0.55,
+  punctureTurn: 0.7,
+  puncturePull: 0.15,
 };

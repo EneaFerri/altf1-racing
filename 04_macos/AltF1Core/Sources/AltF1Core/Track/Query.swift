@@ -63,7 +63,7 @@ public func roadOf(_ track: Track, _ route: Int) -> Track {
 public func locateOnLoop(_ track: Track, _ p: Vec2) -> TrackLocation {
     let samples = track.samples
     let n = samples.count
-    let nearby = track.centerGrid.query(p, track.maxHalfWidth + track.runoffWidth + 10)
+    let nearby = track.centerGrid.query(p, track.maxHalfWidth + (track.maxRunoffWidth ?? track.runoffWidth) + 10)
     let candidates = nearby.isEmpty ? Array(0..<n) : nearby
 
     var bestIndex = 0
@@ -112,7 +112,16 @@ public func surfaceAt(_ track: Track, _ p: Vec2) -> Surface {
         return kerb == .high ? .highKerb : .kerb
     }
     if offset <= edge { return .asphalt }
-    return info.runoff[loc.index] == .gravel ? .gravel : .grass
+    switch info.runoff[loc.index] {
+    case .gravel: return .gravel
+    case .asphalt: return .asphalt
+    case .grass: return .grass
+    }
+}
+
+/// The run-off (m) beside sample `index` of `road` on `side`: wider in a run-off area.
+public func runoffAt(_ road: Track, _ side: TrackSide, _ index: Int) -> Double {
+    road.runoffWidth + (road.sides[side].extraRunoff?[index] ?? 0)
 }
 
 /// A position and the unit driving direction there.

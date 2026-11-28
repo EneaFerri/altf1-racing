@@ -19,8 +19,10 @@ public struct Area: Sendable {
 /// Where a `TrackSpot` is on the ground.
 public func fromTrack(_ track: Track, _ spot: TrackSpot) -> Vec2 {
     let n = track.samples.count
-    let s = track.samples[wrapIndex(Int(jsRound(spot.at * Double(n))) % n, n)]
-    let offset = jsSign(spot.gap) * (s.halfWidth + track.runoffWidth + abs(spot.gap))
+    let i = wrapIndex(Int(jsRound(spot.at * Double(n))) % n, n)
+    let s = track.samples[i]
+    let runoff = runoffAt(track, spot.gap >= 0 ? .right : .left, i)
+    let offset = jsSign(spot.gap) * (s.halfWidth + runoff + abs(spot.gap))
     return s.position + s.normal * offset
 }
 
@@ -161,7 +163,10 @@ public func polygonBounds(_ polygon: [Vec2]) -> Area {
 /// How far `p` is outside the walls (asphalt + run-off); negative = inside the drivable area.
 public func clearance(_ track: Track, _ p: Vec2) -> Double {
     let loc = locateOnTrack(track, p)
-    return abs(loc.lateral) - loc.halfWidth - track.runoffWidth
+    let side: TrackSide = loc.lateral >= 0 ? .right : .left
+    // A run-off area widens the main loop's only.
+    let runoff = loc.route < 0 ? runoffAt(track, side, loc.index) : track.runoffWidth
+    return abs(loc.lateral) - loc.halfWidth - runoff
 }
 
 /// The track's bounding box, grown by `margin` on every side.
@@ -191,7 +196,9 @@ public func scatter(
 ) -> [Vec2] {
     let roads = [track] + track.routes
     func near(_ p: Vec2) -> Bool {
-        roads.contains { !$0.centerGrid.query(p, $0.maxHalfWidth + $0.runoffWidth + margin).isEmpty }
+        roads.contains {
+            !$0.centerGrid.query(p, $0.maxHalfWidth + ($0.maxRunoffWidth ?? $0.runoffWidth) + margin).isEmpty
+        }
     }
     var random = SceneryRandom(seed)
     var points: [Vec2] = []

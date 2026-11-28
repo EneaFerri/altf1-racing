@@ -158,6 +158,7 @@ describe('server messages', () => {
         hold: { lightsFrom: 100, until: 412 },
         boxes: { p1: 0, p2: 1 },
         weather: 'rain',
+        forecast: [{ tick: 0, wetness: 1 }],
         sectorBests: [1700, null, 1650],
       },
       { type: 'players', players },

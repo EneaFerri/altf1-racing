@@ -8,6 +8,7 @@ import {
   locateOnTrack,
   PIT_PARAMS,
   roadOf,
+  runoffAt,
   toWorld,
   TRACK_RULES,
   vec2,
@@ -272,7 +273,7 @@ function createRoad(
       meshes.push(
         ribbon(
           road,
-          (s) => [k * s.halfWidth, k * (s.halfWidth + road.runoffWidth + 0.3)],
+          (s, i) => [k * s.halfWidth, k * (s.halfWidth + runoffAt(road, side, i) + 0.3)],
           Y_RUNOFF,
           materials.runoff,
           theme.ground.tile,
@@ -291,7 +292,7 @@ function createRoad(
       ),
       ribbon(
         road,
-        (s) => [k * s.halfWidth, k * (s.halfWidth + road.runoffWidth - 0.3)],
+        (s, i) => [k * s.halfWidth, k * (s.halfWidth + runoffAt(road, side, i) - 0.3)],
         Y_GRAVEL,
         materials.gravel,
         GRAVEL_REPEAT,
@@ -299,7 +300,19 @@ function createRoad(
           include: (i) =>
             include(i) &&
             info.runoff[i] === 'gravel' &&
-            owns(i, k * (road.samples[i]!.halfWidth + road.runoffWidth / 2)),
+            owns(i, k * (road.samples[i]!.halfWidth + runoffAt(road, side, i) / 2)),
+        },
+      ),
+      // A run-off area: paved (`runoffAreas`).
+      ribbon(
+        road,
+        (s, i) => [k * s.halfWidth, k * (s.halfWidth + runoffAt(road, side, i) - 0.3)],
+        Y_GRAVEL,
+        materials.asphalt,
+        ASPHALT_TILE,
+        {
+          include: (i) => include(i) && info.runoff[i] === 'asphalt',
+          metresAcross: ASPHALT_TILE,
         },
       ),
       ribbon(road, kerbBand, Y_KERB, materials.lowKerb, kerbRepeat, { include: kerbIs('low') }),

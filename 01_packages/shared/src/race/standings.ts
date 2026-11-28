@@ -20,6 +20,8 @@ export interface RaceDriver {
   readonly best: number | null;
   /** Pit stops made in the race (Phase 4). */
   readonly stops: number;
+  /** Time penalties given in the race (ticks: the safety car's rules, R.3); left out: none. */
+  readonly timePenalty?: number;
 }
 
 /** A line of the race classification. Times in ticks. */
@@ -42,10 +44,13 @@ export interface RaceStanding {
   /** Pit stops made. */
   readonly stops: number;
   /**
-   * Time penalty for mandatory pit stops missing (ticks, `pitPenaltyTicks`), counted once the
-   * driver has finished, or for everyone classified in the final result; 0 until then.
+   * Time penalty for mandatory pit stops missing (ticks, `pitPenaltyTicks`) and the time penalties
+   * given (`timePenalty`), counted once the driver has finished, or for everyone classified in the
+   * final result; 0 until then.
    */
   readonly penalty: number;
+  /** The time penalties given so far (ticks: the safety car's rules), shown at once; absent: none. */
+  readonly timePenalty?: number;
 }
 
 /** Timing lines passed according to a car's lap timing: 0 before the start line. */
@@ -72,7 +77,8 @@ export function raceStandings(
   const penalties = new Map(
     drivers.map((driver) => {
       const counted = driver.status === 'finished' || (final && driver.status === 'running');
-      return [driver.id, counted ? pitPenaltyTicks(driver.stops, lapsOf(driver)) : 0];
+      const given = driver.timePenalty ?? 0;
+      return [driver.id, counted ? pitPenaltyTicks(driver.stops, lapsOf(driver)) + given : 0];
     }),
   );
   /** Tick `driver` passed timing line `line` at, its penalty added. */
@@ -101,6 +107,7 @@ export function raceStandings(
       best: driver.best,
       stops: driver.stops,
       penalty,
+      ...(driver.timePenalty && { timePenalty: driver.timePenalty }),
     };
   });
 }

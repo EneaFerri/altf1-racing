@@ -2,7 +2,7 @@
 
 Builds the game layouts of real circuits from open data. Method, sources and results:
 [01_docs/circuits.md](../../01_docs/circuits.md). Plain Node (≥ 23.6, strips the TypeScript
-types), no build step; run from the repo root, `<id>` = `monza`, `barcelona`, `monaco`, `mexico`, `singapore`, `lasVegas` or `saoPaulo`.
+types), no build step; run from the repo root, `<id>` = `monza`, `barcelona`, `monaco`, `mexico`, `singapore`, `lasVegas`, `saoPaulo` or `baku`.
 
 ```
 node 01_tools/openf1/fetch.ts <id> [--no-osm]  # download: OpenF1 pole lap (with z) + OSM centreline → data/

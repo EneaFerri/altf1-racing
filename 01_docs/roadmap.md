@@ -252,7 +252,27 @@ the owner adds the circuit's PNG to `03_F1Circuits/` and picks its width factor.
     reach; it lies outside the lap), five grandstands by hand round the lap
     ([themes.md](themes.md#são-paulo-theme-themessaopaulots-step-24e)). Awaiting the owner's test.
 
-After 2.4e: more circuits whenever the owner wants one.
+- 2.4f **Baku** (Baku City Circuit, owner 2026-11-25) — **with its real heights**; on the Mac
+  rendered as close to the real one as the procedural look allows (owner's choice: no image
+  files). Pole 2024 (Leclerc 1:41.365): OpenF1 has no laps of the 2025 qualifying.
+  - f.1 ✅ Data, layout and heights: SRTM 30 m above the Caspian (`seaLevel`: its land lies 29 m
+    under the oceans, 26.7 m of height difference), widths × 1.2 (7.6 m at turn 8, the
+    narrowest), scale 1.000 (Hard bot 101.18 s); pit lane on the left of Neftchilar Avenue
+    (`pitLaneOutset`: OSM draws it on the asphalt), exit inside turn 1; the town, the Caspian
+    and the boulevard from OSM (the Caspian's own "lake" outline left out), four grandstands by
+    hand. In every mode, with a first day look
+    ([circuits.md](circuits.md#baku-layoutsbakuts-step-24f)). Awaiting the owner's review.
+  - f.2 ✅ The web's landmarks: the Flame Towers (OSM's real footprints and heights, fetched 660
+    m away), the Maiden Tower, Government House, the Carpet Museum, and the old town's walls
+    along the castle section (placed by hand: `cityWalls`, battlements and round towers)
+    ([themes.md](themes.md#baku-theme-themesbakuts-step-24f)). The Baku Eye left out: not in OSM.
+    Awaiting the owner's review.
+  - f.2b ✅ Owner (2026-11-25): the 90° corners sharp (you must brake: nine of them), and an
+    escape area outside turn 16 (`runoffAreas`, a new option of the track model: paved, its wall
+    18 m further out; every other circuit unchanged). Scale 0.9517.
+  - f.3 The Mac: export and the realistic scenery (X.5d).
+
+After 2.4f: more circuits whenever the owner wants one.
 
 ### 2.5 — Lap records
 
@@ -312,6 +332,13 @@ Design: [weather.md](weather.md).
   the same wet track, the view switches live, the panel says RAIN. Practice and Time trial always
   dry; wet laps in the same records ([weather.md](weather.md#online-w3)).
 - 2.7 W.4 **Spray** — pixel water spray behind the wheels in the rain, growing with speed.
+- 2.8 (awaiting the owner's test) **Variable weather, rain tyres, wet handling** (owner
+  2026-11-25; protocol v19) — São Paulo's GP may start dry and rain or start wet and dry
+  (`Forecast`); intermediates and full wets (keys 3 / 4), each compound by its own wet grip;
+  power oversteer in the wet (a spin on the throttle mid-corner); bots that change tyres; the
+  Mac's RealityKit rain (drops with splashes, wet track, puddles with ripples, overcast sky,
+  spray) ([weather.md](weather.md#variable-weather-rain-tyres-wet-handling-28),
+  [macos.md](macos.md#rain-28)).
 
 ## Phase 3 — Elevation (Monaco v2) ✅
 
@@ -548,7 +575,12 @@ online on the same Node server. One step at a time, each awaiting the owner's re
     Hercule and its yachts, the pool, the tunnel, hills, catch fences.
   - X.5b (awaiting the owner's review) **Singapore** — the night race: night sky, floodlights, the
     town lit window by window, the Flyer, Marina Bay Sands' SkyPark, the durians, the bay.
-  - Next: Monza, Barcelona, Mexico City, Las Vegas, São Paulo.
+  - X.5c (awaiting the owner's review) **São Paulo** — Interlagos on its real land: the lake at its
+    level, woods and park trees, the town round the park in Brazil's colours (tiles and concrete
+    slabs), the city's skyline to the north, the Senna S's kerbs in yellow, green and blue.
+  - X.5d (awaiting the owner's review) **Baku** — landmarks, lifelike trees; the pit lane cleared
+    of buildings, garages, gantries and pit crews at every box (2026-11-25).
+  - Next: Monza, Barcelona, Mexico City, Las Vegas.
 - X.6 Rain: puddles, wet look and physics, wet tyres, falling rain (N), spray.
 - X.7 Online, on the web's server (Mac and browser in the same rooms) ([macos.md](macos.md#online-x7)):
   - X.7a (awaiting the owner's review) **Protocol and socket** — the protocol's messages and the
@@ -565,6 +597,42 @@ online on the same Node server. One step at a time, each awaiting the owner's re
     and could show a box where the car never stopped).
   - Next: the lap-record boards in the results, name tags over the cars, a zip of the app.
 - X.8 Polish: gamepad, settings (quality, server), Debug tuning panel, app icon, performance.
+
+## R — Race incidents (owner, 2026-11-24)
+
+The owner's request: punctures, debris and yellow flags, the safety car; one step each.
+
+- R.1 (awaiting the owner's test) **Punctures** — web and Mac, single player and online (no
+  protocol change: derived from the state): a tyre gone red (75% damage: hits, walls) or a set worn to 95%
+  goes flat; the car limps at 190 km/h at most to the pits, which mend it. Bots pit at
+  once, and fit softs only for a stint that ends before they would puncture
+  ([damage.md](damage.md#punctures-r1)). The Mac's model ported, parity fixtures regenerated.
+- R.2 (awaiting the owner's test) **Debris and yellow flags** — the Grand Prix (qualifying and
+  race, single player and online), web: a wall hit of 22 m/s or more leaves debris on the track for
+  15 s (carbon and the car's paint, the same for every player), a marshal waving the yellow flag
+  before it, the sector yellow on the minimap and on race control's board ([flags.md](flags.md)).
+  **Mac** (awaiting the owner's test): the same, both Grand Prix modes: debris in PBR, a marshals'
+  post with a flashing yellow light panel and a waving flag; parity fixtures identical.
+- R.3 (awaiting the owner's test) **Safety car** — multiplayer's Grand Prix only (owner: not in
+  single player), web: races over 10 laps, after a hard wall hit: the delta for everyone, the
+  safety car (a red GT after the owner's photo) out of the pit lane ahead of the leader for one
+  lap, lights out on its last half, in through the pit lane, no overtaking until the line; an
+  overtake not given back in 10 s or a delta beaten: 5 s penalty. Board top right, `+5s PEN` in the
+  panel ([safetycar.md](safetycar.md)). **Mac** (awaiting the owner's test): the safety car drawn
+  (a lofted red GT, flashing light bar), driven in the prediction, the delta, race control's board,
+  `+5s PEN`; parity fixtures identical to the web's. **Fix (2026-11-24)**: released from the pit
+  exit it turned round back into the lane (Singapore) or stayed stuck (Las Vegas, São Paulo): it
+  now drives the lane's own road until it is out; web and Mac, tested on every circuit. Then
+  (owner, same day): green flag the moment the leader crosses the line after it went in (green
+  notice on the board, web and Mac), and a new crash on its last lap or while it goes in calls it
+  out again at once ([safetycar.md](safetycar.md)).
+- R.3b (owner 2026-11-25, awaiting the owner's test) **Safety car, after the first test** — the
+  delta only while it waits for the leader (none once it has left with it: the field races to the
+  queue); beating the delta leaves 5 s to get back above it before the penalty (`BACK ABOVE YOUR
+DELTA · 4 s` on the board); a faster lap (75% of the racing line, 200 km/h at most: Monza ~101 s,
+  was ~123 s); web, server and Mac (parity fixtures regenerated). **Mac only**: the car rebuilt
+  after the owner's photo, realistic (red chrome, flames, swan-neck wing with its LED bar, spoked
+  wheels, yellow plates) ([safetycar.md](safetycar.md)).
 
 ## Later
 

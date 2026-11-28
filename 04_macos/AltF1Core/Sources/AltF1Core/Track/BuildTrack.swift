@@ -124,6 +124,7 @@ private func compilePitLane(_ def: TrackDefinition, _ lane: PitLaneDefinition, r
     laneDef.highKerbs = []
     laneDef.sectorPoints = nil
     laneDef.runoffWidth = 0
+    laneDef.runoffAreas = nil
     let loop = compileLoop(laneDef, route: route)
     let span = BranchSpan(
         from: loop.track.samples[loop.controlIndices[around.count - 1]].distance,
@@ -186,7 +187,8 @@ private func outlineWalls(_ main: Track, _ routes: [Track]) -> [WallSegment] {
     func inside(_ road: Track, _ p: Vec2) -> Bool {
         let loc = locateOnLoop(road, p)
         if !onBranch(road, loc.distance) { return false }
-        return abs(loc.lateral) < loc.halfWidth + road.runoffWidth - 0.01
+        let side: TrackSide = loc.lateral >= 0 ? .right : .left
+        return abs(loc.lateral) < loc.halfWidth + runoffAt(road, side, loc.index) - 0.01
     }
     var walls: [WallSegment] = []
     for (r, road) in roads.enumerated() {
@@ -289,8 +291,17 @@ private func compileLoop(_ def: TrackDefinition, route: Int) -> Loop {
         }
     }
 
+    let extra = extraRunoff(def, samples, controlIndices, length)
+    // A run-off area is paved, as the real escape areas are.
+    if let extra {
+        for i in 0..<n {
+            if extra.left[i] > 0 { runoffLeft[i] = .asphalt }
+            if extra.right[i] > 0 { runoffRight[i] = .asphalt }
+        }
+    }
     let walls =
-        buildWall(samples, def, .left, route: route) + buildWall(samples, def, .right, route: route)
+        buildWall(samples, def, .left, route: route, extra: extra?.left)
+        + buildWall(samples, def, .right, route: route, extra: extra?.right)
     let centerSegments = (0..<n).map { i in (samples[i].position, at(samples, i + 1).position) }
 
     let track = Track(
@@ -298,14 +309,15 @@ private func compileLoop(_ def: TrackDefinition, route: Int) -> Loop {
         maxHalfWidth: samples.map(\.halfWidth).max() ?? 0,
         elevated: elevated,
         runoffWidth: def.runoffWidth,
+        maxRunoffWidth: extra.map { def.runoffWidth + max($0.left.max() ?? 0, $0.right.max() ?? 0) },
         kerbInset: def.kerbBand?.inset ?? TrackRules.kerbInset,
         kerbOutset: def.kerbBand?.outset ?? TrackRules.kerbOutset,
         length: length,
         sectorStarts: sectorStarts(def, samples, controlIndices, length),
         samples: samples,
         sides: TrackSides(
-            left: TrackSideInfo(kerb: kerbLeft, runoff: runoffLeft),
-            right: TrackSideInfo(kerb: kerbRight, runoff: runoffRight)),
+            left: TrackSideInfo(kerb: kerbLeft, runoff: runoffLeft, extraRunoff: extra?.left),
+            right: TrackSideInfo(kerb: kerbRight, runoff: runoffRight, extraRunoff: extra?.right)),
         walls: walls,
         centerGrid: SegmentGrid(centerSegments),
         wallGrid: SegmentGrid(walls.map { ($0.a, $0.b) }),
@@ -354,11 +366,13 @@ private func heightAt(_ def: TrackDefinition, _ param: Double) -> Double {
 }
 
 /// Wall polyline offset from the centreline (local width + run-off), each segment facing the track.
-private func buildWall(_ samples: [TrackSample], _ def: TrackDefinition, _ side: TrackSide, route: Int)
-    -> [WallSegment]
-{
+private func buildWall(
+    _ samples: [TrackSample], _ def: TrackDefinition, _ side: TrackSide, route: Int, extra: [Double]?
+) -> [WallSegment] {
     let sign: Double = side == .right ? 1 : -1
-    let points = samples.map { $0.position + $0.normal * (sign * ($0.halfWidth + def.runoffWidth)) }
+    let points = samples.enumerated().map { i, s in
+        s.position + s.normal * (sign * (s.halfWidth + def.runoffWidth + (extra?[i] ?? 0)))
+    }
     return points.enumerated().map { i, a in
         let b = points[(i + 1) % points.count]
         let toRight = Vec2.right((b - a).heading)
@@ -367,4 +381,34 @@ private func buildWall(_ samples: [TrackSample], _ def: TrackDefinition, _ side:
             a: a, b: b, normal: side == .right ? toRight * -1 : toRight, route: route, sample: i,
             progress: samples[i].distance)
     }
+}
+
+/// Each side's run-off beyond `runoffWidth` per sample, from `def.runoffAreas` (nil without any):
+/// each area's `width` from its first control point to its last, eased in and out (smoothstep)
+/// over `TrackRules.runoffAreaRamp` inside its ends.
+private func extraRunoff(
+    _ def: TrackDefinition, _ samples: [TrackSample], _ controlIndices: [Int], _ length: Double
+) -> (left: [Double], right: [Double])? {
+    guard let areas = def.runoffAreas, !areas.isEmpty else { return nil }
+    let n = samples.count
+    var left = [Double](repeating: 0, count: n)
+    var right = [Double](repeating: 0, count: n)
+    let ramp = TrackRules.runoffAreaRamp
+    for area in areas {
+        let from = controlIndices[area.fromPoint]
+        let span = (controlIndices[area.toPoint] - from + n) % n
+        /// Metres along the area from its start to sample `i` (over the line if it must).
+        func along(_ i: Int) -> Double {
+            (samples[i].distance - samples[from].distance + length).truncatingRemainder(dividingBy: length)
+        }
+        let total = along((from + span) % n)
+        for k in 0...span {
+            let i = (from + k) % n
+            let m = along(i)
+            let f = min(1, min(m, total - m) / ramp)
+            let w = area.width * f * f * (3 - 2 * f)
+            if area.side == .left { left[i] = max(left[i], w) } else { right[i] = max(right[i], w) }
+        }
+    }
+    return (left, right)
 }

@@ -138,6 +138,13 @@ const DAMAGE_RANGES: Record<keyof DamageParams, Range> = {
   minSpeed: [0.3, 1, 0.01],
   minTurn: [0.3, 1, 0.01],
   minGrip: [0.3, 1, 0.01],
+  punctureDamage: [0.3, 1, 0.01],
+  punctureWear: [0.5, 1, 0.01],
+  punctureTopSpeed: [10, 95, 0.5],
+  punctureDecel: [0, 40, 1],
+  punctureGrip: [0.2, 1, 0.01],
+  punctureTurn: [0.2, 1, 0.01],
+  puncturePull: [0, 0.5, 0.01],
 };
 
 /** What the panel needs to try the Grand Prix's damage in single player. */

@@ -202,6 +202,23 @@ nonisolated enum ProceduralTextures {
         return SurfaceMaps(albedo: albedo, roughness: roughness, normal: normalMap(size, strength: 3, ridges))
     }
 
+    /// Kerb painted in `colors` blocks in turn along the track (V: one repeat = every colour once),
+    /// ridged across like `kerb` (a circuit's own: São Paulo's Senna S).
+    static func kerbStripes(_ colors: [SIMD3<Float>], _ size: Int = 512) -> SurfaceMaps {
+        let wear = heightField(size) { s, t in fbm(s, t, period: 16, octaves: 4, seed: 41) }
+        let albedo = PixelImage.render(size, size) { x, y in
+            let colour = colors[min(colors.count - 1, y * colors.count / size)]
+            let dirt = (wear[y * size + x] - 0.5) * 0.18
+            return SIMD4(colour * (0.92 + dirt), 1)
+        }
+        let roughness = PixelImage.render(size, size) { x, y in gray(0.45 + wear[y * size + x] * 0.25) }
+        let ridges = heightField(size) { s, t in
+            let ridge = 0.5 + 0.5 * cos(s * .pi * 2 * 6)
+            return ridge * 0.6 + fbm(s, t, period: 32, octaves: 2, seed: 42) * 0.2
+        }
+        return SurfaceMaps(albedo: albedo, roughness: roughness, normal: normalMap(size, strength: 3, ridges))
+    }
+
     /// Galvanised steel of a guard rail: brushed along it, two beams and the bolts' line.
     static func armco(_ size: Int = 512) -> SurfaceMaps {
         let brushed = heightField(size) { s, t in fbm(s * 0.05, t, period: 128, octaves: 3, seed: 51) }
@@ -301,6 +318,30 @@ nonisolated enum ProceduralTextures {
             }
             let toSun = max(0, simd_dot(dir, sunDirection))
             c += SIMD3(1, 0.93, 0.8) * (pow(toSun, 900) * 4 + pow(toSun, 60) * 0.35 + pow(toSun, 6) * 0.08)
+            return SIMD4(c, 1)
+        }
+    }
+
+    /// A rainy day's sky (2.8): low, heavy grey cloud all over, darker overhead, a brighter hazy
+    /// band at the horizon, no sun. Lights the scene flat and cool (image-based lighting).
+    static func overcastSky(width: Int = 2048) -> PixelImage {
+        let height = width / 2
+        let zenith = SIMD3<Float>(0.34, 0.36, 0.39)
+        let horizon = SIMD3<Float>(0.62, 0.64, 0.66)
+        let ground = SIMD3<Float>(0.2, 0.21, 0.21)
+        return PixelImage.render(width, height) { x, y in
+            let u = (Float(x) + 0.5) / Float(width)
+            let v = (Float(y) + 0.5) / Float(height)
+            let elevation = (0.5 - v) * .pi
+            var c: SIMD3<Float>
+            if elevation >= 0 {
+                c = mix(horizon, zenith, pow(sin(elevation), 0.6))
+                // The cloud's own folds: darker and lighter patches, rain curtains far off.
+                let folds = fbm(u * 1.5, v * 3, period: 6, octaves: 5, seed: 83)
+                c *= 0.82 + folds * 0.3
+            } else {
+                c = mix(horizon * 0.75, ground, min(1, -elevation * 5))
+            }
             return SIMD4(c, 1)
         }
     }

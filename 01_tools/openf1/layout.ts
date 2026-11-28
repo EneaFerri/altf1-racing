@@ -84,6 +84,16 @@ const lines = [
   `  kerbBand: { inset: ${definition.kerbBand!.inset}, outset: ${definition.kerbBand!.outset} },`,
   `  sectorPoints: [${definition.sectorPoints!.join(', ')}],`,
   `  highKerbs: [],`,
+  ...(definition.runoffAreas
+    ? [
+        `  runoffAreas: [`,
+        ...definition.runoffAreas.map(
+          (a) =>
+            `    { fromPoint: ${a.fromPoint}, toPoint: ${a.toPoint}, side: '${a.side}', width: ${a.width} },`,
+        ),
+        `  ],`,
+      ]
+    : []),
   `  points: [`,
   ...definition.points.map((p) => `    ${point(p)},`),
   `  ],`,

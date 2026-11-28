@@ -10,6 +10,7 @@ const DOT = 4;
 const OWN_DOT = 6;
 const ROAD = '#d8d8de';
 const START = '#e10600';
+const YELLOW = '#f5c518';
 
 /** How a car is shown: its livery colour and its driver's name. */
 export interface MapPlayer {
@@ -31,6 +32,10 @@ export class Minimap {
   private players: Readonly<Record<CarId, MapPlayer>> = {};
   /** The cars the legend shows, to rebuild it only when they change. */
   private legendKey = '';
+  /** Each timing sector's centreline on the map, and those under a yellow flag (R.2). */
+  private readonly sectorPaths: (readonly MapPoint[])[];
+  private yellow: readonly number[] = [];
+  private roadWidth = 3;
 
   constructor(track: Track) {
     const ratio = window.devicePixelRatio || 1;
@@ -42,6 +47,14 @@ export class Minimap {
     this.context = this.canvas.getContext('2d');
     this.context?.scale(ratio, ratio);
     this.background = this.drawTrack(track, ratio);
+    this.sectorPaths = track.sectorStarts.map((start, i) => {
+      const end = track.sectorStarts[i + 1] ?? track.length;
+      // From the sample before the sector's start to the one after its end: no gaps between.
+      const inside = track.samples.filter(
+        (s) => s.distance >= start - 10 && s.distance <= end + 10,
+      );
+      return inside.map((s) => this.toMap(s.position.x, s.position.z));
+    });
     this.root.append(this.canvas, this.legend);
     document.body.appendChild(this.root);
   }
@@ -52,6 +65,11 @@ export class Minimap {
     this.legendKey = '';
   }
 
+  /** The timing sectors (0-based) under a yellow flag now, drawn yellow (R.2). */
+  setYellowSectors(sectors: readonly number[]): void {
+    this.yellow = sectors;
+  }
+
   /** Call once per rendered frame with the cars to show. */
   update(cars: readonly CarState[], ownId: CarId): void {
     this.updateLegend(cars);
@@ -59,6 +77,15 @@ export class Minimap {
     if (!ctx) return;
     ctx.clearRect(0, 0, SIZE, SIZE);
     ctx.drawImage(this.background, 0, 0, SIZE, SIZE);
+    ctx.lineCap = ctx.lineJoin = 'round';
+    ctx.strokeStyle = YELLOW;
+    ctx.lineWidth = this.roadWidth;
+    for (const sector of this.yellow) {
+      const path = this.sectorPaths[sector] ?? [];
+      ctx.beginPath();
+      path.forEach((p, k) => (k === 0 ? ctx.moveTo(p.u, p.v) : ctx.lineTo(p.u, p.v)));
+      ctx.stroke();
+    }
     // The own car last, on top of the others.
     const order = [...cars].sort((a, b) => Number(a.id === ownId) - Number(b.id === ownId));
     for (const car of order) {
@@ -90,6 +117,7 @@ export class Minimap {
       points.forEach((p, k) => (k === 0 ? ctx.moveTo(p.u, p.v) : ctx.lineTo(p.u, p.v)));
       if (i === 0) ctx.closePath();
       ctx.lineWidth = Math.max(3, 2 * road.maxHalfWidth * scale);
+      if (i === 0) this.roadWidth = ctx.lineWidth;
       ctx.stroke();
     }
     const start = track.samples[0]!;

@@ -17,6 +17,7 @@ import {
 import { buildTrack } from '../track/buildTrack';
 import { locateOnTrack } from '../track/query';
 import {
+  BAKU,
   BARCELONA,
   LAS_VEGAS,
   MEXICO,
@@ -99,6 +100,7 @@ const mexico = runsByTrack.find((t) => t.name === MEXICO.name)!.runs;
 const singapore = runsByTrack.find((t) => t.name === SINGAPORE.name)!.runs;
 const lasVegas = runsByTrack.find((t) => t.name === LAS_VEGAS.name)!.runs;
 const saoPaulo = runsByTrack.find((t) => t.name === SAO_PAULO.name)!.runs;
+const baku = runsByTrack.find((t) => t.name === BAKU.name)!.runs;
 
 /**
  * Real pole laps (OpenF1, 2025; Las Vegas 2024; see 01_docs/circuits.md): the Hard bot's targets.
@@ -159,6 +161,15 @@ const REAL_POLES = [
     runs: saoPaulo,
     lap: 69.511,
     sectors: [18.036, 35.534, 15.941],
+    sectorTolerance: 0.13,
+  },
+  {
+    // The 2024 pole (OpenF1 has no laps of 2025's qualifying), with its real heights. S3 is the
+    // 2.2 km flat-out run along the boulevard to the line (our car is slower on straights).
+    name: BAKU.name,
+    runs: baku,
+    lap: 101.365,
+    sectors: [35.702, 40.813, 24.85],
     sectorTolerance: 0.13,
   },
 ];

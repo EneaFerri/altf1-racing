@@ -4,6 +4,7 @@ import { COLLISION_PARAMS } from '../config/collision';
 import { DAMAGE_PARAMS } from '../config/damage';
 import { SLIPSTREAM_PARAMS } from '../config/slipstream';
 import { SURFACE_PARAMS } from '../config/surfaces';
+import { TYRE_PARAMS } from '../config/tyres';
 import { distance, dot, forward, headingOf, right, scale, sub, add, type Vec2 } from '../math/vec2';
 import { buildTrack } from '../track/buildTrack';
 import type { Track } from '../track/types';
@@ -321,6 +322,38 @@ describe('stepGame — damage', () => {
     const ignored = run(damaged(start), { p1: THROTTLE }, 240);
     expect(speed(slow)).toBeLessThan(speed(clean) * 0.97);
     expect(speed(ignored)).toBeCloseTo(speed(clean));
+  });
+
+  it('a red tyre or a worn-out set punctures the car: it limps at 190 km/h at most', () => {
+    const withTyres: SimContext = { ...withDamage, tyres: TYRE_PARAMS };
+    const start = createGame(track, ['p1']);
+    const fast = (car: GameState['cars'][number]): GameState['cars'][number] => ({
+      ...car,
+      velocity: scale(forward(car.heading), 80),
+    });
+    const speed = (game: GameState): number =>
+      Math.hypot(game.cars[0]!.velocity.x, game.cars[0]!.velocity.z);
+    const limp = DAMAGE_PARAMS.punctureTopSpeed;
+    const redTyre: GameState = {
+      ...start,
+      cars: [
+        { ...fast(start.cars[0]!), damage: { frontWing: 0, rearWing: 0, tyres: [0.8, 0, 0, 0] } },
+      ],
+    };
+    const wornOut: GameState = {
+      ...start,
+      cars: [{ ...fast(start.cars[0]!), tyres: { compound: 'soft', wear: 0.96 } }],
+    };
+    const fine: GameState = {
+      ...start,
+      cars: [{ ...fast(start.cars[0]!), tyres: { compound: 'soft', wear: 0.9 } }],
+    };
+    // Five seconds flat out: the punctured cars are down to their limp, the other one isn't.
+    expect(speed(run(redTyre, { p1: THROTTLE }, 300, withTyres))).toBeLessThanOrEqual(limp + 0.01);
+    expect(speed(run(wornOut, { p1: THROTTLE }, 300, withTyres))).toBeLessThanOrEqual(limp + 0.01);
+    expect(speed(run(fine, { p1: THROTTLE }, 60, withTyres))).toBeGreaterThan(70);
+    // No puncture without damage in the race (every mode but the GP).
+    expect(speed(run(redTyre, { p1: THROTTLE }, 60))).toBeGreaterThan(70);
   });
 
   it('repairCars takes every damage away (and leaves an undamaged state as it is)', () => {

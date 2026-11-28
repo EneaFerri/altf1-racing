@@ -4,7 +4,7 @@ import Foundation
 /// WebSocket, the same messages and keys as the web, so the app joins the same server and rooms.
 public enum NetProtocol {
     /// The web's `PROTOCOL_VERSION`: the server rejects any other (`version`).
-    public static let version = 18
+    public static let version = 19
     /// Players online at most, over all rooms.
     public static let maxPlayers = 8
     /// The server sends a snapshot every this many ticks (30 Hz).
@@ -120,7 +120,8 @@ public enum ClientMessage: Equatable, Sendable {
 
 extension GrandPrixInfo: Codable {
     enum CodingKeys: String, CodingKey {
-        case phase, manager, drivers, qualifying, race, raceLaps, hold, boxes, weather, sectorBests
+        case phase, manager, drivers, qualifying, race, raceLaps, hold, boxes, weather, forecast, sectorBests
+        case safetyCar, giveBack, incidents, yellowFlags
     }
 
     public init(from decoder: Decoder) throws {
@@ -135,7 +136,13 @@ extension GrandPrixInfo: Codable {
             hold: try c.decodeIfPresent(StartHold.self, forKey: .hold),
             boxes: try c.decode([CarId: Int].self, forKey: .boxes),
             weather: try c.decode(Weather.self, forKey: .weather),
-            sectorBests: try c.decode([Int?].self, forKey: .sectorBests))
+            forecast: try c.decode(Forecast.self, forKey: .forecast),
+            sectorBests: try c.decode([Int?].self, forKey: .sectorBests),
+            yellowFlags: try c.decodeIfPresent([YellowFlag].self, forKey: .yellowFlags) ?? [],
+            // The safety car's (R.3): the web's server sends them in a Grand Prix room.
+            safetyCar: try c.decodeIfPresent(SafetyCarInfo.self, forKey: .safetyCar),
+            giveBack: try c.decodeIfPresent([GiveBack].self, forKey: .giveBack) ?? [],
+            incidents: try c.decodeIfPresent([RaceIncident].self, forKey: .incidents) ?? [])
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -149,7 +156,12 @@ extension GrandPrixInfo: Codable {
         try c.encode(hold, forKey: .hold)
         try c.encode(boxes, forKey: .boxes)
         try c.encode(weather, forKey: .weather)
+        try c.encode(forecast, forKey: .forecast)
         try c.encode(sectorBests, forKey: .sectorBests)
+        try c.encodeIfPresent(safetyCar, forKey: .safetyCar)
+        if !yellowFlags.isEmpty { try c.encode(yellowFlags, forKey: .yellowFlags) }
+        if !giveBack.isEmpty { try c.encode(giveBack, forKey: .giveBack) }
+        if !incidents.isEmpty { try c.encode(incidents, forKey: .incidents) }
     }
 }
 

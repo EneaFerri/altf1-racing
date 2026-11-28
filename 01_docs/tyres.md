@@ -1,4 +1,8 @@
-# Tyres: soft and medium (T.1)
+# Tyres: soft and medium (T.1), intermediate and full wet (T.2)
+
+T.2 (owner, 2026-11-25): intermediates (green, key 3) and full wets (blue, key 4) at a stop; how
+each compound drives in the wet, the starts on rain tyres and the bots' weather stops are in
+[weather.md](weather.md#variable-weather-rain-tyres-wet-handling-28).
 
 **Grand Prix only** (every track built with its pit lane), web and Mac, single player and online.
 Owner's request (2026-11-23): at a stop choose softs (red) or mediums (yellow); softs last fewer
@@ -28,8 +32,9 @@ their stint.
 - **Stops** (`sim/pit.ts`): stopping in the box fits a new set of the same compound; while held there
   an input's `compound` (soft / medium, one tick) fits a new set of that one. Ignored anywhere else.
 - **Bots** (`ai/squad.ts`, `botCompound`): at a stop, softs when the stint ahead (to their next
-  scheduled stop, else the flag) is no longer than the softs' life, else mediums. In qualifying they
-  never stop.
+  scheduled stop, else the flag) ends before the softs would wear to a puncture (95% of their life,
+  R.1: [damage.md](damage.md#punctures-r1)), else mediums. In qualifying they never stop.
+- **Puncture** (R.1): a set worn to 95% punctures (see damage.md).
 
 ## Controls and look
 

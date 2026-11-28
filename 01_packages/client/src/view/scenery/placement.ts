@@ -1,4 +1,12 @@
-import { locateOnTrack, roadOf, vec2, type Track, type TrackSide, type Vec2 } from '@altf1/shared';
+import {
+  locateOnTrack,
+  roadOf,
+  runoffAt,
+  vec2,
+  type Track,
+  type TrackSide,
+  type Vec2,
+} from '@altf1/shared';
 
 // Pure placement helpers for scenery (no Three.js): where props may stand. Tested in placement.test.ts.
 
@@ -25,8 +33,10 @@ export type TrackSpot = readonly [at: number, gap: number];
 /** Where a `TrackSpot` is on the ground. */
 export function fromTrack(track: Track, [at, gap]: TrackSpot): Vec2 {
   const n = track.samples.length;
-  const s = track.samples[((Math.round(at * n) % n) + n) % n]!;
-  const offset = Math.sign(gap) * (s.halfWidth + track.runoffWidth + Math.abs(gap));
+  const i = ((Math.round(at * n) % n) + n) % n;
+  const s = track.samples[i]!;
+  const runoff = runoffAt(track, gap >= 0 ? 'right' : 'left', i);
+  const offset = Math.sign(gap) * (s.halfWidth + runoff + Math.abs(gap));
   return vec2(s.position.x + s.normal.x * offset, s.position.z + s.normal.z * offset);
 }
 
@@ -235,7 +245,10 @@ export function polygonBounds(polygon: readonly Vec2[]): Area {
 /** How far `p` is outside the walls (asphalt + run-off); negative = inside the drivable area. */
 export function clearance(track: Track, p: Vec2): number {
   const loc = locateOnTrack(track, p);
-  return Math.abs(loc.lateral) - loc.halfWidth - track.runoffWidth;
+  const side = loc.lateral >= 0 ? 'right' : 'left';
+  // A run-off area widens the main loop's only.
+  const runoff = loc.route < 0 ? runoffAt(track, side, loc.index) : track.runoffWidth;
+  return Math.abs(loc.lateral) - loc.halfWidth - runoff;
 }
 
 /** The track's bounding box, grown by `margin` on every side. */
@@ -282,7 +295,11 @@ export function scatter(
   // Far from every road's centreline the walls can't be within `margin`: skip the costly check.
   const roads = [track, ...track.routes];
   const near = (p: Vec2): boolean =>
-    roads.some((r) => r.centerGrid.query(p, r.maxHalfWidth + r.runoffWidth + margin).length > 0);
+    roads.some(
+      (r) =>
+        r.centerGrid.query(p, r.maxHalfWidth + (r.maxRunoffWidth ?? r.runoffWidth) + margin)
+          .length > 0,
+    );
   const random = seededRandom(seed);
   const points: Vec2[] = [];
   for (let attempt = 0; attempt < count * 30 && points.length < count; attempt++) {

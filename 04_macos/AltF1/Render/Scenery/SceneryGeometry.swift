@@ -12,14 +12,24 @@ nonisolated struct SceneryParts: Sendable {
         case sea, piers, pool
         case hullWhite, hullNavy, superstructure, cabinGlass
         case palmTrunk, palmFronds, treeTrunk, treeCrown
+        /// Lifelike trees (`CircuitLook.Trees.real`): leaf and needle cards, their cores, bark.
+        case leaves, leafCore, needles, needleCore, barkPlane, barkPine, palmLeaf, palmDry, palmBark
         case standCrowd, standConcrete, standRoof, pitConcrete, pitGarage, pitLane
         case tunnelInside, tunnelOutside, tunnelLights
         case hills
+        /// São Paulo: the park's lakes, the city's skyline far off (two hazy tones).
+        case lake, skylineNear, skylineFar, roofSlab
         /// A night race: walls with lit windows (three tones, the towers), dark roofs.
         case nightWall(Int), nightTower, roofNight
         case floodPole, floodLamp
         /// Singapore's landmarks: the Flyer, Marina Bay Sands' SkyPark, the Esplanade's durians.
         case flyerSteel, flyerRim, flyerCapsule, skyParkDeck, skyParkEdge, durian
+        /// Baku's: the old town's limestone (the Maiden Tower, the walls), the Flame Towers' glass,
+        /// the Carpet Museum's carpet and its wound ends.
+        case limestone, flameGlass, carpet, carpetEnd
+        /// Baku's pit boxes (`BakuPit`): each team's crew (overalls, helmets; the last kit neutral),
+        /// gloves, boots and tyres, the gantries' steel, their lights, the garages' band.
+        case crewSuit(Int), crewHelmet(Int), pitBlack, pitSteel, pitLight, pitBand
     }
 
     var meshes: [Part: MeshBuilder] = [:]
@@ -54,13 +64,21 @@ nonisolated enum SceneryGeometry {
         var ground: Ground.Grid?
     }
 
-    static func build(_ track: Track, _ scenery: CircuitScenery, _ land: LandGrid?, _ look: CircuitLook) -> Result {
+    /// `pitLane`: the circuit built with its drivable pit lane, for a circuit whose town is cleared
+    /// off it and whose boxes get garages, gantries and crews (Baku: `BakuPit`).
+    static func build(
+        _ track: Track, _ scenery: CircuitScenery, _ land: LandGrid?, _ look: CircuitLook, pitLane: Track? = nil
+    ) -> Result {
         var parts = SceneryParts()
         let sea = scenery.sea ?? []
-        // The ground: on the real land (Monaco), else flat at 0.
+        let lakes = scenery.surroundings?.lakes ?? []
+        // The ground: on the real land (Monaco, São Paulo: its lakes sunk into it), else flat at 0.
         var grid: Ground.Grid?
+        var lakeLevels: [Double] = []
         if let land, track.elevated {
-            let height = Ground.onLand(track, land, sea: sea)
+            let dry = Ground.onLand(track, land, sea: sea)
+            lakeLevels = lakes.map { Ground.lakeLevel(dry, $0) }
+            let height = lakes.isEmpty ? dry : Ground.withLakes(dry, lakes)
             grid = Ground.grid(track, height: height, routes: track.routes.contains(where: \.pit))
         }
         let ground: (Vec2) -> Double = { p in grid?.height(p) ?? 0 }
@@ -70,8 +88,18 @@ nonisolated enum SceneryGeometry {
         var keepClear: [Circle] = []
         addStands(&parts, track, scenery, ground, &keepClear)
         addPit(&parts, track, scenery, ground, &keepClear)
+        var town = scenery.city ?? []
+        if let pitLane {
+            let clear = BakuPit.clearance(pitLane)
+            town.removeAll { BakuPit.blocks(open($0.points), clear) }
+            if track.routes.contains(where: \.pit) { BakuPit.add(&parts, track, ground, &keepClear) }
+        }
 
-        let city = (scenery.city ?? []).map { b -> TownBuilding in
+        // A park circuit's town round it (São Paulo): its buildings like a town circuit's, domes apart.
+        let around = scenery.surroundings?.buildings ?? []
+        let domes = Set(around.indices.filter { around[$0].dome }.map { town.count + $0 })
+        let city = (town + around.map { TownBuilding(points: $0.points, height: $0.height, base: $0.base) })
+            .map { b -> TownBuilding in
             guard track.elevated else { return b }
             var on = b
             if b.base > 0 {
@@ -85,12 +113,18 @@ nonisolated enum SceneryGeometry {
             }
             return on
         }
-        addTown(&parts, track, city, look)
+        addTown(&parts, track, city, look, domes: domes)
+        if let walls = scenery.cityWalls { addCityWalls(&parts, track, walls, ground) }
         if look.night { addFloodlights(&parts, track, ground) }
         addWater(&parts, track, scenery, ground)
+        for (ring, level) in zip(lakes, lakeLevels) {
+            // The water a little under the level its banks ease to, so the shore never shows through.
+            parts[.lake].polygon(open(ring), y: Float(level - 0.15), tile: 12)
+        }
+        if look.skyline, let land { addSkyline(&parts, track, scenery.surroundings?.north ?? Vec2(0, -1), land) }
         if let tunnel = scenery.tunnel { addTunnel(&parts, track, tunnel) }
         if look.hills { addHills(&parts, track, sea) }
-        addTrees(&parts, track, scenery, city, look, ground, keepClear)
+        addTrees(&parts, track, scenery, city + lakes.map { TownBuilding(points: $0, height: 0, base: 0) }, look, ground, keepClear)
         return Result(parts: parts, ground: grid)
     }
 
@@ -251,9 +285,14 @@ nonisolated enum SceneryGeometry {
 
     /// Every building on its real footprint and height: pastel facades (seeded per building), glass
     /// towers, terracotta or flat roofs; the Casino and the chapel by their own models.
-    private static func addTown(_ parts: inout SceneryParts, _ track: Track, _ city: [TownBuilding], _ look: CircuitLook) {
+    private static func addTown(
+        _ parts: inout SceneryParts, _ track: Track, _ city: [TownBuilding], _ look: CircuitLook, domes: Set<Int> = []
+    ) {
         var random = SceneryRandom(11)
-        for b in city {
+        // Its own sequence, so the facades' picks stay as they were.
+        var roofs = SceneryRandom(31)
+        let palette = (look.facades ?? facades).count
+        for (index, b) in city.enumerated() {
             let ring = open(b.points)
             guard ring.count >= 3 else { continue }
             switch b.landmark ?? "" {
@@ -269,9 +308,21 @@ nonisolated enum SceneryGeometry {
             case "durian":
                 addDurian(&parts, ring, base: Float(b.base))
                 continue
+            case "flame":
+                addFlame(&parts, ring, base: Float(b.base), height: Float(b.height))
+                continue
+            case "maiden":
+                addMaidenTower(&parts, track, ring, base: Float(b.base))
+                continue
+            case "government":
+                addGovernmentHouse(&parts, track, ring, base: Float(b.base), height: Float(b.height))
+                continue
+            case "carpet":
+                addCarpetMuseum(&parts, ring, base: Float(b.base))
+                continue
             default: break
             }
-            let pick = Int(random.next() * Double(facades.count))
+            let pick = Int(random.next() * Double(palette))
             let top = Float(b.base + b.height)
             if look.night {
                 // Dark walls lit window by window; eight bays and floors per texture repeat.
@@ -284,12 +335,62 @@ nonisolated enum SceneryGeometry {
                 } else {
                     parts[.facade(pick)].walls(ring, bottom: Float(b.base), top: top)
                 }
-                parts[b.height > 20 ? .roofFlat : .roofTiles].polygon(ring, y: top)
+                if domes.contains(index) {
+                    addDome(&parts, ring, top: top)
+                } else {
+                    let slab = b.height <= 20 && look.flatRoofs > 0 && roofs.next() < look.flatRoofs
+                    parts[slab ? .roofSlab : b.height > 20 ? .roofFlat : .roofTiles].polygon(ring, y: top)
+                }
             }
         }
         // Marina Bay Sands: its three towers are buildings; the SkyPark joins them on top.
         let sands = city.filter { $0.landmark == "sands" }
         if sands.count > 1 { addSkyPark(&parts, sands) }
+    }
+
+    /// A domed roof (a gym, a church): rings stepping in towards the middle, flat on top.
+    private static func addDome(_ parts: inout SceneryParts, _ ring: [Vec2], top: Float) {
+        let c = ring.reduce(Vec2.zero, +) * (1 / Double(ring.count))
+        let radius = ring.map { ($0 - c).length }.max() ?? 1
+        let steps = 5
+        var y = top
+        for k in 0..<steps {
+            let a = Double(k) / Double(steps) * .pi / 2
+            let b = Double(k + 1) / Double(steps) * .pi / 2
+            let inner = ring.map { c + ($0 - c) * cos(b) }
+            let outer = ring.map { c + ($0 - c) * cos(a) }
+            let rise = Float((sin(b) - sin(a)) * radius * 0.45)
+            parts[.copper].walls(outer, bottom: y, top: y + rise)
+            if k == steps - 1 { parts[.copper].polygon(inner, y: y + rise) }
+            y += rise
+        }
+    }
+
+    /// A great city's skyline far off by the compass (`north`): towers 2.6–4.4 km away across 6 km,
+    /// tallest in the middle, in two hazy tones that fade them into the distance.
+    private static func addSkyline(_ parts: inout SceneryParts, _ track: Track, _ north: Vec2, _ land: LandGrid) {
+        let b = trackBounds(track, margin: 0)
+        let centre = Vec2((b.minX + b.maxX) / 2, (b.minZ + b.maxZ) / 2)
+        let across = Vec2(-north.z, north.x)
+        var random = SceneryRandom(23)
+        for _ in 0..<220 {
+            let side = random.next() * 2 - 1
+            let far = 2600 + random.next() * 1800
+            let at = centre + north * far + across * (side * 3000)
+            let width = 18 + random.next() * 30
+            let depth = 18 + random.next() * 30
+            let height = (40 + random.next() * 120) * (1 - 0.55 * abs(side)) + 20
+            let yaw = random.next() * .pi
+            let corners = [(-1.0, -1.0), (1, -1), (1, 1), (-1, 1)].map { (u, v) -> Vec2 in
+                let x = u * width / 2
+                let z = v * depth / 2
+                return at + Vec2(x * cos(yaw) - z * sin(yaw), x * sin(yaw) + z * cos(yaw))
+            }
+            let base = Float(Ground.landHeight(land, at)) - 5
+            let part: SceneryParts.Part = far > 3500 ? .skylineFar : .skylineNear
+            parts[part].walls(corners, bottom: base, top: base + Float(height) + 5, cells: 1)
+            parts[part].polygon(corners, y: base + Float(height) + 5)
+        }
     }
 
     // MARK: Singapore's landmarks
@@ -580,10 +681,25 @@ nonisolated enum SceneryGeometry {
             case .broadleaf:
                 parts[.treeTrunk].prism(placed(base, yaw: turn), sides: 6, bottom: 0.4 * size, top: 0.3 * size, height: 5 * size)
                 parts[.treeCrown].prism(placed(base + SIMD3(0, 3.5 * size, 0), yaw: turn), sides: 8, bottom: 3.2 * size, top: 1.2 * size, height: 5.5 * size)
+            case .real:
+                addRealTree(&parts, base, &random)
             }
         }
         // Palms along the promenades.
         var palmRandom = SceneryRandom(13)
+        if case .real = look.trees {
+            // Lifelike ones, and a line of trees behind the walls wherever the ground is free.
+            for spot in scenery.palms ?? [] {
+                addRealPalm(&parts, SIMD3(Float(spot.x), Float(ground(spot)), Float(spot.z)), &palmRandom)
+            }
+            let behind = wallTreeSpots(
+                track, scenery, blocked: blocked, avoid: keepClear, taken: spots.filter(free), palms: scenery.palms ?? [])
+            var wallRandom = SceneryRandom(17)
+            for spot in behind {
+                addRealTree(&parts, SIMD3(Float(spot.x), Float(ground(spot)), Float(spot.z)), &wallRandom)
+            }
+            return
+        }
         for spot in scenery.palms ?? [] {
             let size = Float(0.8 + palmRandom.next() * 0.4)
             let lean = SIMD2(Float(palmRandom.next() - 0.5) * 0.15, Float(palmRandom.next() - 0.5) * 0.15)

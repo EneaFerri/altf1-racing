@@ -17,6 +17,8 @@ struct Minimap: View {
     private let start: Path
     private let roadWidth: CGFloat
     private let fit: (Vec2) -> CGPoint
+    /// Each timing sector's stretch, drawn yellow under a yellow flag (R.2).
+    private let sectors: [Path]
 
     /// Canvas size and the room kept clear round the track (pt).
     static let size: CGFloat = 190
@@ -47,6 +49,16 @@ struct Minimap: View {
             path.closeSubpath()
         }
         roadWidth = max(3, CGFloat(2 * track.maxHalfWidth * scale))
+        sectors = track.sectorStarts.enumerated().map { i, start in
+            let end = i + 1 < track.sectorStarts.count ? track.sectorStarts[i + 1] : track.length
+            // From just before the sector's start to just after its end: no gaps between them.
+            let inside = track.samples.filter { $0.distance >= start - 10 && $0.distance <= end + 10 }
+            return Path { path in
+                for (k, sample) in inside.enumerated() {
+                    if k == 0 { path.move(to: fit(sample.position)) } else { path.addLine(to: fit(sample.position)) }
+                }
+            }
+        }
         let s = track.samples[0]
         let half = s.halfWidth + 4
         start = Path { path in
@@ -60,6 +72,11 @@ struct Minimap: View {
             TimelineView(.animation) { _ in
                 Canvas { context, _ in
                     context.stroke(road, with: .color(.white.opacity(0.85)), style: .init(lineWidth: roadWidth, lineCap: .round, lineJoin: .round))
+                    for sector in yellowSectors(session.yellowFlags) where sector < sectors.count {
+                        context.stroke(
+                            sectors[sector], with: .color(Color(red: 0.96, green: 0.77, blue: 0.09)),
+                            style: .init(lineWidth: roadWidth, lineCap: .round, lineJoin: .round))
+                    }
                     context.stroke(start, with: .color(.altF1Red), lineWidth: 3)
                     let own = session.playerId
                     // The own car last, on top of the others.

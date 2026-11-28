@@ -26,6 +26,18 @@ export const MARSHAL_COLORS: Readonly<Record<string, string>> = {
   w: '#f4f4f6',
 };
 
+/**
+ * A track marshal waving the yellow flag (R.2, a crash ahead): the same figure in the marshals'
+ * orange, the flag's squares two yellows (so it still shows it waving).
+ */
+export const YELLOW_MARSHAL_COLORS: Readonly<Record<string, string>> = {
+  ...MARSHAL_COLORS,
+  J: '#ff7a1a',
+  j: '#d05a00',
+  K: '#f5c518',
+  w: '#ffdc4a',
+};
+
 /** One frame: `phase` moves the wave along the flag (0 and π: the two frames). */
 function marshalFrame(phase: number): string[] {
   const grid = Array.from({ length: MARSHAL_HEIGHT }, () => Array<string>(MARSHAL_WIDTH).fill('.'));

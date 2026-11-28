@@ -1,4 +1,5 @@
 import {
+  DAMAGE_PARAMS,
   findCar,
   findLap,
   length,
@@ -8,6 +9,7 @@ import {
   type GameState,
   type LapState,
   pitStatus,
+  puncturedTyres,
   type Track,
   type TyreState,
 } from '@altf1/shared';
@@ -182,7 +184,10 @@ export class Hud {
     if (!timing || !car) return;
 
     this.trackEvents(timing, nowMs);
-    this.damage.update(car.damage);
+    this.damage.update(
+      car.damage,
+      car.damage && puncturedTyres(car.damage, car.tyres, DAMAGE_PARAMS),
+    );
     this.showPit(this.pitTrack && pitStatus(this.pitTrack, car, state.tick));
     this.showTyres(car.tyres);
 
@@ -246,13 +251,13 @@ export class Hud {
   }
 
   /**
-   * `PIT STOP 3.4 · 1 SOFT  2 MEDIUM` while stopped in the box (the tyres to fit), `PIT LIMITER 76`
+   * `PIT STOP 3.4 · 1 SOFT  2 MEDIUM  3 INTER  4 WET` while stopped in the box (the tyres to fit), `PIT LIMITER 76`
    * between the limit lines.
    */
   private showPit(status: ReturnType<typeof pitStatus>): void {
     const text =
       status?.stopLeft != null
-        ? `PIT STOP  ${status.stopLeft.toFixed(1)}  ·  1 SOFT  2 MEDIUM`
+        ? `PIT STOP  ${status.stopLeft.toFixed(1)}  ·  1 SOFT  2 MEDIUM  3 INTER  4 WET`
         : status?.limiter
           ? `PIT LIMITER  ${Math.round(status.speedLimit * 3.6)}`
           : '';

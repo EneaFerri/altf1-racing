@@ -114,6 +114,18 @@ Tests (`track/buildTrack.test.ts`) guard the layout: closed loop of ~2 km, never
 (and the width really varies), walls never fold back, distant sections keep their run-offs apart,
 kerbs only in corners, high kerbs only in the chicane.
 
+## Run-off areas (`TrackDefinition.runoffAreas`, step 2.4f)
+
+An escape area outside a corner (Baku's turn 16, owner 2026-11-25): `width` m more run-off on
+`side` from control point `fromPoint` to `toPoint`, eased in and out (smoothstep) over
+`TRACK_RULES.runoffAreaRamp` (20 m) inside its ends, so the wall never steps. `buildTrack` moves
+that side's wall out by it, keeps it per sample in `sides[side].extraRunoff` and the widest in
+`maxRunoffWidth` (search radii), and paves it (`RunoffKind` `'asphalt'`: the surface there is
+asphalt, the view draws it as such). `runoffAt(road, side, index)` gives the run-off anywhere;
+the view and the scenery tools use it (walls' reach, props beyond the walls). A track without
+`runoffAreas` has neither field and is exactly as before. The real circuits set it in
+`01_tools/openf1/circuits.ts` (`runoffAreas`: real metres round `at`).
+
 ## Branches: forks and shortcuts
 
 A track can offer **alternative roads**: `TrackDefinition.branches` lists, for each, the control

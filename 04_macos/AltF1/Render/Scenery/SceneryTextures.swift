@@ -251,4 +251,107 @@ nonisolated enum SceneryTextures {
             return wire ? SIMD4(0.42, 0.44, 0.46, 1) : SIMD4(0, 0, 0, 0)
         }
     }
+
+    // MARK: Baku
+
+    /// Baku's old town stone (the Maiden Tower, the Icherisheher walls): honey limestone in ashlar
+    /// courses, each block its own shade, weathered and pitted, deep mortar joints. One repeat: a
+    /// bay by a floor (3.2 m), four courses of blocks.
+    static func limestone(size: Int = 512) -> SurfaceMaps {
+        let grain = T.heightField(size) { s, t in T.fbm(s, t, period: 32, octaves: 5, seed: 151) }
+        let pits = T.heightField(size) { s, t in T.fbm(s, t, period: 64, octaves: 2, seed: 152) }
+        @Sendable func block(_ s: Float, _ t: Float) -> (joint: Bool, col: Int, row: Int) {
+            let row = Int(t * 4)
+            let shift: Float = row % 2 == 0 ? 0 : 0.5
+            let u = (s * 3 + shift).truncatingRemainder(dividingBy: 1)
+            let v = (t * 4).truncatingRemainder(dividingBy: 1)
+            return (u < 0.025 || v < 0.035, Int(s * 3 + shift), row)
+        }
+        let albedo = PixelImage.render(size, size) { x, y in
+            let s = Float(x) / Float(size)
+            let t = Float(y) / Float(size)
+            let b = block(s, t)
+            let i = y * size + x
+            if b.joint { return SIMD4(SIMD3<Float>(0.52, 0.44, 0.33) * (0.9 + grain[i] * 0.1), 1) }
+            let tone = T.hash(Int32(b.col), Int32(b.row), 13)
+            let honey = SIMD3<Float>(0.80, 0.68, 0.48) * (0.86 + tone * 0.18 + (grain[i] - 0.5) * 0.2)
+            let worn: Float = pits[i] < 0.32 ? 0.86 : 1
+            return SIMD4(honey * worn, 1)
+        }
+        let roughness = PixelImage.render(size, size) { x, y in T.gray(0.82 + grain[y * size + x] * 0.14) }
+        let height = T.heightField(size) { s, t in
+            let b = block(s, t)
+            if b.joint { return 0 }
+            return 0.75 + T.fbm(s, t, period: 32, octaves: 3, seed: 153) * 0.25
+        }
+        return SurfaceMaps(albedo: albedo, roughness: roughness, normal: T.normalMap(size, strength: 5, height))
+    }
+
+    /// The Flame Towers' curtain wall: deep blue glass panes between slim steel mullions and
+    /// transoms, each pane its own faint tint (one repeat: a bay by a floor).
+    static func flameGlass(size: Int = 256) -> SurfaceMaps {
+        @Sendable func frame(_ s: Float, _ t: Float) -> Bool { s < 0.03 || abs(s - 0.5) < 0.015 || t < 0.04 }
+        let albedo = PixelImage.render(size, size) { x, y in
+            let s = Float(x) / Float(size)
+            let t = Float(y) / Float(size)
+            if frame(s, t) { return SIMD4(0.62, 0.66, 0.7, 1) }
+            let pane = T.hash(s < 0.5 ? 1 : 2, Int32(t * 2), 17) * 0.05
+            return SIMD4(0.10 + pane, 0.20 + pane, 0.36 + pane, 1)
+        }
+        let roughness = PixelImage.render(size, size) { x, y in
+            T.gray(frame(Float(x) / Float(size), Float(y) / Float(size)) ? 0.3 : 0.03)
+        }
+        let height = T.heightField(size) { s, t in frame(s, t) ? 1 : 0 }
+        return SurfaceMaps(albedo: albedo, roughness: roughness, normal: T.normalMap(size, strength: 2, height))
+    }
+
+    /// An Azerbaijani carpet (the Carpet Museum's walls): a deep red field, navy borders with a cream
+    /// line, a gül medallion in navy, cream and saffron, the wool's weave in the normal map. One
+    /// repeat: 8 m by 8 m of the roll.
+    static func carpet(size: Int = 256) -> SurfaceMaps {
+        let weave = T.heightField(size) { s, t in
+            0.5 + 0.25 * sin(s * Float(size) * .pi) * sin(t * Float(size) * .pi)
+        }
+        @Sendable func colour(_ s: Float, _ t: Float) -> SIMD3<Float> {
+            let red = SIMD3<Float>(0.55, 0.08, 0.10)
+            let navy = SIMD3<Float>(0.09, 0.13, 0.30)
+            let cream = SIMD3<Float>(0.90, 0.85, 0.72)
+            let saffron = SIMD3<Float>(0.86, 0.60, 0.18)
+            if t < 0.14 || t > 0.86 { return abs(t - 0.07) < 0.012 || abs(t - 0.93) < 0.012 ? cream : navy }
+            if abs(t - 0.16) < 0.01 || abs(t - 0.84) < 0.01 { return cream }
+            // The gül: nested diamonds round the middle of each half-repeat.
+            let (cu, cv) = ((s * 2).truncatingRemainder(dividingBy: 1) - 0.5, t - 0.5)
+            let d = abs(cu) * 1.6 + abs(cv) * 1.6
+            if d < 0.12 { return saffron }
+            if d < 0.24 { return cream }
+            if d < 0.42 { return navy }
+            if d < 0.46 { return cream }
+            return red
+        }
+        let albedo = PixelImage.render(size, size) { x, y in
+            let c = colour(Float(x) / Float(size), Float(y) / Float(size))
+            return SIMD4(c * (0.92 + weave[y * size + x] * 0.12), 1)
+        }
+        let roughness = PixelImage.render(size, size) { _, _ in T.gray(0.92) }
+        return SurfaceMaps(albedo: albedo, roughness: roughness, normal: T.normalMap(size, strength: 1.5, weave))
+    }
+
+    /// A rolled carpet's end: its layers wound round, red, cream and navy.
+    static func carpetEnd(size: Int = 256) -> SurfaceMaps {
+        let albedo = PixelImage.render(size, size) { x, y in
+            let dx = Float(x) / Float(size) - 0.5
+            let dy = Float(y) / Float(size) - 0.5
+            let r = (dx * dx + dy * dy).squareRoot() * 2
+            let turn = (r * 9 + atan2(dy, dx) / .pi).truncatingRemainder(dividingBy: 2)
+            let c: SIMD3<Float> = r > 0.98 ? SIMD3(0.09, 0.13, 0.30) : turn < 0.8 ? SIMD3(0.55, 0.08, 0.10)
+                : turn < 1.1 ? SIMD3(0.90, 0.85, 0.72) : SIMD3(0.09, 0.13, 0.30)
+            return SIMD4(c, 1)
+        }
+        let roughness = PixelImage.render(size, size) { _, _ in T.gray(0.9) }
+        let height = T.heightField(size) { s, t in
+            let r = ((s - 0.5) * (s - 0.5) + (t - 0.5) * (t - 0.5)).squareRoot() * 2
+            return 0.5 + 0.5 * sin(r * 9 * .pi)
+        }
+        return SurfaceMaps(albedo: albedo, roughness: roughness, normal: T.normalMap(size, strength: 2, height))
+    }
 }

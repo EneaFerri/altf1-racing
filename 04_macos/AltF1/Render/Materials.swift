@@ -69,6 +69,9 @@ struct RaceMaterials {
     }
 
     /// A tiling, anisotropically filtered PBR material from the three maps.
+    /// A PBR material from `maps` (a circuit's painted kerbs).
+    static func pbr(_ maps: SurfaceMaps) async throws -> PhysicallyBasedMaterial { try await material(maps) }
+
     private static func material(_ maps: SurfaceMaps) async throws -> PhysicallyBasedMaterial {
         var material = PhysicallyBasedMaterial()
         material.baseColor = .init(texture: try await texture(maps.albedo, .color))
@@ -79,7 +82,7 @@ struct RaceMaterials {
         return material
     }
 
-    private static func texture(_ image: PixelImage, _ semantic: TextureResource.Semantic) async throws
+    static func texture(_ image: PixelImage, _ semantic: TextureResource.Semantic) async throws
         -> MaterialParameters.Texture
     {
         let resource = try await TextureResource(image: image.cgImage, options: .init(semantic: semantic))

@@ -99,6 +99,14 @@ export function generate(
     kerbBand: KERB_BAND,
     sectorPoints: profile.sectorStarts.map(controlAt),
     highKerbs: [],
+    ...(circuit.runoffAreas && {
+      runoffAreas: circuit.runoffAreas.map((area) => ({
+        fromPoint: controlAt(area.at - area.length / 2 + profile.length),
+        toPoint: controlAt(area.at + area.length / 2),
+        side: area.side,
+        width: area.width,
+      })),
+    }),
     points: controls.map((i) => ({
       at: { x: round1(stations[i]![0]), z: round1(stations[i]![1]) },
       width: Math.round(widths[i]! * 10) / 10,

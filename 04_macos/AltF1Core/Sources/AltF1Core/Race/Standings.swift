@@ -30,8 +30,12 @@ public struct RaceStanding: Codable, Hashable, Sendable {
     public var lapsBehind: Int
     public var best: Int?
     public var stops: Int
-    /// Time penalty for mandatory stops missing (ticks), once finished (or in the final result).
+    /// Time penalty for mandatory stops missing (ticks) and the time penalties given, once
+    /// finished (or in the final result).
     public var penalty: Int
+    /// The time penalties given so far (ticks: the safety car's rules, online), shown at once;
+    /// nil: none.
+    public var timePenalty: Int? = nil
 }
 
 /// Timing lines passed according to a car's lap timing: 0 before the start line.

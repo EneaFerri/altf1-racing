@@ -1,12 +1,19 @@
 import * as THREE from 'three';
 import type { Track, Vec2 } from '@altf1/shared';
-import { createBelleEpoqueTexture, createFacadeTexture } from '../pixelTexture';
+import {
+  createBelleEpoqueTexture,
+  createCarpetTexture,
+  createFacadeTexture,
+  createFlameGlassTexture,
+  createLimestoneTexture,
+} from '../pixelTexture';
 import { clearance, insidePolygon, seededRandom } from './placement';
 import { extrude, type TownBuilding } from './town';
 
 // Landmarks around a real circuit, each on its real OSM footprint (Monaco's Casino and chapel,
 // Mexico City's domes, Singapore's Flyer, Marina Bay Sands' SkyPark and the Esplanade's durians,
-// Las Vegas's Sphere, Eiffel Tower, Fountains of Bellagio and Stratosphere: see 01_docs/themes.md).
+// Las Vegas's Sphere, Eiffel Tower, Fountains of Bellagio and Stratosphere; Baku's Flame Towers,
+// Maiden Tower, Government House and Carpet Museum: see 01_docs/themes.md).
 
 const COPPER = '#6f9a8a';
 const TERRACOTTA = '#b4593b';
@@ -455,4 +462,256 @@ export function createStrat(building: TownBuilding): THREE.Group {
   beacon.position.set(c.x, top, c.z);
   group.add(shaft, pod, mast, beacon);
   return group;
+}
+
+/** The Flame Towers: rings up each flame, how much of its footprint is left at the tip, its lean. */
+const FLAME_RINGS = 18;
+const FLAME_TIP = 0.06;
+const FLAME_LEAN = 0.35;
+/** Facade textures repeat every this many metres (one bay, one floor). */
+const BAY = 3.2;
+
+/**
+ * One of Baku's Flame Towers: its real footprint and height (OSM), rising as a flame of blue glass,
+ * narrowing faster towards the top and leaning to its footprint's far end, to a pointed tip.
+ */
+export function createFlame(building: TownBuilding): THREE.Mesh {
+  const { points, base, height } = building;
+  const c = centroid(points);
+  const far = points.reduce((a, p) =>
+    Math.hypot(p.x - c.x, p.z - c.z) > Math.hypot(a.x - c.x, a.z - c.z) ? p : a,
+  );
+  const rings = Array.from({ length: FLAME_RINGS + 1 }, (_, k) => {
+    const t = k / FLAME_RINGS;
+    // Full-bodied most of the way up, then curling in fast to the tip: a flame, not a cone.
+    const keep = 1 - (1 - FLAME_TIP) * t ** 5;
+    const lean = FLAME_LEAN * t ** 2;
+    const middle = { x: c.x + (far.x - c.x) * lean, z: c.z + (far.z - c.z) * lean };
+    return points.map((p) => ({
+      x: middle.x + (p.x - c.x) * keep,
+      y: base + height * t,
+      z: middle.z + (p.z - c.z) * keep,
+    }));
+  });
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  for (let k = 0; k < FLAME_RINGS; k++) {
+    const [low, high] = [rings[k]!, rings[k + 1]!];
+    let u = 0;
+    low.forEach((a, i) => {
+      const j = (i + 1) % low.length;
+      const [b, d, e] = [low[j]!, high[i]!, high[j]!];
+      const du = Math.hypot(b.x - a.x, b.z - a.z) / BAY;
+      positions.push(a.x, a.y, a.z, b.x, b.y, b.z, d.x, d.y, d.z);
+      positions.push(d.x, d.y, d.z, b.x, b.y, b.z, e.x, e.y, e.z);
+      uvs.push(u, a.y / BAY, u + du, b.y / BAY, u, d.y / BAY);
+      uvs.push(u, d.y / BAY, u + du, b.y / BAY, u + du, e.y / BAY);
+      u += du;
+    });
+  }
+  // The tip closed by a fan round its middle.
+  const top = rings[FLAME_RINGS]!;
+  const tip = centroid(top);
+  const y = base + height;
+  top.forEach((a, i) => {
+    const b = top[(i + 1) % top.length]!;
+    positions.push(a.x, y, a.z, b.x, y, b.z, tip.x, y + 2, tip.z);
+    uvs.push(0, 0, 1, 0, 0.5, 1);
+  });
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.computeVertexNormals();
+  return new THREE.Mesh(
+    geometry,
+    new THREE.MeshPhongMaterial({
+      map: createFlameGlassTexture(),
+      shininess: 80,
+      specular: '#9fc3e0',
+      side: THREE.DoubleSide,
+    }),
+  );
+}
+
+/** The Maiden Tower: diameter and height (m, real), its buttress (m), battlements. */
+const MAIDEN_RADIUS = 8.25;
+const MAIDEN_HEIGHT = 29.5;
+const BUTTRESS_WIDTH = 7;
+const BUTTRESS_DEPTH = 6;
+const MERLONS = 24;
+
+/**
+ * Baku's Maiden Tower (Qız Qalası, 12th century): a round limestone tower 16.5 m across and
+ * 29.5 m high on its OSM footprint, its buttress towards the sea (the track side), battlements on
+ * top.
+ */
+export function createMaidenTower(track: Track, building: TownBuilding): THREE.Group {
+  const c = centroid(building.points);
+  const base = building.base;
+  // One texture repeat per facade bay and floor: round the tower, and across the buttress.
+  const stone = lit(
+    tiled(createLimestoneTexture(), (2 * Math.PI * MAIDEN_RADIUS) / BAY, MAIDEN_HEIGHT / BAY),
+  );
+  const flank = lit(tiled(createLimestoneTexture(), BUTTRESS_WIDTH / BAY, MAIDEN_HEIGHT / BAY));
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(MAIDEN_RADIUS, MAIDEN_RADIUS * 1.04, MAIDEN_HEIGHT, 24),
+    stone,
+  );
+  body.position.set(c.x, base + MAIDEN_HEIGHT / 2, c.z);
+  group.add(body);
+  const near = nearestOnTrack(track, c);
+  const angle = Math.atan2(near.x - c.x, near.z - c.z);
+  const buttress = new THREE.Mesh(
+    new THREE.BoxGeometry(BUTTRESS_WIDTH, MAIDEN_HEIGHT - 2, BUTTRESS_DEPTH),
+    flank,
+  );
+  buttress.position.set(
+    c.x + Math.sin(angle) * MAIDEN_RADIUS,
+    base + (MAIDEN_HEIGHT - 2) / 2,
+    c.z + Math.cos(angle) * MAIDEN_RADIUS,
+  );
+  buttress.rotation.y = angle;
+  group.add(buttress);
+  for (let i = 0; i < MERLONS; i += 2) {
+    const a = (i / MERLONS) * Math.PI * 2;
+    const merlon = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.3, 0.8), flank);
+    merlon.position.set(
+      c.x + Math.sin(a) * (MAIDEN_RADIUS - 0.4),
+      base + MAIDEN_HEIGHT + 0.65,
+      c.z + Math.cos(a) * (MAIDEN_RADIUS - 0.4),
+    );
+    merlon.rotation.y = a;
+    group.add(merlon);
+  }
+  return group;
+}
+
+/** Government House: its central tower (m: size, rise above the roof, the top storey's). */
+const GOV_TOWER = 18;
+const GOV_RISE = 22;
+const GOV_TOP = 9;
+
+/**
+ * Baku's Government House (Hökumət Evi) on Azadliq Square: its OSM footprint and height in pale
+ * sandstone, a stepped central tower on the side facing the track, and corner turrets.
+ */
+export function createGovernmentHouse(track: Track, building: TownBuilding): THREE.Group {
+  const { points, base } = building;
+  const top = base + building.height;
+  const walls = lit(createBelleEpoqueTexture());
+  const roof = flat('#cbbd9c');
+  const group = extrude(points, base, top, walls, roof);
+  const c = centroid(points);
+  const near = nearestOnTrack(track, c);
+  // The tower on the front wing (the footprint is a U round a courtyard): the middle of the edge
+  // facing the track, stepped in by half the tower.
+  const edges = points.map((p, i) => [p, points[(i + 1) % points.length]!] as const);
+  const [ea, eb] = edges.reduce((best, e) => {
+    const mid = (x: readonly [Vec2, Vec2]) => ({
+      x: (x[0].x + x[1].x) / 2,
+      z: (x[0].z + x[1].z) / 2,
+    });
+    const d = (x: readonly [Vec2, Vec2]) => Math.hypot(mid(x).x - near.x, mid(x).z - near.z);
+    return Math.hypot(e[1].x - e[0].x, e[1].z - e[0].z) > GOV_TOWER && d(e) < d(best) ? e : best;
+  });
+  const mid = { x: (ea.x + eb.x) / 2, z: (ea.z + eb.z) / 2 };
+  const d = Math.hypot(c.x - mid.x, c.z - mid.z) || 1;
+  const at = {
+    x: mid.x + ((c.x - mid.x) / d) * (GOV_TOWER / 2),
+    z: mid.z + ((c.z - mid.z) / d) * (GOV_TOWER / 2),
+  };
+  const angle = Math.atan2(eb.x - ea.x, eb.z - ea.z);
+  const stages: [number, number, number][] = [
+    [GOV_TOWER, base, top + GOV_RISE],
+    [GOV_TOWER * 0.6, top + GOV_RISE, top + GOV_RISE + GOV_TOP],
+  ];
+  for (const [size, from, to] of stages) {
+    const face = lit(tiled(createBelleEpoqueTexture(), size / BAY, (to - from) / BAY));
+    const box = new THREE.Mesh(new THREE.BoxGeometry(size, to - from, size), face);
+    box.position.set(at.x, (from + to) / 2, at.z);
+    box.rotation.y = angle;
+    group.add(box);
+  }
+  const spire = new THREE.Mesh(new THREE.ConeGeometry(GOV_TOWER * 0.42, 7, 4), roof);
+  spire.position.set(at.x, top + GOV_RISE + GOV_TOP + 3.5, at.z);
+  spire.rotation.y = angle + Math.PI / 4;
+  group.add(spire);
+  for (const corner of nearestToTrack(track, points, 3).slice(1)) {
+    const face = lit(tiled(createBelleEpoqueTexture(), 6 / BAY, (top + 6) / BAY));
+    group.add(tower(corner, top + 6, 6, 4, face, roof));
+  }
+  return group;
+}
+
+/** The Carpet Museum: its roll's radius at most (m), the roll's end drawn as a spiral. */
+const CARPET_RADIUS = 9;
+
+/**
+ * Baku's Carpet Museum on the boulevard: a carpet half rolled up, lying along its OSM footprint's
+ * long side: a cylinder of carpet, its ends a spiral.
+ */
+export function createCarpetMuseum(building: TownBuilding): THREE.Group {
+  const { points, base } = building;
+  // The footprint's long axis: its two points furthest apart.
+  let [a, b] = [points[0]!, points[0]!];
+  for (const p of points) {
+    for (const q of points) {
+      if (Math.hypot(p.x - q.x, p.z - q.z) > Math.hypot(a.x - b.x, a.z - b.z)) [a, b] = [p, q];
+    }
+  }
+  const length = Math.hypot(b.x - a.x, b.z - a.z);
+  const axis = { x: (b.x - a.x) / length, z: (b.z - a.z) / length };
+  const across = points.map((p) => (p.x - a.x) * -axis.z + (p.z - a.z) * axis.x);
+  const width = Math.max(...across) - Math.min(...across);
+  const radius = Math.min(CARPET_RADIUS, width / 2);
+  const mid = (Math.max(...across) + Math.min(...across)) / 2;
+  const carpet = createCarpetTexture();
+  tiled(carpet, (2 * Math.PI * radius) / 8, (length * 0.9) / 8);
+  const roll = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length * 0.9, 24, 1), [
+    lit(carpet),
+    lit(spiralTexture()),
+    lit(spiralTexture()),
+  ]);
+  roll.rotation.z = Math.PI / 2;
+  const group = new THREE.Group();
+  const holder = new THREE.Group();
+  holder.add(roll);
+  holder.position.set(
+    (a.x + b.x) / 2 - axis.z * mid,
+    base + radius,
+    (a.z + b.z) / 2 + axis.x * mid,
+  );
+  holder.rotation.y = -Math.atan2(axis.z, axis.x);
+  group.add(holder);
+  return group;
+}
+
+/** A rolled carpet's end: its layers wound round, red and navy. */
+function spiralTexture(): THREE.Texture {
+  const size = 16;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const r = Math.hypot(x - 7.5, y - 7.5);
+      const turn = (r + Math.atan2(y - 7.5, x - 7.5) / Math.PI) % 2;
+      ctx.fillStyle = r > 7.6 ? '#1f2f5a' : turn < 1 ? '#a3242c' : '#e9dcc0';
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.magFilter = THREE.NearestFilter;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/** `texture` repeating `u` × `v` times over a mesh's own texture coordinates. */
+function tiled(texture: THREE.Texture, u: number, v: number): THREE.Texture {
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(Math.max(1, Math.round(u)), Math.max(1, Math.round(v)));
+  return texture;
 }

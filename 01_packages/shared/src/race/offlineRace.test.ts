@@ -5,7 +5,7 @@ import { BOT_PARAMS, type BotLevel } from '../config/bot';
 import { CAR_PARAMS } from '../config/car';
 import { TICK_RATE } from '../config/sim';
 import { botCarParams } from '../ai/plan';
-import { MONZA } from '../track/layouts';
+import { MONZA, SAO_PAULO } from '../track/layouts';
 import { GrandPrix } from './GrandPrix';
 import { OfflineRoom } from './OfflineRoom';
 import { squadBots, teamBoxes, teamLineup } from './teams';
@@ -46,6 +46,47 @@ describe('single-player Grand Prix, headless (S.5)', () => {
       const race = gp.info.race;
       expect(race.map((s) => s.status)).toEqual(Array(10).fill('finished'));
       expect(race.every((s) => s.stops >= 1 && s.penalty === 0)).toBe(true);
+    },
+  );
+});
+
+describe('single-player Grand Prix in variable weather, headless (2.8)', () => {
+  it(
+    '10 cars race 4 laps of São Paulo as the rain comes: all finish, on rain tyres',
+    { timeout: 240_000 },
+    () => {
+      const seats = teamLineup('polimi', () => 0).map((seat) =>
+        seat.kind === 'player' ? { ...seat, kind: 'medium' as BotLevel } : seat,
+      );
+      const params = Object.fromEntries(
+        seats.map((s) => [s.id, botCarParams(CAR_PARAMS, BOT_PARAMS[s.kind as BotLevel])]),
+      );
+      const room = new OfflineRoom(SAO_PAULO, params, teamBoxes(seats));
+      // 0.75 for every draw: a dry start, rain to 0.89 from 0.46 of the race on.
+      const gp = new GrandPrix(room, () => 0.75);
+      const [manager, ...rest] = seats;
+      gp.add(manager!.id, manager!.name);
+      gp.command(manager!.id, { action: 'weather', weather: 'variable' });
+      const lap = botLapTicks(room.sim, 'medium')!;
+      rest.forEach((s, i) => gp.addSimulated(s.id, s.name, lap + i));
+      gp.command(manager!.id, { action: 'start' });
+      gp.command(manager!.id, { action: 'endQualifying' });
+      const squad = new BotSquad(room.track, squadBots(seats));
+      squad.setRace(4);
+      gp.command(manager!.id, { action: 'startRace', laps: 4 });
+      expect(gp.info.forecast.at(-1)!.wetness).toBeCloseTo(0.8875, 12);
+      const fitted = new Set<string>();
+      for (let tick = 0; tick < 4 * 150 * TICK_RATE && gp.info.phase === 'race'; tick++) {
+        room.step(squad.inputs(room.state, room.held, room.sim.weather, room.sim.tyres));
+        gp.afterTick();
+        for (const car of room.state.cars) fitted.add(car.tyres?.compound ?? 'medium');
+      }
+      // Out on slicks, then in for rain tyres as it rains.
+      expect(fitted.has('medium')).toBe(true);
+      expect(fitted.has('intermediate') || fitted.has('wet')).toBe(true);
+      expect(gp.info.phase).toBe('results');
+      expect(gp.info.race.map((s) => s.status)).toEqual(Array(10).fill('finished'));
+      expect(gp.info.race.every((s) => s.penalty === 0)).toBe(true);
     },
   );
 });

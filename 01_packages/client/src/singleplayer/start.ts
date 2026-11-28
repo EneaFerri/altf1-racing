@@ -61,6 +61,11 @@ async function startGrandPrix(): Promise<void> {
         items: [
           { name: 'Dry', detail: 'a dry track', value: 'dry' },
           { name: 'Rain', detail: 'wet track, puddles', value: 'rain' },
+          {
+            name: 'Variable',
+            detail: 'it may start dry and rain, or start wet and dry',
+            value: 'variable',
+          },
         ],
         hint: BACK,
         escGoesBack: true,

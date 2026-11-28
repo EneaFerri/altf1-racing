@@ -2,6 +2,8 @@ import {
   buildTrack,
   findCar,
   NEUTRAL_INPUT,
+  SAFETY_CAR_ID,
+  yellowSectors,
   onlineSimContext,
   TICK_RATE,
   GP_TRACKS,
@@ -83,7 +85,13 @@ export class OnlineGame {
             {
               markPitBox: (box) => this.view.markPitBox(box),
               showFlagMarshal: (on) => this.view.showFlagMarshal(on),
-              setWeather: (weather) => this.view.setWeather(weather),
+              setWetness: (wetness) => this.view.setWetness(wetness),
+              setSafetyCar: (info) => this.view.setSafetyCar(info),
+              // The crashes' debris and marshals, and their sectors yellow on the map.
+              setYellowFlags: (flags) => {
+                this.view.setYellowFlags(flags);
+                this.minimap.setYellowSectors(yellowSectors(flags));
+              },
             },
             built,
           )
@@ -156,10 +164,11 @@ export class OnlineGame {
     this.grandPrix?.setPlayers(players);
     for (const p of players) this.view.setLivery(p.id, playerLivery(p.livery));
     this.view.setNameTags(Object.fromEntries(players.map((p) => [p.id, p.nickname])));
-    this.minimap.setPlayers(
-      Object.fromEntries(
+    this.minimap.setPlayers({
+      ...Object.fromEntries(
         players.map((p) => [p.id, { name: p.nickname, color: playerLivery(p.livery).body }]),
       ),
-    );
+      [SAFETY_CAR_ID]: { name: 'Safety car', color: '#ffa20a' },
+    });
   }
 }

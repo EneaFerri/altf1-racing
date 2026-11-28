@@ -216,3 +216,23 @@ bank): at the lowest point the water lay in a pit up to 15 m deep. Its bed is 2 
 and the bank eases to its level over 30 m (`withLakes`); the lake is ≥ 19.6 m beyond the walls, so
 the run-off is untouched. The town's buildings stand on the slopes as Monaco's
 ([themes.md](themes.md)).
+
+## Baku (2.4f)
+
+The third elevated circuit, on **SRTM 30 m** as São Paulo. Its land lies **under the oceans**: SRTM
+gives the Caspian a flat −29 m, and the tool took anything at or under −3 m for sea. A circuit's
+own sea level (`seaLevel: -29` in `circuits.ts`, `terrainOf` in `elevation.ts`) moves every height
+up by it and turns the sea's cells into no land, so Baku's heights are **metres above the
+Caspian**, where its water is drawn (0, as every sea). The other circuits have no `seaLevel`: their
+land is as before. Heights aligned by the median gap to the land: OpenF1 + 36.0 m.
+
+| What                    | Value                                           | Reference                      |
+| ----------------------- | ----------------------------------------------- | ------------------------------ |
+| Height difference       | 26.7 m                                          | the old town's climb           |
+| Highest point           | 38.1 m at 3256 m, the top of the old town       | by the old town's upper walls  |
+| Lowest point            | 11.3 m at 5841 m, Neftchilar Avenue             | the boulevard by the Caspian   |
+| Start line              | 11.5 m                                          |                                |
+| Steepest climb (50 m)   | +10.3 % from 2696 m, the old town climb         | turns 9–10, past the castle    |
+| Steepest descent (50 m) | −9.5 % from 3731 m, turn 15                     | the drop back to the boulevard |
+| Under the land          | 180 m from 855 m, Azadliq Avenue                | SRTM's roofs beside the avenue |
+| Land for the client     | 253 × 188 heights, 12.5 m apart (`bakuLand.ts`) |                                |

@@ -1,12 +1,38 @@
-/// A wet track, as the simulation feels it (`sim/weather.ts`, 01_docs/weather.md).
+/// A wet track, as the simulation feels it (`sim/weather.ts`, 01_docs/weather.md): its params, its
+/// puddles and how wet it is when (`forecast`, 2.8; nil: soaked all along).
 public struct WetTrack: Sendable {
     public var params: WetParams
     public var puddles: [Puddle]
+    public var forecast: Forecast?
 
-    public init(params: WetParams = .baseline, puddles: [Puddle]) {
+    public init(params: WetParams = .baseline, puddles: [Puddle], forecast: Forecast? = nil) {
         self.params = params
         self.puddles = puddles
+        self.forecast = forecast
     }
+}
+
+/// How wet `weather` is at `tick` (0 without one) (`trackWetness`).
+public func trackWetness(_ weather: WetTrack?, _ tick: Int) -> Double {
+    guard let weather else { return 0 }
+    return weather.forecast.map { wetnessAt($0, tick) } ?? 1
+}
+
+/// The tyres cars start on at `tick` (`startingTyres`): with `tyres`, on a wet track, the ones it
+/// asks for (intermediates or full wets); else none given (new mediums).
+public func startingTyres(_ weather: WetTrack?, _ tyres: TyreParams?, _ tick: Int) -> TyreState? {
+    guard let tyres else { return nil }
+    let compound = weatherCompound(trackWetness(weather, tick), tyres)
+    return compound == .medium ? nil : TyreState(compound: compound)
+}
+
+/// The wet params of a car on `compound` on a track `wetness` wet (`tyreWetParams`, T.2).
+public func tyreWetParams(_ compound: TyreCompound, _ wetness: Double, _ tyres: TyreParams, _ wet: WetParams) -> WetParams {
+    let c = tyres.wet[compound]!
+    return WetParams(
+        grip: atWetness(c.grip, wetness), traction: atWetness(c.traction, wetness),
+        brake: atWetness(c.brake, wetness), puddleGrip: c.puddleGrip, puddleTraction: c.puddleTraction,
+        puddleDrag: wet.puddleDrag)
 }
 
 /// A puddle on a wet track: a flat ellipse on the asphalt, its long axis along the track.

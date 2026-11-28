@@ -1,4 +1,4 @@
-import type { CarDamage } from '@altf1/shared';
+import type { CarDamage, Punctures } from '@altf1/shared';
 import { damageLevel } from './format';
 
 /** The parts drawn, in the order of their cells in the outline (see hud.css). */
@@ -7,13 +7,16 @@ type Part = (typeof PARTS)[number];
 
 /**
  * Damage panel (Grand Prix), bottom right: the car seen from above, front wing, four tyres and
- * rear wing each coloured by its damage (white → yellow → orange → red). Shown only while the car
- * has damage, i.e. in a race with damage. Reads state only.
+ * rear wing each coloured by its damage (white → yellow → orange → red); a punctured tyre blinks
+ * and `PUNCTURE` shows under the car. Shown only while the car has damage, i.e. in a race with
+ * damage. Reads state only.
  */
 export class DamagePanel {
   private readonly root = element('div', 'hud-damage');
   private readonly cells: Record<Part, HTMLElement>;
+  private readonly warning = element('span', 'hud-damage-puncture');
   private shown: CarDamage | undefined;
+  private shownFlat = '';
 
   constructor() {
     const car = element('div', 'hud-damage-car');
@@ -23,7 +26,9 @@ export class DamagePanel {
     car.append(...PARTS.map((part) => this.cells[part]), element('i', 'hud-damage-body'));
     const title = element('span', 'hud-label');
     title.textContent = 'DAMAGE';
-    this.root.append(title, car);
+    this.warning.textContent = 'PUNCTURE';
+    this.warning.hidden = true;
+    this.root.append(title, car, this.warning);
     this.root.hidden = true;
     document.body.appendChild(this.root);
   }
@@ -33,10 +38,16 @@ export class DamagePanel {
     this.root.style.display = visible ? '' : 'none';
   }
 
-  /** Call every frame with the own car's damage; undefined (no damage in this race) hides it. */
-  update(damage: CarDamage | undefined): void {
-    if (damage === this.shown) return;
+  /**
+   * Call every frame with the own car's damage (undefined: no damage in this race, hidden) and its
+   * flat tyres.
+   */
+  update(damage: CarDamage | undefined, punctures?: Punctures): void {
+    const flat = punctures ? punctures.map(Number).join('') : '';
+    if (damage === this.shown && flat === this.shownFlat) return;
     this.shown = damage;
+    this.shownFlat = flat;
+    this.warning.hidden = !punctures?.some(Boolean);
     this.root.hidden = damage === undefined;
     if (!damage) return;
     const [fl, fr, rl, rr] = damage.tyres;
@@ -48,8 +59,15 @@ export class DamagePanel {
       tyreRR: rr,
       rearWing: damage.rearWing,
     };
+    const flatTyres: Partial<Record<Part, boolean>> = {
+      tyreFL: punctures?.[0],
+      tyreFR: punctures?.[1],
+      tyreRL: punctures?.[2],
+      tyreRR: punctures?.[3],
+    };
     for (const part of PARTS) {
       const cell = this.cells[part];
+      cell.classList.toggle('hud-damage-flat', flatTyres[part] === true);
       cell.dataset['level'] = damageLevel(values[part]);
       cell.title = `${Math.round(values[part] * 100)}%`;
     }

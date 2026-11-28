@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  DRY_FORECAST,
+  RAIN_FORECAST,
   encodeMessage,
   FIXED_DT,
   findCar,
@@ -267,11 +269,11 @@ describe('GameServer — Grand Prix', () => {
     inRoom(server, 'Max', 'São Paulo'); // free practice there: no Grand Prix, no manager
     const rain = encodeMessage({ type: 'gp', action: 'weather', weather: 'rain' });
     server.message(kimi, rain); // not the manager
-    expect(server.rooms.get(roomKey('grandPrix', 'São Paulo'))!.weather).toBe('dry');
+    expect(server.rooms.get(roomKey('grandPrix', 'São Paulo'))!.forecast).toEqual(DRY_FORECAST);
     server.message(enea, rain);
     expect(kimi.last('grandPrix')).toMatchObject({ phase: 'lobby', weather: 'rain' });
-    expect(server.rooms.get(roomKey('grandPrix', 'São Paulo'))!.weather).toBe('rain');
-    expect(server.rooms.get(roomKey('practice', 'São Paulo'))!.weather).toBe('dry');
+    expect(server.rooms.get(roomKey('grandPrix', 'São Paulo'))!.forecast).toEqual(RAIN_FORECAST);
+    expect(server.rooms.get(roomKey('practice', 'São Paulo'))!.forecast).toEqual(DRY_FORECAST);
   });
 
   it('never rains on a Grand Prix whose track does not offer it', () => {
@@ -279,7 +281,7 @@ describe('GameServer — Grand Prix', () => {
     const enea = inRoom(server, 'Enea', 'Monza', 'grandPrix');
     server.message(enea, encodeMessage({ type: 'gp', action: 'weather', weather: 'rain' }));
     expect(enea.last('grandPrix')).toMatchObject({ weather: 'dry' });
-    expect(server.rooms.get(roomKey('grandPrix', 'Monza'))!.weather).toBe('dry');
+    expect(server.rooms.get(roomKey('grandPrix', 'Monza'))!.forecast).toEqual(DRY_FORECAST);
   });
 
   it('hands the manager role on when the manager leaves, and resets with the room', () => {

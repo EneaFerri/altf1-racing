@@ -147,6 +147,7 @@ export function pitLaneOf(
   const laneHalf = (PIT_LANE_WIDTH * circuit.scale) / 2;
   const elevated = definition.points[0]!.height !== undefined;
   const smoothing = circuit.pitLaneSmoothing ?? EDGE_SMOOTHING;
+  const outset = circuit.pitLaneOutset ?? 0;
 
   /** How far the lane's edge at (x, z) is from the walls of every other stretch than `at`'s, beyond the pit wall. */
   const room = (x: number, z: number, at: number): number => {
@@ -161,7 +162,8 @@ export function pitLaneOf(
   };
   // Each real point's place across the track (signed offset from the centreline): `base` with the
   // real lane's shape beyond the pit wall, `floor` right behind the pit wall.
-  const placed = real.located.map((r) => {
+  const placed = real.located.map((located) => {
+    const r = { ...located, edgeGap: located.edgeGap + outset };
     const s = sampleAt(r.at);
     const beside = smoothstep(r.edgeGap / BESIDE_GAP);
     // On the real asphalt: the real line over the game's width, or (at the edge) right beside it.

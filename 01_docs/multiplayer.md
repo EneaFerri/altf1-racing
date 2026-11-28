@@ -441,6 +441,9 @@ room, any `GrandPrixRoom`), kept by `GameServer` beside the room's `Room` and dr
   [pitlane.md](pitlane.md).
 - **Reset**: when the last player leaves, the room and its Grand Prix are dropped; the next player
   in opens a new one, in the lobby. After a race, Play again starts a new one in the same room.
+- **Safety car** (R.3, online only): races over 10 laps, after a hard wall hit; the server's
+  `GrandPrix` is built with its room (`GrandPrixOptions.safetyCar`), `GrandPrixInfo.safetyCar`
+  drives its car in the `Predictor` too. Rules, delta and penalties: [safetycar.md](safetycar.md).
 
 The server offers a room for every mode of `ONLINE_MODES` on every circuit of `GP_TRACKS` (its
 `READY_MODES` list, used while the modes were being built, is gone now that all of them are). The

@@ -5,7 +5,7 @@ import { PIT_PARAMS } from '../config/pit';
 import { SLIPSTREAM_PARAMS } from '../config/slipstream';
 import { SURFACE_PARAMS } from '../config/surfaces';
 import { TYRE_PARAMS } from '../config/tyres';
-import { WET_PARAMS, type Weather } from '../config/weather';
+import { everWet, WET_PARAMS, type Forecast } from '../config/weather';
 import type { CarId } from '../sim/car';
 import type { SimContext } from '../sim/game';
 import { placePuddles } from '../sim/weather';
@@ -16,15 +16,15 @@ import type { Track } from '../track/types';
  * use exactly these parameters, or every prediction would be corrected. See
  * 01_docs/multiplayer.md#prediction-22. A Grand Prix's rules: `damage` (in qualifying and the race,
  * `damageInPhase`), and on its track with the pit lane the pit rules, with each driver's box
- * (`pitBoxes`, from the GP), and the weather its manager chose (`weather`: the rain makes the
- * track wet, with its puddles). Every other mode runs without: dry, no damage.
+ * (`pitBoxes`, from the GP), and the weather its manager chose (`forecast`: a wet track, with its
+ * puddles, as wet as it says when). Every other mode runs without: dry, no damage.
  */
 export function onlineSimContext(
   track: Track,
   rules: {
     readonly damage?: boolean;
     readonly pitBoxes?: Readonly<Record<CarId, number>>;
-    readonly weather?: Weather;
+    readonly forecast?: Forecast;
   } = {},
 ): SimContext {
   return {
@@ -38,8 +38,9 @@ export function onlineSimContext(
       pit: { params: PIT_PARAMS, boxes: rules.pitBoxes ?? {} },
       tyres: TYRE_PARAMS,
     }),
-    ...(rules.weather === 'rain' && {
-      weather: { params: WET_PARAMS, puddles: placePuddles(track) },
-    }),
+    ...(rules.forecast &&
+      everWet(rules.forecast) && {
+        weather: { params: WET_PARAMS, puddles: placePuddles(track), forecast: rules.forecast },
+      }),
   };
 }

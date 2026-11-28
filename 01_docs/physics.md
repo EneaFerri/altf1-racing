@@ -76,9 +76,11 @@ lateral on the next tick and grip pulls it back in line: a natural slip in turns
 
 - **Surface effect** (`sim/surface.ts`): before each `stepCar`, the four wheels' surfaces are averaged
   into `{ grip, traction, brake, drag, spinKick }` (`brake` is 1 on every dry surface; a wet track scales all but `spinKick`, [weather.md](weather.md#physics-w2)). Values and rules: [track.md](track.md#surfaces-configsurfacests--surface_params).
-- **Spin**: `spin = (spin + spinKick) · exp(−spinDamping · dt)`. It rotates the heading on top of
+- **Spin**: `spin = (spin + spinKick + powerSlide) · exp(−spinDamping · dt)`. It rotates the heading on top of
   steering; velocity is unchanged, so the car is knocked off-line and grip pulls it back. Impacts add
-  spin too, bounded and non-stacking: see [collisions.md](collisions.md).
+  spin too, bounded and non-stacking: see [collisions.md](collisions.md). `powerSlide` (2.8, a wet
+  track only, `slideFrom` in the surface effect): on the throttle past the tyres' cornering limit the
+  rear steps out, feeding itself into a spin ([weather.md](weather.md#variable-weather-rain-tyres-wet-handling-28)).
 - **Reset** (`InputCommand.reset`, R): handled in `stepGame`, not `stepCar` — the car is placed at
   the closest centreline point, facing the driving direction, at rest (`createCar` with the same id).
 

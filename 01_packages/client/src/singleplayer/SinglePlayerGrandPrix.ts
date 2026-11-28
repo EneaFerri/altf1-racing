@@ -17,6 +17,9 @@ import {
   TEAMS,
   teamBoxes,
   teamLineup,
+  TYRE_COMPOUNDS,
+  trackWetness,
+  yellowSectors,
   type BotLevel,
   type CarId,
   type CarParams,
@@ -32,6 +35,7 @@ import {
 import { KeyboardController } from '../controller/KeyboardController';
 import { GameLoop } from '../core/GameLoop';
 import { CustomLaps } from '../race/customLaps';
+import { raceControl } from '../race/raceControlText';
 import { chequeredFlag, grandPrixContent, lapName, type DriverLook } from '../race/grandPrixText';
 import {
   classificationRows,
@@ -43,6 +47,7 @@ import { CAMERA_PARAMS } from '../view/cameras/params';
 import { GrandPrixPanel, type PitBadge } from '../view/hud/GrandPrixPanel';
 import { Hud } from '../view/hud/Hud';
 import { Minimap } from '../view/hud/Minimap';
+import { RaceControlBoard } from '../view/hud/RaceControlBoard';
 import { ResultsScreen } from '../view/hud/ResultsScreen';
 import { StartLights } from '../view/hud/StartLights';
 import { rememberedNickname } from '../view/menu/NicknameScreen';
@@ -66,8 +71,8 @@ export class SinglePlayerGrandPrix {
   private readonly drivers: readonly DriverLook[];
   private readonly room: OfflineRoom;
   private readonly squad: BotSquad;
-  /** Each class's flying lap here (ticks), measured once. */
-  private readonly classLaps: ReadonlyMap<BotLevel, number>;
+  /** Each class's flying lap here (ticks), measured once per weather at qualifying. */
+  private readonly classLaps = new Map<string, ReadonlyMap<BotLevel, number>>();
   private readonly weather: Weather;
   private grandPrix!: GrandPrix;
   private info!: GrandPrixInfo;
@@ -84,6 +89,8 @@ export class SinglePlayerGrandPrix {
   private readonly panel = new GrandPrixPanel();
   private readonly lights = new StartLights();
   private readonly results = new ResultsScreen();
+  /** Race control, top right: the yellow flags (single player has no safety car). */
+  private readonly raceControl = new RaceControlBoard();
   /** Who is in the pit lane, as last shown (and a key to tell when it changes). */
   private pits: ReadonlyMap<CarId, PitBadge> = new Map();
   private pitsKey = '';
@@ -106,15 +113,7 @@ export class SinglePlayerGrandPrix {
     }
     const boxes = teamBoxes(this.seats);
     this.room = new OfflineRoom(definition, params, boxes);
-    this.room.setWeather(weather);
-    this.classLaps = new Map(
-      (['hard', 'medium'] as const).map((level) => [level, botLapTicks(this.room.sim, level)!]),
-    );
-    this.squad = new BotSquad(
-      this.room.track,
-      squadBots(this.seats),
-      this.room.sim.weather?.params,
-    );
+    this.squad = new BotSquad(this.room.track, squadBots(this.seats));
     this.prevState = this.room.state;
 
     this.view = new SceneView(
@@ -124,7 +123,6 @@ export class SinglePlayerGrandPrix {
       { ...CAMERA_PARAMS },
       theme,
     );
-    this.view.setWeather(weather);
     this.view.markPitBox(boxes[PLAYER_SEAT_ID]!);
     this.view.setNameTags(
       Object.fromEntries(
@@ -150,19 +148,34 @@ export class SinglePlayerGrandPrix {
     this.room.hold = null;
     this.grandPrix = new GrandPrix(this.room);
     this.grandPrix.add(PLAYER_SEAT_ID, this.seats.find((s) => s.kind === 'player')!.name);
+    // The weather first (a variable one draws its turn): the bots' qualifying is driven in it.
+    if (this.weather !== 'dry') this.command({ action: 'weather', weather: this.weather });
+    const laps = this.qualifyingLaps();
     for (const seat of this.seats) {
       if (seat.kind === 'player') continue;
-      const lap = this.classLaps.get(seat.kind)!;
+      const lap = laps.get(seat.kind)!;
       this.grandPrix.addSimulated(
         seat.id,
         seat.name,
         Math.round(lap * (1 + Math.random() * QUALIFYING_SPREAD)),
       );
     }
-    if (this.weather === 'rain') this.command({ action: 'weather', weather: 'rain' });
     this.squad.setRace(null);
     this.command({ action: 'start' });
     this.prevState = this.room.state;
+  }
+
+  /** Each class's flying lap in the weather qualifying is run in (measured once per weather). */
+  private qualifyingLaps(): ReadonlyMap<BotLevel, number> {
+    const key = JSON.stringify(this.room.forecast);
+    let laps = this.classLaps.get(key);
+    if (!laps) {
+      laps = new Map(
+        (['hard', 'medium'] as const).map((level) => [level, botLapTicks(this.room.sim, level)!]),
+      );
+      this.classLaps.set(key, laps);
+    }
+    return laps;
   }
 
   private bindKeys(): void {
@@ -177,13 +190,15 @@ export class SinglePlayerGrandPrix {
       this.controller.onAction(key, () => {
         if (phase() === 'grid')
           this.command({ action: 'startRace', laps: GRAND_PRIX.raceLaps[i]! });
-        // On track, stopped in the box: 1 softs, 2 mediums (ignored anywhere else).
-        else if ((phase() === 'qualifying' || phase() === 'race') && i < 2) {
-          this.controller.chooseCompound(i === 0 ? 'soft' : 'medium');
+        // On track, stopped in the box: 1 softs, 2 mediums, 3 intermediates (ignored elsewhere).
+        else if (phase() === 'qualifying' || phase() === 'race') {
+          this.controller.chooseCompound(TYRE_COMPOUNDS[i]!);
         }
       }),
     );
     this.controller.onAction('choice4', () => {
+      // On track, stopped in the box: 4 full wets.
+      if (phase() === 'qualifying' || phase() === 'race') this.controller.chooseCompound('wet');
       if (phase() !== 'grid') return;
       this.customLaps.open();
       this.show();
@@ -208,7 +223,8 @@ export class SinglePlayerGrandPrix {
 
   /** One fixed tick: the player's and the bots' inputs move the race, then the GP reads it. */
   private tick(): void {
-    const inputs = this.squad.inputs(this.room.state, this.room.held);
+    const { weather, tyres } = this.room.sim;
+    const inputs = this.squad.inputs(this.room.state, this.room.held, weather, tyres);
     inputs[PLAYER_SEAT_ID] = this.controller.sample();
     this.prevState = this.room.state;
     this.room.step(inputs);
@@ -226,6 +242,9 @@ export class SinglePlayerGrandPrix {
     this.hud.setSessionBests(this.info.sectorBests);
     this.hud.setLapName(lapName(this.info, PLAYER_SEAT_ID));
     this.view.showFlagMarshal(chequeredFlag(this.info));
+    const flags = this.info.yellowFlags ?? [];
+    this.view.setYellowFlags(flags);
+    this.minimap.setYellowSectors(yellowSectors(flags));
     if (phase === 'results' && before !== 'results') void this.showResults();
     this.show();
   }
@@ -237,10 +256,18 @@ export class SinglePlayerGrandPrix {
     this.view.follow(own ? PLAYER_SEAT_ID : (this.spectate(state) ?? PLAYER_SEAT_ID));
     this.hud.setVisible(own !== undefined);
     this.lights.update(lightsOn(state.tick, this.room.hold));
+    // The track as wet as the forecast says now (a variable GP's weather turns live).
+    this.view.setWetness(trackWetness(this.room.sim.weather, state.tick));
     this.showPits(state);
     this.view.setLookBack(this.controller.isHeld('lookBack'));
     this.view.render(this.prevState, state, alpha, frameSeconds);
     this.hud.update(state, PLAYER_SEAT_ID, performance.now());
+    this.raceControl.setVisible(!this.onResults);
+    const nameOf = (id: CarId): string => this.drivers.find((d) => d.id === id)?.name ?? id;
+    this.raceControl.update(
+      raceControl(this.info, PLAYER_SEAT_ID, null, state.tick, nameOf),
+      performance.now(),
+    );
     this.minimap.update(state.cars, PLAYER_SEAT_ID);
   }
 

@@ -1,13 +1,14 @@
 /// The simulation every machine of a Grand Prix runs (`net/simContext.ts`): damage in qualifying
-/// and the race, the pit rules with each driver's box, the chosen weather.
-public func onlineSimContext(_ track: Track, damage: Bool = false, pitBoxes: [CarId: Int] = [:], weather: Weather = .dry)
-    -> SimContext
-{
+/// and the race, the pit rules with each driver's box, the chosen weather (its forecast: a wet
+/// track, with its puddles, as wet as it says when).
+public func onlineSimContext(
+    _ track: Track, damage: Bool = false, pitBoxes: [CarId: Int] = [:], forecast: Forecast = dryForecast
+) -> SimContext {
     SimContext(
         track: track,
         damage: damage ? .baseline : nil,
         pit: track.routes.contains(where: \.pit) ? PitRules(boxes: pitBoxes) : nil,
-        weather: weather == .rain ? WetTrack(puddles: placePuddles(track)) : nil,
+        weather: everWet(forecast) ? WetTrack(puddles: placePuddles(track), forecast: forecast) : nil,
         tyres: track.routes.contains(where: \.pit) ? .baseline : nil)
 }
 
@@ -18,7 +19,8 @@ public final class OfflineRoom: GrandPrixRoom {
     public let track: Track
     public var hold: StartHold?
     public private(set) var state: GameState
-    public private(set) var weather = Weather.dry
+    /// How wet the track is when.
+    public private(set) var forecast = dryForecast
     /// What the simulation runs with now.
     public private(set) var sim: SimContext
     private var damage = false
@@ -45,15 +47,16 @@ public final class OfflineRoom: GrandPrixRoom {
     /// Single player's boxes are the teams': the Grand Prix's numbering is ignored.
     public func setPitBoxes(_ boxes: [CarId: Int]) {}
 
-    public func setWeather(_ weather: Weather) {
-        guard weather != self.weather else { return }
-        self.weather = weather
+    public func setWeather(_ forecast: Forecast) {
+        guard forecast != self.forecast else { return }
+        self.forecast = forecast
         sim = context()
     }
 
+    /// On a wet track the cars start on the tyres it asks for (`startingTyres`).
     public func restart(_ order: [CarId]) {
         let tick = state.tick
-        state = createGame(track, order)
+        state = createGame(track, order, tyres: startingTyres(sim.weather, sim.tyres, tick))
         state.tick = tick
     }
 
@@ -73,7 +76,7 @@ public final class OfflineRoom: GrandPrixRoom {
     }
 
     private func context() -> SimContext {
-        var context = onlineSimContext(track, damage: damage, pitBoxes: boxes, weather: weather)
+        var context = onlineSimContext(track, damage: damage, pitBoxes: boxes, forecast: forecast)
         context.carParamsById = carParamsById
         return context
     }

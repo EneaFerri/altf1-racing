@@ -110,6 +110,52 @@ public func damagedInput(_ input: InputCommand, _ damage: CarDamage, _ p: Damage
     return next
 }
 
+/// Which of a car's tyres are punctured (`puncturedTyres`, R.1), in the order of `carWheels`: each
+/// one damaged to `punctureDamage` (red), and, once its set is worn to `punctureWear`, the most
+/// damaged one too (on a tie the front left). Derived from the state alone.
+public func puncturedTyres(_ damage: CarDamage?, _ tyres: TyreState?, _ p: DamageParams) -> [Bool] {
+    let wheels = (damage ?? .none).tyres
+    var flat = wheels.map { $0 >= p.punctureDamage }
+    if let tyres, tyres.wear >= p.punctureWear {
+        var worst = 0
+        for i in wheels.indices where wheels[i] > wheels[worst] { worst = i }
+        flat[worst] = true
+    }
+    return flat
+}
+
+/// The car a punctured car drives: less grip and turning (its top speed: `limpSpeed`).
+public func puncturedParams(_ params: CarParams, _ punctures: [Bool], _ p: DamageParams) -> CarParams {
+    guard punctures.contains(true) else { return params }
+    var next = params
+    next.lateralGrip = params.lateralGrip * p.punctureGrip
+    next.maxYawRate = params.maxYawRate * p.punctureTurn
+    return next
+}
+
+/// `input` with a flat tyre's pull towards its side (right = +), within the steering range.
+public func puncturedInput(_ input: InputCommand, _ punctures: [Bool], _ p: DamageParams) -> InputCommand {
+    guard punctures.contains(true) else { return input }
+    let f = punctures.map { $0 ? 1.0 : 0.0 }
+    let pull = (f[1] + f[3] - f[0] - f[2]) * p.puncturePull
+    if pull == 0 { return input }
+    var next = input
+    next.steer = max(-1, min(1, input.steer + pull))
+    return next
+}
+
+/// `car` after moving on a flat tyre: faster than `punctureTopSpeed`, it loses `punctureDecel`
+/// m/s² until it is down to it.
+public func limpSpeed(_ car: CarState, _ punctures: [Bool], _ dt: Double, _ p: DamageParams) -> CarState {
+    guard punctures.contains(true) else { return car }
+    let speed = car.velocity.length
+    guard speed > p.punctureTopSpeed else { return car }
+    let slowed = max(p.punctureTopSpeed, speed - p.punctureDecel * dt)
+    var next = car
+    next.velocity = car.velocity * (slowed / speed)
+    return next
+}
+
 /// Every part limited to 1.
 private func capped(_ damage: CarDamage) -> CarDamage {
     CarDamage(

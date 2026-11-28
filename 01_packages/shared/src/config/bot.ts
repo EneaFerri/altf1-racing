@@ -106,3 +106,26 @@ export const BOT_DRIVER = {
   stuckSpeed: 2,
   stuckSeconds: 2,
 } as const;
+
+/**
+ * When single player's GP bots pit for other tyres as the weather turns (2.8, `wrongTyres`): the
+ * wetness their tyres no longer suit. Wider than `weatherCompound`'s choice, so a bot fresh out
+ * on the right tyres doesn't come straight back in.
+ */
+export const BOT_TYRE_SWITCH = {
+  /** Slicks: pit once the track is this wet. */
+  slickAbove: 0.3,
+  /** Intermediates: pit when the track is this wet (for full wets) … */
+  intermediateAbove: 0.75,
+  /** … or this dry (for slicks). */
+  intermediateBelow: 0.05,
+  /** Full wets: pit when the track is this dry (for intermediates). */
+  wetBelow: 0.4,
+} as const;
+
+/**
+ * Single player's GP bots on a wet track (2.8, `wetLift`): they lift off the throttle once their
+ * cornering load reaches this share of where the rear breaks loose (`slideFrom`), so they never
+ * spin themselves round.
+ */
+export const BOT_SLIDE_MARGIN = 0.9;

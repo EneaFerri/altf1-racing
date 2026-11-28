@@ -8,8 +8,9 @@ public enum KerbKind: String, Codable, Sendable {
     case none, low, high
 }
 
+/// What lies between the asphalt and the wall: a run-off area is paved (`runoffAreas`).
 public enum RunoffKind: String, Codable, Sendable {
-    case grass, gravel
+    case grass, gravel, asphalt
 }
 
 /// What a wheel can be on. Effects per surface live in `SurfaceTable`.
@@ -98,6 +99,17 @@ public struct TrackDefinition: Codable, Hashable, Sendable {
     public var kerbBand: KerbBand?
     /// Real circuits: the pit lane.
     public var pitLane: PitLaneDefinition?
+    /// Run-off wider than `runoffWidth` on one side: an escape area outside a corner (Baku's turn 16).
+    public var runoffAreas: [RunoffArea]?
+}
+
+/// `width` m more run-off on `side` from control point `fromPoint` to `toPoint`, eased in and out
+/// over `TrackRules.runoffAreaRamp` at its ends.
+public struct RunoffArea: Codable, Hashable, Sendable {
+    public var fromPoint: Int
+    public var toPoint: Int
+    public var side: TrackSide
+    public var width: Double
 }
 
 public struct TrackSample: Codable, Hashable, Sendable {
@@ -122,6 +134,8 @@ public struct TrackSample: Codable, Hashable, Sendable {
 public struct TrackSideInfo: Sendable {
     public var kerb: [KerbKind]
     public var runoff: [RunoffKind]
+    /// Run-off beyond `Track.runoffWidth` per sample (m): only with `runoffAreas`. See `runoffAt`.
+    public var extraRunoff: [Double]? = nil
 }
 
 /// Both sides of the track.
@@ -193,7 +207,10 @@ public struct Track: WallSet, Sendable {
     public var maxHalfWidth: Double
     /// True when its points have heights: only then does the slope act.
     public var elevated: Bool
+    /// Run-off all round (m); wider on one side in a run-off area (`runoffAt`).
     public var runoffWidth: Double
+    /// Widest run-off anywhere (m), for search radii: only with `runoffAreas`.
+    public var maxRunoffWidth: Double? = nil
     /// Kerb band across the edge (m).
     public var kerbInset: Double
     public var kerbOutset: Double

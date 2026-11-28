@@ -3,7 +3,7 @@ import { wrapAngle } from '../math/angle';
 import { SegmentGrid } from '../math/SegmentGrid';
 import { sampleClosedSpline } from '../math/spline';
 import { add, headingOf, normalize, right, scale, sub, type Vec2 } from '../math/vec2';
-import { locateOnLoop, routeProgress } from './query';
+import { locateOnLoop, routeProgress, runoffAt } from './query';
 import type {
   BranchSpan,
   KerbKind,
@@ -159,7 +159,14 @@ function compilePitLane(
   }
   const points = [...around, ...lane.points];
   const loop = compileLoop(
-    { ...def, points, highKerbs: [], sectorPoints: undefined, runoffWidth: 0 },
+    {
+      ...def,
+      points,
+      highKerbs: [],
+      sectorPoints: undefined,
+      runoffWidth: 0,
+      runoffAreas: undefined,
+    },
     route,
   );
   const span: BranchSpan = {
@@ -227,7 +234,8 @@ function outlineWalls(main: Track, routes: readonly Track[]): WallSegment[] {
   const inside = (road: Track, p: Vec2): boolean => {
     const loc = locateOnLoop(road, p);
     if (!onBranch(road, loc.distance)) return false;
-    return Math.abs(loc.lateral) < loc.halfWidth + road.runoffWidth - 0.01;
+    const side = loc.lateral >= 0 ? 'right' : 'left';
+    return Math.abs(loc.lateral) < loc.halfWidth + runoffAt(road, side, loc.index) - 0.01;
   };
   const walls: WallSegment[] = [];
   roads.forEach(({ track, branchOnly }, r) => {
@@ -332,9 +340,16 @@ function compileLoop(def: TrackDefinition, route: number): Loop {
     }
   }
 
+  const extra = extraRunoff(def, samples, controlIndices, length);
+  // A run-off area is paved, as the real escape areas are.
+  for (const side of ['left', 'right'] as const) {
+    extra?.[side].forEach((w, i) => {
+      if (w > 0) runoff[side][i] = 'asphalt';
+    });
+  }
   const walls = [
-    ...buildWall(samples, def, 'left', route),
-    ...buildWall(samples, def, 'right', route),
+    ...buildWall(samples, def, 'left', route, extra?.left),
+    ...buildWall(samples, def, 'right', route, extra?.right),
   ];
   const centerSegments = samples.map((s, i) => [s.position, at(samples, i + 1).position] as const);
 
@@ -343,14 +358,21 @@ function compileLoop(def: TrackDefinition, route: number): Loop {
     maxHalfWidth: Math.max(...samples.map((s) => s.halfWidth)),
     elevated: def.points.some((p) => p.height !== undefined),
     runoffWidth: def.runoffWidth,
+    ...(extra && {
+      maxRunoffWidth: def.runoffWidth + Math.max(...extra.left, ...extra.right),
+    }),
     kerbInset: def.kerbBand?.inset ?? rules.kerbInset,
     kerbOutset: def.kerbBand?.outset ?? rules.kerbOutset,
     length,
     sectorStarts: sectorStarts(def, samples, controlIndices, length),
     samples,
     sides: {
-      left: { kerb: kerb.left, runoff: runoff.left },
-      right: { kerb: kerb.right, runoff: runoff.right },
+      left: { kerb: kerb.left, runoff: runoff.left, ...(extra && { extraRunoff: extra.left }) },
+      right: {
+        kerb: kerb.right,
+        runoff: runoff.right,
+        ...(extra && { extraRunoff: extra.right }),
+      },
     },
     walls,
     centerGrid: new SegmentGrid(centerSegments),
@@ -411,10 +433,11 @@ function buildWall(
   def: TrackDefinition,
   side: TrackSide,
   route: number,
+  extra?: readonly number[],
 ): WallSegment[] {
   const sign = side === 'right' ? 1 : -1;
-  const points = samples.map((s) =>
-    add(s.position, scale(s.normal, sign * (s.halfWidth + def.runoffWidth))),
+  const points = samples.map((s, i) =>
+    add(s.position, scale(s.normal, sign * (s.halfWidth + def.runoffWidth + (extra?.[i] ?? 0)))),
   );
   return points.map((a, i) => {
     const b = points[(i + 1) % points.length]!;
@@ -429,4 +452,36 @@ function buildWall(
       progress: samples[i]!.distance,
     };
   });
+}
+
+/**
+ * Each side's run-off beyond `runoffWidth` per sample, from `def.runoffAreas` (null without any):
+ * each area's `width` from its first control point to its last, eased in and out (smoothstep)
+ * over TRACK_RULES.runoffAreaRamp inside its ends.
+ */
+function extraRunoff(
+  def: TrackDefinition,
+  samples: readonly TrackSample[],
+  controlIndices: readonly number[],
+  length: number,
+): Record<TrackSide, number[]> | null {
+  if (!def.runoffAreas?.length) return null;
+  const n = samples.length;
+  const extra: Record<TrackSide, number[]> = { left: Array(n).fill(0), right: Array(n).fill(0) };
+  const ramp = TRACK_RULES.runoffAreaRamp;
+  for (const area of def.runoffAreas) {
+    const from = controlIndices[area.fromPoint]!;
+    const span = (controlIndices[area.toPoint]! - from + n) % n;
+    /** Metres along the area from its start to sample `i` (over the line if it must). */
+    const along = (i: number): number =>
+      (samples[i]!.distance - samples[from]!.distance + length) % length;
+    const total = along((from + span) % n);
+    for (let k = 0; k <= span; k++) {
+      const i = (from + k) % n;
+      const m = along(i);
+      const f = Math.min(1, Math.min(m, total - m) / ramp);
+      extra[area.side][i] = Math.max(extra[area.side][i]!, area.width * f * f * (3 - 2 * f));
+    }
+  }
+  return extra;
 }
